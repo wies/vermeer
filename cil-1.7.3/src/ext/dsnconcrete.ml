@@ -407,7 +407,7 @@ let dsnconcrete (f: file) : unit =
     | GFun (fdec, loc) ->
         currentFunc := fdec.svar.vname;
         (* do the body *)
-        ignore (visitCilFunction dsnVisitor fdec);
+        ignore (visitCilFunction dsnconcreteVisitor fdec);
 	
         (* Now add the entry instruction *)
         let pre = if !currentFunc = "main" then 
@@ -511,11 +511,11 @@ let dsnconcrete (f: file) : unit =
   end  
 
 let feature : featureDescr = 
-  { fd_name = "dsncocrete";
-    fd_enabled = Cilutil.dsnconcreteCalls;
+  { fd_name = "dsnconcrete";
+    fd_enabled = Cilutil.dsnConcrete;
     fd_description = "generation of code to log function calls";
     fd_extraopt = [];
-    fd_doit = dsn;
+    fd_doit = dsnconcrete;
     fd_post_check = true
   } 
 
