@@ -1,3 +1,7 @@
+(* TODOS
+ * remove the scope stuff
+ * fix how indents work
+ *)
 (** See copyright notice at the end of this file *)
 
 (** Add printf before each function call *)
@@ -14,22 +18,13 @@ module H = Hashtbl
 
 let printIndent = true
 let indentSpaces = 2
+let memPrefix = "_dsn_mem"
 
 (* for future reference, how to add spaces in printf *)
 
 (* we have a format string, and a list of expressions for the printf*)
 type logStatement = string * exp list
 
-
-let scopeVar = makeGlobalVar "__scope_level__" Cil.uintType
-let scopeLval =  (Var(scopeVar),NoOffset)
-let scopeLvalExpr = Lval(scopeLval)
-let currentScopeExpr = scopeLvalExpr
-let currentIndentExpr = BinOp(Mult,currentScopeExpr,Cil.integer(indentSpaces),Cil.uintType)
-let prevScopeExpr = BinOp(MinusA,currentScopeExpr,one,Cil.uintType)
-
-let incrScope = Set(scopeLval, (increm scopeLvalExpr (1)), locUnknown)
-let decrScope = Set(scopeLval, (increm scopeLvalExpr (-1)), locUnknown)
 
 (* Switches *)
 let printFunctionName = ref "printf"
@@ -63,18 +58,12 @@ let makePrintfFunction () : varinfo =
 
 let mkPrintNoLoc (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
-  let format = if printIndent then  "%*s" ^ format else format in
-  let args = if printIndent then currentIndentExpr :: mkString "" :: args 
-  else args in  
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
 let mkPrint (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
-  let format = if printIndent then  "%*s" ^ format else format in
   let format = "%s\n" ^ format in
   let locArg = mkString (lineStr !currentLoc)  in
-  let args = if printIndent then currentIndentExpr :: mkString "" :: args 
-  else args in  
   let args = locArg :: args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
@@ -100,6 +89,52 @@ and isLocalVarExp (e: exp) = match e with
 
 let needsScopeId (e: exp) = isLocalVarExp e
 
+let needsMemModelVarinfo (v : varinfo) = v.vaddrof
+
+let needsMemModelLval (l : lval) = 
+  match l with 
+  | (host,off) -> begin 
+      match host with 
+      | Var(vinfo) -> needsMemModelVarinfo vinfo 
+      | Mem(e) -> true
+  end
+
+(* DSN to finish *)
+(* what happens if it is a pointer *)
+let needsMemModel (e: exp) = 
+  match e with 
+  | Lval(l) -> needsMemModelLval(l)
+  | _ -> false
+
+(* Either create a reference to the stack variable
+ * or the mem_0x1234 if that is needed 
+ *)
+
+let mkAddress (e : exp) : exp = 
+  match e with
+  | Lval(l) -> mkAddrOrStartOf l
+  | _ -> raise (Failure "expected an Lval here")
+
+let d_mem_exp (arg : exp) : logStatement =
+  if (needsMemModel arg) then ( memPrefix ^ "_%p", [mkAddress arg] )
+  else (d_string "%a" d_exp arg,[])
+
+let d_mem_lval (arg : lval) : logStatement = 
+  if (needsMemModelLval arg) then (  memPrefix ^ "_%p", [mkAddrOrStartOf arg])
+  else (d_string "%a" d_lval arg,[])
+
+let d_addr_exp (arg : exp ) : logStatement = 
+  if (needsMemModel arg) then 
+    match arg with 
+    | Lval(host,off) -> 
+	begin match host with
+	| Var(vinfo) ->  (d_string "(%a == %%p)" d_exp (mkAddress arg), [mkAddress arg])
+	| Mem(e) -> (d_string "(%a == %%p)" d_exp (arg), [mkAddress arg])
+	end
+    | _ -> raise (Failure "not possible")
+  else raise (Failure "trying to print an unneeded address expression")
+
+
 (* generate both a pre and a post part because we might have int a[2][3] *)
 let rec mkTypeStr (t: typ) : (string * string) = 
   match t with 
@@ -113,18 +148,28 @@ let rec mkTypeStr (t: typ) : (string * string) =
       (lhsStr, "[" ^ e_str ^ "]" ^ rhsStr)
   | _ -> let typeStr = d_string "%a" d_type t in (typeStr,"")
 
-
-
+(* I think there are a few cases we need to consider here
+ * local variables
+ * arrays
+ * structures - or other larger than word sized things
+ * pointers to simple memory
+ * DSN TODO consider the harder cases at some point
+ *) 
 let mkVarDecl (v : varinfo) : instr = 
   let(lhsStr,rhsStr) = mkTypeStr v.vtype in
-  mkPrintNoLoc "%s %s__%d%s;\n" 
-    [ mkString lhsStr; 
-      mkString v.vname; 
-      scopeLvalExpr;
-      mkString rhsStr
-    ]
+  if(needsMemModelVarinfo v) then
+    mkPrintNoLoc "//%s %s%s;\n" 
+      [ mkString lhsStr; 
+	mkString v.vname; 
+	mkString rhsStr
+      ]
+  else
+    mkPrintNoLoc "%s %s%s;\n" 
+      [ mkString lhsStr; 
+	mkString v.vname; 
+	mkString rhsStr
+      ]
      
-
 let rec declareAllVars (slocals : varinfo list) : instr list = 
   match slocals with
   | x :: xs -> (mkVarDecl x) :: (declareAllVars xs)
@@ -135,78 +180,7 @@ let declareAllVarsStmt (slocals : varinfo list) : stmt list =
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
   compactStmts stmts
 
-
-
-let d_outerScope_exp (arg : exp) : logStatement =
-  if (isLocalVarExp arg) then (d_string "%a__%%u" d_exp arg, [prevScopeExpr] )
-  else (d_string "%a" d_exp arg,[])
-
-(* two ways we might need a current scope expression here
- * the first is that we are directly a variable
- * the second is that it is a memory access
- *)
-let d_scope_lval (arg : lval) : logStatement = 
-  if (isLocalVarLval arg) then (d_string "%a__%%u" d_lval arg, [currentScopeExpr] )
-  else (d_string "%a" d_lval arg,[])
-
-let d_outerScope_lval (arg : lval) : logStatement = 
-  if (isLocalVarLval arg) then (d_string "%a__%%u" d_lval arg, [prevScopeExpr] )
-  else (d_string "%a" d_lval arg,[])
-
-
-(* print an expression *)
-(* DSN TODO - do I need to consider AddrOf and StartOF *)
-(* DSN TODO - do I need to worry about special characters like %? *)
-(* I think I can get away with not using brackets around everything.  But 
- * I can put them in to be sure if needed later *)
-(* cil.ml does something weird     
- *  | SizeOfE (Lval (Var fv, NoOffset)) when fv.vname = 
- *  "__builtin_va_arg_pack" && (not !printCilAsIs) -> 
- *  text "__builtin_va_arg_pack()"
- *)
-let rec d_scope_exp (arg :exp) : logStatement = 
-   match arg with 
-  | CastE(t,e) -> 
-      let (str,arg) = d_scope_exp e in
-      (d_string "(%a)(%s)" d_type t str,arg)
-  | SizeOfE(e) -> 
-      let (str,arg) = d_scope_exp e in
-      (d_string "sizeof(%s) " str ,arg)
-  | AlignOfE(e) ->
-      let (str,arg) = d_scope_exp e in
-      (d_string "__alignof__(%s)" str,arg)
-  | UnOp(o,e,_) ->
-      let opStr = d_string "%a " d_unop o in
-      let (str,arg) = d_scope_exp e in
-      (opStr ^ "(" ^ str ^ ")",arg)
-  | BinOp(o,l,r,_) ->  
-      let (lhsStr,lhsArg) = d_scope_exp l in
-      let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = d_scope_exp r in
-      ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
-  | AddrOf(l) -> let (lhsStr,lhsArg) = d_scope_lval l in
-    ("&"^lhsStr, lhsArg)
-  | StartOf(l) -> d_scope_lval l
-  | _ -> 
-      if (needsScopeId arg) then (d_string "%a__%%u" d_exp arg, [currentScopeExpr] )
-      else (d_string "%a" d_exp arg,[])
-
-	  
-let mkReturnTemp : logStatement = ("__return__%u",[currentScopeExpr])
-
 (* DSN perhaps there should be a common make print assgt function *)
-
-
-let mkSaveReturn lo : instr list = 
-  match lo with 
-  | Some (lv) ->
-      let (lhsStr,lhsArg) = d_outerScope_lval lv in
-      let (rhsStr,rhsArg) = mkReturnTemp in
-      let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
-      let printArgs = lhsArg @ rhsArg in
-      let printCall = mkPrint printStr printArgs in
-      [printCall]
-  | None -> []
 
 
 (*DSN have to handle function pointers *)
@@ -221,31 +195,13 @@ let getFormals e : (string * typ * attributes) list =
   | _ -> raise (Failure "Not a function")
 	
 
-let mkArgAssgt  (argName,argType,argAttr) (actual : exp) = 
-  let typeStr = d_string "%a " d_type argType in
-  let lhsStr = argName ^ "__%u" in
-  let lhsArgs = [currentScopeExpr] in
-  let (rhsStr,rhsArgs) = d_outerScope_exp actual in
-  let printStr = typeStr ^ lhsStr ^ " = " ^ rhsStr ^ ";\n" in
-  let printArgs = lhsArgs @ rhsArgs in
-  mkPrint printStr printArgs
-
-let rec mkArgAssgtList 
-    (formal : (string * typ * attributes) list) 
-    (actual : exp list) 
-    : instr list = 
-  match formal,actual with 
-  | [], [] -> []
-  | (x::xs),(y::ys) ->  (mkArgAssgt x y)::(mkArgAssgtList xs ys)
-  | _ -> raise (Failure "lists are different lengths")
-
 (* DSN need a better name here *)
 let rec mkActualArg (al : exp list) : logStatement = 
   match al with
   | [] -> ("",[])
-  | x::[] -> d_scope_exp x
+  | x::[] -> d_mem_exp x
   | x::xs -> 
-      let (thisStr,thisArg) = d_scope_exp x in
+      let (thisStr,thisArg) = d_mem_exp x in
       let (restStr,restArgs) = mkActualArg xs in
       (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
 
@@ -296,13 +252,6 @@ let i = ref 0
 let name = ref ""
 
 
-let makeScopeOpen = [ mkPrintNoLoc "{\n" []; 
-		      incrScope		    
-		    ]
-
-let makeScopeClose = [decrScope; mkPrintNoLoc "}\n" []]
-
-
 let currentFunc: string ref = ref ""
 
 class dsnconcreteVisitorClass = object
@@ -321,53 +270,38 @@ class dsnconcreteVisitorClass = object
   method vinst i = begin
     match i with
       Set(lv, e, l) -> 
-	let (lhsStr,lhsArg) = d_scope_lval lv in
+	let typStr = "/* " 
+	  ^ (d_string "%a" d_type (typeOfLval lv)) 
+	  ^ "*/ " in
+	let (lhsStr,lhsArg) = d_mem_lval lv in
 (* assume that we only have reduced expressions at this point!  Should maybe put an assert
 of that here? *)
 (* DSN Does anything go weird if we have function pointers *)
-	let (rhsStr,rhsArg) = d_scope_exp e in
-	let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
+	let (rhsStr,rhsArg) = d_mem_exp e in
+	let printStr = typStr ^ lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	let printArgs = lhsArg @ rhsArg in
 	let printCall = mkPrint printStr printArgs in
 	let newInstrs =  printCall :: [i] in
 	ChangeTo newInstrs
     | Call(lo,e,al,l) ->
-	if (isDefinedFn e) then 
-	  let formals = getFormals e in
-	  let assgts = mkArgAssgtList formals al  in
-	  let logFnName = [(mkPrint (d_string "//Calling %a\n" d_exp e)) []] in
-	  let saveReturn = mkSaveReturn lo in 
-	  let newInstrs =  
-	    makeScopeOpen @ logFnName 
-	    @ assgts @ [i] @ saveReturn @ makeScopeClose in 
-	  ChangeTo newInstrs
-	else
-	  let (lhsStr,lhsArg) = 
-	    match lo with
-	    | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
-	    | None -> ("",[])
-	  in
-	  let fnName = d_string "%a" d_exp e in
-	  let (argsStr, argsArgs) = mkActualArg al in
-	  let callStr = lhsStr ^ fnName ^ "(" ^ argsStr ^ ");\n" in
-	  let callArgs = lhsArg @ argsArgs in
-	  let printCall = mkPrint callStr callArgs in
-	  ChangeTo [ printCall; i] 
+(* The only calls that can occur in a reduced format are to functions
+ * where we do not have the implementation.  So just store the final value
+ *) 
+	let (lhsStr,lhsArg) = 
+	  match lo with
+	  | Some(lv) -> let (s,a) = d_mem_lval lv in (s ^ " = ",a)
+	  | None -> ("",[])
+	in
+	let fnName = d_string "%a" d_exp e in
+	let (argsStr, argsArgs) = mkActualArg al in
+	let callStr = lhsStr ^ fnName ^ "(" ^ argsStr ^ ");\n" in
+	let callArgs = lhsArg @ argsArgs in
+	let printCall = mkPrint callStr callArgs in
+	ChangeTo [ printCall; i] 
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
     match s.skind with
-      Return(Some e, loc) -> 
-        let pre = mkPrint (d_string "//exiting %s\n" !currentFunc) [] in
-	let typeStr = d_string "%a " d_type (typeOf e) in
-	let (lhsStr,lhsArg) = mkReturnTemp in
-	let (rhsStr,rhsArg) = d_scope_exp e in
-	let printStr = typeStr ^ lhsStr ^  " = " ^ rhsStr ^ ";\n" in
-	let printArgs = lhsArg @ rhsArg in
-	let printCall = mkPrint printStr printArgs in
-	let printStmt = mkStmtOneInstr printCall in
-	let preStmt = mkStmtOneInstr pre in
-        ChangeTo (mkStmt (Block (mkBlock [ preStmt; printStmt ; s ])))
     | _ -> DoChildren
 
 (* hiding this for now
@@ -506,7 +440,6 @@ let dsnconcrete (f: file) : unit =
     E.log "Adding prototype for call logging function %s\n" p.vname;
     f.globals <- 
       GVarDecl (p, locUnknown) ::
-      GVarDecl (scopeVar, locUnknown) :: 
       f.globals
   end  
 

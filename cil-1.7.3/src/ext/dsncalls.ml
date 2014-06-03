@@ -212,13 +212,16 @@ let mkSaveReturn lo : instr list =
 (*DSN have to handle function pointers *)
 let getFunctionVinfo e = match e with 
 | Lval(Var(vinfo),_) -> vinfo
-|_ -> raise (Failure "Not even an Lval.  Did you use function pointers?")
+|_ -> raise (Failure ("Not even an Lval.  Did you use function pointers?" ^ 
+		      sprint 800 (d_thisloc ())))
       
 let getFormals e : (string * typ * attributes) list = 
   let vinfo = getFunctionVinfo e in 
   match vinfo.vtype with 
   | TFun(rtyp,args,varargs,attr) -> argsToList args
-  | _ -> raise (Failure "Not a function")
+  | _ -> raise (Failure ("Not a function. " ^
+			 sprint 800 (d_thisloc ())))
+
 	
 
 let mkArgAssgt  (argName,argType,argAttr) (actual : exp) = 
@@ -237,7 +240,8 @@ let rec mkArgAssgtList
   match formal,actual with 
   | [], [] -> []
   | (x::xs),(y::ys) ->  (mkArgAssgt x y)::(mkArgAssgtList xs ys)
-  | _ -> raise (Failure "lists are different lengths")
+  | _ -> raise (Failure ("lists are different lengths. " ^ 
+		      sprint 800 (d_thisloc ())))
 
 (* DSN need a better name here *)
 let rec mkActualArg (al : exp list) : logStatement = 
