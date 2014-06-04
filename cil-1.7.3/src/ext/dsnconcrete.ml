@@ -110,19 +110,82 @@ let needsMemModel (e: exp) =
  * or the mem_0x1234 if that is needed 
  *)
 
+(*DSN is it ok to use NoOffset here *)
+let mkAddressVarinfo (v : varinfo) : exp = 
+  let lv = (Var(v),NoOffset) in
+  mkAddrOrStartOf lv
+
 let mkAddress (e : exp) : exp = 
   match e with
   | Lval(l) -> mkAddrOrStartOf l
   | _ -> raise (Failure "expected an Lval here")
 
-let d_mem_exp (arg : exp) : logStatement =
-  if (needsMemModel arg) then ( memPrefix ^ "_%p", [mkAddress arg] )
-  else (d_string "%a" d_exp arg,[])
+(* Returns true if the given lvalue offset ends in a bitfield access. *) 
+let rec is_bitfield lo = match lo with
+  | NoOffset -> false
+  | Field(fi,NoOffset) -> not (fi.fbitfield = None)
+  | Field(_,lo) -> is_bitfield lo
+  | Index(_,lo) -> is_bitfield lo 
+
+(* Return an expression that evaluates to the address of the given lvalue.
+ * For most lvalues, this is merely AddrOf(lv). However, for bitfields
+ * we do some offset gymnastics. 
+ *)
+let addr_of_lv (lh,lo) = 
+  if is_bitfield lo then begin
+    (* we figure out what the address would be without the final bitfield
+     * access, and then we add in the offset of the bitfield from the
+     * beginning of its enclosing comp *) 
+    let rec split_offset_and_bitfield lo = match lo with 
+      | NoOffset -> failwith "logwrites: impossible" 
+      | Field(fi,NoOffset) -> (NoOffset,fi)
+      | Field(e,lo) ->  let a,b = split_offset_and_bitfield lo in 
+                        ((Field(e,a)),b)
+      | Index(e,lo) ->  let a,b = split_offset_and_bitfield lo in
+                        ((Index(e,a)),b)
+    in 
+    let new_lv_offset, bf = split_offset_and_bitfield lo in
+    let new_lv = (lh, new_lv_offset) in 
+    let enclosing_type = TComp(bf.fcomp, []) in 
+    let bits_offset, bits_width = 
+      bitsOffset enclosing_type (Field(bf,NoOffset)) in
+    let bytes_offset = bits_offset / 8 in 
+    let lvPtr = mkCast ~e:(mkAddrOf (new_lv)) ~newt:(charPtrType) in
+    (BinOp(PlusPI, lvPtr, (integer bytes_offset), ulongType))
+  end else (AddrOf (lh,lo)) 
+
+
 
 let d_mem_lval (arg : lval) : logStatement = 
   if (needsMemModelLval arg) then (  memPrefix ^ "_%p", [mkAddrOrStartOf arg])
   else (d_string "%a" d_lval arg,[])
 
+let rec d_mem_exp (arg :exp) : logStatement = 
+  match arg with 
+  | CastE(t,e) -> 
+      let (str,arg) = d_mem_exp e in
+      (d_string "(%a)(%s)" d_type t str,arg)
+  | SizeOfE(e) -> 
+      let (str,arg) = d_mem_exp e in
+      (d_string "sizeof(%s) " str ,arg)
+  | AlignOfE(e) ->
+      let (str,arg) = d_mem_exp e in
+      (d_string "__alignof__(%s)" str,arg)
+  | UnOp(o,e,_) ->
+      let opStr = d_string "%a " d_unop o in
+      let (str,arg) = d_mem_exp e in
+      (opStr ^ "(" ^ str ^ ")",arg)
+  | BinOp(o,l,r,_) ->  
+      let (lhsStr,lhsArg) = d_mem_exp l in
+      let opStr = d_string " %a " d_binop o in
+      let (rhsStr,rhsArg) = d_mem_exp r in
+      ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
+  | AddrOf(l) -> ("%p",[addr_of_lv l])
+  | StartOf(l) -> ("%p",[addr_of_lv l])  
+  | _ -> 
+      if (needsMemModel arg) then ( memPrefix ^ "_%p", [mkAddress arg] )
+      else (d_string "%a" d_exp arg,[])
+	  
 let d_addr_exp (arg : exp ) : logStatement = 
   if (needsMemModel arg) then 
     match arg with 
@@ -158,10 +221,11 @@ let rec mkTypeStr (t: typ) : (string * string) =
 let mkVarDecl (v : varinfo) : instr = 
   let(lhsStr,rhsStr) = mkTypeStr v.vtype in
   if(needsMemModelVarinfo v) then
-    mkPrintNoLoc "//%s %s%s;\n" 
+    mkPrintNoLoc "//%s %s%s %p;\n" 
       [ mkString lhsStr; 
 	mkString v.vname; 
-	mkString rhsStr
+	mkString rhsStr;
+	mkAddressVarinfo v
       ]
   else
     mkPrintNoLoc "%s %s%s;\n" 
@@ -207,40 +271,6 @@ let rec mkActualArg (al : exp list) : logStatement =
 
 
 
-(* Returns true if the given lvalue offset ends in a bitfield access. *) 
-let rec is_bitfield lo = match lo with
-  | NoOffset -> false
-  | Field(fi,NoOffset) -> not (fi.fbitfield = None)
-  | Field(_,lo) -> is_bitfield lo
-  | Index(_,lo) -> is_bitfield lo 
-
-(* Return an expression that evaluates to the address of the given lvalue.
- * For most lvalues, this is merely AddrOf(lv). However, for bitfields
- * we do some offset gymnastics. 
- *)
-let addr_of_lv (lh,lo) = 
-  if is_bitfield lo then begin
-    (* we figure out what the address would be without the final bitfield
-     * access, and then we add in the offset of the bitfield from the
-     * beginning of its enclosing comp *) 
-    let rec split_offset_and_bitfield lo = match lo with 
-      | NoOffset -> failwith "logwrites: impossible" 
-      | Field(fi,NoOffset) -> (NoOffset,fi)
-      | Field(e,lo) ->  let a,b = split_offset_and_bitfield lo in 
-                        ((Field(e,a)),b)
-      | Index(e,lo) ->  let a,b = split_offset_and_bitfield lo in
-                        ((Index(e,a)),b)
-    in 
-    let new_lv_offset, bf = split_offset_and_bitfield lo in
-    let new_lv = (lh, new_lv_offset) in 
-    let enclosing_type = TComp(bf.fcomp, []) in 
-    let bits_offset, bits_width = 
-      bitsOffset enclosing_type (Field(bf,NoOffset)) in
-    let bytes_offset = bits_offset / 8 in 
-    let lvPtr = mkCast ~e:(mkAddrOf (new_lv)) ~newt:(charPtrType) in
-    (BinOp(PlusPI, lvPtr, (integer bytes_offset), ulongType))
-  end else (AddrOf (lh,lo)) 
-
 
 let isDefinedFn e =
   let vinfo = getFunctionVinfo e in
@@ -260,8 +290,7 @@ class dsnconcreteVisitorClass = object
   val printfFun =   
     let fdec = emptyFunction "printf" in
     fdec.svar.vtype <- TFun(intType, 
-                            Some [
-                                   ("format", charConstPtrType, []) ], 
+                            Some [("format", charConstPtrType, []) ], 
                             true, []);
     fdec
 
@@ -303,33 +332,10 @@ of that here? *)
   method vstmt (s : stmt) = begin
     match s.skind with
     | _ -> DoChildren
-
-(* hiding this for now
-(Some(e),l) ->
-      let str = prefix ^ Pretty.sprint 800 ( Pretty.dprintf
-        "Return(%%p) from %s\n" funstr ) in
-      let newinst = ((Call (None, Lval(var printfFun.svar),
-                                ( [ (* one ; *) mkString str ; e ]),
-                                locUnknown)) : instr )in
-      let new_stmt = mkStmtOneInstr newinst in
-      let slist = [ new_stmt ; s ] in
-      (ChangeTo(mkStmt(Block(mkBlock slist))))
-    | Return(None,l) ->
-      let str = prefix ^ (Pretty.sprint 800 ( Pretty.dprintf
-        "Return void from %s\n" funstr)) in
-      let newinst = ((Call (None, Lval(var printfFun.svar),
-                                ( [ mkString str ]),
-                                locUnknown)) : instr )in
-      let new_stmt = mkStmtOneInstr newinst in
-      let slist = [ new_stmt ; s ] in
-      (ChangeTo(mkStmt(Block(mkBlock slist))))
-    | _ -> DoChildren
-*)
   end
 end
 
 let dsnconcreteVisitor = new dsnconcreteVisitorClass
-
 
 let dsnconcrete (f: file) : unit =
 
@@ -349,89 +355,11 @@ let dsnconcrete (f: file) : unit =
 	else 
 	  [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])] 
 	in 
-	
         fdec.sbody <- 
           mkBlock (compactStmts (pre @ 
 				 (declareAllVarsStmt fdec.slocals) @
 				 [mkStmt (Block fdec.sbody) ]
 				   ))
-(*
-	(* debugging 'anagram', it's really nice to be able to see the strings *)
-	(* inside fat pointers, even if it's a bit of a hassle and a hack here *)
-	let isFatCharPtr (cinfo:compinfo) =
-	  cinfo.cname="wildp_char" ||
-	  cinfo.cname="fseqp_char" ||
-	  cinfo.cname="seqp_char" in
-
-        (* Collect expressions that denote the actual arguments *)
-        let actargs =
-          (* make lvals out of args which pass test below *)
-          (Util.list_map
-            (fun vi -> match unrollType vi.vtype with
-              | TComp(cinfo, _) when isFatCharPtr(cinfo) ->
-                  (* access the _p field for these *)
-                  (* luckily it's called "_p" in all three fat pointer variants *)
-                  Lval(Var(vi), Field(getCompField cinfo "_p", NoOffset))
-              | _ ->
-                  Lval(var vi))
-
-            (* decide which args to pass *)
-            (List.filter
-              (fun vi -> match unrollType vi.vtype with
-                | TPtr(TInt(k, _), _) when isCharType(k) ->
-                    !printPtrs || !printStrings
-                | TComp(cinfo, _) when isFatCharPtr(cinfo) ->
-                    !printStrings
-                | TVoid _ | TComp _ -> false
-                | TPtr _ | TArray _ | TFun _ -> !printPtrs
-                | _ -> true)
-              fdec.sformals)
-          ) in
-
-        (* make a format string for printing them *)
-        (* sm: expanded width to 200 because I want one per line *)
-        let formatstr = prefix ^ (Pretty.sprint 200
-          (dprintf "entering %s(%a)\n" fdec.svar.vname
-            (docList ~sep:(chr ',' ++ break)
-              (fun vi -> match unrollType vi.vtype with
-              | TInt _ | TEnum _ -> dprintf "%s = %%d" vi.vname
-              | TFloat _ -> dprintf "%s = %%g" vi.vname
-              | TVoid _ -> dprintf "%s = (void)" vi.vname
-              | TComp(cinfo, _) -> (
-                  if !printStrings && isFatCharPtr(cinfo) then
-                    dprintf "%s = \"%%s\"" vi.vname
-                  else
-                    dprintf "%s = (comp)" vi.vname
-                )
-              | TPtr(TInt(k, _), _) when isCharType(k) -> (
-                  if (!printStrings) then
-                    dprintf "%s = \"%%s\"" vi.vname
-                  else if (!printPtrs) then
-                    dprintf "%s = %%p" vi.vname
-                  else
-                    dprintf "%s = (str)" vi.vname
-                )
-              | TPtr _ | TArray _ | TFun _ -> (
-                  if (!printPtrs) then
-                    dprintf "%s = %%p" vi.vname
-                  else
-                    dprintf "%s = (ptr)" vi.vname
-                )
-              | _ -> dprintf "%s = (?type?)" vi.vname))
-            fdec.sformals)) in
-
-        i := 0 ;
-        name := fdec.svar.vname ;
-        if !allInsts then (
-          let thisVisitor = new verboseLogVisitor printfFun !name prefix in
-          fdec.sbody <- visitCilBlock thisVisitor fdec.sbody
-        );
-        fdec.sbody.bstmts <-
-              mkStmt (Instr [Call (None, Lval(var printfFun.svar),
-                                ( (* one :: *) mkString formatstr 
-                                   :: actargs),
-                                loc)]) :: fdec.sbody.bstmts
- *)
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;

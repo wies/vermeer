@@ -78,6 +78,14 @@ let mkPrint (format: string) (args: exp list) : instr =
   let args = locArg :: args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
+let mkPrintNoIdent (format: string) (args: exp list) : instr = 
+  let p: varinfo = makePrintfFunction () in 
+  let format = "%s\n" ^ format in
+  let locArg = mkString (lineStr !currentLoc)  in
+  let args = locArg :: args in
+  Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
+
+
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
   match host with 
@@ -95,7 +103,9 @@ let rec isLocalVarLval (l : lval) =
   | Mem(e) -> isLocalVarExp e 
 
 and isLocalVarExp (e: exp) = match e with
-| Lval(l) -> isLocalVarLval(l)
+| Lval(l) -> isLocalVarLval l
+| AddrOf(l) -> isLocalVarLval l
+| StartOf(l) -> isLocalVarLval l
 | _ -> false
 
 let needsScopeId (e: exp) = isLocalVarExp e
@@ -137,10 +147,6 @@ let declareAllVarsStmt (slocals : varinfo list) : stmt list =
 
 
 
-let d_outerScope_exp (arg : exp) : logStatement =
-  if (isLocalVarExp arg) then (d_string "%a__%%u" d_exp arg, [prevScopeExpr] )
-  else (d_string "%a" d_exp arg,[])
-
 (* two ways we might need a current scope expression here
  * the first is that we are directly a variable
  * the second is that it is a memory access
@@ -155,7 +161,6 @@ let d_outerScope_lval (arg : lval) : logStatement =
 
 
 (* print an expression *)
-(* DSN TODO - do I need to consider AddrOf and StartOF *)
 (* DSN TODO - do I need to worry about special characters like %? *)
 (* I think I can get away with not using brackets around everything.  But 
  * I can put them in to be sure if needed later *)
@@ -164,32 +169,37 @@ let d_outerScope_lval (arg : lval) : logStatement =
  *  "__builtin_va_arg_pack" && (not !printCilAsIs) -> 
  *  text "__builtin_va_arg_pack()"
  *)
-let rec d_scope_exp (arg :exp) : logStatement = 
+let d_xScope_exp  (scopeExp : exp)  = 
+  let rec dExp (arg :exp) : logStatement = 
    match arg with 
   | CastE(t,e) -> 
-      let (str,arg) = d_scope_exp e in
+      let (str,arg) = dExp e in
       (d_string "(%a)(%s)" d_type t str,arg)
   | SizeOfE(e) -> 
-      let (str,arg) = d_scope_exp e in
+      let (str,arg) = dExp e in
       (d_string "sizeof(%s) " str ,arg)
   | AlignOfE(e) ->
-      let (str,arg) = d_scope_exp e in
+      let (str,arg) = dExp e in
       (d_string "__alignof__(%s)" str,arg)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
-      let (str,arg) = d_scope_exp e in
+      let (str,arg) = dExp e in
       (opStr ^ "(" ^ str ^ ")",arg)
   | BinOp(o,l,r,_) ->  
-      let (lhsStr,lhsArg) = d_scope_exp l in
+      let (lhsStr,lhsArg) = dExp l in
       let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = d_scope_exp r in
+      let (rhsStr,rhsArg) = dExp r in
       ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
   | AddrOf(l) -> let (lhsStr,lhsArg) = d_scope_lval l in
     ("&"^lhsStr, lhsArg)
   | StartOf(l) -> d_scope_lval l
   | _ -> 
-      if (needsScopeId arg) then (d_string "%a__%%u" d_exp arg, [currentScopeExpr] )
+      if (needsScopeId arg) then (d_string "%a__%%u" d_exp arg, [scopeExp] )
       else (d_string "%a" d_exp arg,[])
+  in dExp
+
+let d_outerScope_exp = d_xScope_exp prevScopeExpr
+let d_scope_exp = d_xScope_exp currentScopeExpr
 
 	  
 let mkReturnTemp : logStatement = ("__return__%u",[currentScopeExpr])
@@ -225,6 +235,7 @@ let getFormals e : (string * typ * attributes) list =
 	
 
 let mkArgAssgt  (argName,argType,argAttr) (actual : exp) = 
+(* DSN should this be fixed? *)
   let typeStr = d_string "%a " d_type argType in
   let lhsStr = argName ^ "__%u" in
   let lhsArgs = [currentScopeExpr] in
@@ -373,28 +384,6 @@ of that here? *)
 	let preStmt = mkStmtOneInstr pre in
         ChangeTo (mkStmt (Block (mkBlock [ preStmt; printStmt ; s ])))
     | _ -> DoChildren
-
-(* hiding this for now
-(Some(e),l) ->
-      let str = prefix ^ Pretty.sprint 800 ( Pretty.dprintf
-        "Return(%%p) from %s\n" funstr ) in
-      let newinst = ((Call (None, Lval(var printfFun.svar),
-                                ( [ (* one ; *) mkString str ; e ]),
-                                locUnknown)) : instr )in
-      let new_stmt = mkStmtOneInstr newinst in
-      let slist = [ new_stmt ; s ] in
-      (ChangeTo(mkStmt(Block(mkBlock slist))))
-    | Return(None,l) ->
-      let str = prefix ^ (Pretty.sprint 800 ( Pretty.dprintf
-        "Return void from %s\n" funstr)) in
-      let newinst = ((Call (None, Lval(var printfFun.svar),
-                                ( [ mkString str ]),
-                                locUnknown)) : instr )in
-      let new_stmt = mkStmtOneInstr newinst in
-      let slist = [ new_stmt ; s ] in
-      (ChangeTo(mkStmt(Block(mkBlock slist))))
-    | _ -> DoChildren
-*)
   end
 end
 
@@ -415,7 +404,9 @@ let dsn (f: file) : unit =
 	
         (* Now add the entry instruction *)
         let pre = if !currentFunc = "main" then 
-	  [mkStmtOneInstr (mkPrint  "int main(int argc, char** argv){\n" [])]
+	  [mkStmtOneInstr (mkPrintNoIdent "int main(int argc, char** argv){\n" []) ;
+	   mkStmtOneInstr (incrScope)
+	  ]
 	else 
 	  [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])] 
 	in 
@@ -425,83 +416,6 @@ let dsn (f: file) : unit =
 				 (declareAllVarsStmt fdec.slocals) @
 				 [mkStmt (Block fdec.sbody) ]
 				   ))
-(*
-	(* debugging 'anagram', it's really nice to be able to see the strings *)
-	(* inside fat pointers, even if it's a bit of a hassle and a hack here *)
-	let isFatCharPtr (cinfo:compinfo) =
-	  cinfo.cname="wildp_char" ||
-	  cinfo.cname="fseqp_char" ||
-	  cinfo.cname="seqp_char" in
-
-        (* Collect expressions that denote the actual arguments *)
-        let actargs =
-          (* make lvals out of args which pass test below *)
-          (Util.list_map
-            (fun vi -> match unrollType vi.vtype with
-              | TComp(cinfo, _) when isFatCharPtr(cinfo) ->
-                  (* access the _p field for these *)
-                  (* luckily it's called "_p" in all three fat pointer variants *)
-                  Lval(Var(vi), Field(getCompField cinfo "_p", NoOffset))
-              | _ ->
-                  Lval(var vi))
-
-            (* decide which args to pass *)
-            (List.filter
-              (fun vi -> match unrollType vi.vtype with
-                | TPtr(TInt(k, _), _) when isCharType(k) ->
-                    !printPtrs || !printStrings
-                | TComp(cinfo, _) when isFatCharPtr(cinfo) ->
-                    !printStrings
-                | TVoid _ | TComp _ -> false
-                | TPtr _ | TArray _ | TFun _ -> !printPtrs
-                | _ -> true)
-              fdec.sformals)
-          ) in
-
-        (* make a format string for printing them *)
-        (* sm: expanded width to 200 because I want one per line *)
-        let formatstr = prefix ^ (Pretty.sprint 200
-          (dprintf "entering %s(%a)\n" fdec.svar.vname
-            (docList ~sep:(chr ',' ++ break)
-              (fun vi -> match unrollType vi.vtype with
-              | TInt _ | TEnum _ -> dprintf "%s = %%d" vi.vname
-              | TFloat _ -> dprintf "%s = %%g" vi.vname
-              | TVoid _ -> dprintf "%s = (void)" vi.vname
-              | TComp(cinfo, _) -> (
-                  if !printStrings && isFatCharPtr(cinfo) then
-                    dprintf "%s = \"%%s\"" vi.vname
-                  else
-                    dprintf "%s = (comp)" vi.vname
-                )
-              | TPtr(TInt(k, _), _) when isCharType(k) -> (
-                  if (!printStrings) then
-                    dprintf "%s = \"%%s\"" vi.vname
-                  else if (!printPtrs) then
-                    dprintf "%s = %%p" vi.vname
-                  else
-                    dprintf "%s = (str)" vi.vname
-                )
-              | TPtr _ | TArray _ | TFun _ -> (
-                  if (!printPtrs) then
-                    dprintf "%s = %%p" vi.vname
-                  else
-                    dprintf "%s = (ptr)" vi.vname
-                )
-              | _ -> dprintf "%s = (?type?)" vi.vname))
-            fdec.sformals)) in
-
-        i := 0 ;
-        name := fdec.svar.vname ;
-        if !allInsts then (
-          let thisVisitor = new verboseLogVisitor printfFun !name prefix in
-          fdec.sbody <- visitCilBlock thisVisitor fdec.sbody
-        );
-        fdec.sbody.bstmts <-
-              mkStmt (Instr [Call (None, Lval(var printfFun.svar),
-                                ( (* one :: *) mkString formatstr 
-                                   :: actargs),
-                                loc)]) :: fdec.sbody.bstmts
- *)
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;
