@@ -252,7 +252,7 @@ let mkSaveReturn lo : instr list =
 (*DSN have to handle function pointers *)
 let getFunctionVinfo e = match e with 
 | Lval(Var(vinfo),_) -> vinfo
-|_ -> raise (Failure ("Not even an Lval.  Did you use function pointers?" ^ 
+|_ -> raise (Failure ("Not even an Lval.  Did you use function pointers?\n" ^ 
 		      sprint 800 (d_thisloc ())))
       
 (* DSN currently this only works for expressions that are 
@@ -262,7 +262,7 @@ let getFormals e : (string * typ * attributes) list =
   let vinfo = getFunctionVinfo e in 
   match vinfo.vtype with 
   | TFun(rtyp,args,varargs,attr) -> argsToList args
-  | _ -> raise (Failure ("Not a function. " ^
+  | _ -> raise (Failure ("Not a function.\n" ^
 			 sprint 800 (d_thisloc ())))
 	
 (*
@@ -286,7 +286,7 @@ let rec mkArgAssgtList
   match formal,actual with 
   | [], [] -> []
   | (x::xs),(y::ys) ->  (mkArgAssgt x y)::(mkArgAssgtList xs ys)
-  | _ -> raise (Failure ("lists are different lengths. " ^ 
+  | _ -> raise (Failure ("lists are different lengths.\n" ^ 
 		      sprint 800 (d_thisloc ())))
 *)
 
@@ -492,7 +492,7 @@ let dsn (f: file) : unit =
 		let (strs,args) = mkMainArgs xs in
 		let (str,arg) = x in
 		(str ^ ", " ^ strs, arg @ args)
-	    | _ -> raise (Failure ("main with no args???" ^ 
+	    | _ -> raise (Failure ("main with no args???\n" ^ 
 				   sprint 800 (d_thisloc ()))) in 
 	  let (formalStr, formalArgs) = mkMainArgs formalDeclList in
 	  fdec.sbody <- 
