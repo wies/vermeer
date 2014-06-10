@@ -20,6 +20,8 @@ let indentSpaces = 2
 (* we have a format string, and a list of expressions for the printf*)
 type logStatement = string * exp list
 
+let argTempBasename = "__arg_tmp_"
+let commentLine = "//"
 
 let scopeVar = makeGlobalVar "__scope_level__" Cil.uintType
 let scopeLval =  (Var(scopeVar),NoOffset)
@@ -42,6 +44,8 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   in
   Pretty.gprintf f fmt 
 
+let d_tempArg (idx : int) : logStatement = 
+  (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])
 
 let lineStr (loc: location) : string = 
   "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\"" 
@@ -53,7 +57,7 @@ let makePrintfFunction () : varinfo =
       Some v -> v
     | None -> begin 
         let v = makeGlobalVar !printFunctionName 
-                     (TFun(voidType, Some [("format", charPtrType, [])],
+                     (TFun(intType, Some [("format", charConstPtrType, [])],
                              true, [])) in
         printf := Some v;
         addProto := true;
@@ -135,16 +139,42 @@ let mkVarDecl (v : varinfo) : instr =
     ]
      
 
-let rec declareAllVars (slocals : varinfo list) : instr list = 
+let rec declareAllVarsHelper (slocals : varinfo list) : instr list = 
   match slocals with
-  | x :: xs -> (mkVarDecl x) :: (declareAllVars xs)
+  | x :: xs -> (mkVarDecl x) :: (declareAllVarsHelper xs)
   | [] -> []
 
 let declareAllVarsStmt (slocals : varinfo list) : stmt list =
-  let instrs = declareAllVars slocals in
+  let instrs = declareAllVarsHelper slocals in
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
   compactStmts stmts
 
+let d_formal (v : varinfo) : logStatement = 
+  let(typePreStr,typePostStr) = mkTypeStr v.vtype in
+  let str =  "%s %s__%u%s" in
+  let args = [ mkString typePreStr; 
+		  mkString v.vname; 
+		  currentScopeExpr;
+		  mkString typePostStr
+		] in
+  (str,args)
+
+let mkFormalDecl (v : varinfo) (idx : int) : instr = 
+  let (lhsStr,lhsArgs) = d_formal v in
+  let (rhsStr, rhsArgs) = d_tempArg idx in
+  let argStr = lhsStr ^ " = " ^ rhsStr ^ ";\n" in
+  mkPrintNoLoc argStr ( lhsArgs @ rhsArgs)   
+  
+let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
+  match slocals with
+  | x :: xs -> (mkFormalDecl x idx ) :: (declareAllFormalsHelper xs (idx + 1))
+  | [] -> []
+
+
+let declareAllFormalsStmt (sformals : varinfo list) : stmt list = 
+  let instrs = declareAllFormalsHelper sformals 0 in
+  let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
+  compactStmts stmts
 
 
 (* two ways we might need a current scope expression here
@@ -225,17 +255,21 @@ let getFunctionVinfo e = match e with
 |_ -> raise (Failure ("Not even an Lval.  Did you use function pointers?" ^ 
 		      sprint 800 (d_thisloc ())))
       
+(* DSN currently this only works for expressions that are 
+ * directly functions.  Does not work for function ptrs 
+ *)
 let getFormals e : (string * typ * attributes) list = 
   let vinfo = getFunctionVinfo e in 
   match vinfo.vtype with 
   | TFun(rtyp,args,varargs,attr) -> argsToList args
   | _ -> raise (Failure ("Not a function. " ^
 			 sprint 800 (d_thisloc ())))
-
 	
-
+(*
+DSN depricated.  Remove soon.
 let mkArgAssgt  (argName,argType,argAttr) (actual : exp) = 
 (* DSN should this be fixed? *)
+  let (preTypeStr,postTypeStr) = mkTypeStr argType in
   let typeStr = d_string "%a " d_type argType in
   let lhsStr = argName ^ "__%u" in
   let lhsArgs = [currentScopeExpr] in
@@ -243,6 +277,7 @@ let mkArgAssgt  (argName,argType,argAttr) (actual : exp) =
   let printStr = typeStr ^ lhsStr ^ " = " ^ rhsStr ^ ";\n" in
   let printArgs = lhsArgs @ rhsArgs in
   mkPrint printStr printArgs
+
 
 let rec mkArgAssgtList 
     (formal : (string * typ * attributes) list) 
@@ -253,15 +288,60 @@ let rec mkArgAssgtList
   | (x::xs),(y::ys) ->  (mkArgAssgt x y)::(mkArgAssgtList xs ys)
   | _ -> raise (Failure ("lists are different lengths. " ^ 
 		      sprint 800 (d_thisloc ())))
+*)
+
+let mkActualToTemp (actual : exp) (idx : int) = 
+  let (preTypeStr,postTypeStr) = mkTypeStr (typeOf actual) in
+  let (lhsStr,lhsArgs) = d_tempArg idx in
+  let (rhsStr,rhsArgs) =  d_outerScope_exp actual in
+  let printStr = "%s" ^ lhsStr ^ "%s = " ^ rhsStr ^ ";\n" in
+  let printArgs = 
+    [mkString preTypeStr] 
+    @ lhsArgs 
+    @ [mkString postTypeStr]
+    @ rhsArgs in
+  mkPrint printStr printArgs
+
+let rec mkActualsToTempsRec (actual : exp list) (idx : int) : instr list  = 
+  match actual with 
+  | [] -> []
+  | x :: xs -> (mkActualToTemp x idx) :: (mkActualsToTempsRec xs (idx +1))
+
+let mkActualsToTempInstrs (actual :exp list) : instr list = 
+  mkActualsToTempsRec actual 0
+
+let mkTempToFormal (formal : (string * typ * attributes)) (idx : int) = 
+  let (formalName,formalType,formalAttr) = formal in
+  let (preTypeStr,postTypeStr) = mkTypeStr formalType in
+  let lhsStr = formalName ^ "__%u" in
+  let lhsArgs = [currentScopeExpr] in
+  let (rhsStr,rhsArgs) = d_tempArg idx in
+  let printStr = "%s" ^ lhsStr ^ "%s = " ^ rhsStr ^ ";\n" in
+  let printArgs = 
+    [mkString preTypeStr] 
+    @ lhsArgs 
+    @ [mkString postTypeStr]
+    @ rhsArgs in
+  mkPrint printStr printArgs
+
+let rec mkTempToFormalListRec  (formals : (string * typ * attributes) list) (idx : int) : instr list  = 
+  match formals with 
+  | [] -> []
+  | x :: xs -> (mkTempToFormal x idx) :: (mkTempToFormalListRec xs (idx +1))
+
+let mkTempToFormalList (formals : (string * typ * attributes) list) : instr list = 
+  mkTempToFormalListRec formals 0
+
+
 
 (* DSN need a better name here *)
-let rec mkActualArg (al : exp list) : logStatement = 
+let rec mkConcreteArgs (al : exp list) : logStatement = 
   match al with
   | [] -> ("",[])
   | x::[] -> d_scope_exp x
   | x::xs -> 
       let (thisStr,thisArg) = d_scope_exp x in
-      let (restStr,restArgs) = mkActualArg xs in
+      let (restStr,restArgs) = mkConcreteArgs xs in
       (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
 
 
@@ -338,7 +418,7 @@ class dsnVisitorClass = object
       Set(lv, e, l) -> 
 	let (lhsStr,lhsArg) = d_scope_lval lv in
 (* assume that we only have reduced expressions at this point!  Should maybe put an assert
-of that here? *)
+   of that here? *)
 (* DSN Does anything go weird if we have function pointers *)
 	let (rhsStr,rhsArg) = d_scope_exp e in
 	let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
@@ -347,27 +427,27 @@ of that here? *)
 	let newInstrs =  printCall :: [i] in
 	ChangeTo newInstrs
     | Call(lo,e,al,l) ->
-	if (isDefinedFn e) then 
-	  let formals = getFormals e in
-	  let assgts = mkArgAssgtList formals al  in
-	  let logFnName = [(mkPrint (d_string "//Calling %a\n" d_exp e)) []] in
-	  let saveReturn = mkSaveReturn lo in 
-	  let newInstrs =  
-	    makeScopeOpen @ logFnName 
-	    @ assgts @ [i] @ saveReturn @ makeScopeClose in 
+(* first, make the actual call.  If we know we can log the 
+   * internals, print this as a comment *)
+	let (lhsStr,lhsArg) = 
+	  match lo with
+	  | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
+	  | None -> ("",[])
+	in
+	let fnName = d_string "%a" d_exp e in
+	let (argsStr, argsArgs) = mkConcreteArgs al in
+	let callStr = lhsStr ^ fnName ^ "(" ^ argsStr ^ ");\n" in
+	let callStr = if (isDefinedFn e) then  commentLine ^ callStr else callStr in
+	let callArgs = lhsArg @ argsArgs in
+	let logCall = [mkPrint callStr callArgs] in
+(* Now, we are ready to log the variables into temps.  In some cases, we might not need
+   * to actually use them *)
+	let temps = mkActualsToTempInstrs al in
+	let saveReturn = mkSaveReturn lo in 
+	let newInstrs =  
+	    makeScopeOpen @ logCall 
+	    @ temps @ [i] @ saveReturn @ makeScopeClose in 
 	  ChangeTo newInstrs
-	else
-	  let (lhsStr,lhsArg) = 
-	    match lo with
-	    | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
-	    | None -> ("",[])
-	  in
-	  let fnName = d_string "%a" d_exp e in
-	  let (argsStr, argsArgs) = mkActualArg al in
-	  let callStr = lhsStr ^ fnName ^ "(" ^ argsStr ^ ");\n" in
-	  let callArgs = lhsArg @ argsArgs in
-	  let printCall = mkPrint callStr callArgs in
-	  ChangeTo [ printCall; i] 
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
@@ -403,19 +483,36 @@ let dsn (f: file) : unit =
         ignore (visitCilFunction dsnVisitor fdec);
 	
         (* Now add the entry instruction *)
-        let pre = if !currentFunc = "main" then 
-	  [mkStmtOneInstr (mkPrintNoIdent "int main(int argc, char** argv){\n" []) ;
-	   mkStmtOneInstr (incrScope)
-	  ]
-	else 
-	  [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])] 
-	in 
-	
-        fdec.sbody <- 
-          mkBlock (compactStmts (pre @ 
-				 (declareAllVarsStmt fdec.slocals) @
-				 [mkStmt (Block fdec.sbody) ]
-				   ))
+        if !currentFunc = "main" then 
+	  let formalDeclList = List.map d_formal fdec.sformals in
+	  let rec mkMainArgs lst = 
+	    match lst with 
+	    | x :: [] -> x
+	    | x :: xs -> 
+		let (strs,args) = mkMainArgs xs in
+		let (str,arg) = x in
+		(str ^ ", " ^ strs, arg @ args)
+	    | _ -> raise (Failure ("main with no args???" ^ 
+				   sprint 800 (d_thisloc ()))) in 
+	  let (formalStr, formalArgs) = mkMainArgs formalDeclList in
+	  fdec.sbody <- 
+            mkBlock (compactStmts (
+		     [mkStmtOneInstr (mkPrintNoIdent ("int main(" 
+				      ^ formalStr 
+				      ^ "){\n") formalArgs)]
+		     @ [ mkStmtOneInstr (incrScope)] 
+                     (* DSN need to add code to declare argc argv *)
+		     @ (declareAllVarsStmt fdec.slocals) 
+		     @ [mkStmt (Block fdec.sbody) ]
+			 ))
+       	else 
+	  fdec.sbody <- 
+            mkBlock (compactStmts (
+		     [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])]
+		     @ (declareAllFormalsStmt fdec.sformals) 
+		     @ (declareAllVarsStmt fdec.slocals) 
+		     @ [mkStmt (Block fdec.sbody) ]
+			 ))	
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;
