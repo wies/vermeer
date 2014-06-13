@@ -116,11 +116,11 @@ let needsScopeId (e: exp) = isLocalVarExp e
 
 (* needed only for declaring unnamed args, e.g. function pointers *)
 let rec d_unnamedArgsList lst  = match lst with 
-| x :: [] -> 
-    let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType x in 
+| (s,t,a) :: [] -> 
+    let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in 
     (lhsStr ^ rhsStr,lhsArgs@rhsArgs)
-| x :: xs -> 
-    let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType x in 
+| (s,t,a) :: xs -> 
+    let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in 
     let thisStr = lhsStr ^ rhsStr in
     let thisArgs = lhsArgs @ rhsArgs in
     let (restStr,restArgs) = d_unnamedArgsList xs in
@@ -142,9 +142,12 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
  | TPtr (TFun(retT,argsTLst,isVarArgs,_),_) -> 
 (* DSN things might go crazy if we have return / take fn pointers.  Not worrying about that for now *)
      let retStr = d_string "%a" d_type retT in
-     let unnamedArgsStr = "hi" in (*d_unnamedArgsList argsTLst in*)
+     let (argsStr,argsArgs) = match argsTLst with 
+     | Some(l) -> d_unnamedArgsList l 
+     | None -> ("",[])
+     in
      ((retStr ^ "(*" ,[]),
-      (")(" ^ unnamedArgsStr ^")",[]))
+      (")(" ^ argsStr ^")",argsArgs))
  | _ -> let typeStr = d_string "%a" d_type tTop in 
    ((typeStr,[]),
     ("",[]))
