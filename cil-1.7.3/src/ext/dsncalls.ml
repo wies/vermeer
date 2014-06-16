@@ -153,27 +153,14 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
    ((typeStr,[]),
     ("",[]))
      
-(*
-let d_formal (v : varinfo) : logStatement = 
-  let(typePreStr,typePostStr) = mkTypeStr v.vtype in
-  let str =  "%s %s__%u%s" in
-  let args = [ mkString typePreStr; 
-		  mkString v.vname; 
-		  currentScopeExpr;
-		  mkString typePostStr
-		] in
-  (str,args)
-*)
-
 let d_decl (v : varinfo) : logStatement = 
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
   ((lhsStr ^ " %s__%d" ^ rhsStr),
    (lhsArgs @ [ mkString v.vname; currentScopeExpr] @ rhsArgs))
     
 let mkVarDecl (v : varinfo) : instr = 
-  let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
-  mkPrintNoLoc (lhsStr ^ " %s__%d" ^ rhsStr ^ ";\n") 
-    (lhsArgs @ [ mkString v.vname; currentScopeExpr] @ rhsArgs)
+  let (str,args) = d_decl v in
+  mkPrintNoLoc (str ^ ";\n") args
    
 let rec declareAllVarsHelper (slocals : varinfo list) : instr list = 
   match slocals with
@@ -240,12 +227,12 @@ let d_xScope_exp  (scopeExp : exp)  =
        let (str,arg) = dExp e in
        (d_string "__alignof__(%s)" str,arg)
    | UnOp(o,e,_) ->
-       let opArg = mkString (d_string "%a " d_unop o) in
+       let opArg = mkString (d_string "%a" d_unop o) in
        let (str,arg) = dExp e in
        ("%s(" ^ str ^ ")",[opArg] @ arg)
    | BinOp(o,l,r,_) ->  
        let (lhsStr,lhsArg) = dExp l in
-       let opArg = mkString (d_string " %a " d_binop o) in
+       let opArg = mkString (d_string "%a" d_binop o) in
        let (rhsStr,rhsArg) = dExp r in
        ("(" ^ lhsStr ^ ") %s (" ^ rhsStr ^ ")" ,lhsArg @ [opArg] @ rhsArg)
    | AddrOf(l) -> let (lhsStr,lhsArg) = d_scope_lval l in
@@ -258,22 +245,31 @@ let d_xScope_exp  (scopeExp : exp)  =
     
 let d_outerScope_exp = d_xScope_exp prevScopeExpr
 let d_scope_exp = d_xScope_exp currentScopeExpr
-
 	  
-let mkReturnTemp : logStatement = ("__return__%u",[currentScopeExpr])
+let d_returnTemp : logStatement = ("__return__%u",[currentScopeExpr])
 
 (* DSN perhaps there should be a common make print assgt function *)
-let mkSaveReturn lo : instr list = 
+let mkCopyReturnToOuterscope lo : instr list = 
   match lo with 
   | Some (lv) ->
       let (lhsStr,lhsArg) = d_outerScope_lval lv in
-      let (rhsStr,rhsArg) = mkReturnTemp in
+      let (rhsStr,rhsArg) = d_returnTemp in
       let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
       let printArgs = lhsArg @ rhsArg in
       let printCall = mkPrint printStr printArgs in
       [printCall]
   | None -> []
 
+let mkReturnTemp lo : instr list = 
+  match lo with 
+    | Some (lv) ->
+	let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType (typeOfLval lv) in 
+	let (varNameStr,varNameArgs) = d_returnTemp in
+       	let printStr = lhsStr ^ varNameStr ^ rhsStr ^ ";\n" in
+	let printArgs  = lhsArgs @ varNameArgs @ rhsArgs in
+	let printCall = mkPrint printStr printArgs in
+	[printCall]
+    | None -> []
 
 (*DSN have to handle function pointers *)
 let getFunctionVinfo e = match e with 
@@ -447,10 +443,13 @@ class dsnVisitorClass = object
 (* Now, we are ready to log the variables into temps.  In some cases, we might not need
    * to actually use them *)
 	let temps = mkActualsToTempInstrs al in
-	let saveReturn = mkSaveReturn lo in 
+	let returnTemp = mkReturnTemp lo in
+	let saveReturn = mkCopyReturnToOuterscope lo in 
 	let newInstrs =  
-	    makeScopeOpen @ logCall 
-	    @ temps @ [i] @ saveReturn @ makeScopeClose in 
+	  makeScopeOpen @ logCall 
+	  @ temps @ returnTemp 
+	  @ [i] 
+	  @ saveReturn @ makeScopeClose in 
 	  ChangeTo newInstrs
     | _ -> DoChildren
   end
@@ -458,10 +457,9 @@ class dsnVisitorClass = object
     match s.skind with
       Return(Some e, loc) -> 
         let pre = mkPrint (d_string "//exiting %s\n" !currentFunc) [] in
-	let typeStr = d_string "%a " d_type (typeOf e) in
-	let (lhsStr,lhsArg) = mkReturnTemp in
+	let (lhsStr,lhsArg) = d_returnTemp in
 	let (rhsStr,rhsArg) = d_scope_exp e in
-	let printStr = typeStr ^ lhsStr ^  " = " ^ rhsStr ^ ";\n" in
+	let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	let printArgs = lhsArg @ rhsArg in
 	let printCall = mkPrint printStr printArgs in
 	let printStmt = mkStmtOneInstr printCall in
