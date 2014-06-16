@@ -1,5 +1,6 @@
 (** See copyright notice at the end of this file *)
 (* DSN todo rename lhsStr to ((preTypeStr,preTypeArgs),(postTypeStr,postTypeArgs)) *)
+(* TODO print globals before main *)
 (** Add printf before each function call *)
 
 open Pretty
