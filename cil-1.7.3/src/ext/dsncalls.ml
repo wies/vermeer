@@ -229,32 +229,33 @@ let d_outerScope_lval (arg : lval) : logStatement =
 let d_xScope_exp  (scopeExp : exp)  = 
   let rec dExp (arg :exp) : logStatement = 
    match arg with 
-  | CastE(t,e) -> 
-      let (str,arg) = dExp e in
-      (d_string "(%a)(%s)" d_type t str,arg)
-  | SizeOfE(e) -> 
-      let (str,arg) = dExp e in
-      (d_string "sizeof(%s) " str ,arg)
-  | AlignOfE(e) ->
-      let (str,arg) = dExp e in
-      (d_string "__alignof__(%s)" str,arg)
-  | UnOp(o,e,_) ->
-      let opStr = d_string "%a " d_unop o in
-      let (str,arg) = dExp e in
-      (opStr ^ "(" ^ str ^ ")",arg)
-  | BinOp(o,l,r,_) ->  
-      let (lhsStr,lhsArg) = dExp l in
-      let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = dExp r in
-      ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
-  | AddrOf(l) -> let (lhsStr,lhsArg) = d_scope_lval l in
-    ("&"^lhsStr, lhsArg)
-  | StartOf(l) -> d_scope_lval l
-  | _ -> 
-      if (needsScopeId arg) then (d_string "%a__%%u" d_exp arg, [scopeExp] )
-      else (d_string "%a" d_exp arg,[])
+   | Const(CStr(s)) -> ("\"%s\"",[mkString s])
+   | CastE(t,e) -> 
+       let (str,arg) = dExp e in
+       (d_string "(%a)(%s)" d_type t str,arg)
+   | SizeOfE(e) -> 
+       let (str,arg) = dExp e in
+       (d_string "sizeof(%s) " str ,arg)
+   | AlignOfE(e) ->
+       let (str,arg) = dExp e in
+       (d_string "__alignof__(%s)" str,arg)
+   | UnOp(o,e,_) ->
+       let opArg = mkString (d_string "%a " d_unop o) in
+       let (str,arg) = dExp e in
+       ("%s(" ^ str ^ ")",[opArg] @ arg)
+   | BinOp(o,l,r,_) ->  
+       let (lhsStr,lhsArg) = dExp l in
+       let opArg = mkString (d_string " %a " d_binop o) in
+       let (rhsStr,rhsArg) = dExp r in
+       ("(" ^ lhsStr ^ ") %s (" ^ rhsStr ^ ")" ,lhsArg @ [opArg] @ rhsArg)
+   | AddrOf(l) -> let (lhsStr,lhsArg) = d_scope_lval l in
+     ("&"^lhsStr, lhsArg)
+   | StartOf(l) -> d_scope_lval l
+   | _ -> 
+       if (needsScopeId arg) then (d_string "%a__%%u" d_exp arg, [scopeExp] )
+       else (d_string "%a" d_exp arg,[])
   in dExp
-
+    
 let d_outerScope_exp = d_xScope_exp prevScopeExpr
 let d_scope_exp = d_xScope_exp currentScopeExpr
 
