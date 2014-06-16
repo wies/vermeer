@@ -50,7 +50,7 @@ let d_tempArg (idx : int) : logStatement =
 
 let lineStr (loc: location) : string = 
   "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\"" 
-
+    
 
 let printf: varinfo option ref = ref None
 let makePrintfFunction () : varinfo = 
@@ -262,8 +262,6 @@ let d_scope_exp = d_xScope_exp currentScopeExpr
 let mkReturnTemp : logStatement = ("__return__%u",[currentScopeExpr])
 
 (* DSN perhaps there should be a common make print assgt function *)
-
-
 let mkSaveReturn lo : instr list = 
   match lo with 
   | Some (lv) ->
