@@ -73,6 +73,9 @@ let mkPrintNoLoc (format: string) (args: exp list) : instr =
   else args in  
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
+let mkPrintNoLocStmt format args = 
+  mkStmtOneInstr(mkPrintNoLoc format args)
+
 let mkPrint (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
   let format = if printIndent then  "%*s" ^ format else format in
@@ -221,7 +224,7 @@ let d_outerScope_lval (arg : lval) : logStatement =
 let d_xScope_exp  (scopeExp : exp)  = 
   let rec dExp (arg :exp) : logStatement = 
    match arg with 
-   | Const(CStr(s)) -> ("\"%s\"",[mkString s])
+   | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
    | CastE(t,e) -> 
        let (str,arg) = dExp e in
        (d_string "(%a)(%s)" d_type t str,arg)
@@ -489,11 +492,20 @@ let dsn (f: file) : unit =
     | GVarDecl (v, _) when v.vname = !printFunctionName -> 
         if !printf = None then
           printf := Some v 
-    | GVarDecl (vinfo,loc) -> 
-      globalDeclFn.sbody <- mkBlock [mkPrintStmt vinfo.vname []]
-    | GVar (vinfo,iinfo,loc) -> 
-      globalDeclFn.sbody <- mkBlock [mkPrintStmt vinfo.vname []]
-    (*DSN do I need to declare the var here? Or is it already declared *)   
+    | GVarDecl (v,loc) as g -> 
+      (* d_global adds its own location *)
+      let arg = mkString (d_string "%a" d_global g) in 
+      globalDeclFn.sbody <- 
+	mkBlock (compactStmts 
+		   [mkStmt (Block globalDeclFn.sbody);
+		    mkPrintNoLocStmt "%s" [arg]])
+    | GVar (vinfo,iinfo,loc) as g -> 
+      (* d_global adds its own location *)
+      let arg = mkString (d_string "%a" d_global g) in 
+      globalDeclFn.sbody <- 
+	mkBlock (compactStmts 
+		   [mkStmt (Block globalDeclFn.sbody);
+		    mkPrintNoLocStmt "%s" [arg]])
     | GFun (fdec, loc) when fdec = globalDeclFn-> ()
     | GFun (fdec, loc) when fdec.svar.vname = "main" ->
       currentFunc := fdec.svar.vname;
@@ -543,7 +555,7 @@ let dsn (f: file) : unit =
     f.globals <-
       GVarDecl (p, locUnknown) ::
       GVarDecl (scopeVar, locUnknown) :: 
-      GFun (globalDeclFn, locUnknown) ::
+      GFun (globalDeclFn, locUnknown) :: (*should be declared last*)
       f.globals
   end  
 
