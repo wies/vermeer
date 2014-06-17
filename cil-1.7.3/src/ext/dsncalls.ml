@@ -83,13 +83,19 @@ let mkPrint (format: string) (args: exp list) : instr =
   let args = locArg :: args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
-let mkPrintNoIdent (format: string) (args: exp list) : instr = 
+let mkPrintStmt (format: string) (args: exp list) : stmt = 
+  mkStmtOneInstr (mkPrint format args)
+
+let mkPrintNoIndent (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
   let format = "%s\n" ^ format in
   let locArg = mkString (lineStr !currentLoc)  in
   let args = locArg :: args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
+
+let mkPrintNoIndentStmt (format: string) (args: exp list) : stmt = 
+  mkStmtOneInstr (mkPrintNoIndent format args)
 
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
@@ -171,7 +177,6 @@ let declareAllVarsStmt (slocals : varinfo list) : stmt list =
   let instrs = declareAllVarsHelper slocals in
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
   compactStmts stmts
-
 
 let mkFormalDecl (v : varinfo) (idx : int) : instr = 
   let (lhsStr,lhsArgs) = d_decl v in
@@ -471,59 +476,74 @@ end
 
 let dsnVisitor = new dsnVisitorClass
 
-
-let dsn (f: file) : unit =
-
+let globalDeclFn = 
+  let fdec = emptyFunction "__globalDeclFn" in
+  let typ = TFun(voidType, Some[], false, []) in
+  let _  = setFunctionType fdec typ  in
+  fdec 
+  
+let dsn (f: file) : unit =  
+  
   let doGlobal = function
       
     | GVarDecl (v, _) when v.vname = !printFunctionName -> 
         if !printf = None then
           printf := Some v 
+    | GVarDecl (vinfo,loc) -> 
+      globalDeclFn.sbody <- mkBlock [mkPrintStmt vinfo.vname []]
+    | GVar (vinfo,iinfo,loc) -> 
+      globalDeclFn.sbody <- mkBlock [mkPrintStmt vinfo.vname []]
+    (*DSN do I need to declare the var here? Or is it already declared *)   
+    | GFun (fdec, loc) when fdec = globalDeclFn-> ()
+    | GFun (fdec, loc) when fdec.svar.vname = "main" ->
+      currentFunc := fdec.svar.vname;
+      (* do the body *)
+      ignore (visitCilFunction dsnVisitor fdec);
+      
+      (* Now add the entry instruction *)
+      let formalDeclList = List.map d_decl fdec.sformals in
+      let rec mkMainArgs lst = 
+	match lst with 
+	  | x :: [] -> x
+	  | x :: xs -> 
+	    let (strs,args) = mkMainArgs xs in
+	    let (str,arg) = x in
+	    (str ^ ", " ^ strs, arg @ args)
+	  | _ -> raise (Failure ("main with no args???\n" ^ 
+				    sprint 800 (d_thisloc ()))) in 
+      let (formalStr, formalArgs) = mkMainArgs formalDeclList in
+      fdec.sbody <- 
+        mkBlock (compactStmts (
+	  [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown))]
+	  @ [mkPrintNoIndentStmt ("int main(" 
+				^ formalStr 
+				^ "){\n") formalArgs]
+	  @ [ mkStmtOneInstr (incrScope)] 
+          (* DSN need to add code to declare argc argv *)
+	  @ (declareAllVarsStmt fdec.slocals) 
+	  @ [mkStmt (Block fdec.sbody) ]
+	))
     | GFun (fdec, loc) ->
-        currentFunc := fdec.svar.vname;
-        (* do the body *)
-        ignore (visitCilFunction dsnVisitor fdec);
-	
-        (* Now add the entry instruction *)
-        if !currentFunc = "main" then 
-	  let formalDeclList = List.map d_decl fdec.sformals in
-	  let rec mkMainArgs lst = 
-	    match lst with 
-	    | x :: [] -> x
-	    | x :: xs -> 
-		let (strs,args) = mkMainArgs xs in
-		let (str,arg) = x in
-		(str ^ ", " ^ strs, arg @ args)
-	    | _ -> raise (Failure ("main with no args???\n" ^ 
-				   sprint 800 (d_thisloc ()))) in 
-	  let (formalStr, formalArgs) = mkMainArgs formalDeclList in
-	  fdec.sbody <- 
-            mkBlock (compactStmts (
-		     [mkStmtOneInstr (mkPrintNoIdent ("int main(" 
-				      ^ formalStr 
-				      ^ "){\n") formalArgs)]
-		     @ [ mkStmtOneInstr (incrScope)] 
-                     (* DSN need to add code to declare argc argv *)
-		     @ (declareAllVarsStmt fdec.slocals) 
-		     @ [mkStmt (Block fdec.sbody) ]
-			 ))
-       	else 
-	  fdec.sbody <- 
-            mkBlock (compactStmts (
-		     [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])]
-		     @ (declareAllFormalsStmt fdec.sformals) 
-		     @ (declareAllVarsStmt fdec.slocals) 
-		     @ [mkStmt (Block fdec.sbody) ]
-			 ))	
+      currentFunc := fdec.svar.vname;
+      (* do the body *)
+      ignore (visitCilFunction dsnVisitor fdec);
+      fdec.sbody <- 
+        mkBlock (compactStmts (
+	  [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])]
+	  @ (declareAllFormalsStmt fdec.sformals) 
+	  @ (declareAllVarsStmt fdec.slocals) 
+	  @ [mkStmt (Block fdec.sbody) ]
+	))	
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;
   if !addProto then begin
     let p = makePrintfFunction () in 
     E.log "Adding prototype for call logging function %s\n" p.vname;
-    f.globals <- 
+    f.globals <-
       GVarDecl (p, locUnknown) ::
       GVarDecl (scopeVar, locUnknown) :: 
+      GFun (globalDeclFn, locUnknown) ::
       f.globals
   end  
 
