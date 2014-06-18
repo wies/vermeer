@@ -34,7 +34,7 @@ let incrScope = Set(scopeLval, (increm scopeLvalExpr (1)), locUnknown)
 let decrScope = Set(scopeLval, (increm scopeLvalExpr (-1)), locUnknown)
 
 (* Switches *)
-let printFunctionName = ref "printf"
+let printFunctionName = ref "dsn_log"(*"printf"*)
 
 let addProto = ref false
 
@@ -49,6 +49,9 @@ let d_tempArg (idx : int) : logStatement =
 
 let lineStr (loc: location) : string = 
   "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\""   
+
+let locStr () = sprint 800 (d_thisloc ())
+
 
 let printf: varinfo option ref = ref None
 let makePrintfFunction () : varinfo = 
@@ -79,8 +82,8 @@ let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) 
     else args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
-let mkPrintStmt  ?(indentp = true) ?(locp = true) (format: string) (args: exp list) : stmt = 
-  mkStmtOneInstr (mkPrint ~indentp:indentp ~locp:locp format args)
+let mkPrintStmt  ?indentp ?locp (format: string) (args: exp list) : stmt = 
+  mkStmtOneInstr (mkPrint ?indentp ?locp format args)
 
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
@@ -263,20 +266,21 @@ let mkReturnTemp lo : instr list =
 
 (*DSN have to handle function pointers *)
 let getFunctionVinfo e = match e with 
-| Lval(Var(vinfo),_) -> vinfo
-|_ -> raise (Failure ("Not even an Lval.  Did you use function pointers?\n" ^ 
-		      Printexc.raw_backtrace_to_string (Printexc.get_callstack 100) ^ 
-		      sprint 800 (d_thisloc ())))
-      
+| Lval(Var(vinfo),_) ->  Some vinfo
+|_ -> None
+
 (* DSN currently this only works for expressions that are 
  * directly functions.  Does not work for function ptrs 
  *)
-let getFormals e : (string * typ * attributes) list = 
-  let vinfo = getFunctionVinfo e in 
-  match vinfo.vtype with 
-  | TFun(rtyp,args,varargs,attr) -> argsToList args
-  | _ -> raise (Failure ("Not a function.\n" ^
-			 sprint 800 (d_thisloc ())))
+let getFormals e : (string * typ * attributes) list option = 
+  let vinfoOpt = getFunctionVinfo e in 
+  match vinfoOpt with
+    Some(vinfo) -> begin
+      match vinfo.vtype with 
+      | TFun(rtyp,args,varargs,attr) -> Some(argsToList args)
+      | _ -> raise (Failure ("Not a function.\n" ^
+			     locStr ())) end
+  | None -> None
 
 let mkActualToTemp (actual : exp) (idx : int) = 
   let ((preTypeStr,preTypeArgs),(postTypeStr,postTypeArgs)) = d_logType (typeOf actual) in 
@@ -332,8 +336,6 @@ let rec mkConcreteArgs (al : exp list) : logStatement =
       let (restStr,restArgs) = mkConcreteArgs xs in
       (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
 
-
-
 (* Returns true if the given lvalue offset ends in a bitfield access. *) 
 let rec is_bitfield lo = match lo with
   | NoOffset -> false
@@ -381,10 +383,7 @@ let i = ref 0
 let name = ref ""
 
 
-let makeScopeOpen = [ mkPrint ~locp:false "{\n" []; 
-		      incrScope		    
-		    ]
-
+let makeScopeOpen = [ mkPrint ~locp:false "{\n" []; incrScope]
 let makeScopeClose = [decrScope; mkPrint ~locp:false "}\n" []]
 
 
@@ -414,11 +413,11 @@ class dsnVisitorClass = object
 	  | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
 	  | None -> ("",[])
 	in
-	let fnName = d_string "%a" d_exp e in
+	let (fnNameStr,fnNameArgs) = d_scope_exp e in
 	let (argsStr, argsArgs) = mkConcreteArgs al in
-	let callStr = lhsStr ^ fnName ^ "(" ^ argsStr ^ ");\n" in
+	let callStr = lhsStr ^ fnNameStr ^ "(" ^ argsStr ^ ");\n" in
 	let callStr = if (isDefinedFn e) then  commentLine ^ callStr else callStr in
-	let callArgs = lhsArg @ argsArgs in
+	let callArgs = lhsArg @ fnNameArgs @ argsArgs in
 	let logCall = [mkPrint callStr callArgs] in
 (* Now, we are ready to log the variables into temps.  In some cases, we might not need
    * to actually use them *)
@@ -426,7 +425,7 @@ class dsnVisitorClass = object
 	let returnTemp = mkReturnTemp lo in
 	let saveReturn = mkCopyReturnToOuterscope lo in 
 	let newInstrs =  
-	  makeScopeOpen @ logCall 
+	   logCall @ makeScopeOpen  
 	  @ temps @ returnTemp 
 	  @ [i] 
 	  @ saveReturn @ makeScopeClose in 
@@ -493,8 +492,7 @@ let dsn (f: file) : unit =
 	    let (strs,args) = mkMainArgs xs in
 	    let (str,arg) = x in
 	    (str ^ ", " ^ strs, arg @ args)
-	  | _ -> raise (Failure ("main with no args???\n" ^ 
-				    sprint 800 (d_thisloc ()))) in 
+	  | _ -> raise (Failure ("main with no args???\n" ^ locStr ())) in 
       let (formalStr, formalArgs) = mkMainArgs formalDeclList in
       fdec.sbody <- 
         mkBlock (compactStmts (
