@@ -13,7 +13,6 @@ module H = Hashtbl
 (* David Park at Stanford points out that you cannot take the address of a
  * bitfield in GCC. *)
 
-let printIndent = true
 let indentSpaces = 2
 
 (* for future reference, how to add spaces in printf *)
@@ -49,8 +48,7 @@ let d_tempArg (idx : int) : logStatement =
   (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])
 
 let lineStr (loc: location) : string = 
-  "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\"" 
-    
+  "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\""   
 
 let printf: varinfo option ref = ref None
 let makePrintfFunction () : varinfo = 
@@ -65,40 +63,24 @@ let makePrintfFunction () : varinfo =
         v
     end
 
-
-let mkPrintNoLoc (format: string) (args: exp list) : instr = 
+let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
-  let format = if printIndent then  "%*s" ^ format else format in
-  let args = if printIndent then currentIndentExpr :: mkString "" :: args 
-  else args in  
+  let format = 
+    if indentp then  "%*s" ^ format 
+    else format in
+  let args = 
+    if indentp then currentIndentExpr :: mkString "" :: args 
+    else args in
+  let format = 
+    if locp then "%s\n" ^ format
+    else format in
+  let args = 
+    if locp then(mkString (lineStr !currentLoc)) :: args 
+    else args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
-let mkPrintNoLocStmt format args = 
-  mkStmtOneInstr(mkPrintNoLoc format args)
-
-let mkPrint (format: string) (args: exp list) : instr = 
-  let p: varinfo = makePrintfFunction () in 
-  let format = if printIndent then  "%*s" ^ format else format in
-  let format = "%s\n" ^ format in
-  let locArg = mkString (lineStr !currentLoc)  in
-  let args = if printIndent then currentIndentExpr :: mkString "" :: args 
-  else args in  
-  let args = locArg :: args in
-  Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
-
-let mkPrintStmt (format: string) (args: exp list) : stmt = 
-  mkStmtOneInstr (mkPrint format args)
-
-let mkPrintNoIndent (format: string) (args: exp list) : instr = 
-  let p: varinfo = makePrintfFunction () in 
-  let format = "%s\n" ^ format in
-  let locArg = mkString (lineStr !currentLoc)  in
-  let args = locArg :: args in
-  Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
-
-
-let mkPrintNoIndentStmt (format: string) (args: exp list) : stmt = 
-  mkStmtOneInstr (mkPrintNoIndent format args)
+let mkPrintStmt  ?(indentp = true) ?(locp = true) (format: string) (args: exp list) : stmt = 
+  mkStmtOneInstr (mkPrint ~indentp:indentp ~locp:locp format args)
 
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
@@ -169,7 +151,7 @@ let d_decl (v : varinfo) : logStatement =
     
 let mkVarDecl (v : varinfo) : instr = 
   let (str,args) = d_decl v in
-  mkPrintNoLoc (str ^ ";\n") args
+  mkPrint ~locp:false (str ^ ";\n") args
    
 let rec declareAllVarsHelper (slocals : varinfo list) : instr list = 
   match slocals with
@@ -185,7 +167,7 @@ let mkFormalDecl (v : varinfo) (idx : int) : instr =
   let (lhsStr,lhsArgs) = d_decl v in
   let (rhsStr, rhsArgs) = d_tempArg idx in
   let argStr = lhsStr ^ " = " ^ rhsStr ^ ";\n" in
-  mkPrintNoLoc argStr ( lhsArgs @ rhsArgs)   
+  mkPrint ~locp:false argStr ( lhsArgs @ rhsArgs)   
   
 let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
   match slocals with
@@ -399,11 +381,11 @@ let i = ref 0
 let name = ref ""
 
 
-let makeScopeOpen = [ mkPrintNoLoc "{\n" []; 
+let makeScopeOpen = [ mkPrint ~locp:false "{\n" []; 
 		      incrScope		    
 		    ]
 
-let makeScopeClose = [decrScope; mkPrintNoLoc "}\n" []]
+let makeScopeClose = [decrScope; mkPrint ~locp:false "}\n" []]
 
 
 let currentFunc: string ref = ref ""
@@ -498,14 +480,14 @@ let dsn (f: file) : unit =
       globalDeclFn.sbody <- 
 	mkBlock (compactStmts 
 		   [mkStmt (Block globalDeclFn.sbody);
-		    mkPrintNoLocStmt "%s" [arg]])
+		    mkPrintStmt ~locp:false "%s" [arg]])
     | GVar (vinfo,iinfo,loc) as g -> 
       (* d_global adds its own location *)
       let arg = mkString (d_string "%a" d_global g) in 
       globalDeclFn.sbody <- 
 	mkBlock (compactStmts 
 		   [mkStmt (Block globalDeclFn.sbody);
-		    mkPrintNoLocStmt "%s" [arg]])
+		    mkPrintStmt ~locp:false "%s" [arg]])
     | GFun (fdec, loc) when fdec = globalDeclFn-> ()
     | GFun (fdec, loc) when fdec.svar.vname = "main" ->
       currentFunc := fdec.svar.vname;
@@ -526,15 +508,13 @@ let dsn (f: file) : unit =
       let (formalStr, formalArgs) = mkMainArgs formalDeclList in
       fdec.sbody <- 
         mkBlock (compactStmts (
-	  [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown))]
-	  @ [mkPrintNoIndentStmt ("int main(" 
-				^ formalStr 
-				^ "){\n") formalArgs]
-	  @ [ mkStmtOneInstr (incrScope)] 
+		 [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown))]
+		 @ [mkPrintStmt ~indentp:false ("int main(" ^ formalStr ^ "){\n") formalArgs]
+		 @ [ mkStmtOneInstr (incrScope)] 
           (* DSN need to add code to declare argc argv *)
-	  @ (declareAllVarsStmt fdec.slocals) 
-	  @ [mkStmt (Block fdec.sbody) ]
-	))
+		 @ (declareAllVarsStmt fdec.slocals) 
+		 @ [mkStmt (Block fdec.sbody) ]
+		     ))
     | GFun (fdec, loc) ->
       currentFunc := fdec.svar.vname;
       (* do the body *)
