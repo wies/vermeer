@@ -392,16 +392,6 @@ let currentFunc: string ref = ref ""
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
-
-  val printfFun =   
-    let fdec = emptyFunction "printf" in
-    fdec.svar.vtype <- TFun(intType, 
-                            Some [
-                                   ("format", charConstPtrType, []) ], 
-                            true, []);
-    fdec
-
-  (* Watch for a declaration for our printer *)
   
   method vinst i = begin
     match i with
