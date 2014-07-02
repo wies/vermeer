@@ -1,0 +1,17 @@
+How to use Cilly on Mac:
+- you need to install ocaml and cil
+- you need to install frama-c
+
+Find the libc path of Frama-c using:
+
+frama-c -print-share-path
+
+for me this is /usr/local/share/frama-c
+
+Then run cilly using the frama-c version of libc:
+
+cilly --dosimpleMem --dosimplify  --domakeCFG  --save-temps -g -O0  -I/usr/local/share/frama-c/libc sed.c
+
+note that you have to add /libc to the frama-c share path.
+NOTE that this will terminate with a link error! 
+But you get a file called sed.cil.c

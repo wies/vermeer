@@ -1,0 +1,476 @@
+GNU gdb (GDB) 7.7
+Copyright (C) 2014 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+<http://www.gnu.org/software/gdb/documentation/>.
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from ../gzip...done.
+(gdb) > > >>(gdb) Breakpoint 1 at 0x408991: file allfile.tendered.c, line 5419.
+(gdb) Starting program: /home/chanseok/src/failure-explanation/Subjects/gzip2/gzip -d < file000001
+
+Breakpoint 1, main (argc=2, argv=0x7fffffffdb08) at allfile.tendered.c:5419
+5419	  progname = basename(argv[0]);
+(gdb) basename (fname=0x7fffffffde15 "/home/chanseok/src/failure-explanation/Subjects/gzip2/gzip") at allfile.tendered.c:4698
+4698	  if ((p = strrchr(fname, '/')) != (void *)0)
+4699	    fname = p + 1;
+4702	  return fname;
+4703	}
+main (argc=2, argv=0x7fffffffdb08) at allfile.tendered.c:5420
+5420	  proglen = strlen(progname);
+5421	  if (proglen > 4 && /*+ AND EXP BROKEN DOWN */
+5425	  env = add_envopt(&argc, &argv, "GZIP");
+add_envopt (argcp=0x7fffffffda0c, argvp=0x7fffffffda00, env=0x40c2fc "GZIP") at allfile.tendered.c:4730
+4730	  int oargc = *argcp;
+4731	  int nargc = 0;
+4733	  env = (char *)getenv(env);
+4734	  if (env == (void *)0)
+4735	    return (void *)0;
+4777	}
+main (argc=2, argv=0x7fffffffdb08) at allfile.tendered.c:5426
+5426	  if (env != (void *)0)
+5428	  foreground = signal(2, (__sighandler_t)1) != (__sighandler_t)1;
+5429	  if (foreground) {
+5430	    (void)signal(2, (sig_type)abort_gzip);
+5432	  if (signal(15, (__sighandler_t)1) != (__sighandler_t)1) {
+5433	    (void)signal(15, (sig_type)abort_gzip);
+5435	  if (signal(1, (__sighandler_t)1) != (__sighandler_t)1) {
+5436	    (void)signal(1, (sig_type)abort_gzip);
+5438	  if (strncmp(progname, "un", 2) == 0 || /*+ OR EXP BROKEN DOWN */
+5439	      strncmp(progname, "gun", 3) == 0) {
+5438	  if (strncmp(progname, "un", 2) == 0 || /*+ OR EXP BROKEN DOWN */
+5441	  } else if (strcmp(progname + 1, "cat") == 0 || /*+ OR EXP BROKEN DOWN */
+5442	      strcmp(progname, "gzcat") == 0) {
+5441	  } else if (strcmp(progname + 1, "cat") == 0 || /*+ OR EXP BROKEN DOWN */
+5445	  strncpy(z_suffix, ".gz", sizeof(z_suffix) - 1);
+5446	  z_len = strlen(z_suffix);
+5447	  while ( /*+ WHILE STMT BROKEN DOWN */
+5448	        (optc = getopt_long(argc, argv, "ab:cdfhH?lLmMnNqrS:tvVZ123456789", longopts, (int *)0)) != -1) {
+5447	  while ( /*+ WHILE STMT BROKEN DOWN */
+5449	    switch (optc) {
+5460	      decompress = 1;
+5461	      break;
+5448	        (optc = getopt_long(argc, argv, "ab:cdfhH?lLmMnNqrS:tvVZ123456789", longopts, (int *)0)) != -1) {
+5447	  while ( /*+ WHILE STMT BROKEN DOWN */
+5533	  if (no_time < 0)
+5534	    no_time = decompress;
+5535	  if (no_name < 0)
+5536	    no_name = decompress;
+5537	  file_count = argc - optind;
+5538	  if (ascii && /*+ AND EXP BROKEN DOWN */
+5542	  if ((z_len == 0 && /*+ AND EXP BROKEN DOWN */
+5544	      z_len > 30) {
+5543	      !decompress) || /*+ OR EXP BROKEN DOWN */
+5548	  if (do_lzw && /*+ AND EXP BROKEN DOWN */
+5556	  if (file_count != 0) {
+5569	    treat_stdin();
+treat_stdin () at allfile.tendered.c:5581
+5581	  if (!force && /*+ AND EXP BROKEN DOWN */
+5582	      !list && /*+ AND EXP BROKEN DOWN */
+5581	  if (!force && /*+ AND EXP BROKEN DOWN */
+5584	  decompress ?  /*+ COND EXP BROKEN DOWN */
+5583	      isatty(fileno((FILE *)( /*+ COND EXP BROKEN DOWN */
+5582	      !list && /*+ AND EXP BROKEN DOWN */
+5597	  if (decompress || /*+ OR EXP BROKEN DOWN */
+5601	  if (!test && /*+ AND EXP BROKEN DOWN */
+5602	      !list && /*+ AND EXP BROKEN DOWN */
+5601	  if (!test && /*+ AND EXP BROKEN DOWN */
+5603	      (!decompress || /*+ OR EXP BROKEN DOWN */
+5602	      !list && /*+ AND EXP BROKEN DOWN */
+5607	  strcpy(ifname, "stdin");
+5608	  strcpy(ofname, "stdout");
+5609	  time_stamp = 0;
+5610	  if (list || /*+ OR EXP BROKEN DOWN */
+5611	      !no_time) {
+5610	  if (list || /*+ OR EXP BROKEN DOWN */
+5617	  ifile_size = -1L;
+5618	  clear_bufs();
+clear_bufs () at allfile.tendered.c:4610
+4610	  outcnt = 0;
+4611	  insize = inptr = 0;
+4612	  bytes_in = bytes_out = 0L;
+4613	}
+treat_stdin () at allfile.tendered.c:5619
+5619	  to_stdout = 1;
+5620	  part_nb = 0;
+5621	  if (decompress) {
+5622	    method = get_method(ifd);
+get_method (in=0) at allfile.tendered.c:6009
+6009	  if (force && /*+ AND EXP BROKEN DOWN */
+6021	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6020	    magic[0] = (char)( /*+ COND EXP BROKEN DOWN */
+6023	    fill_inbuf(0));
+fill_inbuf (eof_ok=0) at allfile.tendered.c:4620
+4620	  insize = 0;
+4621	  *__errno_location() = 0;
+4623	    len = read(ifd, (char *)inbuf + insize, 0x8000 - insize);
+4624	    if (len == 0 || /*+ OR EXP BROKEN DOWN */
+4627	    insize += len;
+4629	        insize < 0x8000);
+4623	    len = read(ifd, (char *)inbuf + insize, 0x8000 - insize);
+4624	    if (len == 0 || /*+ OR EXP BROKEN DOWN */
+4631	  if (insize == 0) {
+4636	  bytes_in += (ulg)insize;
+4637	  inptr = 1;
+4638	  return inbuf[0];
+4639	}
+get_method (in=0) at allfile.tendered.c:6020
+6020	    magic[0] = (char)( /*+ COND EXP BROKEN DOWN */
+6025	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6024	    magic[1] = (char)( /*+ COND EXP BROKEN DOWN */
+6026	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6024	    magic[1] = (char)( /*+ COND EXP BROKEN DOWN */
+6029	  method = -1;
+6030	  part_nb++;
+6031	  header_bytes = 0;
+6032	  last_member = 0;
+6033	  if (memcmp(magic, "\037\213", 2) == 0 || /*+ OR EXP BROKEN DOWN */
+6034	      memcmp(magic, "\037\236", 2) == 0) {
+6033	  if (memcmp(magic, "\037\213", 2) == 0 || /*+ OR EXP BROKEN DOWN */
+6036	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6035	    method = (int)( /*+ COND EXP BROKEN DOWN */
+6037	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6035	    method = (int)( /*+ COND EXP BROKEN DOWN */
+6037	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6039	    if (method != 8) {
+6044	    work = unzip;
+6046	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6045	    flags = (uch)( /*+ COND EXP BROKEN DOWN */
+6047	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6045	    flags = (uch)( /*+ COND EXP BROKEN DOWN */
+6047	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6045	    flags = (uch)( /*+ COND EXP BROKEN DOWN */
+6049	    if ((flags & 0x20) != 0) {
+6054	    if ((flags & 0x02) != 0) {
+6060	    if ((flags & 0xC0) != 0) {
+6067	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6066	    stamp = (ulg)( /*+ COND EXP BROKEN DOWN */
+6068	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6066	    stamp = (ulg)( /*+ COND EXP BROKEN DOWN */
+6068	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6071	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6073	    fill_inbuf(0)) << 8;
+6072	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6073	    fill_inbuf(0)) << 8;
+6072	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6070	    stamp |= (ulg)( /*+ COND EXP BROKEN DOWN */
+6075	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6077	    fill_inbuf(0)) << 16;
+6076	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6077	    fill_inbuf(0)) << 16;
+6076	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6074	    stamp |= (ulg)( /*+ COND EXP BROKEN DOWN */
+6079	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6081	    fill_inbuf(0)) << 24;
+6080	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6081	    fill_inbuf(0)) << 24;
+6080	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6078	    stamp |= (ulg)( /*+ COND EXP BROKEN DOWN */
+6082	    if (stamp != 0 && /*+ AND EXP BROKEN DOWN */
+6085	    time_stamp = 0;
+6087	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6086	    (void)( /*+ COND EXP BROKEN DOWN */
+6088	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6091	    inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6090	    (void)( /*+ COND EXP BROKEN DOWN */
+6092	    inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6094	    if ((flags & 0x02) != 0) {
+6108	    if ((flags & 0x04) != 0) {
+6110	      inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6109	      unsigned len = (unsigned)( /*+ COND EXP BROKEN DOWN */
+6111	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6109	      unsigned len = (unsigned)( /*+ COND EXP BROKEN DOWN */
+6111	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6109	      unsigned len = (unsigned)( /*+ COND EXP BROKEN DOWN */
+6115	      inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6117	      fill_inbuf(0)) << 8;
+6116	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6117	      fill_inbuf(0)) << 8;
+6116	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6114	      len |= (unsigned)( /*+ COND EXP BROKEN DOWN */
+6118	      if (verbose) {
+6121	      while ( /*+ WHILE STMT BROKEN DOWN */
+6122	            len--)
+6121	      while ( /*+ WHILE STMT BROKEN DOWN */
+6124	        inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6123	        (void)( /*+ COND EXP BROKEN DOWN */
+6125	        inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6122	            len--)
+6121	      while ( /*+ WHILE STMT BROKEN DOWN */
+6124	        inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+6123	        (void)( /*+ COND EXP BROKEN DOWN */
+6125	        inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+6122	            len--)
+6121	      while ( /*+ WHILE STMT BROKEN DOWN */
+6128	    if ((flags & 0x08) != 0) {
+6168	    if ((flags & 0x10) != 0) {
+6176	    if (part_nb == 1) {
+6177	      header_bytes = inptr + 2 * sizeof(long);
+6176	    if (part_nb == 1) {
+6206	  if (method >= 0)
+6207	    return method;
+6222	}
+treat_stdin () at allfile.tendered.c:5623
+5623	    if (method < 0) {
+5627	  if (list) {
+5635	    if ((*work)(fileno(stdin), fileno(stdout)) != 0)
+unzip (in=0, out=1) at allfile.tendered.c:4462
+4462	{
+4463	  ulg orig_crc = 0;
+4464	  ulg orig_len = 0;
+4468	  ifd = in;
+4469	  ofd = out;
+4470	  updcrc((void *)0, 0);
+updcrc (s=0x0, n=0) at allfile.tendered.c:4594
+4594	  if (s == (void *)0) {
+4595	    c = 0xffffffffL;
+4605	  crc = c;
+4606	  return c ^ 0xffffffffL;
+4607	}
+unzip (in=0, out=1) at allfile.tendered.c:4471
+4471	  if (pkzip && /*+ AND EXP BROKEN DOWN */
+4476	  if (method == 8) {
+4477	    int res = inflate();
+inflate () at allfile.tendered.c:2472
+2472	  outcnt = 0;
+2473	  bk = 0;
+2474	  bb = 0;
+2475	  h = 0;
+2477	    hufts = 0;
+2478	    if ((r = inflate_block(&e)) != 0)
+inflate_block (e=0x7fffffffd944) at allfile.tendered.c:2425
+2425	  b = bb;
+2426	  k = bk;
+2428	    while ( /*+ WHILE STMT BROKEN DOWN */
+2431	      inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+2430	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2432	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2430	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2432	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2433	      fill_inbuf(0)) << k;
+2430	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2434	      k += 8;
+2428	    while ( /*+ WHILE STMT BROKEN DOWN */
+2437	  *e = (int)b & 1;
+2439	    b >>= 1;
+2440	    k -= 1;
+2442	    while ( /*+ WHILE STMT BROKEN DOWN */
+2451	  t = (unsigned)b & 3;
+2453	    b >>= 2;
+2454	    k -= 2;
+2456	  bb = b;
+2457	  bk = k;
+2458	  if (t == 2)
+2459	    return inflate_dynamic();
+inflate_dynamic () at allfile.tendered.c:2222
+2222	  b = bb;
+2223	  k = bk;
+2225	    while ( /*+ WHILE STMT BROKEN DOWN */
+2234	  nl = 257 + ((unsigned)b & 0x1f);
+2236	    b >>= 5;
+2237	    k -= 5;
+2239	    while ( /*+ WHILE STMT BROKEN DOWN */
+2242	      inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+2241	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2243	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2241	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2243	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2244	      fill_inbuf(0)) << k;
+2241	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2245	      k += 8;
+2239	    while ( /*+ WHILE STMT BROKEN DOWN */
+2248	  nd = 1 + ((unsigned)b & 0x1f);
+2250	    b >>= 5;
+2251	    k -= 5;
+2253	    while ( /*+ WHILE STMT BROKEN DOWN */
+2256	      inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+2255	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2257	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2255	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2257	      inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2258	      fill_inbuf(0)) << k;
+2255	      b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2259	      k += 8;
+2253	    while ( /*+ WHILE STMT BROKEN DOWN */
+2262	  nb = 4 + ((unsigned)b & 0xf);
+2264	    b >>= 4;
+2265	    k -= 4;
+2267	  if (nl > 286 || /*+ OR EXP BROKEN DOWN */
+2271	      j = 0; /*+ FOR STMT BROKEN DOWN */
+2270	  for ( /*+ FOR STMT BROKEN DOWN */
+2275	      while ( /*+ WHILE STMT BROKEN DOWN */
+2284	    ll[border[j]] = (unsigned)b & 7;
+2286	      b >>= 3;
+2287	      k -= 3;
+2273	       j++) /*+ FOR STMT BROKEN DOWN */ {
+2270	  for ( /*+ FOR STMT BROKEN DOWN */
+2275	      while ( /*+ WHILE STMT BROKEN DOWN */
+2284	    ll[border[j]] = (unsigned)b & 7;
+2286	      b >>= 3;
+2287	      k -= 3;
+2273	       j++) /*+ FOR STMT BROKEN DOWN */ {
+2270	  for ( /*+ FOR STMT BROKEN DOWN */
+2275	      while ( /*+ WHILE STMT BROKEN DOWN */
+2278	        inptr < insize ?  /*+ COND EXP BROKEN DOWN */
+2277	        b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2279	        inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2277	        b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2279	        inbuf[inptr++] :  /*+ COND EXP BROKEN DOWN */
+2280	        fill_inbuf(0)) << k;
+2277	        b |= (ulg)(uch)( /*+ COND EXP BROKEN DOWN */
+2281	        k += 8;
+2275	      while ( /*+ WHILE STMT BROKEN DOWN */
+2284	    ll[border[j]] = (unsigned)b & 7;
+2286	      b >>= 3;
+2287	      k -= 3;
+2273	       j++) /*+ FOR STMT BROKEN DOWN */ {
+2270	  for ( /*+ FOR STMT BROKEN DOWN */
+2275	      while ( /*+ WHILE STMT BROKEN DOWN */
+2284	    ll[border[j]] = (unsigned)b & 7;
+2286	      b >>= 3;
+2287	      k -= 3;
+2273	       j++) /*+ FOR STMT BROKEN DOWN */ {
+2270	  for ( /*+ FOR STMT BROKEN DOWN */
+2275	      while ( /*+ WHILE STMT BROKEN DOWN */
+2284	    ll[border[j]] = (unsigned)b & 7;
+2286	      b >>= 3;
+2287	      k -= 3;
+2273	       j++) /*+ FOR STMT BROKEN DOWN */ {
+2270	  for ( /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2294	    ll[border[j]] = 0;
+2293	       j++) /*+ FOR STMT BROKEN DOWN */
+2290	  for ( /*+ FOR STMT BROKEN DOWN */
+2295	  bl = 7;
+2296	  if ((i = huft_build(ll, 19, 19, (void *)0, (void *)0, &tl, &bl)) != 0) {
+huft_build (b=0x7fffffffd3b0, n=19, s=19, d=0x0, e=0x0, t=0x7fffffffd8a8, m=0x7fffffffd8b8) at allfile.tendered.c:1757
+1757	  memset((voidp)c, 0, sizeof(c));
+1758	  p = b;
+1759	  i = n;
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1762	    c[*p]++;
+1763	    p++;
+1765	        --i);
+1767	  if (c[0] == n) {
+1768	    *t = (struct huft *)(void *)0;
+1769	    *m = 0;
+1770	    return 0;
+1902	}
+inflate_dynamic () at allfile.tendered.c:2301
+2301	  n = nl + nd;
+2302	  m = mask_bits[bl];
+2303	  i = l = 0;
+2304	  while ( /*+ WHILE STMT BROKEN DOWN */
+2305	        (unsigned)i < n) {
+2304	  while ( /*+ WHILE STMT BROKEN DOWN */
+2307	      while ( /*+ WHILE STMT BROKEN DOWN */
+2308	            k < (unsigned)bl) {
+2307	      while ( /*+ WHILE STMT BROKEN DOWN */
+2316	    j = (td = tl + ((unsigned)b & m))->b;
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000000000403813 in inflate_dynamic () at allfile.tendered.c:2316
+2316	    j = (td = tl + ((unsigned)b & m))->b;
+
+Program terminated with signal SIGSEGV, Segmentation fault.
+The program no longer exists.
+(gdb) quit
