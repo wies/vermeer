@@ -11,6 +11,8 @@ int dsn_log(const char* format, ...)
   if(!pfile){
     pfile = fopen("dsn_logfile.txt","w");
     assert(pfile);
+    //Use line buffering. _IOFBF is anothe option
+    setvbuf(pfile,NULL,_IOLBF,0);
   }
 
   va_list arglist;
