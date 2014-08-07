@@ -1,0 +1,2 @@
+#!/bin/bash
+gcc -c -O4 dsnlog.c
