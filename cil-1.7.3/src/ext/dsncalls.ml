@@ -27,16 +27,29 @@ let scopeVar = makeGlobalVar "__scope_level__" Cil.uintType
 let scopeLval =  (Var(scopeVar),NoOffset)
 let scopeLvalExpr = Lval(scopeLval)
 let currentScopeExpr = scopeLvalExpr
-let currentIndentExpr = BinOp(Mult,currentScopeExpr,Cil.integer(indentSpaces),Cil.uintType)
 let prevScopeExpr = BinOp(MinusA,currentScopeExpr,one,Cil.uintType)
+let nextScopeExpr = BinOp(PlusA,currentScopeExpr,one,Cil.uintType)
+
+let indentVar = makeGlobalVar "__indent_level__" Cil.uintType
+let indentLval =  (Var(indentVar),NoOffset)
+let indentExpr = Lval(indentLval)
 
 let incrScope = Set(scopeLval, (increm scopeLvalExpr (1)), locUnknown)
 let decrScope = Set(scopeLval, (increm scopeLvalExpr (-1)), locUnknown)
+let incrScopeStmt = mkStmtOneInstr incrScope
+let decrScopeStmt = mkStmtOneInstr decrScope
+
+let incrIndent = Set(indentLval, (increm indentExpr (indentSpaces)), locUnknown)
+let decrIndent = Set(indentLval, (increm indentExpr (- indentSpaces)), locUnknown)
+let incrIndentStmt = mkStmtOneInstr incrIndent
+let decrIndentStmt = mkStmtOneInstr decrIndent
+
 
 (* Switches *)
 let printFunctionName = ref "dsn_log"(*"printf"*)
 
 let addProto = ref false
+let counter = ref 0
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
   let f (d: doc) : string = 
@@ -51,7 +64,6 @@ let lineStr (loc: location) : string =
   "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\""   
 
 let locStr () = sprint 800 (d_thisloc ())
-
 
 let printf: varinfo option ref = ref None
 let makePrintfFunction () : varinfo = 
@@ -72,7 +84,7 @@ let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) 
     if indentp then  "%*s" ^ format 
     else format in
   let args = 
-    if indentp then currentIndentExpr :: mkString "" :: args 
+    if indentp then indentExpr :: mkString "" :: args 
     else args in
   let format = 
     if locp then "%s\n" ^ format
@@ -146,7 +158,12 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
  | _ -> let typeStr = d_string "%a" d_type tTop in 
    ((typeStr,[]),
     ("",[]))
-     
+
+let d_fn_decl (v : varinfo) : logStatement = 
+  let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
+  ((lhsStr ^ " %s__%d" ^ rhsStr),
+   (lhsArgs @ [ mkString v.vname; nextScopeExpr] @ rhsArgs))
+   
 let d_decl (v : varinfo) : logStatement = 
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
   ((lhsStr ^ " %s__%d" ^ rhsStr),
@@ -383,8 +400,8 @@ let i = ref 0
 let name = ref ""
 
 
-let makeScopeOpen = [ mkPrint ~locp:false "{\n" []; incrScope]
-let makeScopeClose = [decrScope; mkPrint ~locp:false "}\n" []]
+let makeScopeOpen = [mkPrint ~locp:false "{\n" []; incrScope; incrIndent]
+let makeScopeClose = [decrIndent; decrScope; mkPrint ~locp:false "}\n" []]
 
 
 let currentFunc: string ref = ref ""
@@ -434,7 +451,7 @@ class dsnVisitorClass = object
   end
   method vstmt (s : stmt) = begin
     match s.skind with
-      Return(Some e, loc) -> 
+      | Return(Some e, loc) -> 
         let pre = mkPrint (d_string "//exiting %s\n" !currentFunc) [] in
 	let (lhsStr,lhsArg) = d_returnTemp in
 	let (rhsStr,rhsArg) = d_scope_exp e in
@@ -444,7 +461,37 @@ class dsnVisitorClass = object
 	let printStmt = mkStmtOneInstr printCall in
 	let preStmt = mkStmtOneInstr pre in
         ChangeTo (mkStmt (Block (mkBlock [ preStmt; printStmt ; s ])))
-    | _ -> DoChildren
+      | If(_) ->
+	let postfn a = begin match a.skind with 
+	  | If(e,b1,b2,loc) ->
+	    let updateBlock b t = 
+	      begin
+		let startnum = string_of_int !counter in
+		let endnum = string_of_int (!counter + 1) in
+		let _ = counter := !counter + 2 in
+		let (eStr,eArg) = d_scope_exp e in
+		let eStr = if t then eStr else "!(" ^ eStr ^")" in
+		let comment = if t then "then" else "else" in
+		let blockEnter = 
+		  [mkPrintStmt ("if( " ^ eStr ^ "){ //" ^ comment ^ " #" ^ startnum ^ "\n") eArg ;
+		   incrIndentStmt
+		  ] in
+		let blockExit =   
+		  [decrIndentStmt;
+		   mkPrintStmt ~locp:false ("}//" ^ eStr ^ " #" ^ endnum ^"\n") eArg;
+		  ] in
+		let stmts = blockEnter @  b.bstmts @ blockExit in 
+		b.bstmts <- stmts;
+		b
+	      end in
+	    let thenBlk = updateBlock b1 true in
+	    let elseBlk = updateBlock b2 false in
+	    a.skind <- If(e,thenBlk,elseBlk,loc);
+	    a
+	  |  _ -> raise (Failure "this must be an If")
+	end in
+	ChangeDoChildrenPost (s,postfn)
+      | _ -> DoChildren
   end
 end
 
@@ -484,7 +531,7 @@ let dsn (f: file) : unit =
       ignore (visitCilFunction dsnVisitor fdec);
       
       (* Now add the entry instruction *)
-      let formalDeclList = List.map d_decl fdec.sformals in
+      let formalDeclList = List.map d_fn_decl fdec.sformals in
       let rec mkMainArgs lst = 
 	match lst with 
 	  | x :: [] -> x
@@ -498,7 +545,7 @@ let dsn (f: file) : unit =
         mkBlock (compactStmts (
 		 [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown))]
 		 @ [mkPrintStmt ~indentp:false ("int main(" ^ formalStr ^ "){\n") formalArgs]
-		 @ [ mkStmtOneInstr (incrScope)] 
+		 @ [incrScopeStmt; incrIndentStmt] 
           (* DSN need to add code to declare argc argv *)
 		 @ (declareAllVarsStmt fdec.slocals) 
 		 @ [mkStmt (Block fdec.sbody) ]
@@ -523,6 +570,7 @@ let dsn (f: file) : unit =
     f.globals <-
       GVarDecl (p, locUnknown) ::
       GVarDecl (scopeVar, locUnknown) :: 
+      GVarDecl (indentVar, locUnknown) :: 
       GFun (globalDeclFn, locUnknown) :: (*should be declared last*)
       f.globals
   end  

@@ -39,7 +39,7 @@
 let doCheck= ref false   (* Whether to check CIL *)
 let strictChecking= ref false   (* If doCheck is true and warnings are found,
                                 * treat them as errors. *)
-
+let dsnSMT = ref false (* Whether to output to SMT *)
 let dsnConcrete = ref false (*Whether to log a concrete memory model *)
 let dsnCalls = ref false (*try making this happy*)
 let logCalls = ref false (* Whether to produce a log with all the function 

@@ -90,9 +90,9 @@ $(BINDIR)/$(CILLY)$(EXE): $(OBJDIR)/src/main$(EXEMODE)
 	cp $< $@
 
 # cilly perl wrapper
-prefix = /usr/local
+prefix = /home/dsn/.opam/system
 
-FORCE_PERL_PREFIX = 
+FORCE_PERL_PREFIX = 1
 ifeq ($(FORCE_PERL_PREFIX), 1)
 	PERL_MM_OPT = INSTALL_BASE="$(prefix)"
 	export PERL_MM_OPT
