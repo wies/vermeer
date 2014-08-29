@@ -576,15 +576,10 @@ let dsn (f: file) : unit =
   end  
 
 let feature : featureDescr = 
-  { fd_name = "dsn";
+  { fd_name = "dsnlinear";
     fd_enabled = Cilutil.dsnCalls;
-    fd_description = "generation of code to log function calls";
-    fd_extraopt = [
-      ("--dsnprintf", Arg.String (fun s -> printFunctionName := s), 
-       " the name of the printf function to use");
-      ("--dsnaddproto", Arg.Unit (fun s -> addProto := true), 
-       " whether to add the prototype for the printf function")
-    ];
+    fd_description = "generation of code to log a executable linear trace";
+    fd_extraopt = [];
     fd_doit = dsn;
     fd_post_check = true
   } 
