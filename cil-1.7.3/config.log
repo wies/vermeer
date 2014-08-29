@@ -341,8 +341,8 @@ configure: failed program was:
 configure:5207: result: true
 configure:5212: checking if gcc adds underscores to assembly labels.
 configure:5218: gcc -o conftest -g -O2   conftest.c  >&5
-/tmp/ccPMK59y.o: In function `main':
-/home/dsn/Research/fl2/cil-1.7.3/conftest.c:19: undefined reference to `_main'
+/tmp/ccTuCViG.o: In function `main':
+/home/dsn/Research/fault-localization/cil-1.7.3/conftest.c:19: undefined reference to `_main'
 collect2: ld returned 1 exit status
 configure:5218: $? = 1
 configure: failed program was:
