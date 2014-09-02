@@ -51,9 +51,10 @@ module VarMap = Map.Make(VarM)
 module VarSet = Set.Make(VarM)
 module IntMap = Map.Make(Int)
 module VarSSAMap = Map.Make(Int)
+module TypeMap = Map.Make(Int)
 module StringMap = Map.Make(String)
 type varSSAMap = smtvar VarSSAMap.t
-type varTypeMap = smtVarType IntMap.t
+type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
 
 
@@ -142,15 +143,30 @@ let get_var_type (var : smtvar) (typeMap : varTypeMap) : smtVarType =
   else 
     SMTUnknown
 
+let set_var_types typeMap fl typ = 
+  match fl with 
+    | SMTRelation(s,l) -> begin 
+    | SMTConstant(_) -> SMTInt
+    | SMTVar(v) -> begin 
+      match get_var_type v typeMap with
+	| SMTUnknown -> TypeMap.add v.vidx typ
+	| SMTBool as vt -> if vt = typ then typeMap else raise (Failure "mismatching types")
+    end
+
+
+(* TODO add a check that the rest of the expressions checks out *)
 let get_formula_type e typeMap =
   match e with 
     | SMTRelation(s,l) -> begin 
       match s with 
-	| "<" -> SMTBool
-	| _ -> SMTInt
+	| "<" | ">" | "<=" | ">=" 
+	  -> SMTBool
+	| _ 
+	  -> SMTInt
     end
     | SMTConstant(_) -> SMTInt
     | SMTVar(v) -> get_var_type v typeMap
+
 
 
 (* not tail recursive *)
@@ -375,7 +391,8 @@ let trim str =
 let getFirstArgType str = 
   let str = trim str in
   match str.[0] with
-    | '(' -> Sexp
+    | '(' 
+      -> Sexp
     | '0' | '1' | '2' | '3' | '4'
     | '5' | '6' | '7' | '8' | '9' 
       -> SexpConst
