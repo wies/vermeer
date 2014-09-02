@@ -108,6 +108,11 @@ let rec last = function
     | [x] -> Some x
     | _ :: t -> last t;;
 
+let rec all_but_last accum lst = match lst with
+  | [] -> raise (Failure "empty list can't remove last")
+  | [x] -> []
+  | x::xs -> s :: (all_but_last xs)
+
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
   let f (d: doc) : string = 
     Pretty.sprint 800 d
@@ -534,11 +539,10 @@ let do_smt basename prog smtCmds pt =
   let _ = Sys.command (solver_string ^ args) in
   read_smtresult resultFilename pt
 
-
 let is_valid_interpolant before after inter = 
   let ssa = match last before with
-    | Some x -> x.ssaIdxs
-    | None -> raise (Failure "is_valid_interpolant") in
+    | Some(x) -> x.ssaIdxs
+    | None -> raise (Failure "is_valid_interpolant before should have elements") in
   let probType = SMTOnly in
   let inter = remap_clause ssa inter in
   let not_inter = negate_clause inter in
@@ -552,7 +556,54 @@ let is_valid_interpolant before after inter =
       match do_smt "after" after_p after_cmds probType with
 	| Sat -> false
 	| Unsat(_) -> true 
-   
+
+(* keep the leftSuffix in reversed order
+ * the last two elements of the leftSuffix are the currentState
+ * and the first update after that 
+ *)
+let rec find_farthest_point_interpolant_valid 
+    currentState 
+    interpolant 
+    leftSuffix 
+    rightSuffix =
+  match leftSuffix with
+    | [] -> rightSuffix
+    | _ -> 
+      let x = last leftSuffix in
+      let leftSuffix = all_but_last leftSuffix in
+      let rightSuffix = x :: rightSuffix in
+      let before = currentState @ leftSuffix in
+      let after  = rightSuffix in
+      if (is_valid_interpolant before after interpolant) then
+	rightSuffix
+      else
+	find_farthest_point_interpolant_valid interpolant 
+	  currentState 
+	  interpolant
+	  leftSuffix
+	  rightSuffix
+
+
+(* reduced is the prefix of the trace *)
+(* We will work as follows:
+ * For efficiency, store reducedPrefix in reversed order
+ *
+ * assume that the reducedPrefix is maximally reduced
+ * At the end of this prefix, we are in the state currentState
+ * We need the next assignment, otherwise we would have been able 
+ * to map the interpolant even further forward
+ * so take : [currentState; x ; prefix] and find an interpolant between
+ * x and prefix.
+ * map that as far as possible
+ * repeat
+ *)
+
+let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
+  match unreduced with
+    | [] -> List.rev (current :: reduced)
+    | [x] -> List.rev (x :: current :: reduced)
+    | x :: xs ->
+      let nextStep = 
 
 (*********************************C to smt converstion *************************************)
 let rec formula_from_lval l = 
@@ -619,13 +670,6 @@ let main () =
 
 
 
-
-
-
-
-
-
-
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
@@ -654,15 +698,13 @@ end
 let dsnsmtVisitor = new dsnsmtVisitorClass
 
 let dsnsmt (f: file) : unit =
-
-  let doGlobal = function
+  let doGlobal = function 
     | GVarDecl (v, _) -> ()
     | GFun (fdec, loc) ->
       currentFunc := fdec.svar.vname;
       (* do the body *)
       ignore (visitCilFunction dsnsmtVisitor fdec);
-    | _ -> ()
-  in 
+    | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let p = make_program (List.rev !revProgram) in
   let x = do_smt "foo" p [smtCheckSat] SMTOnly in 
