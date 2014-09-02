@@ -1,6 +1,7 @@
 (* TODOS
- * remove the scope stuff
- * fix how indents work
+ * fix Int vs Bool problem
+ * handle conditions from if statements
+ * 
  *)
 (** See copyright notice at the end of this file *)
 
@@ -35,20 +36,24 @@ module Int = struct
 type varOwner = | Thread of int 
 		| Global
 
+type smtVarType = SMTBool | SMTInt | SMTUnknown
+		    
 type smtvar = {fullname : string; 
-	    vidx: int; 
-	    owner : int; 
-	    ssaIdx : int}
-
+	       vidx: int; 
+	       owner : int; 
+	       ssaIdx : int}
+    
 module VarM = struct 
   type t = smtvar
   let compare x y = Pervasives.compare x y end ;;
 (* Given a variable name determine the correct mapping for it *)
 module VarMap = Map.Make(VarM)
 module VarSet = Set.Make(VarM)
-module VarSSAMap = Map.Make(Int) 
-module VarNameMap = Map.Make(String)
+module IntMap = Map.Make(Int)
+module VarSSAMap = Map.Make(Int)
+module StringMap = Map.Make(String)
 type varSSAMap = smtvar VarSSAMap.t
+type varTypeMap = smtVarType IntMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
 
 
@@ -56,7 +61,7 @@ type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
 	    | SMTVar of smtvar 
 
-type problemType = SMTOnly | Interpolation of smtvar VarSSAMap.t 
+type problemType = SMTOnly | Interpolation of varSSAMap 
 
 (* TODO record the program location in the programStmt *)
 type clauseType = ProgramStmt | Interpolant
@@ -90,6 +95,7 @@ let name = ref ""
 let currentFunc: string ref = ref ""
 (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
 let revProgram : clause list ref = ref [] 
+let smtZero = SMTConstant(0L)
 
 (******************** Defs *************************)
 
@@ -108,10 +114,10 @@ let rec last = function
     | [x] -> Some x
     | _ :: t -> last t;;
 
-let rec all_but_last accum lst = match lst with
+let rec all_but_last lst = match lst with
   | [] -> raise (Failure "empty list can't remove last")
   | [x] -> []
-  | x::xs -> s :: (all_but_last xs)
+  | x::xs -> x :: (all_but_last xs)
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
   let f (d: doc) : string = 
@@ -126,6 +132,26 @@ let safe_mkdir name mask =
 (****************************** Clauses ******************************)
 (* two possibilities: either maintain a mapping at each point
  * or remap as we go starting from one end *)
+
+
+(* So we need to figure out the type of each variable *)
+
+let get_var_type (var : smtvar) (typeMap : varTypeMap) : smtVarType = 
+  if IntMap.mem var.vidx typeMap then
+    IntMap.find var.vidx typeMap
+  else 
+    SMTUnknown
+
+let get_formula_type e typeMap =
+  match e with 
+    | SMTRelation(s,l) -> begin 
+      match s with 
+	| "<" -> SMTBool
+	| _ -> SMTInt
+    end
+    | SMTConstant(_) -> SMTInt
+    | SMTVar(v) -> get_var_type v typeMap
+
 
 (* not tail recursive *)
 let rec get_vars formulaList set = 
@@ -345,28 +371,19 @@ let trim str =
   else 
     str
 
-
+(* does this handle not correctly ?? *)
 let getFirstArgType str = 
   let str = trim str in
   match str.[0] with
     | '(' -> Sexp
-    | '0' -> SexpConst
-    | '1' -> SexpConst
-    | '2' -> SexpConst
-    | '3' -> SexpConst
-    | '4' -> SexpConst
-    | '5' -> SexpConst
-    | '6' -> SexpConst
-    | '7' -> SexpConst
-    | '8' -> SexpConst
-    | '9' -> SexpConst
-    | '=' -> SexpRel
-    | '<' -> SexpRel
-    | '>' -> SexpRel
-    | '-' -> SexpRel
-    | '+' -> SexpRel
-    | '*' -> SexpRel
-    | _   -> SexpVar
+    | '0' | '1' | '2' | '3' | '4'
+    | '5' | '6' | '7' | '8' | '9' 
+      -> SexpConst
+    | '=' | '<'  | '>' 
+    | '-' | '+'  | '*' 
+      -> SexpRel
+    | _   
+      -> SexpVar
 
 let split_on_underscore str = 
   if not ( contains str '_') then 
@@ -381,6 +398,7 @@ let split_on_underscore str =
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
+  let _ = printf "%s\n" str in
   let (lhs,ssa_str) = split_on_underscore str in
   let (lhs,vidx_str) = split_on_underscore lhs in
   {fullname = str; 
@@ -539,8 +557,8 @@ let do_smt basename prog smtCmds pt =
   let _ = Sys.command (solver_string ^ args) in
   read_smtresult resultFilename pt
 
-let is_valid_interpolant before after inter = 
-  let ssa = match last before with
+let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
+  let ssa = match (last before) with
     | Some(x) -> x.ssaIdxs
     | None -> raise (Failure "is_valid_interpolant before should have elements") in
   let probType = SMTOnly in
@@ -562,32 +580,28 @@ let is_valid_interpolant before after inter =
  * and the first update after that 
  *)
 let rec find_farthest_point_interpolant_valid 
-    currentState 
-    interpolant 
-    leftSuffix 
-    rightSuffix =
+    (currentState :clause) (interpolant :clause) 
+    (leftSuffix : clause list) (rightSuffix :clause list) =
   match leftSuffix with
-    | [] -> rightSuffix
+    | [] -> raise (Failure "should be at least one thing here")
+    | [_] ->  rightSuffix
     | _ -> 
-      let x = last leftSuffix in
+      let x = match last leftSuffix with 
+	| Some(c) -> c
+	| None -> raise (Failure "should have more here!") in
       let leftSuffix = all_but_last leftSuffix in
       let rightSuffix = x :: rightSuffix in
-      let before = currentState @ leftSuffix in
+      let before = currentState :: leftSuffix in
       let after  = rightSuffix in
       if (is_valid_interpolant before after interpolant) then
 	rightSuffix
       else
-	find_farthest_point_interpolant_valid interpolant 
-	  currentState 
-	  interpolant
-	  leftSuffix
-	  rightSuffix
+	find_farthest_point_interpolant_valid 
+	  currentState interpolant leftSuffix rightSuffix
 
 
 (* reduced is the prefix of the trace *)
 (* We will work as follows:
- * For efficiency, store reducedPrefix in reversed order
- *
  * assume that the reducedPrefix is maximally reduced
  * At the end of this prefix, we are in the state currentState
  * We need the next assignment, otherwise we would have been able 
@@ -597,13 +611,28 @@ let rec find_farthest_point_interpolant_valid
  * map that as far as possible
  * repeat
  *)
-
 let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
-  match unreduced with
-    | [] -> List.rev (current :: reduced)
-    | [x] -> List.rev (x :: current :: reduced)
+  match unreducedSuffix with
+    | [] -> reducedPrefix
+    | [x] -> reducedPrefix @ [x]
     | x :: xs ->
-      let nextStep = 
+      let clist = currentState :: unreducedSuffix in
+      let p = make_program clist in
+      let before = [currentState;x] in
+      let after = xs in
+      let smt_cmds = [smtCheckSat ; make_interpolate_between before after] in
+      let smt_file = make_smt_file p smt_cmds in
+      let probType = Interpolation x.ssaIdxs in
+      match do_smt "foo" p smt_cmds probType with 
+	| Unsat (Some(interpolant)) -> 
+	  let unreducedSuffix = find_farthest_point_interpolant_valid 
+	    currentState interpolant unreducedSuffix [] in
+	  reduce_trace_imp 
+	    (reducedPrefix @ [currentState; x])
+	    interpolant
+	    unreducedSuffix
+	| Unsat (None) -> raise (Failure "couldn't find interpolant")
+	| Sat -> raise (Failure "was sat")
 
 (*********************************C to smt converstion *************************************)
 let rec formula_from_lval l = 
@@ -655,7 +684,6 @@ let main () =
   let clist = [c1;c2;c3;c4] in
   let p = make_program clist in
   let smt_cmds = [smtCheckSat ; make_interpolate_between [c1;c2] [c3;c4]] in
-  let smt_file = make_smt_file p smt_cmds in
   (* Write message to file *)
   let probType = Interpolation c2.ssaIdxs in
   let x = do_smt "foo" p smt_cmds probType in 
@@ -668,8 +696,12 @@ let main () =
   () 
 ;;
 
+let get_ssa_before () = 
+  match !revProgram with
+    | [] -> emptySSAMap
+    | x::xs -> x.ssaIdxs
 
-
+  
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
@@ -679,19 +711,29 @@ class dsnsmtVisitorClass = object
 	let lvForm = formula_from_lval lv in
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
-	let ssaBefore = match !revProgram with
-	  | [] -> emptySSAMap
-	  | x::xs -> x.ssaIdxs in
+	let ssaBefore = get_ssa_before() in
 	let cls = clause_from_form assgt ssaBefore in
 	revProgram := cls :: !revProgram;
 	DoChildren
     | Call(lo,e,al,l) ->
-      raise (Failure "shouldn't have calls in a concrete trace")
+      let fname = d_string "%a" d_exp e in
+      if fname = "assert" then
+	(*assert should have exactly one element asserted *)
+	let form = formula_from_exp (List.hd al) in
+	let ssaBefore = get_ssa_before() in
+	let cls = clause_from_form form ssaBefore in
+	revProgram := cls :: !revProgram;
+	DoChildren
+      else
+	raise (Failure "shouldn't have calls in a concrete trace")
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
     match s.skind with
-    | _ -> DoChildren
+      | If(i,t,e,l) ->
+	
+	DoChildren
+      | _ -> DoChildren
   end
 end
 
