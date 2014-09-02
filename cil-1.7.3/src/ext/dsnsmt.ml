@@ -83,8 +83,13 @@ exception CantMap of smtvar
 (******************** Globals *************************)
 let count = ref 1
 let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
-let outfile = "outfile.smt2"
-let infile = "infile.smt2"
+let smtDir = "./smt/"
+let outfile = smtDir ^ "outfile.smt2"
+let infile = smtDir ^ "infile.smt2"
+let name = ref ""
+let currentFunc: string ref = ref ""
+(*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
+let revProgram : clause list ref = ref [] 
 
 (******************** Defs *************************)
 
@@ -102,6 +107,16 @@ let rec last = function
     | [] -> None
     | [x] -> Some x
     | _ :: t -> last t;;
+
+let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
+  let f (d: doc) : string = 
+    Pretty.sprint 800 d
+  in
+  Pretty.gprintf f fmt 
+
+let safe_mkdir name mask = 
+  if Sys.file_exists name then ()
+  else Unix.mkdir name mask
 
 (****************************** Clauses ******************************)
 (* two possibilities: either maintain a mapping at each point
@@ -135,7 +150,7 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
 	  VarSSAMap.add vidx v ssaMap in
       make_ssa_map vs ssaMap
 
-let make_clause (f: term) (i :int) (ssa:  var VarSSAMap.t ) (typ: clauseType): clause= 
+let make_clause (f: term) (i :int) (ssa:  varSSAMap) (typ: clauseType): clause= 
   let v  = get_vars [f] VarSet.empty in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
   let c  = {formula = f; idx = i; vars = v; ssaIdxs = ssa; typ = typ} in
@@ -446,7 +461,13 @@ let rec extract_term (str) : term list =
 	let term = SMTRelation(rel,tailExp) in
 	[term]
 
-let clause_from_sexp (sexp: string) (ssaBefore: var VarSSAMap.t) : clause = 
+let clause_from_form (f : term) (ssaBefore: varSSAMap) : clause =
+  let idx = !count in
+  let _ = incr count in
+  let cls : clause = make_clause f idx ssaBefore ProgramStmt in
+  cls
+
+let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) : clause = 
   let term_lst = extract_term sexp in
   let t = List.hd term_lst in (* should assert exactly one elt *)
   let idx = !count in
@@ -500,6 +521,9 @@ let read_smtresult filename pt =
 (****************************** Interpolation ******************************)
 let do_smt basename prog smtCmds pt =
   let solver_string = "java -jar /home/dsn/sw/smtinterpol/smtinterpol.jar" in
+  let smtDir = "./smt" in
+  let _ = safe_mkdir smtDir 0o777 in
+  let basename = smtDir ^ "/" ^ basename in
   let inFilename = basename ^ ".smt2"  in
   let resultFilename = basename ^ "_out.smt2"  in
   let args = 
@@ -536,11 +560,21 @@ let rec formula_from_lval l =
     | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
     | _ -> raise (Failure "should only have lvals of type var")
 
+(*DSN TODO check if there are any differences in cilly vs smt opstrings *)
 let rec formula_from_exp e = 
 match e with 
   | Const(CInt64(c,_,_)) -> SMTConstant(c)
   | Const(_) -> raise (Failure "Constants should only be of type int")
   | Lval(l) -> formula_from_lval l 
+  | UnOp(o,e1,t) -> 
+    let opArg = d_string "%a" d_unop o in
+    let eForm = formula_from_exp e1 in
+    SMTRelation(opArg,[eForm])
+  | BinOp(o,e1,e2,t) ->
+    let opArg = d_string "%a" d_binop o in
+    let eForm1 = formula_from_exp e1 in
+    let eForm2 = formula_from_exp e2 in
+    SMTRelation(opArg,[eForm1;eForm2])
   | _ -> raise (Failure "") 
 
 (*
@@ -580,26 +614,14 @@ let main () =
       printf "%B\n" (is_valid_interpolant [c1;c2;c3] [c4] c)
     | Unsat (None) -> printf "Unsat none\n"
     | Sat -> printf "sat\n" in
-  ()
-(*  Sys.command "java -jar /home/dsn/sw/smtinterpol/smtinterpol.jar interpolation.smt2" *)
- 
+  () 
 ;;
 
-main ();;
 
 
 
-let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
-  let f (d: doc) : string = 
-    Pretty.sprint 800 d
-  in
-  Pretty.gprintf f fmt 
 
 
-let name = ref ""
-let currentFunc: string ref = ref ""
-(*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
-let revProgram : clause list ref = ref [] 
 
 
 
@@ -607,10 +629,17 @@ let revProgram : clause list ref = ref []
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
-  
   method vinst i = begin
     match i with
       |  Set(lv, e, l) -> 
+	let lvForm = formula_from_lval lv in
+	let eForm = formula_from_exp e in
+	let assgt = SMTRelation("=",[lvForm;eForm]) in
+	let ssaBefore = match !revProgram with
+	  | [] -> emptySSAMap
+	  | x::xs -> x.ssaIdxs in
+	let cls = clause_from_form assgt ssaBefore in
+	revProgram := cls :: !revProgram;
 	DoChildren
     | Call(lo,e,al,l) ->
       raise (Failure "shouldn't have calls in a concrete trace")
@@ -627,15 +656,22 @@ let dsnsmtVisitor = new dsnsmtVisitorClass
 let dsnsmt (f: file) : unit =
 
   let doGlobal = function
-      
     | GVarDecl (v, _) -> ()
     | GFun (fdec, loc) ->
-        currentFunc := fdec.svar.vname;
-        (* do the body *)
-        ignore (visitCilFunction dsnsmtVisitor fdec);
+      currentFunc := fdec.svar.vname;
+      (* do the body *)
+      ignore (visitCilFunction dsnsmtVisitor fdec);
     | _ -> ()
-  in
-  Stats.time "dsn" (iterGlobals f) doGlobal
+  in 
+  let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
+  let p = make_program (List.rev !revProgram) in
+  let x = do_smt "foo" p [smtCheckSat] SMTOnly in 
+  let _ =  match x with  
+    | Unsat (Some(c)) -> 
+      printf "unsat: some\n" ;
+    | Unsat (None) -> printf "Unsat none\n"
+    | Sat -> printf "sat\n" in
+  () 
 
 let feature : featureDescr = 
   { fd_name = "dsnsmt";
