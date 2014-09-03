@@ -56,7 +56,7 @@ module StringMap = Map.Make(String)
 type varSSAMap = smtvar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
-
+let emptyTypeMap : varTypeMap = TypeMap.empty
 
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
@@ -80,7 +80,8 @@ type smtResult = Sat | Unsat of clause option
 
 
 type program = {clauses : clause list;
-		allVars : VarSet.t
+		allVars : VarSet.t;
+		typeMap : varTypeMap
 	       }
 
 exception CantMap of smtvar
@@ -143,31 +144,65 @@ let get_var_type (var : smtvar) (typeMap : varTypeMap) : smtVarType =
   else 
     SMTUnknown
 
-let set_var_types typeMap fl typ = 
-  match fl with 
-    | SMTRelation(s,l) -> begin 
-    | SMTConstant(_) -> SMTInt
-    | SMTVar(v) -> begin 
-      match get_var_type v typeMap with
-	| SMTUnknown -> TypeMap.add v.vidx typ
-	| SMTBool as vt -> if vt = typ then typeMap else raise (Failure "mismatching types")
-    end
+(* this function does two things: It determines the type of the 
+ * expression.  It also updates the mapping with any newly discovered
+ * var -> type mappings
+ *)
 
+let var_type_string typ = 
+  match typ with
+    |SMTInt -> "Int"
+    |SMTBool -> "Bool"
+    |SMTUnknown -> "Unknown"
 
-(* TODO add a check that the rest of the expressions checks out *)
-let get_formula_type e typeMap =
-  match e with 
-    | SMTRelation(s,l) -> begin 
-      match s with 
-	| "<" | ">" | "<=" | ">=" 
-	  -> SMTBool
-	| _ 
-	  -> SMTInt
-    end
-    | SMTConstant(_) -> SMTInt
-    | SMTVar(v) -> get_var_type v typeMap
+let analyze_var_type (typeMap : varTypeMap ref) (topForm : term) =
+  let types_match t1 t2 =
+    match t1,t2 with
+      | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
+      | _ -> false
+  in
+  let second_if_matching t1 t2 = 
+    if types_match t1 t2 then t2 else raise (Failure "mismatching types")
+  in
+  let update_type (var : smtvar) typ = 
+    match (get_var_type var !typeMap) with
+      | SMTUnknown -> 
+	typeMap := TypeMap.add var.vidx typ !typeMap
+      | vt -> 
+	if vt = typ then ()
+	else raise (Failure ("mismatching types " ^ var.fullname))
+  in
+  let rec analyze_type_list typ tl  = 
+  match tl with 
+    | [] -> typ
+    | x::xs -> 
+      let updatedTyp = analyze_type typ x in
+      if types_match typ updatedTyp then 
+	analyze_type_list updatedTyp xs
+      else raise (Failure "types don't match")
+  and analyze_type typ f = 
+    match f with 
+      | SMTConstant(_) -> 
+	second_if_matching typ SMTInt
+      | SMTVar(v) -> 
+	update_type v typ;
+	 typ	
+      | SMTRelation(s,l) -> begin
+	match s with 
+	  | "<" | ">" | "<=" | ">=" -> 
+	    let _  = analyze_type_list SMTInt l in (*first update the children*)
+	    second_if_matching typ SMTBool
+	  | "=" -> 
+	    let t1 = analyze_type_list SMTUnknown l in
+	    let t2 = second_if_matching t1 (analyze_type_list t1 l) in
+	    second_if_matching typ t2	    
+	  | _ -> 
+	    let _ = analyze_type_list SMTInt l in
+	    second_if_matching typ SMTInt
 
-
+      end
+  in
+  analyze_type SMTUnknown topForm
 
 (* not tail recursive *)
 let rec get_vars formulaList set = 
@@ -327,14 +362,29 @@ let rec get_all_vars_rec clauses  accum =
 let get_all_vars clauses = 
   get_all_vars_rec clauses VarSet.empty
 
-let make_var_decl vars = 
-  let f v = "(declare-fun " ^ (string_of_var v)  ^" () Int)\n" in
+let make_var_decl vars typeMap =
+  let f v = 
+    let typ = get_var_type v typeMap in
+    let ts = var_type_string typ in
+    "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
+  in
   List.map f (VarSet.elements vars)
+
+let analyze_all_vars clauses = 
+  let theMap = ref emptyTypeMap in
+  let analyze_clause cls = 
+    analyze_var_type theMap cls.formula 
+  in
+  List.map analyze_clause clauses
 
 let make_program clauses = 
   let vars = get_all_vars clauses in
+  let 
+  let tm = analyze_all_vars clauses in
   {clauses = clauses;
-   allVars = vars}
+   allVars = vars;
+   typeMap = tm
+  }
 
 let make_smt_file prog cmds = 
   let decls = make_var_decl prog.allVars in
