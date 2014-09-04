@@ -70,7 +70,7 @@ type problemType = SMTOnly | Interpolation of varSSAMap
 (* TODO record the program location in the programStmt *)
 type clauseType = ProgramStmt | Interpolant
 
-type sexpType = Sexp | SexpRel | SexpConst | SexpVar
+type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst
 
 type clause = {formula : term; 
 	       idx : int; 
@@ -487,13 +487,18 @@ let getFirstArgType str =
       -> Sexp
     | '0' | '1' | '2' | '3' | '4'
     | '5' | '6' | '7' | '8' | '9' 
-      -> SexpConst
+      -> SexpIntConst
     | '=' | '<'  | '>' 
     | '-' | '+'  | '*' 
-      -> SexpRel
-    | _   
-      -> SexpVar
+    | 'a' when str = "and" | 'd' when str = "distinct" 
+    | 'o' when str = "or" | 'n' when str = "not"
+    | 'x' when str = "xor" 
+	  -> SexpRel
+    | 'f' when str = "false" | 't' when str = "true" 
+				   -> SexpBoolConst
 
+    | _
+      -> SexpVar
 let split_on_underscore str = 
   if not ( contains str '_') then 
     raise (Failure "split on underscore missing underscore")
