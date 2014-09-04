@@ -374,22 +374,23 @@ let debug_typemap () =
 
 let assertion_name (c : clause) :string = "IP_" ^ (string_of_int c.idx)
 
+let make_ifContext_formula ic = 
+  match ic with 
+    | [] -> SMTTrue
+    | [x] -> x
+    | _ -> SMTRelation("and",ic)
+
 let make_assertion_string c =
-  let form = (*if flowSensitiveEncoding then 
-      match c.ifContext with 
-	| [] -> c.formula
-	| [x] -> 
-	| _ ->
-	  SMTRelation("=>", 
-		      [SMTRelation("and",c.ifContext); 
-		       c.formula])
-    else *)
-      c.formula in 
+  let form = 
+    if flowSensitiveEncoding then
+      SMTRelation("=>", 
+		[make_ifContext_formula c.ifContext; 
+		 c.formula])
+    else c.formula in 
   "(assert (! " 
   ^ string_of_formula form
   ^ " :named " ^ assertion_name c
   ^ "))\n"
-
     
 let make_interpolation_list program = 
   List.map (fun x -> (assertion_name x) ^ " " ) program
@@ -799,12 +800,14 @@ class dsnsmtVisitorClass = object
   method vstmt (s : stmt) = begin
     match s.skind with
       | If(i,t,e,l) ->
-	let cond = formula_from_exp i in
-	currentIfContext := cond :: !currentIfContext;
-	ChangeDoChildrenPost (s,
-			      fun x -> 
-				currentIfContext := List.tl !currentIfContext;
-				x)
+	if not (e.bstmts = []) then raise (Failure "else block not handeled") 
+	else
+	  let cond = make_bool (formula_from_exp i) in
+	  currentIfContext := cond :: !currentIfContext;
+	  ChangeDoChildrenPost (s,
+				fun x -> 
+				  currentIfContext := List.tl !currentIfContext;
+				  x)
       | _ -> DoChildren
   end
 end
