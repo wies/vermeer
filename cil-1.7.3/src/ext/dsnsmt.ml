@@ -61,6 +61,7 @@ let emptyTypeMap : varTypeMap = TypeMap.empty
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
 	    | SMTVar of smtvar 
+	    | SMTTrue | SMTFalse
 
 type problemType = SMTOnly | Interpolation of varSSAMap 
 
@@ -73,7 +74,8 @@ type clause = {formula : term;
 	       idx : int; 
 	       vars : VarSet.t; 
 	       ssaIdxs : varSSAMap;
-	       typ : clauseType
+	       typ : clauseType;
+	       ifContext : term list
 	      }
 
 type smtResult = Sat | Unsat of clause option 
@@ -82,6 +84,8 @@ type smtResult = Sat | Unsat of clause option
 type program = {clauses : clause list;
 		allVars : VarSet.t
 	       }
+
+type ifContext = term list
 
 exception CantMap of smtvar
 
@@ -98,6 +102,10 @@ let currentFunc: string ref = ref ""
 let revProgram : clause list ref = ref [] 
 let typeMap : varTypeMap ref  = ref emptyTypeMap
 let smtZero = SMTConstant(0L)
+let emptyIfContext = []
+let currentIfContext : ifContext ref = ref emptyIfContext
+let flowSensitiveEncoding = true
+
 
 (******************** Defs *************************)
 
@@ -240,11 +248,12 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
 	  VarSSAMap.add vidx v ssaMap in
       make_ssa_map vs ssaMap
 
-let make_clause (f: term) (i :int) (ssa: varSSAMap) (typ: clauseType)  : clause = 
+let make_clause (f: term) (i :int) (ssa: varSSAMap) (typ: clauseType) (ic : term list) 
+    : clause = 
   let v  = get_vars [f] VarSet.empty in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
   let _ = analyze_var_type f in (* update the typemap to include this clause *)
-  let c  = {formula = f; idx = i; vars = v; ssaIdxs = ssa; typ = typ} in
+  let c  = {formula = f; idx = i; vars = v; ssaIdxs = ssa; typ = typ; ifContext = ic} in
   c
 
 let negate_clause cls = 
@@ -252,7 +261,8 @@ let negate_clause cls =
    idx = cls.idx;
    vars = cls.vars;
    ssaIdxs = cls.ssaIdxs;
-   typ = cls.typ
+   typ = cls.typ;
+   ifContext = cls.ifContext
   }
 
 (****************************** Remapping ******************************)
@@ -280,12 +290,15 @@ let rec remap_formula ssaMap form =
 	| Some (newVar) -> SMTVar(newVar)
 	| None -> raise (CantMap v)
 
+(* I guess we should remap the if context too.  Does this make sense? *)
 let remap_clause ssaMap cls = 
   make_clause 
     (remap_formula ssaMap cls.formula)
     cls.idx
     ssaMap
     cls.typ
+    (List.map (remap_formula ssaMap) cls.ifContext)
+    
 
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
@@ -358,8 +371,18 @@ let debug_typemap () =
 let assertion_name (c : clause) :string = "IP_" ^ (string_of_int c.idx)
 
 let make_assertion_string c =
+  let form = if flowSensitiveEncoding then 
+      match c.ifContext with 
+	| [] -> c.formula
+	| [x] -> 
+	| _ ->
+	  SMTRelation("=>", 
+		      [SMTRelation("and",c.ifContext); 
+		       c.formula])
+    else 
+      c.formula in 
   "(assert (! " 
-  ^ string_of_clause c
+  ^ string_of_formula form
   ^ " :named " ^ assertion_name c
   ^ "))\n"
 
@@ -470,7 +493,6 @@ let split_on_underscore str =
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
-  let _ = printf "%s\n" str in
   let (lhs,ssa_str) = split_on_underscore str in
   let (lhs,vidx_str) = split_on_underscore lhs in
   {fullname = str; 
@@ -556,18 +578,18 @@ let rec extract_term (str) : term list =
 	let term = SMTRelation(rel,tailExp) in
 	[term]
 
-let clause_from_form (f : term) (ssaBefore: varSSAMap)  : clause =
+let clause_from_form (f : term) (ssaBefore: varSSAMap) (ic : ifContext) : clause =
   let idx = !count in
   let _ = incr count in
-  let cls : clause = make_clause f idx ssaBefore ProgramStmt in
+  let cls : clause = make_clause f idx ssaBefore ProgramStmt ic in
   cls
 
-let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) : clause = 
+let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext): clause = 
   let term_lst = extract_term sexp in
   let t = List.hd term_lst in (* should assert exactly one elt *)
   let idx = !count in
   let _ = incr count in
-  let cls : clause = make_clause t idx ssaBefore ProgramStmt in
+  let cls : clause = make_clause t idx ssaBefore ProgramStmt ic in
   cls
 
 let begins_with str header = 
@@ -590,7 +612,7 @@ let rec parse_smtresult lines pt =
 	match pt with
 	  | SMTOnly -> Unsat(None)
 	  | Interpolation(v) -> 
-	    let cls = clause_from_sexp (List.hd ls) v in
+	    let cls = clause_from_sexp (List.hd ls) v emptyIfContext in
 	    Unsat(Some(cls))
       else if begins_with l "sat" then
 	Sat
@@ -728,32 +750,6 @@ match e with
     SMTRelation(opArg,[eForm1;eForm2])
   | _ -> raise (Failure "not handelling this yet") 
 
-(* Return the sexp and the rest *)
-(* TODO this can be done more efficiently*)
-let main () = 
-  let str1 = "(= x_1_1 x_2_1)" in            (*x = y *)
-  let str2 = "(= x_1_2 (+ x_1_1 1))" in      (*x++   *)
-  let str3 = "(= (+ x_1_2 1) x_1_3  )" in      (*x++   *)
-  let str4 = "(> x_2_1 x_1_3)" in            (*y > x *)
-  let c1 = clause_from_sexp str1 emptySSAMap in
-  let c2 = clause_from_sexp str2 (c1.ssaIdxs) in 
-  let c3 = clause_from_sexp str3 (c2.ssaIdxs) in 
-  let c4 = clause_from_sexp str4 (c3.ssaIdxs) in 
-  let clist = [c1;c2;c3;c4] in
-  let p = make_program clist in
-  let smt_cmds = [smtCheckSat ; make_interpolate_between [c1;c2] [c3;c4]] in
-  (* Write message to file *)
-  let probType = Interpolation c2.ssaIdxs in
-  let x = do_smt "foo" p smt_cmds probType in 
-  let _ =  match x with  
-    | Unsat (Some(c)) -> 
-      printf "unsat: %s\n" (string_of_clause c);
-      printf "%B\n" (is_valid_interpolant [c1;c2;c3] [c4] c)
-    | Unsat (None) -> printf "Unsat none\n"
-    | Sat -> printf "sat\n" in
-  () 
-;;
-
 let get_ssa_before () = 
   match !revProgram with
     | [] -> emptySSAMap
@@ -779,7 +775,7 @@ class dsnsmtVisitorClass = object
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
 	let ssaBefore = get_ssa_before() in
-	let cls = clause_from_form assgt ssaBefore in
+	let cls = clause_from_form assgt ssaBefore !currentIfContext in
 	revProgram := cls :: !revProgram;
 	DoChildren
     | Call(lo,e,al,l) ->
@@ -789,7 +785,7 @@ class dsnsmtVisitorClass = object
 	let form = formula_from_exp (List.hd al) in
 	let form = make_bool form in 
 	let ssaBefore = get_ssa_before() in
-	let cls = clause_from_form form ssaBefore in
+	let cls = clause_from_form form ssaBefore !currentIfContext in
 	revProgram := cls :: !revProgram;
 	DoChildren
       else
@@ -799,8 +795,12 @@ class dsnsmtVisitorClass = object
   method vstmt (s : stmt) = begin
     match s.skind with
       | If(i,t,e,l) ->
-	
-	DoChildren
+	let cond = formula_from_exp i in
+	currentIfContext := cond :: !currentIfContext;
+	ChangeDoChildrenPost (s,
+			      fun x -> 
+				currentIfContext := List.tl !currentIfContext;
+				x)
       | _ -> DoChildren
   end
 end
