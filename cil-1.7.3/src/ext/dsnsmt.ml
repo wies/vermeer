@@ -196,6 +196,7 @@ let analyze_var_type (topForm : term) =
       else raise (Failure "types don't match")
   and analyze_type typ f = 
     match f with 
+      | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
       | SMTConstant(_) -> second_if_matching typ SMTInt
       | SMTVar(v) -> update_type v typ
       | SMTRelation(s,l) -> begin
@@ -228,7 +229,7 @@ let rec get_vars formulaList set =
       let set = get_vars xs set in
       match x with
 	| SMTRelation(s,l) -> get_vars l set
-	| SMTConstant(_) -> set
+	| SMTConstant(_) | SMTFalse | SMTTrue -> set
 	| SMTVar(v) -> VarSet.add v set 
 	
 let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
@@ -283,7 +284,7 @@ let rec remap_formula ssaMap form =
     | SMTRelation(s,tl) ->
       let lst = List.map (remap_formula ssaMap) tl in
       SMTRelation(s,lst)
-    | SMTConstant(_) -> form
+    | SMTConstant(_) | SMTFalse | SMTTrue -> form
     | SMTVar(v) ->
       let newVarOpt = get_current_var v ssaMap in
       match newVarOpt with
@@ -314,6 +315,8 @@ and string_of_formula f =
       "(" ^ rel ^ " " ^(string_of_args args) ^ ")"
     | SMTConstant(i) -> Int64.to_string i
     | SMTVar(v) -> string_of_var v
+    | SMTFalse -> "false"
+    | SMTTrue -> "true"
 
 let rec string_of_clause c = 
   string_of_formula c.formula
@@ -334,6 +337,7 @@ and debug_formula f =
       "\t(" ^ "Rel: " ^ rel ^ " args: " ^(debug_args args) ^ ")"
     | SMTConstant(i) -> Int64.to_string i
     | SMTVar(v) -> debug_var v
+    | SMTFalse | SMTTrue -> string_of_formula f
 
 (* could make tail rec if I cared *)
 let rec debug_SSAMap_rec bindings = 
@@ -371,7 +375,7 @@ let debug_typemap () =
 let assertion_name (c : clause) :string = "IP_" ^ (string_of_int c.idx)
 
 let make_assertion_string c =
-  let form = if flowSensitiveEncoding then 
+  let form = (*if flowSensitiveEncoding then 
       match c.ifContext with 
 	| [] -> c.formula
 	| [x] -> 
@@ -379,7 +383,7 @@ let make_assertion_string c =
 	  SMTRelation("=>", 
 		      [SMTRelation("and",c.ifContext); 
 		       c.formula])
-    else 
+    else *)
       c.formula in 
   "(assert (! " 
   ^ string_of_formula form
