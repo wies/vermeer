@@ -490,15 +490,17 @@ let getFirstArgType str =
       -> SexpIntConst
     | '=' | '<'  | '>' 
     | '-' | '+'  | '*' 
-    | 'a' when str = "and" | 'd' when str = "distinct" 
-    | 'o' when str = "or" | 'n' when str = "not"
-    | 'x' when str = "xor" 
+      -> SexpRel
+    | _ 
+      -> begin match str with 
+	|  "and" | "distinct" | "or" | "not" | "xor" 
 	  -> SexpRel
-    | 'f' when str = "false" | 't' when str = "true" 
-				   -> SexpBoolConst
+	| "false" | "true" 
+	  -> SexpBoolConst
+	| _
+	  -> SexpVar
+      end
 
-    | _
-      -> SexpVar
 let split_on_underscore str = 
   if not ( contains str '_') then 
     raise (Failure "split on underscore missing underscore")
@@ -584,7 +586,7 @@ let rec extract_term (str) : term list =
 	  headExpLst @ tailExp
 	else
 	  raise (Failure ("headExpList had unexpected length: " ^ string_of_int(List.length headExpLst)))
-      | SexpConst -> 
+      | SexpIntConst -> 
 	let c = Int64.of_string headStr in
 	let term = SMTConstant(c) in
 	term :: tailExp
@@ -596,6 +598,10 @@ let rec extract_term (str) : term list =
 	let rel = headStr in
 	let term = SMTRelation(rel,tailExp) in
 	[term]
+      | SexpBoolConst -> 
+	if headStr = "true" then SMTTrue :: tailExp
+	else if headStr = "false" then SMTFalse :: tailExp
+	else raise (Failure "neither true nor false???")
 
 let clause_from_form (f : term) (ssaBefore: varSSAMap) (ic : ifContext) : clause =
   let idx = !count in
