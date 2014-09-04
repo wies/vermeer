@@ -1,7 +1,9 @@
 (* TODOS
  * fix Int vs Bool problem - DONE
- * handle conditions from if statements
+ * handle conditions from if statements - DONE?
  * handle operators that differ between c and smt eg && vs and
+ * remap interpolants when returning them
+ * fix the "ands" and extra () in the interpolation split
  *)
 (** See copyright notice at the end of this file *)
 
@@ -426,13 +428,20 @@ let make_smt_file prog cmds =
 
 (******************** File creation ********************)
 
-let make_interpolate_between before after = 
-  let before_list  = make_interpolation_list before in
-  let after_list = make_interpolation_list after in
-  let before_names = List.fold_left (fun x y -> x ^ " " ^ y) "" before_list in
-  let after_names = List.fold_left (fun x y -> x ^ " " ^ y) "" after_list in
-  "(get-interpolants (and " ^ before_names ^ ") (and " ^ after_names ^ "))\n"
 
+
+let make_interpolate_between before after = 
+  let string_of_partition part = 
+    match make_interpolation_list part with 
+      | [] -> raise (Failure "should be a partition")
+      | [x] -> x
+      | xs -> 
+	let names = List.fold_left (fun x y -> x ^ " " ^ y) "" xs in
+	"(and " ^ names ^ ")"
+  in
+  let beforeNames = string_of_partition before in
+  let afterNames = string_of_partition after in
+  "(get-interpolants " ^ beforeNames ^ " " ^ afterNames ^ "))\n"
 
 let print_to_file filename lines = 
   let oc = open_out filename in    (* create or truncate file, return channel *)
@@ -648,9 +657,11 @@ let do_smt basename prog smtCmds pt =
   let basename = smtDir ^ "/" ^ basename in
   let inFilename = basename ^ ".smt2"  in
   let resultFilename = basename ^ "_out.smt2"  in
+  let logFilename = "log.txt" in
   let args = 
     " " ^ inFilename  
-    ^ " > " ^ resultFilename in
+    ^ " > " ^ resultFilename
+    ^ " 2> " ^ logFilename in
   let smtFile = make_smt_file prog smtCmds in
   let _ = print_to_file inFilename smtFile in
   let _ = Sys.command (solver_string ^ args) in
@@ -823,14 +834,11 @@ let dsnsmt (f: file) : unit =
       ignore (visitCilFunction dsnsmtVisitor fdec);
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
-  let p = make_program (List.rev !revProgram) in
-  let x = do_smt "foo" p [smtCheckSat] SMTOnly in 
-  let _ =  match x with  
-    | Unsat (Some(c)) -> 
-      printf "unsat: some\n" ;
-    | Unsat (None) -> printf "Unsat none\n"
-    | Sat -> printf "sat\n" in
-  () 
+  let clauses = List.rev !revProgram in
+  let reduced = reduce_trace_imp [] (List.hd clauses) (List.tl clauses) in
+  let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) reduced in
+  ()
+  
 
 let feature : featureDescr = 
   { fd_name = "dsnsmt";
@@ -841,39 +849,3 @@ let feature : featureDescr =
     fd_post_check = true
   } 
 
-(*
- *
- * Copyright (c) 2001-2002, 
- *  George C. Necula    <necula@cs.berkeley.edu>
- *  Scott McPeak        <smcpeak@cs.berkeley.edu>
- *  Wes Weimer          <weimer@cs.berkeley.edu>
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- * 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- *
- * 3. The names of the contributors may not be used to endorse or promote
- * products derived from this software without specific prior written
- * permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
- * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *)
