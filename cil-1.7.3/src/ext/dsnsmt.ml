@@ -1,7 +1,7 @@
 (* TODOS
- * fix Int vs Bool problem
+ * fix Int vs Bool problem - DONE
  * handle conditions from if statements
- * 
+ * handle operators that differ between c and smt eg && vs and
  *)
 (** See copyright notice at the end of this file *)
 
@@ -80,8 +80,7 @@ type smtResult = Sat | Unsat of clause option
 
 
 type program = {clauses : clause list;
-		allVars : VarSet.t;
-		typeMap : varTypeMap
+		allVars : VarSet.t
 	       }
 
 exception CantMap of smtvar
@@ -97,6 +96,7 @@ let name = ref ""
 let currentFunc: string ref = ref ""
 (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
 let revProgram : clause list ref = ref [] 
+let typeMap : varTypeMap ref  = ref emptyTypeMap
 let smtZero = SMTConstant(0L)
 
 (******************** Defs *************************)
@@ -138,9 +138,9 @@ let safe_mkdir name mask =
 
 (* So we need to figure out the type of each variable *)
 
-let get_var_type (var : smtvar) (typeMap : varTypeMap) : smtVarType = 
-  if IntMap.mem var.vidx typeMap then
-    IntMap.find var.vidx typeMap
+let get_var_type (var : smtvar) : smtVarType = 
+  if IntMap.mem var.vidx !typeMap then
+    IntMap.find var.vidx !typeMap
   else 
     SMTUnknown
 
@@ -149,13 +149,13 @@ let get_var_type (var : smtvar) (typeMap : varTypeMap) : smtVarType =
  * var -> type mappings
  *)
 
-let var_type_string typ = 
+let string_of_vartype typ = 
   match typ with
     |SMTInt -> "Int"
     |SMTBool -> "Bool"
     |SMTUnknown -> "Unknown"
 
-let analyze_var_type (typeMap : varTypeMap ref) (topForm : term) =
+let analyze_var_type (topForm : term) =
   let types_match t1 t2 =
     match t1,t2 with
       | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
@@ -165,18 +165,18 @@ let analyze_var_type (typeMap : varTypeMap ref) (topForm : term) =
     if types_match t1 t2 then t2 else raise (Failure "mismatching types")
   in
   let update_type (var : smtvar) newType = 
-    let currentType = (get_var_type var !typeMap) in
+    let currentType = get_var_type var  in
     match (currentType,newType) with 
-      | (_, SMTUnknown) -> 
-	()
+      | (_, SMTUnknown) -> currentType
       | (SMTUnknown,_) -> 
-	typeMap := TypeMap.add var.vidx newType !typeMap
+	typeMap := TypeMap.add var.vidx newType !typeMap;
+	newType
       | _ when (currentType = newType)-> 
-	()
+	newType
       | _ -> 
 	raise (Failure ("mismatching types " ^ var.fullname ^ " " ^ 
-			   (var_type_string currentType) ^ " " ^
-			   (var_type_string newType)))
+			   (string_of_vartype currentType) ^ " " ^
+			   (string_of_vartype newType)))
   in
   let rec analyze_type_list typ tl  = 
   match tl with 
@@ -188,24 +188,26 @@ let analyze_var_type (typeMap : varTypeMap ref) (topForm : term) =
       else raise (Failure "types don't match")
   and analyze_type typ f = 
     match f with 
-      | SMTConstant(_) -> 
-	second_if_matching typ SMTInt
-      | SMTVar(v) -> 
-	update_type v typ;
-	 typ	
+      | SMTConstant(_) -> second_if_matching typ SMTInt
+      | SMTVar(v) -> update_type v typ
       | SMTRelation(s,l) -> begin
 	match s with 
-	  | "<" | ">" | "<=" | ">=" -> 
+	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
 	    let _  = analyze_type_list SMTInt l in (*first update the children*)
 	    second_if_matching typ SMTBool
-	  | "=" -> 
+	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
+	    let _ = analyze_type_list SMTBool l in
+	    second_if_matching typ SMTBool
+	  | "=" | "distinct" | "ite" -> 
+	    (*we analyze the list twice.  Once to find out what kind it is
+	     * the second time to propegate that result to everything in it *)
 	    let t1 = analyze_type_list SMTUnknown l in
 	    let t2 = second_if_matching t1 (analyze_type_list t1 l) in
 	    second_if_matching typ t2	    
-	  | _ -> 
+	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
 	    let _ = analyze_type_list SMTInt l in
 	    second_if_matching typ SMTInt
-
+	  | _ -> raise (Failure ("unexpected operator " ^ s))
       end
   in
   analyze_type SMTUnknown topForm
@@ -238,9 +240,10 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
 	  VarSSAMap.add vidx v ssaMap in
       make_ssa_map vs ssaMap
 
-let make_clause (f: term) (i :int) (ssa:  varSSAMap) (typ: clauseType): clause= 
+let make_clause (f: term) (i :int) (ssa: varSSAMap) (typ: clauseType)  : clause = 
   let v  = get_vars [f] VarSet.empty in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
+  let _ = analyze_var_type f in (* update the typemap to include this clause *)
   let c  = {formula = f; idx = i; vars = v; ssaIdxs = ssa; typ = typ} in
   c
 
@@ -249,7 +252,8 @@ let negate_clause cls =
    idx = cls.idx;
    vars = cls.vars;
    ssaIdxs = cls.ssaIdxs;
-   typ = cls.typ}
+   typ = cls.typ
+  }
 
 (****************************** Remapping ******************************)
 (* TODO need to decide what to do if there is no mapping i.e. we've gone 
@@ -331,7 +335,6 @@ let rec debug_SSAMap_rec bindings =
 let debug_SSAMap m = 
   debug_SSAMap_rec (VarSSAMap.bindings m)
 
-
 let rec debug_vars_rec vars = 
   match vars with
     | [] -> ""
@@ -345,6 +348,12 @@ let rec debug_clause c =
 (* ^ "\n\tformula:\n" ^ (debug_formula c.formula)  *)
   ^ "\n\tSSA:\n" ^ debug_SSAMap c.ssaIdxs
   ^ "\n\tvars:\n" ^ debug_vars c.vars
+
+let debug_typemap () = 
+  let fold_fn v t a = 
+    a ^ "\n" ^ (string_of_int v) ^ " " ^ (string_of_vartype t)
+  in
+  TypeMap.fold fold_fn !typeMap ""
 
 let assertion_name (c : clause) :string = "IP_" ^ (string_of_int c.idx)
 
@@ -368,33 +377,22 @@ let rec get_all_vars_rec clauses  accum =
 let get_all_vars clauses = 
   get_all_vars_rec clauses VarSet.empty
 
-let make_var_decl vars typeMap =
+let make_var_decl vars =
   let f v = 
-    let typ = get_var_type v typeMap in
-    let ts = var_type_string typ in
+    let ts = string_of_vartype (get_var_type v) in
     "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
   in
   List.map f (VarSet.elements vars)
 
-let analyze_all_vars clauses = 
-  let theMap = ref emptyTypeMap in
-  let analyze_clause cls = 
-    analyze_var_type theMap cls.formula 
-  in
-  ignore(List.map analyze_clause clauses);
-  !theMap
-
 (* DSN TODO replace this with analyzing the program once *)
 let make_program clauses = 
   let vars = get_all_vars clauses in
-  let tm = analyze_all_vars clauses in
   {clauses = clauses;
    allVars = vars;
-   typeMap = tm
   }
 
 let make_smt_file prog cmds = 
-  let decls = make_var_decl prog.allVars prog.typeMap in
+  let decls = make_var_decl prog.allVars in
   let p_strings = List.map make_assertion_string prog.clauses in 
   [smtOpts] @ decls @ p_strings @ cmds @ [smtExit]
 
@@ -558,7 +556,7 @@ let rec extract_term (str) : term list =
 	let term = SMTRelation(rel,tailExp) in
 	[term]
 
-let clause_from_form (f : term) (ssaBefore: varSSAMap) : clause =
+let clause_from_form (f : term) (ssaBefore: varSSAMap)  : clause =
   let idx = !count in
   let _ = incr count in
   let cls : clause = make_clause f idx ssaBefore ProgramStmt in
@@ -695,7 +693,6 @@ let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
       let before = [currentState;x] in
       let after = xs in
       let smt_cmds = [smtCheckSat ; make_interpolate_between before after] in
-      let smt_file = make_smt_file p smt_cmds in
       let probType = Interpolation x.ssaIdxs in
       match do_smt "foo" p smt_cmds probType with 
 	| Unsat (Some(interpolant)) -> 
@@ -729,20 +726,7 @@ match e with
     let eForm1 = formula_from_exp e1 in
     let eForm2 = formula_from_exp e2 in
     SMTRelation(opArg,[eForm1;eForm2])
-  | _ -> raise (Failure "") 
-
-(*
-| 	SizeOf of typ 	(*	sizeof(<type>). Has unsigned int type (ISO 6.5.3.4). This is not turned into a constant because some transformations might want to change types	*)
-| 	SizeOfE of exp 	(*	sizeof(<expression>)	*)
-| 	SizeOfStr of string 	(*	sizeof(string_literal). We separate this case out because this is the only instance in which a string literal should not be treated as having type pointer to character.	*)
-| 	AlignOf of typ 	(*	This corresponds to the GCC __alignof_. Has unsigned int type	*)
-| 	AlignOfE of exp
-| 	UnOp of unop * exp * typ 	(*	Unary operation. Includes the type of the result.	*)
-| 	BinOp of binop * exp * exp * typ 	(*	Binary operation. Includes the type of the result. The arithmetic conversions are made explicit for the arguments.	*)
-| 	CastE of typ * exp 	(*	Use Cil.mkCast to make casts.	*)
-| 	AddrOf of lval 	(*	Always use Cil.mkAddrOf to construct one of these. Apply to an lvalue of type T yields an expression of type TPtr(T). Use Cil.mkAddrOrStartOf to make one of these if you are not sure which one to use.	*)
-| 	StartOf of lval
-*)
+  | _ -> raise (Failure "not handelling this yet") 
 
 (* Return the sexp and the rest *)
 (* TODO this can be done more efficiently*)
@@ -775,6 +759,15 @@ let get_ssa_before () =
     | [] -> emptySSAMap
     | x::xs -> x.ssaIdxs
 
+let make_bool f = 
+  match analyze_var_type f with
+    | SMTBool -> f
+    | SMTInt -> SMTRelation("distinct",[f;smtZero])
+    | SMTUnknown -> raise (Failure ("assertion is neither bool not int: " ^ 
+				       (debug_formula f) ^
+				       (debug_typemap())))
+      
+
   
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
@@ -794,6 +787,7 @@ class dsnsmtVisitorClass = object
       if fname = "assert" then
 	(*assert should have exactly one element asserted *)
 	let form = formula_from_exp (List.hd al) in
+	let form = make_bool form in 
 	let ssaBefore = get_ssa_before() in
 	let cls = clause_from_form form ssaBefore in
 	revProgram := cls :: !revProgram;
