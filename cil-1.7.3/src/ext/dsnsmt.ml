@@ -164,13 +164,19 @@ let analyze_var_type (typeMap : varTypeMap ref) (topForm : term) =
   let second_if_matching t1 t2 = 
     if types_match t1 t2 then t2 else raise (Failure "mismatching types")
   in
-  let update_type (var : smtvar) typ = 
-    match (get_var_type var !typeMap) with
-      | SMTUnknown -> 
-	typeMap := TypeMap.add var.vidx typ !typeMap
-      | vt -> 
-	if vt = typ then ()
-	else raise (Failure ("mismatching types " ^ var.fullname))
+  let update_type (var : smtvar) newType = 
+    let currentType = (get_var_type var !typeMap) in
+    match (currentType,newType) with 
+      | (_, SMTUnknown) -> 
+	()
+      | (SMTUnknown,_) -> 
+	typeMap := TypeMap.add var.vidx newType !typeMap
+      | _ when (currentType = newType)-> 
+	()
+      | _ -> 
+	raise (Failure ("mismatching types " ^ var.fullname ^ " " ^ 
+			   (var_type_string currentType) ^ " " ^
+			   (var_type_string newType)))
   in
   let rec analyze_type_list typ tl  = 
   match tl with 
@@ -375,11 +381,12 @@ let analyze_all_vars clauses =
   let analyze_clause cls = 
     analyze_var_type theMap cls.formula 
   in
-  List.map analyze_clause clauses
+  ignore(List.map analyze_clause clauses);
+  !theMap
 
+(* DSN TODO replace this with analyzing the program once *)
 let make_program clauses = 
   let vars = get_all_vars clauses in
-  let 
   let tm = analyze_all_vars clauses in
   {clauses = clauses;
    allVars = vars;
@@ -387,7 +394,7 @@ let make_program clauses =
   }
 
 let make_smt_file prog cmds = 
-  let decls = make_var_decl prog.allVars in
+  let decls = make_var_decl prog.allVars prog.typeMap in
   let p_strings = List.map make_assertion_string prog.clauses in 
   [smtOpts] @ decls @ p_strings @ cmds @ [smtExit]
 
