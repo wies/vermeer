@@ -59,6 +59,7 @@ type varSSAMap = smtvar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
 let emptyTypeMap : varTypeMap = TypeMap.empty
+let emptyVarSet = VarSet.empty
 
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
@@ -68,7 +69,7 @@ type term = | SMTRelation of string * term list
 type problemType = SMTOnly | Interpolation of varSSAMap 
 
 (* TODO record the program location in the programStmt *)
-type clauseType = ProgramStmt of Cil.instr | Interpolant
+type clauseType = ProgramStmt of Cil.instr | Interpolant | Constant
 
 type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst
 
@@ -92,24 +93,10 @@ type ifContext = term list
 exception CantMap of smtvar
 
 
-(******************** Globals *************************)
-let count = ref 1
-let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
+(******************** Defs *************************)
 let smtDir = "./smt/"
 let outfile = smtDir ^ "outfile.smt2"
 let infile = smtDir ^ "infile.smt2"
-let name = ref ""
-let currentFunc: string ref = ref ""
-(*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
-let revProgram : clause list ref = ref [] 
-let typeMap : varTypeMap ref  = ref emptyTypeMap
-let smtZero = SMTConstant(0L)
-let emptyIfContext = []
-let currentIfContext : ifContext ref = ref emptyIfContext
-let flowSensitiveEncoding = true
-
-
-(******************** Defs *************************)
 
 let smtOpts = 
 "(set-option :print-success false)
@@ -119,8 +106,26 @@ let smtOpts =
 let smtCheckSat = "(check-sat)\n"
 let smtExit = "(exit)\n"
 
+let smtZero = SMTConstant(0L)
+let emptyIfContext = []
+
+let trueClause = 
+  {formula = SMTTrue; idx = 0; 
+   vars = emptyVarSet; ssaIdxs=emptySSAMap;
+   typ=Constant; ifContext=emptyIfContext}
+
+(******************** Globals *************************)
+let count = ref 1
+let currentFunc: string ref = ref ""
+(*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
+let revProgram : clause list ref = ref [] 
+let typeMap : varTypeMap ref  = ref emptyTypeMap
+let currentIfContext : ifContext ref = ref emptyIfContext
+let flowSensitiveEncoding = true
 
 (************************* utils *************************)
+let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
+
 let rec last = function
     | [] -> None
     | [x] -> Some x
@@ -253,7 +258,7 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
 
 let make_clause (f: term) (i :int) (ssa: varSSAMap) (typ: clauseType) (ic : term list) 
     : clause = 
-  let v  = get_vars [f] VarSet.empty in
+  let v  = get_vars [f] emptyVarSet in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
   let _ = analyze_var_type f in (* update the typemap to include this clause *)
   let c  = {formula = f; idx = i; vars = v; ssaIdxs = ssa; typ = typ; ifContext = ic} in
@@ -378,6 +383,7 @@ let assertion_name (c : clause) :string =
   match c.typ with
     | ProgramStmt(_) -> "PS_" ^ (string_of_int c.idx)
     | Interpolant -> "IP_" ^ (string_of_int c.idx)
+    | Constant -> "CON_" ^ (string_of_int c.idx)
 
 let make_ifContext_formula ic = 
   match ic with 
@@ -408,7 +414,7 @@ let rec get_all_vars_rec clauses  accum =
       get_all_vars_rec xs accum
 
 let get_all_vars clauses = 
-  get_all_vars_rec clauses VarSet.empty
+  get_all_vars_rec clauses emptyVarSet
 
 let make_var_decl vars =
   let f v = 
@@ -722,7 +728,9 @@ let rec find_farthest_point_interpolant_valid
       let ssa = match (last before) with
 	| Some(x) -> x.ssaIdxs
 	| None -> raise (Failure "is_valid_interpolant before should have elements") in
+      let _  = printf "inter a %s\n" (string_of_clause interpolant) in
       let interpolant = remap_clause ssa interpolant in 
+      let _  = printf "inter b %s\n" (string_of_clause interpolant) in
       if (is_valid_interpolant before after interpolant) then
 	interpolant,rightSuffix
       else
@@ -746,6 +754,7 @@ let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
     | [] -> reducedPrefix
     | [x] -> reducedPrefix @ [x]
     | x :: xs ->
+      let _ = printf "foo: current state %s\n" (string_of_clause currentState) in
       let clist = currentState :: unreducedSuffix in
       let p = make_program clist in
       let before = [currentState;x] in
@@ -754,12 +763,12 @@ let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
       let probType = Interpolation x.ssaIdxs in
       match do_smt "foo" p smt_cmds probType with 
 	| Unsat (Some(interpolant)) -> 
-	  let currentState, unreducedSuffix = 
+	  let newCurrentState, unreducedSuffix = 
 	    find_farthest_point_interpolant_valid 
 	      currentState interpolant unreducedSuffix [] in
 	  reduce_trace_imp 
 	    (reducedPrefix @ [currentState; x])
-	    interpolant
+	    newCurrentState
 	    unreducedSuffix
 	| Unsat (None) -> raise (Failure "couldn't find interpolant")
 	| Sat -> raise (Failure "was sat")
@@ -856,8 +865,10 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
+  let _ = printf "orig\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) clauses in
-  let reduced = reduce_trace_imp [] (List.hd clauses) (List.tl clauses) in
+  let reduced = reduce_trace_imp [] trueClause clauses in
+  let _ = printf "reduced\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) reduced in
   ()
   
