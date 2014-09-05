@@ -68,7 +68,7 @@ type term = | SMTRelation of string * term list
 type problemType = SMTOnly | Interpolation of varSSAMap 
 
 (* TODO record the program location in the programStmt *)
-type clauseType = ProgramStmt | Interpolant
+type clauseType = ProgramStmt of Cil.instr | Interpolant
 
 type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst
 
@@ -374,7 +374,10 @@ let debug_typemap () =
   in
   TypeMap.fold fold_fn !typeMap ""
 
-let assertion_name (c : clause) :string = "IP_" ^ (string_of_int c.idx)
+let assertion_name (c : clause) :string = 
+  match c.typ with
+    | ProgramStmt(_) -> "PS_" ^ (string_of_int c.idx)
+    | Interpolant -> "IP_" ^ (string_of_int c.idx)
 
 let make_ifContext_formula ic = 
   match ic with 
@@ -441,7 +444,7 @@ let make_interpolate_between before after =
   in
   let beforeNames = string_of_partition before in
   let afterNames = string_of_partition after in
-  "(get-interpolants " ^ beforeNames ^ " " ^ afterNames ^ "))\n"
+  "(get-interpolants " ^ beforeNames ^ " " ^ afterNames ^ ")\n"
 
 let print_to_file filename lines = 
   let oc = open_out filename in    (* create or truncate file, return channel *)
@@ -603,18 +606,20 @@ let rec extract_term (str) : term list =
 	else if headStr = "false" then SMTFalse :: tailExp
 	else raise (Failure "neither true nor false???")
 
-let clause_from_form (f : term) (ssaBefore: varSSAMap) (ic : ifContext) : clause =
+let clause_from_form (f : term) (ssaBefore: varSSAMap) (ic : ifContext) (ct : clauseType) 
+    : clause =
   let idx = !count in
   let _ = incr count in
-  let cls : clause = make_clause f idx ssaBefore ProgramStmt ic in
+  let cls : clause = make_clause f idx ssaBefore ct ic in
   cls
 
-let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext): clause = 
+let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
+    : clause = 
   let term_lst = extract_term sexp in
   let t = List.hd term_lst in (* should assert exactly one elt *)
   let idx = !count in
   let _ = incr count in
-  let cls : clause = make_clause t idx ssaBefore ProgramStmt ic in
+  let cls : clause = make_clause t idx ssaBefore ct ic in
   cls
 
 let begins_with str header = 
@@ -637,7 +642,7 @@ let rec parse_smtresult lines pt =
 	match pt with
 	  | SMTOnly -> Unsat(None)
 	  | Interpolation(v) -> 
-	    let cls = clause_from_sexp (List.hd ls) v emptyIfContext in
+	    let cls = clause_from_sexp (List.hd ls) v emptyIfContext Interpolant in
 	    Unsat(Some(cls))
       else if begins_with l "sat" then
 	Sat
@@ -807,7 +812,7 @@ class dsnsmtVisitorClass = object
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
 	let ssaBefore = get_ssa_before() in
-	let cls = clause_from_form assgt ssaBefore !currentIfContext in
+	let cls = clause_from_form assgt ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
 	DoChildren
     | Call(lo,e,al,l) ->
@@ -817,7 +822,7 @@ class dsnsmtVisitorClass = object
 	let form = formula_from_exp (List.hd al) in
 	let form = make_bool form in 
 	let ssaBefore = get_ssa_before() in
-	let cls = clause_from_form form ssaBefore !currentIfContext in
+	let cls = clause_from_form form ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
 	DoChildren
       else
@@ -851,6 +856,7 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
+  let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) clauses in
   let reduced = reduce_trace_imp [] (List.hd clauses) (List.tl clauses) in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) reduced in
   ()
