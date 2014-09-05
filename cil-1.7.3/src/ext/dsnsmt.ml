@@ -789,7 +789,7 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-    | _ -> raise (Failure "unexpected operator " ^ (d_string %a d_binop op))
+    | _ -> raise (Failure ("unexpected operator " ^ (d_string "%a" d_binop op)))
 
 let rec formula_from_exp e = 
 match e with 
