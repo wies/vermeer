@@ -801,7 +801,7 @@ match e with
     let eForm = formula_from_exp e1 in
     SMTRelation(opArg,[eForm])
   | BinOp(o,e1,e2,t) ->
-    let opArg = d_string "%a" d_binop o in
+    let opArg = smtOpFromBinop o in
     let eForm1 = formula_from_exp e1 in
     let eForm2 = formula_from_exp e2 in
     SMTRelation(opArg,[eForm1;eForm2])
