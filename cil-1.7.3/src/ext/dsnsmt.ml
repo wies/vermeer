@@ -780,6 +780,17 @@ let rec formula_from_lval l =
     | _ -> raise (Failure "should only have lvals of type var")
 
 (*DSN TODO check if there are any differences in cilly vs smt opstrings *)
+let smtOpFromBinop op = 
+  match op with
+    | PlusA | MinusA | Mult | Lt | Gt | Le | Ge ->  d_string "%a" d_binop op 
+    | Div -> "div"
+    | Mod -> "mod"
+    | Eq -> "="
+    | Ne -> "distinct"
+    | LAnd -> "and"
+    | LOr -> "or"
+    | _ -> raise (Failure "unexpected operator " ^ (d_string %a d_binop op))
+
 let rec formula_from_exp e = 
 match e with 
   | Const(CInt64(c,_,_)) -> SMTConstant(c)
