@@ -705,7 +705,7 @@ let rec find_farthest_point_interpolant_valid
     (leftSuffix : clause list) (rightSuffix :clause list) =
   match leftSuffix with
     | [] -> raise (Failure "should be at least one thing here")
-    | [_] ->  rightSuffix
+    | [_] ->  (interpolant,rightSuffix)
     | _ -> 
       let x = match last leftSuffix with 
 	| Some(c) -> c
@@ -714,8 +714,12 @@ let rec find_farthest_point_interpolant_valid
       let rightSuffix = x :: rightSuffix in
       let before = currentState :: leftSuffix in
       let after  = rightSuffix in
+      let ssa = match (last before) with
+	| Some(x) -> x.ssaIdxs
+	| None -> raise (Failure "is_valid_interpolant before should have elements") in
+      let interpolant = remap_clause ssa interpolant in 
       if (is_valid_interpolant before after interpolant) then
-	rightSuffix
+	interpolant,rightSuffix
       else
 	find_farthest_point_interpolant_valid 
 	  currentState interpolant leftSuffix rightSuffix
@@ -745,8 +749,9 @@ let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
       let probType = Interpolation x.ssaIdxs in
       match do_smt "foo" p smt_cmds probType with 
 	| Unsat (Some(interpolant)) -> 
-	  let unreducedSuffix = find_farthest_point_interpolant_valid 
-	    currentState interpolant unreducedSuffix [] in
+	  let currentState, unreducedSuffix = 
+	    find_farthest_point_interpolant_valid 
+	      currentState interpolant unreducedSuffix [] in
 	  reduce_trace_imp 
 	    (reducedPrefix @ [currentState; x])
 	    interpolant
