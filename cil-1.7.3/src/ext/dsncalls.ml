@@ -15,6 +15,9 @@ module H = Hashtbl
 
 let indentSpaces = 2
 
+(* this should really be a commandline argument *)
+let controlSensitive = true
+
 (* for future reference, how to add spaces in printf *)
 
 (* we have a format string, and a list of expressions for the printf*)
@@ -96,6 +99,15 @@ let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) 
 
 let mkPrintStmt  ?indentp ?locp (format: string) (args: exp list) : stmt = 
   mkStmtOneInstr (mkPrint ?indentp ?locp format args)
+
+let mkOpenIndentStmt ?(indentp = true) ?(locp = false) (): stmt =
+  mkPrintStmt ~indentp:indentp ~locp:locp "}\n" []
+
+let mkCloseIndentStmt ?(indentp = true) ?(locp = false) (): stmt =
+  mkPrintStmt ~indentp:indentp ~locp:locp "{\n" []
+
+let mkCommentStmt ?(indentp = true) ?(locp = false) msg args: stmt =
+  mkPrintStmt ~indentp:indentp ~locp:locp ("\\" ^ msg) args
 
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
@@ -432,8 +444,7 @@ class dsnVisitorClass = object
 	in
 	let (fnNameStr,fnNameArgs) = d_scope_exp e in
 	let (argsStr, argsArgs) = mkConcreteArgs al in
-	let callStr = lhsStr ^ fnNameStr ^ "(" ^ argsStr ^ ");\n" in
-	let callStr = if (isDefinedFn e) then  commentLine ^ callStr else callStr in
+	let callStr = commentLine ^ "call " ^ lhsStr ^ fnNameStr ^ "(" ^ argsStr ^ ");\n" in
 	let callArgs = lhsArg @ fnNameArgs @ argsArgs in
 	let logCall = [mkPrint callStr callArgs] in
 (* Now, we are ready to log the variables into temps.  In some cases, we might not need
@@ -461,36 +472,36 @@ class dsnVisitorClass = object
 	let printStmt = mkStmtOneInstr printCall in
 	let preStmt = mkStmtOneInstr pre in
         ChangeTo (mkStmt (Block (mkBlock [ preStmt; printStmt ; s ])))
-      | If(_) ->
-	let postfn a = begin match a.skind with 
-	  | If(e,b1,b2,loc) ->
-	    let updateBlock b t = 
-	      begin
-		let startnum = string_of_int !counter in
-		let endnum = string_of_int (!counter + 1) in
-		let _ = counter := !counter + 2 in
-		let (eStr,eArg) = d_scope_exp e in
-		let eStr = if t then eStr else "!(" ^ eStr ^")" in
-		let comment = if t then "then" else "else" in
-		let blockEnter = 
-		  [mkPrintStmt ("if( " ^ eStr ^ "){ //" ^ comment ^ " #" ^ startnum ^ "\n") eArg ;
-		   incrIndentStmt
-		  ] in
-		let blockExit =   
-		  [decrIndentStmt;
-		   mkPrintStmt ~locp:false ("}//" ^ eStr ^ " #" ^ endnum ^"\n") eArg;
-		  ] in
-		let stmts = blockEnter @  b.bstmts @ blockExit in 
-		b.bstmts <- stmts;
-		b
-	      end in
-	    let thenBlk = updateBlock b1 true in
-	    let elseBlk = updateBlock b2 false in
-	    a.skind <- If(e,thenBlk,elseBlk,loc);
-	    a
-	  |  _ -> raise (Failure "this must be an If")
-	end in
-	ChangeDoChildrenPost (s,postfn)
+      | If(_) -> if controlSensitive then
+	  let postfn a = begin match a.skind with 
+	    | If(e,b1,b2,loc) ->
+	      let updateBlock b t = 
+		begin
+		  let (eStr,eArg) = d_scope_exp e in
+		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
+		  let comment = if t then "then" else "else" in
+		  let blockEnter = 
+		    [mkPrintStmt ("if( " ^ eStr ^ ")//" ^ comment) eArg;
+		     mkOpenIndentStmt();
+		     incrIndentStmt
+		    ] in
+		  let blockExit =   
+		    [decrIndentStmt;
+		     mkPrintStmt ~locp:false ("}//" ^ eStr ^"\n") eArg;
+		    ] in
+		  let stmts = blockEnter @  b.bstmts @ blockExit in 
+		  b.bstmts <- stmts;
+		  b
+		end in
+	      let thenBlk = updateBlock b1 true in
+	      let elseBlk = updateBlock b2 false in
+	      a.skind <- If(e,thenBlk,elseBlk,loc);
+	      a
+	    |  _ -> raise (Failure "this must be an If")
+	  end in
+	  ChangeDoChildrenPost (s,postfn)
+	else 
+	  DoChildren
       | _ -> DoChildren
   end
 end

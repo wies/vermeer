@@ -87,17 +87,13 @@ and isLocalVarExp (e: exp) = match e with
 | Lval(l) -> isLocalVarLval(l)
 | _ -> false
 
-let needsScopeId (e: exp) = isLocalVarExp e
-
 let needsMemModelVarinfo (v : varinfo) = v.vaddrof
 
 let needsMemModelLval (l : lval) = 
   match l with 
-  | (host,off) -> begin 
-      match host with 
-      | Var(vinfo) -> needsMemModelVarinfo vinfo 
-      | Mem(e) -> true
-  end
+    | (Var(vinfo), off) ->  needsMemModelVarinfo vinfo 
+    | _ -> true
+      
 
 (* DSN to finish *)
 (* what happens if it is a pointer *)
