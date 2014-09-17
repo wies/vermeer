@@ -1,0 +1,109 @@
+#!/usr/bin/perl -w
+# takes a linear output from cilly, and mangles it to be executable
+# this is necessary because we might not have closed braces due to crashes
+# also, we need to decide for each function call, whether to leave the call in place
+# or to 
+
+#TODO Change this to use passed params not a global array
+
+use strict;
+use warnings;
+use constant {TRUE => 1,FALSE => 0};
+use constant {DEFAULT_STATE => 0, IN_CALL_SETUP => 1, DONE_SETUP};
+
+my $infilename = shift;
+my $spacesPerIndent = 2;
+
+open INFILE, "<", $infilename or die $!;
+my @lines = <INFILE>;
+
+sub closeBraces {
+# see http://stackoverflow.com/questions/3916852/how-can-i-count-the-amount-of-spaces-at-the-start-of-a-string-in-perl
+    my $numLeadingSpaces = length( ($lines[-1] =~ /^( *)/)[0] );
+    my $indentLevel = ($numLeadingSpaces / $spacesPerIndent);
+    push @lines, printCloseBraces($indentLevel,0);
+    # for (my $i = $indentLevel; $i > 0; $i--){
+    # 	#always close an indent at one level lower
+    # 	my $indent = " " x (($i-1) * $spacesPerIndent);
+    # 	my $newline = $indent . "}\n";
+    # 	push @lines, $newline;
+    # }
+}
+
+sub printCloseBraces {
+    my ($initial,$final,@bad) = @_;
+    die "Too many arguments " if @bad;
+
+    my @newlines;
+    for (my $i = $initial; $i > $final; $i--){
+	#always close an indent at one level lower
+	my $indent = " " x (($i-1) * $spacesPerIndent);
+	my $newline = $indent . "}\n";
+	push @newlines, $newline;
+    }
+    return @newlines;
+}
+
+sub instantiateCalls {
+    my ($arrayRef,@bad) = @_;
+    die "Too many arguments " if @bad;
+
+    my @output;
+    my $state = DEFAULT_STATE;
+    my $currentCall;
+    my @callSetup;
+    my @doneSetup;
+
+    
+    foreach my $line (@$arrayRef) {
+	    if($state == IN_CALL_SETUP) {
+		if ($line ~= m/^\s*\/\/done setup/){
+		    $state = DONE_SETUP;
+		} else {
+		    push @callSetup, $line;
+		}
+	    } 
+
+	    elsif ($state == DONE_SETUP) {
+		push @doneSetup, $line;
+		if ($line m/^#/){
+		    #do nothing
+		} elseif ($line ~= m/^\s*\/\/enter/){
+		    push @output, @callSetup;
+		    push @output, @doneSetup;
+		    undef @callSetup;
+		    undef @doneSetup;
+		    undef $currentCall;
+		} else {
+		    #the first non line number thing was not an entry.  So we are not in
+		    # the function.  So 
+	    } 
+
+	    elsif ($state == DEFAULT_STATE) {	
+		if ($line ~= m/^\s*\/\/call/){
+		    $currentCall = $line;
+		    $state = IN_CALL_SETUP;
+		} else {
+		    push @output, $line;
+		}
+	    } 
+
+	    else { 
+		die "improper state";
+	    }
+	}
+    }
+    return @output;
+}
+
+sub main {
+    closeBraces();
+    
+    foreach my $line (@lines){
+	print $line;
+    }
+}
+
+
+
+main();
