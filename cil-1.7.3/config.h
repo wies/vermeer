@@ -47,7 +47,7 @@
 #define HAVE_WCHAR_H 1
 
 /* Define to 1 if you have the `__sysv_signal' function. */
-#define HAVE___SYSV_SIGNAL 1
+/* #undef HAVE___SYSV_SIGNAL */
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT ""

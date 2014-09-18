@@ -9,7 +9,7 @@
 use strict;
 use warnings;
 use constant {TRUE => 1,FALSE => 0};
-use constant {DEFAULT_STATE => 0, IN_CALL_SETUP => 1, DONE_SETUP};
+use constant {DEFAULT_STATE => 0, IN_CALL_SETUP => 1, DONE_SETUP => 2};
 
 my $infilename = shift;
 my $spacesPerIndent = 2;
@@ -17,18 +17,26 @@ my $spacesPerIndent = 2;
 open INFILE, "<", $infilename or die $!;
 my @lines = <INFILE>;
 
-sub closeBraces {
+sub indentLevel {
+    my ($line, @bad) = @_;
+    die "Too many arguments " if @bad;
+
 # see http://stackoverflow.com/questions/3916852/how-can-i-count-the-amount-of-spaces-at-the-start-of-a-string-in-perl
-    my $numLeadingSpaces = length( ($lines[-1] =~ /^( *)/)[0] );
-    my $indentLevel = ($numLeadingSpaces / $spacesPerIndent);
-    push @lines, printCloseBraces($indentLevel,0);
-    # for (my $i = $indentLevel; $i > 0; $i--){
-    # 	#always close an indent at one level lower
-    # 	my $indent = " " x (($i-1) * $spacesPerIndent);
-    # 	my $newline = $indent . "}\n";
-    # 	push @lines, $newline;
-    # }
+    my $numLeadingSpaces = length( ($line =~ /^( *)/)[0] );
+    return ($numLeadingSpaces / $spacesPerIndent);
 }
+
+sub closeBraces {
+        push @lines, printCloseBraces(indentLevel($lines[-1]),0);
+}
+
+sub indentSpaces {
+    my ($i, @bad) = @_;
+    die "Too many arguments " if @bad;
+    
+    return " " x ($i * $spacesPerIndent);
+}
+    
 
 sub printCloseBraces {
     my ($initial,$final,@bad) = @_;
@@ -37,7 +45,7 @@ sub printCloseBraces {
     my @newlines;
     for (my $i = $initial; $i > $final; $i--){
 	#always close an indent at one level lower
-	my $indent = " " x (($i-1) * $spacesPerIndent);
+	my $indent = indentSpaces ($i -1);
 	my $newline = $indent . "}\n";
 	push @newlines, $newline;
     }
@@ -47,50 +55,54 @@ sub printCloseBraces {
 sub instantiateCalls {
     my ($arrayRef,@bad) = @_;
     die "Too many arguments " if @bad;
-
+    
     my @output;
     my $state = DEFAULT_STATE;
     my $currentCall;
     my @callSetup;
     my @doneSetup;
-
+    
     
     foreach my $line (@$arrayRef) {
-	    if($state == IN_CALL_SETUP) {
-		if ($line ~= m/^\s*\/\/done setup/){
-		    $state = DONE_SETUP;
-		} else {
-		    push @callSetup, $line;
-		}
-	    } 
-
-	    elsif ($state == DONE_SETUP) {
-		push @doneSetup, $line;
-		if ($line m/^#/){
-		    #do nothing
-		} elseif ($line ~= m/^\s*\/\/enter/){
-		    push @output, @callSetup;
-		    push @output, @doneSetup;
-		    undef @callSetup;
-		    undef @doneSetup;
-		    undef $currentCall;
-		} else {
-		    #the first non line number thing was not an entry.  So we are not in
-		    # the function.  So 
-	    } 
-
-	    elsif ($state == DEFAULT_STATE) {	
-		if ($line ~= m/^\s*\/\/call/){
-		    $currentCall = $line;
-		    $state = IN_CALL_SETUP;
-		} else {
-		    push @output, $line;
-		}
-	    } 
-
-	    else { 
-		die "improper state";
+	if($state == IN_CALL_SETUP) {
+	    if ($line =~ m/^\s*\/\/done setup/){
+		$state = DONE_SETUP;
+	    } else {
+		push @callSetup, $line;
 	    }
+	} 
+	
+	elsif ($state == DONE_SETUP) {
+	    push @doneSetup, $line;
+	    if ($line =~ m/^#/){
+		#do nothing
+	    } elsif ($line =~ m/^\s*\/\/enter/) {
+		push @output, $currentCall;
+		push @output, @callSetup;
+		push @output, @doneSetup;
+		undef @callSetup;
+		undef @doneSetup;
+		undef $currentCall;
+	    } else {
+		#the first non line number thing was not an entry.  So we are not in
+		# the function.  So we don't need the setup stuff.  But we do need the call
+		$currentCall =~  m/^\s*\/\/call(.*)/;
+		my $actualCall = $1;
+		push @output, $actualCall;
+	    }
+	} 
+	
+	elsif ($state == DEFAULT_STATE) {	
+	    if ($line =~ m/^\s*\/\/call/){
+		$currentCall = $line;
+		$state = IN_CALL_SETUP;
+	    } else {
+		push @output, $line;
+	    }
+	} 
+	
+	else { 
+	    die "improper state";
 	}
     }
     return @output;
