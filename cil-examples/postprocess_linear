@@ -4,16 +4,33 @@
 # also, we need to decide for each function call, whether to leave the call in place
 # or to 
 
-#TODO Change this to use passed params not a global array
+
+#TODO Handle returns and gotos
 
 use strict;
 use warnings;
 use constant {TRUE => 1,FALSE => 0};
-use constant {DEFAULT_STATE => 0, IN_CALL_SETUP => 1, DONE_SETUP => 2};
+use constant {DEFAULT_STATE => 0, 
+	      CALL_FOUND => 1,
+	      CALL_WAS_INLINED => 2,
+	      COLLECTING_SCOPE => 3}
 
 
 my $spacesPerIndent = 2;
 main();
+
+sub isOpenBrace {
+    my ($line, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    return line =~ m/^\s{/;
+}
+sub isCloseBrace {
+    my ($line, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    return line =~ m/^\s}/;
+}
 
 
 sub indentLevel {
@@ -56,6 +73,22 @@ sub printCloseBraces {
     return @newlines;
 }
 
+sub callWasInlinedInScope {
+    my ($arrayRef,@bad) = @_;
+    die "Too many arguments " if @bad;
+
+    foreach my $line (@$arrayRef) {
+	if ($line =~ m/^\s*\/\/enter/) {
+	    return TRUE;
+	}
+    }
+    return FALSE;
+}
+
+
+#given a piece of code, instantiate the calls relevent for that code
+#if something is inlined, then we need to create temporary variables for
+#it; otherwise, we need to create the formal call
 sub instantiateCalls {
     my ($arrayRef,@bad) = @_;
     die "Too many arguments " if @bad;
@@ -63,11 +96,58 @@ sub instantiateCalls {
     my @output;
     my $state = DEFAULT_STATE;
     my $currentCall;
+    my $indentDepth;
     my @callSetup;
         
     foreach my $line (@$arrayRef) {
-	print "$state: $line";
-	if($state == IN_CALL_SETUP) {
+	#print "$state: $line";
+	if ($state == DEFAULT_STATE) {	
+	    if ($line =~ m/^\s*\/\/call/){
+		$currentCall = $line;
+		$state = CALL_FOUND;
+	    } else {
+		push @output, $line;
+		$state = DEFAULT_STATE;
+	    }
+	} 
+
+	#collect the 
+	elsif ($state == CALL_FOUND) {
+	    #the first line after is an open brace
+	    isOpenBrace($line) or die "not an open brace";
+	    $indentDepth = indentLevel($line);
+	    $state = COLLECTING_SCOPE;
+	}
+
+	elsif ($state == COLLECTING_SCOPE) {
+	    
+
+
+
+
+
+	    if (isClosingBrace($line)){
+		#finished the setup without entering the call
+		$currentCall =~  m/^\s*\/\/call(.*)/;
+		my $actualCall = $1;
+		push @output, $actualCall;
+		undef @callSetup;
+		undef $currentCall;
+		$state = DEFAULT_STATE;
+	    } elsif ($line =~ m/^\s*\/\/enter/) {
+		#there was a call!
+		push @callSetup, $line;
+		$state = CALL_WAS_INLINED;
+	    } else {
+		push @callSetup, $line;
+		$state = CALL_FOUND;
+	    }
+	}
+
+	elsif($state == CALL_WAS_INLINED) {
+	    if (isClosingBrace($line)){
+		
+
 	    if ($line =~ m/^\s*\/\/done setup/){
 		$state = DONE_SETUP;
 	    } else {
@@ -95,17 +175,7 @@ sub instantiateCalls {
 		$state = DEFAULT_STATE;
 	    }
 	} 
-	
-	elsif ($state == DEFAULT_STATE) {	
-	    if ($line =~ m/^\s*\/\/call/){
-		$currentCall = $line;
-		$state = IN_CALL_SETUP;
-	    } else {
-		push @output, $line;
-		$state = DEFAULT_STATE;
-	    }
-	} 
-	
+ 
 	else { 
 	    die "improper state";
 	}
