@@ -106,8 +106,13 @@ let mkOpenIndentStmt ?(indentp = true) ?(locp = false) (): stmt =
 let mkCloseIndentStmt ?(indentp = true) ?(locp = false) (): stmt =
   mkPrintStmt ~indentp:indentp ~locp:locp "{\n" []
 
+let mkComment ?(indentp = true) ?(locp = false) msg args : instr = 
+    mkPrint ~indentp:indentp ~locp:locp (commentLine ^ msg) args
+
 let mkCommentStmt ?(indentp = true) ?(locp = false) msg args: stmt =
-  mkPrintStmt ~indentp:indentp ~locp:locp ("\\" ^ msg) args
+  mkPrintStmt ~indentp:indentp ~locp:locp (commentLine ^ msg) args
+
+
 
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
@@ -435,8 +440,7 @@ class dsnVisitorClass = object
 	let newInstrs =  printCall :: [i] in
 	ChangeTo newInstrs
     | Call(lo,e,al,l) ->
-(* first, make the actual call.  If we know we can log the 
-   * internals, print this as a comment *)
+    (* first, make the actual call *)
 	let (lhsStr,lhsArg) = 
 	  match lo with
 	  | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
@@ -444,33 +448,35 @@ class dsnVisitorClass = object
 	in
 	let (fnNameStr,fnNameArgs) = d_scope_exp e in
 	let (argsStr, argsArgs) = mkConcreteArgs al in
-	let callStr = commentLine ^ "call " ^ lhsStr ^ fnNameStr ^ "(" ^ argsStr ^ ");\n" in
+	let callStr ="call " ^ lhsStr ^ fnNameStr ^ "(" ^ argsStr ^ ");\n" in
 	let callArgs = lhsArg @ fnNameArgs @ argsArgs in
-	let logCall = [mkPrint callStr callArgs] in
+	let logCall = [mkComment ~locp:true callStr callArgs] in
 (* Now, we are ready to log the variables into temps.  In some cases, we might not need
    * to actually use them *)
 	let temps = mkActualsToTempInstrs al in
 	let returnTemp = mkReturnTemp lo in
 	let saveReturn = mkCopyReturnToOuterscope lo in 
+	let doneSetupComment = [mkComment "done setup\n" []] in
 	let newInstrs =  
 	   logCall @ makeScopeOpen  
-	  @ temps @ returnTemp 
+	  @ temps @ returnTemp @ doneSetupComment
 	  @ [i] 
-	  @ saveReturn @ makeScopeClose in 
+	  @ saveReturn
+	  @ makeScopeClose 
+	in 
 	  ChangeTo newInstrs
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
     match s.skind with
       | Return(Some e, loc) -> 
-        let pre = mkPrint (d_string "//exiting %s\n" !currentFunc) [] in
 	let (lhsStr,lhsArg) = d_returnTemp in
 	let (rhsStr,rhsArg) = d_scope_exp e in
 	let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	let printArgs = lhsArg @ rhsArg in
 	let printCall = mkPrint printStr printArgs in
 	let printStmt = mkStmtOneInstr printCall in
-	let preStmt = mkStmtOneInstr pre in
+	let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
         ChangeTo (mkStmt (Block (mkBlock [ preStmt; printStmt ; s ])))
       | If(_) -> if controlSensitive then
 	  let postfn a = begin match a.skind with 
@@ -481,13 +487,13 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [mkPrintStmt ("if( " ^ eStr ^ ")//" ^ comment) eArg;
+		    [mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment) eArg;
 		     mkOpenIndentStmt();
 		     incrIndentStmt
 		    ] in
 		  let blockExit =   
 		    [decrIndentStmt;
-		     mkPrintStmt ~locp:false ("}//" ^ eStr ^"\n") eArg;
+		     mkPrintStmt ~locp:false ("}" ^ commentLine ^ eStr ^"\n") eArg;
 		    ] in
 		  let stmts = blockEnter @  b.bstmts @ blockExit in 
 		  b.bstmts <- stmts;
@@ -567,10 +573,10 @@ let dsn (f: file) : unit =
       ignore (visitCilFunction dsnVisitor fdec);
       fdec.sbody <- 
         mkBlock (compactStmts (
-	  [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])]
-	  @ (declareAllFormalsStmt fdec.sformals) 
-	  @ (declareAllVarsStmt fdec.slocals) 
-	  @ [mkStmt (Block fdec.sbody) ]
+		 [mkCommentStmt (d_string "enter %s\n" !currentFunc) []]
+		 @ (declareAllFormalsStmt fdec.sformals) 
+		 @ (declareAllVarsStmt fdec.slocals) 
+		 @ [mkStmt (Block fdec.sbody) ]
 	))	
     | _ -> ()
   in

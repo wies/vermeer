@@ -60,35 +60,35 @@ sub instantiateCalls {
     my $state = DEFAULT_STATE;
     my $currentCall;
     my @callSetup;
-    my @doneSetup;
-    
-    
+        
     foreach my $line (@$arrayRef) {
+	print "$state: $line";
 	if($state == IN_CALL_SETUP) {
 	    if ($line =~ m/^\s*\/\/done setup/){
 		$state = DONE_SETUP;
 	    } else {
 		push @callSetup, $line;
+		$state = IN_CALL_SETUP;
 	    }
 	} 
 	
 	elsif ($state == DONE_SETUP) {
-	    push @doneSetup, $line;
-	    if ($line =~ m/^#/){
-		#do nothing
-	    } elsif ($line =~ m/^\s*\/\/enter/) {
+	    if ($line =~ m/^\s*\/\/enter/) {
 		push @output, $currentCall;
 		push @output, @callSetup;
-		push @output, @doneSetup;
 		undef @callSetup;
-		undef @doneSetup;
 		undef $currentCall;
+		$state = DEFAULT_STATE;
 	    } else {
 		#the first non line number thing was not an entry.  So we are not in
 		# the function.  So we don't need the setup stuff.  But we do need the call
 		$currentCall =~  m/^\s*\/\/call(.*)/;
 		my $actualCall = $1;
 		push @output, $actualCall;
+		push @output, $line;
+		undef @callSetup;
+		undef $currentCall;
+		$state = DEFAULT_STATE;
 	    }
 	} 
 	
@@ -98,6 +98,7 @@ sub instantiateCalls {
 		$state = IN_CALL_SETUP;
 	    } else {
 		push @output, $line;
+		$state = DEFAULT_STATE;
 	    }
 	} 
 	
@@ -110,6 +111,8 @@ sub instantiateCalls {
 
 sub main {
     closeBraces();
+    @lines = instantiateCalls(\@lines);
+
     
     foreach my $line (@lines){
 	print $line;
