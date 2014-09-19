@@ -11,24 +11,28 @@ use warnings;
 use constant {TRUE => 1,FALSE => 0};
 use constant {DEFAULT_STATE => 0, IN_CALL_SETUP => 1, DONE_SETUP => 2};
 
-my $infilename = shift;
-my $spacesPerIndent = 2;
 
-open INFILE, "<", $infilename or die $!;
-my @lines = <INFILE>;
+my $spacesPerIndent = 2;
+main();
+
 
 sub indentLevel {
     my ($line, @bad) = @_;
     die "Too many arguments " if @bad;
 
 # see http://stackoverflow.com/questions/3916852/how-can-i-count-the-amount-of-spaces-at-the-start-of-a-string-in-perl
-    my $numLeadingSpaces = length( ($line =~ /^( *)/)[0] );
+    my $numLeadingSpaces = length( ($line =~ m/^( *)/)[0] );
     return ($numLeadingSpaces / $spacesPerIndent);
 }
 
 sub closeBraces {
-        push @lines, printCloseBraces(indentLevel($lines[-1]),0);
+    my ($lines, @bad) = @_;
+    die "Too many arguments " if @bad;
+    my $lastLine = @$lines[-1];
+    my $closingBraces = printCloseBraces(indentLevel($lastLine),0);
+    push $lines,$closingBraces;
 }
+
 
 sub indentSpaces {
     my ($i, @bad) = @_;
@@ -110,15 +114,23 @@ sub instantiateCalls {
 }
 
 sub main {
-    closeBraces();
-    @lines = instantiateCalls(\@lines);
+    my ($infilename, @bad) = @ARGV;
+    die "Too many arguments " if @bad;
+    die "missing filename " unless $infilename;
+    print "foo\n";
+
+
+    open INFILE, "<", $infilename or die $!;
+    my @infile = <INFILE>;
+
+    closeBraces(\@infile);
+    my @instantiatedCalls = instantiateCalls(\@infile);
 
     
-    foreach my $line (@lines){
+    foreach my $line (@instantiatedCalls){
 	print $line;
     }
 }
 
 
 
-main();
