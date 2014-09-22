@@ -10,26 +10,37 @@
 use strict;
 use warnings;
 use constant {TRUE => 1,FALSE => 0};
-use constant {DEFAULT_STATE => 0, 
+use constant {DEFAULT_STATE => 0,
 	      CALL_FOUND => 1,
-	      CALL_WAS_INLINED => 2,
-	      COLLECTING_SCOPE => 3}
+	      CALL_SETUP => 2,
+	      DONE_SETUP => 3,
+	      INLINED_CALL => 4,
+	      NON_INLINED_CALL => 5};
 
 
 my $spacesPerIndent = 2;
 main();
 
+
 sub isOpenBrace {
     my ($line, @bad) = @_;
     die "Too many arguments " if @bad;
 
-    return line =~ m/^\s{/;
+    return $line =~ m/^(\s*){/;
 }
+
 sub isCloseBrace {
     my ($line, @bad) = @_;
     die "Too many arguments " if @bad;
 
-    return line =~ m/^\s}/;
+    return $line =~ m/^(\s*)}/;
+}
+
+sub isMatchingCloseBrace {
+    my ($line, $level, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    return isCloseBrace($line) && (indentLevel($line) == $level);
 }
 
 
@@ -46,8 +57,8 @@ sub closeBraces {
     my ($lines, @bad) = @_;
     die "Too many arguments " if @bad;
     my $lastLine = @$lines[-1];
-    my $closingBraces = printCloseBraces(indentLevel($lastLine),0);
-    push $lines,$closingBraces;
+    my @closingBraces = printCloseBraces(indentLevel($lastLine),0);
+    push $lines, @closingBraces;
 }
 
 
@@ -58,6 +69,15 @@ sub indentSpaces {
     return " " x ($i * $spacesPerIndent);
 }
     
+sub indentLine {
+    my ($i, $line, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    #strip the old indentation
+    $line =~ m/^\s*(.*)/;
+    my $indentation = indentSpaces($i);
+    return $indentation . $1;
+}
 
 sub printCloseBraces {
     my ($initial,$final,@bad) = @_;
@@ -66,23 +86,10 @@ sub printCloseBraces {
     my @newlines;
     for (my $i = $initial; $i > $final; $i--){
 	#always close an indent at one level lower
-	my $indent = indentSpaces ($i -1);
-	my $newline = $indent . "}\n";
+	my $newline = indentLine ($i-1, "}\n") ;
 	push @newlines, $newline;
     }
     return @newlines;
-}
-
-sub callWasInlinedInScope {
-    my ($arrayRef,@bad) = @_;
-    die "Too many arguments " if @bad;
-
-    foreach my $line (@$arrayRef) {
-	if ($line =~ m/^\s*\/\/enter/) {
-	    return TRUE;
-	}
-    }
-    return FALSE;
 }
 
 
@@ -98,6 +105,7 @@ sub instantiateCalls {
     my $currentCall;
     my $indentDepth;
     my @callSetup;
+    my @inlineCallBody;
         
     foreach my $line (@$arrayRef) {
 	#print "$state: $line";
@@ -116,66 +124,67 @@ sub instantiateCalls {
 	    #the first line after is an open brace
 	    isOpenBrace($line) or die "not an open brace";
 	    $indentDepth = indentLevel($line);
-	    $state = COLLECTING_SCOPE;
+	    $state = CALL_SETUP;
 	}
 
-	elsif ($state == COLLECTING_SCOPE) {
-	    
-
-
-
-
-
-	    if (isClosingBrace($line)){
-		#finished the setup without entering the call
-		$currentCall =~  m/^\s*\/\/call(.*)/;
-		my $actualCall = $1;
-		push @output, $actualCall;
-		undef @callSetup;
-		undef $currentCall;
-		$state = DEFAULT_STATE;
-	    } elsif ($line =~ m/^\s*\/\/enter/) {
-		#there was a call!
-		push @callSetup, $line;
-		$state = CALL_WAS_INLINED;
-	    } else {
-		push @callSetup, $line;
-		$state = CALL_FOUND;
-	    }
-	}
-
-	elsif($state == CALL_WAS_INLINED) {
-	    if (isClosingBrace($line)){
-		
+	elsif ($state == CALL_SETUP) {
+	    push @callSetup, $line;
 
 	    if ($line =~ m/^\s*\/\/done setup/){
 		$state = DONE_SETUP;
 	    } else {
-		push @callSetup, $line;
-		$state = IN_CALL_SETUP;
+		$state = CALL_SETUP;
 	    }
-	} 
-	
+	}
+
+	#either we immediadly follow done with enter
+	#or we are in a call we cannot inline
 	elsif ($state == DONE_SETUP) {
 	    if ($line =~ m/^\s*\/\/enter/) {
-		push @output, $currentCall;
-		push @output, @callSetup;
+		push @callSetup, $line;
+		$state = INLINED_CALL;
+	    } else {
+		$currentCall =~  m/^\s*\/\/call(.*)/;
+		my $actualCall = "$1";
+		my $indentedCall = indentLine($indentDepth, $actualCall);
+		push @output, "$indentedCall\n";
 		undef @callSetup;
 		undef $currentCall;
+		if (isMatchingCloseBrace($line,$indentDepth)){
+		    $state = DEFAULT_STATE;
+		} else {
+		    $state = NON_INLINED_CALL;
+		}
+	    }
+	}
+
+	elsif ($state == NON_INLINED_CALL) {
+	    if (isMatchingCloseBrace($line,$indentDepth)){
+		undef $indentDepth;
 		$state = DEFAULT_STATE;
 	    } else {
-		#the first non line number thing was not an entry.  So we are not in
-		# the function.  So we don't need the setup stuff.  But we do need the call
-		$currentCall =~  m/^\s*\/\/call(.*)/;
-		my $actualCall = $1;
-		push @output, $actualCall;
-		push @output, $line;
-		undef @callSetup;
-		undef $currentCall;
-		$state = DEFAULT_STATE;
+		$state = NON_INLINED_CALL;
 	    }
-	} 
- 
+	}
+	
+
+	elsif($state == INLINED_CALL) {
+	    if (isClosingBrace($line)){
+		my @reduced = instantiateCalls(\@inlineCallBody);
+		push @output, $currentCall;
+		push @output, @callSetup;
+		push @output, @reduced;
+		push @output, $line;
+		undef $currentCall;
+		undef @callSetup;
+		undef @reduced;
+		$state = DEFAULT_STATE;
+	    } else {
+		push @inlineCallBody, $line;
+		$state = INLINED_CALL;
+	    }
+	}
+	
 	else { 
 	    die "improper state";
 	}
@@ -187,8 +196,8 @@ sub main {
     my ($infilename, @bad) = @ARGV;
     die "Too many arguments " if @bad;
     die "missing filename " unless $infilename;
-    print "foo\n";
 
+    print "$infilename\n";
 
     open INFILE, "<", $infilename or die $!;
     my @infile = <INFILE>;
