@@ -100,11 +100,11 @@ let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) 
 let mkPrintStmt  ?indentp ?locp (format: string) (args: exp list) : stmt = 
   mkStmtOneInstr (mkPrint ?indentp ?locp format args)
 
-let mkOpenIndentStmt ?(indentp = true) ?(locp = false) (): stmt =
-  mkPrintStmt ~indentp:indentp ~locp:locp "}\n" []
+let mkOpenBraceStmt ?(indentp = true) ?(locp = false)  (): stmt =
+  mkPrintStmt ~indentp:indentp ~locp:locp ("{\n") []
 
-let mkCloseIndentStmt ?(indentp = true) ?(locp = false) (): stmt =
-  mkPrintStmt ~indentp:indentp ~locp:locp "{\n" []
+let mkCloseBraceStmt ?(indentp = true) ?(locp = false) (): stmt =
+  mkPrintStmt ~indentp:indentp ~locp:locp ("}\n") []
 
 let mkComment ?(indentp = true) ?(locp = false) msg args : instr = 
     mkPrint ~indentp:indentp ~locp:locp (commentLine ^ msg) args
@@ -186,6 +186,9 @@ let d_decl (v : varinfo) : logStatement =
   ((lhsStr ^ " %s__%d" ^ rhsStr),
    (lhsArgs @ [ mkString v.vname; currentScopeExpr] @ rhsArgs))
     
+let stmtFromStmtList (stmts : stmt list) : stmt =
+  mkStmt(Block(mkBlock (compactStmts stmts)))
+
 let mkVarDecl (v : varinfo) : instr = 
   let (str,args) = d_decl v in
   mkPrint ~locp:false (str ^ ";\n") args
@@ -195,10 +198,10 @@ let rec declareAllVarsHelper (slocals : varinfo list) : instr list =
   | x :: xs -> (mkVarDecl x) :: (declareAllVarsHelper xs)
   | [] -> []
 
-let declareAllVarsStmt (slocals : varinfo list) : stmt list =
+let declareAllVarsStmt (slocals : varinfo list) : stmt =
   let instrs = declareAllVarsHelper slocals in
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
-  compactStmts stmts
+  stmtFromStmtList stmts
 
 let mkFormalDecl (v : varinfo) (idx : int) : instr = 
   let (lhsStr,lhsArgs) = d_decl v in
@@ -212,10 +215,10 @@ let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr lis
   | [] -> []
 
 
-let declareAllFormalsStmt (sformals : varinfo list) : stmt list = 
+let declareAllFormalsStmt (sformals : varinfo list) : stmt = 
   let instrs = declareAllFormalsHelper sformals 0 in
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
-  compactStmts stmts
+  stmtFromStmtList stmts
 
 
 (* two ways we might need a current scope expression here
@@ -487,12 +490,13 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment) eArg;
-		     mkOpenIndentStmt();
+		    [mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
+		     mkOpenBraceStmt();
 		     incrIndentStmt
 		    ] in
 		  let blockExit =   
 		    [decrIndentStmt;
+		     mkCloseBraceStmt ();
 		     mkPrintStmt ~locp:false ("}" ^ commentLine ^ eStr ^"\n") eArg;
 		    ] in
 		  let stmts = blockEnter @  b.bstmts @ blockExit in 
@@ -560,24 +564,23 @@ let dsn (f: file) : unit =
       let (formalStr, formalArgs) = mkMainArgs formalDeclList in
       fdec.sbody <- 
         mkBlock (compactStmts (
-		 [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown))]
-		 @ [mkPrintStmt ~indentp:false ("int main(" ^ formalStr ^ "){\n") formalArgs]
-		 @ [incrScopeStmt; incrIndentStmt] 
-          (* DSN need to add code to declare argc argv *)
-		 @ (declareAllVarsStmt fdec.slocals) 
-		 @ [mkStmt (Block fdec.sbody) ]
-		     ))
+	  [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown));
+	   mkPrintStmt ~indentp:false ("int main(" ^ formalStr ^ ")") formalArgs;
+	   mkOpenBraceStmt ();
+	   incrScopeStmt; 
+	   incrIndentStmt;
+	   declareAllVarsStmt fdec.slocals;
+	   mkStmt (Block fdec.sbody) ]))
     | GFun (fdec, loc) ->
       currentFunc := fdec.svar.vname;
       (* do the body *)
       ignore (visitCilFunction dsnVisitor fdec);
       fdec.sbody <- 
         mkBlock (compactStmts (
-		 [mkCommentStmt (d_string "enter %s\n" !currentFunc) []]
-		 @ (declareAllFormalsStmt fdec.sformals) 
-		 @ (declareAllVarsStmt fdec.slocals) 
-		 @ [mkStmt (Block fdec.sbody) ]
-	))	
+		 [mkCommentStmt (d_string "enter %s\n" !currentFunc) [];
+		  declareAllFormalsStmt fdec.sformals;
+		  declareAllVarsStmt fdec.slocals;
+		  mkStmt (Block fdec.sbody) ]))	
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;

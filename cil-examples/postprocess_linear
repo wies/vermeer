@@ -10,30 +10,39 @@
 use strict;
 use warnings;
 use constant {TRUE => 1,FALSE => 0};
-use constant {DEFAULT_STATE => 0,
-	      CALL_FOUND => 1,
-	      CALL_SETUP => 2,
-	      DONE_SETUP => 3,
-	      INLINED_CALL => 4,
-	      NON_INLINED_CALL => 5};
+use constant {CI_DEFAULT_STATE => 0,
+	      CI_CALL_FOUND => 1,
+	      CI_CALL_SETUP => 2,
+	      CI_DONE_SETUP => 3,
+	      CI_INLINED_CALL => 4,
+	      CI_NON_INLINED_CALL => 5};
 
 
 my $spacesPerIndent = 2;
 main();
+
+sub stripIndent {
+    my ($line, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    #the final /s makes . match newlines
+    $line =~ m/^\s*(.*)/s;
+    return $1;
+}
 
 
 sub isOpenBrace {
     my ($line, @bad) = @_;
     die "Too many arguments " if @bad;
 
-    return $line =~ m/^(\s*){/;
+    return $line =~ m/^\s*{/;
 }
 
 sub isCloseBrace {
     my ($line, @bad) = @_;
     die "Too many arguments " if @bad;
 
-    return $line =~ m/^(\s*)}/;
+    return $line =~ m/^\s*}/;
 }
 
 sub isMatchingCloseBrace {
@@ -73,10 +82,9 @@ sub indentLine {
     my ($i, $line, @bad) = @_;
     die "Too many arguments " if @bad;
 
-    #strip the old indentation
-    $line =~ m/^\s*(.*)/;
+    my $stripped = stripIndent($line);
     my $indentation = indentSpaces($i);
-    return $indentation . $1;
+    return $indentation . $stripped;
 }
 
 sub printCloseBraces {
@@ -101,7 +109,7 @@ sub instantiateCalls {
     die "Too many arguments " if @bad;
     
     my @output;
-    my $state = DEFAULT_STATE;
+    my $state = CI_DEFAULT_STATE;
     my $currentCall;
     my $indentDepth;
     my @callSetup;
@@ -109,40 +117,40 @@ sub instantiateCalls {
         
     foreach my $line (@$arrayRef) {
 	#print "$state: $line";
-	if ($state == DEFAULT_STATE) {	
+	if ($state == CI_DEFAULT_STATE) {	
 	    if ($line =~ m/^\s*\/\/call/){
 		$currentCall = $line;
-		$state = CALL_FOUND;
+		$state = CI_CALL_FOUND;
 	    } else {
 		push @output, $line;
-		$state = DEFAULT_STATE;
+		$state = CI_DEFAULT_STATE;
 	    }
 	} 
 
 	#collect the 
-	elsif ($state == CALL_FOUND) {
+	elsif ($state == CI_CALL_FOUND) {
 	    #the first line after is an open brace
 	    isOpenBrace($line) or die "not an open brace";
 	    $indentDepth = indentLevel($line);
-	    $state = CALL_SETUP;
+	    $state = CI_CALL_SETUP;
 	}
 
-	elsif ($state == CALL_SETUP) {
+	elsif ($state == CI_CALL_SETUP) {
 	    push @callSetup, $line;
 
 	    if ($line =~ m/^\s*\/\/done setup/){
-		$state = DONE_SETUP;
+		$state = CI_DONE_SETUP;
 	    } else {
-		$state = CALL_SETUP;
+		$state = CI_CALL_SETUP;
 	    }
 	}
 
 	#either we immediadly follow done with enter
 	#or we are in a call we cannot inline
-	elsif ($state == DONE_SETUP) {
+	elsif ($state == CI_DONE_SETUP) {
 	    if ($line =~ m/^\s*\/\/enter/) {
 		push @callSetup, $line;
-		$state = INLINED_CALL;
+		$state = CI_INLINED_CALL;
 	    } else {
 		$currentCall =~  m/^\s*\/\/call(.*)/;
 		my $actualCall = "$1";
@@ -151,24 +159,24 @@ sub instantiateCalls {
 		undef @callSetup;
 		undef $currentCall;
 		if (isMatchingCloseBrace($line,$indentDepth)){
-		    $state = DEFAULT_STATE;
+		    $state = CI_DEFAULT_STATE;
 		} else {
-		    $state = NON_INLINED_CALL;
+		    $state = CI_NON_INLINED_CALL;
 		}
 	    }
 	}
 
-	elsif ($state == NON_INLINED_CALL) {
+	elsif ($state == CI_NON_INLINED_CALL) {
 	    if (isMatchingCloseBrace($line,$indentDepth)){
 		undef $indentDepth;
-		$state = DEFAULT_STATE;
+		$state = CI_DEFAULT_STATE;
 	    } else {
-		$state = NON_INLINED_CALL;
+		$state = CI_NON_INLINED_CALL;
 	    }
 	}
 	
 
-	elsif($state == INLINED_CALL) {
+	elsif($state == CI_INLINED_CALL) {
 	    if (isClosingBrace($line)){
 		my @reduced = instantiateCalls(\@inlineCallBody);
 		push @output, $currentCall;
@@ -178,10 +186,10 @@ sub instantiateCalls {
 		undef $currentCall;
 		undef @callSetup;
 		undef @reduced;
-		$state = DEFAULT_STATE;
+		$state = CI_DEFAULT_STATE;
 	    } else {
 		push @inlineCallBody, $line;
-		$state = INLINED_CALL;
+		$state = CI_INLINED_CALL;
 	    }
 	}
 	
