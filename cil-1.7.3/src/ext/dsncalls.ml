@@ -81,6 +81,14 @@ let makePrintfFunction () : varinfo =
         v
     end
 
+let getLabelString s = 
+  match s.labels with
+    | [] -> None
+    | [Label(str,loc,b)] -> Some(str)
+    | [Case(_)] | [Default(_)] -> raise (Failure "not handeling cases at this point")
+    | _ -> raise (Failure "not handeling multiple labels at this point")
+
+
 let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
   let format = 
@@ -471,6 +479,10 @@ class dsnVisitorClass = object
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
+    let printLabel = match getLabelString s with
+      |	Some str -> mkCommentStmt ("label: " ^ str ^ "\n") [] 
+      | None -> dummyStmt 
+    in
     match s.skind with
       | Return(Some e, loc) -> 
 	let (lhsStr,lhsArg) = d_returnTemp in
@@ -480,7 +492,19 @@ class dsnVisitorClass = object
 	let printCall = mkPrint printStr printArgs in
 	let printStmt = mkStmtOneInstr printCall in
 	let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-        ChangeTo (mkStmt (Block (mkBlock [ preStmt; printStmt ; s ])))
+        ChangeTo (stmtFromStmtList [ printLabel; preStmt; printStmt ; s ])
+      | Return(None,loc) ->
+        ChangeTo (stmtFromStmtList 
+		    [ printLabel; mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
+      |	Goto(sr, loc) ->
+	let labelStr = match (getLabelString !sr) with
+	  | Some(str) -> str
+	  | None -> raise (Failure "missing label") in
+	let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
+	ChangeTo (stmtFromStmtList 
+		    [ printLabel;
+		      mkCommentStmt commentStr []; 
+		      s ])
       | If(_) -> if controlSensitive then
 	  let postfn a = begin match a.skind with 
 	    | If(e,b1,b2,loc) ->
@@ -490,14 +514,15 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
-		     mkOpenBraceStmt();
-		     incrIndentStmt
+		    [ printLabel; 
+		      mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
+		      mkOpenBraceStmt();
+		      incrIndentStmt
 		    ] in
 		  let blockExit =   
-		    [decrIndentStmt;
-		     mkCloseBraceStmt ();
-		     mkPrintStmt ~locp:false ("}" ^ commentLine ^ eStr ^"\n") eArg;
+		    [ decrIndentStmt;
+		      mkCloseBraceStmt ();
+		      mkPrintStmt ~locp:false ("}" ^ commentLine ^ eStr ^"\n") eArg;
 		    ] in
 		  let stmts = blockEnter @  b.bstmts @ blockExit in 
 		  b.bstmts <- stmts;
