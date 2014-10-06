@@ -479,10 +479,6 @@ class dsnVisitorClass = object
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
-    let printLabel = match getLabelString s with
-      |	Some str -> mkCommentStmt ("label: " ^ str ^ "\n") [] 
-      | None -> dummyStmt 
-    in
     match s.skind with
       | Return(Some e, loc) -> 
 	let (lhsStr,lhsArg) = d_returnTemp in
@@ -492,17 +488,17 @@ class dsnVisitorClass = object
 	let printCall = mkPrint printStr printArgs in
 	let printStmt = mkStmtOneInstr printCall in
 	let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-        ChangeTo (stmtFromStmtList [ printLabel; preStmt; printStmt ; s ])
+        ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
       | Return(None,loc) ->
         ChangeTo (stmtFromStmtList 
-		    [ printLabel; mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
+		    [ mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
       |	Goto(sr, loc) ->
 	let labelStr = match (getLabelString !sr) with
 	  | Some(str) -> str
 	  | None -> raise (Failure "missing label") in
 	let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
 	ChangeTo (stmtFromStmtList 
-		    [ printLabel;
+		    [ 
 		      mkCommentStmt commentStr []; 
 		      s ])
       | If(_) -> if controlSensitive then
@@ -514,7 +510,7 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [ printLabel; 
+		    [ 
 		      mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
 		      mkOpenBraceStmt();
 		      incrIndentStmt
