@@ -20,6 +20,13 @@ let printIndent = true
 let indentSpaces = 2
 let memPrefix = "_dsn_mem"
 
+let spaces = ref 0
+let incrIndent () = spaces := !spaces + indentSpaces
+let decrIndent () = if !spaces <= 0 then E.s (E.bug "Negative indentation?");
+                   spaces := !spaces - indentSpaces
+let indent () =
+  let rec f i = if i=0 then "" else f (i-1) ^ " " in f !spaces
+
 (* for future reference, how to add spaces in printf *)
 
 (* we have a format string, and a list of expressions for the printf*)
@@ -31,57 +38,60 @@ let printFunctionName = ref "printf"
 
 let addProto = ref false
 
-let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
-  let f (d: doc) : string = 
+let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
+  let f (d: doc) : string =
     Pretty.sprint 800 d
   in
-  Pretty.gprintf f fmt 
+  Pretty.gprintf f fmt
 
 
-let lineStr (loc: location) : string = 
-  "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\"" 
+let lineStr (loc: location) : string =
+  "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\""
 
 
 let printf: varinfo option ref = ref None
-let makePrintfFunction () : varinfo = 
-    match !printf with 
+let makePrintfFunction () : varinfo =
+    match !printf with
       Some v -> v
-    | None -> begin 
-        let v = makeGlobalVar !printFunctionName 
-                     (TFun(voidType, Some [("format", charPtrType, [])],
-                             true, [])) in
+    | None -> begin
+        let t_ret, t_fmt = if !printFunctionName = "printf"
+                           then intType, charConstPtrType
+                           else voidType, charPtrType in
+        let v = makeGlobalVar !printFunctionName
+                  (TFun(t_ret, Some [("format", t_fmt, [])], true, [])) in
         printf := Some v;
         addProto := true;
         v
     end
 
 
-let mkPrintNoLoc (format: string) (args: exp list) : instr = 
-  let p: varinfo = makePrintfFunction () in 
-  Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
+let mkPrintNoLoc ?noindent (format: string) (args: exp list) : instr =
+  let p: varinfo = makePrintfFunction () in
+  let spaces = match noindent with None -> indent () | _ -> "" in
+  Call(None, Lval(var p), (mkString (spaces ^ format)) :: args, !currentLoc)
 
-let mkPrint (format: string) (args: exp list) : instr = 
-  let p: varinfo = makePrintfFunction () in 
-  let format = "%s\n" ^ format in
-  let locArg = mkString (lineStr !currentLoc)  in
-  let args = locArg :: args in
-  Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
+let mkPrint (format: string) (args: exp list) : instr =
+  let format = (lineStr !currentLoc) ^ "\n" ^ indent () ^ format in
+  mkPrintNoLoc ~noindent:true format args
 
-let isGlobalVarLval (l : lval) = 
+let stmtFromStmtList (stmts : stmt list) : stmt =
+  mkStmt(Block(mkBlock (compactStmts stmts)))
+
+let isGlobalVarLval (l : lval) =
   let (host,off) = l in
-  match host with 
+  match host with
   | Var(vinfo) -> vinfo.vglob
-  | _ -> false 
+  | _ -> false
 
 let isGlobalVarExp (e : exp) = match e with
 | Lval(l) -> isGlobalVarLval l
 | _ -> false
 
-let rec isLocalVarLval (l : lval) = 
+let rec isLocalVarLval (l : lval) =
   let (host,off) = l in
-  match host with 
+  match host with
   | Var(vinfo) -> not vinfo.vglob
-  | Mem(e) -> isLocalVarExp e 
+  | Mem(e) -> isLocalVarExp e
 
 and isLocalVarExp (e: exp) = match e with
 | Lval(l) -> isLocalVarLval(l)
@@ -89,79 +99,79 @@ and isLocalVarExp (e: exp) = match e with
 
 let needsMemModelVarinfo (v : varinfo) = v.vaddrof
 
-let needsMemModelLval (l : lval) = 
-  match l with 
-    | (Var(vinfo), off) ->  needsMemModelVarinfo vinfo 
+let needsMemModelLval (l : lval) =
+  match l with
+    | (Var(vinfo), off) ->  needsMemModelVarinfo vinfo
     | _ -> true
-      
+
 
 (* DSN to finish *)
 (* what happens if it is a pointer *)
-let needsMemModel (e: exp) = 
-  match e with 
+let needsMemModel (e: exp) =
+  match e with
   | Lval(l) -> needsMemModelLval(l)
   | _ -> false
 
 (* Either create a reference to the stack variable
- * or the mem_0x1234 if that is needed 
+ * or the mem_0x1234 if that is needed
  *)
 
 (*DSN is it ok to use NoOffset here *)
-let mkAddressVarinfo (v : varinfo) : exp = 
+let mkAddressVarinfo (v : varinfo) : exp =
   let lv = (Var(v),NoOffset) in
   mkAddrOrStartOf lv
 
-let mkAddress (e : exp) : exp = 
+let mkAddress (e : exp) : exp =
   match e with
   | Lval(l) -> mkAddrOrStartOf l
   | _ -> raise (Failure "expected an Lval here")
 
-(* Returns true if the given lvalue offset ends in a bitfield access. *) 
+(* Returns true if the given lvalue offset ends in a bitfield access. *)
 let rec is_bitfield lo = match lo with
   | NoOffset -> false
   | Field(fi,NoOffset) -> not (fi.fbitfield = None)
   | Field(_,lo) -> is_bitfield lo
-  | Index(_,lo) -> is_bitfield lo 
+  | Index(_,lo) -> is_bitfield lo
 
 (* Return an expression that evaluates to the address of the given lvalue.
  * For most lvalues, this is merely AddrOf(lv). However, for bitfields
- * we do some offset gymnastics. 
+ * we do some offset gymnastics.
  *)
-let addr_of_lv (lh,lo) = 
+let addr_of_lv (lh,lo) =
   if is_bitfield lo then begin
     (* we figure out what the address would be without the final bitfield
      * access, and then we add in the offset of the bitfield from the
-     * beginning of its enclosing comp *) 
-    let rec split_offset_and_bitfield lo = match lo with 
-      | NoOffset -> failwith "logwrites: impossible" 
+     * beginning of its enclosing comp *)
+    let rec split_offset_and_bitfield lo = match lo with
+      | NoOffset -> failwith "logwrites: impossible"
       | Field(fi,NoOffset) -> (NoOffset,fi)
-      | Field(e,lo) ->  let a,b = split_offset_and_bitfield lo in 
+      | Field(e,lo) ->  let a,b = split_offset_and_bitfield lo in
                         ((Field(e,a)),b)
       | Index(e,lo) ->  let a,b = split_offset_and_bitfield lo in
                         ((Index(e,a)),b)
-    in 
+    in
     let new_lv_offset, bf = split_offset_and_bitfield lo in
-    let new_lv = (lh, new_lv_offset) in 
-    let enclosing_type = TComp(bf.fcomp, []) in 
-    let bits_offset, bits_width = 
+    let new_lv = (lh, new_lv_offset) in
+    let enclosing_type = TComp(bf.fcomp, []) in
+    let bits_offset, bits_width =
       bitsOffset enclosing_type (Field(bf,NoOffset)) in
-    let bytes_offset = bits_offset / 8 in 
+    let bytes_offset = bits_offset / 8 in
     let lvPtr = mkCast ~e:(mkAddrOf (new_lv)) ~newt:(charPtrType) in
     (BinOp(PlusPI, lvPtr, (integer bytes_offset), ulongType))
-  end else (AddrOf (lh,lo)) 
+  end else (AddrOf (lh,lo))
 
 
 
-let d_mem_lval (arg : lval) : logStatement = 
+let d_mem_lval (arg : lval) : logStatement =
   if (needsMemModelLval arg) then (  memPrefix ^ "_%p", [mkAddrOrStartOf arg])
   else (d_string "%a" d_lval arg,[])
 
-let rec d_mem_exp (arg :exp) : logStatement = 
-  match arg with 
-  | CastE(t,e) -> 
+let rec d_mem_exp (arg :exp) : logStatement =
+  match arg with
+  | CastE(t,e) ->
       let (str,arg) = d_mem_exp e in
       (d_string "(%a)(%s)" d_type t str,arg)
-  | SizeOfE(e) -> 
+  | SizeOfE(e) ->
       let (str,arg) = d_mem_exp e in
       (d_string "sizeof(%s) " str ,arg)
   | AlignOfE(e) ->
@@ -171,21 +181,21 @@ let rec d_mem_exp (arg :exp) : logStatement =
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_mem_exp e in
       (opStr ^ "(" ^ str ^ ")",arg)
-  | BinOp(o,l,r,_) ->  
+  | BinOp(o,l,r,_) ->
       let (lhsStr,lhsArg) = d_mem_exp l in
       let opStr = d_string " %a " d_binop o in
       let (rhsStr,rhsArg) = d_mem_exp r in
       ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
   | AddrOf(l) -> ("%p",[addr_of_lv l])
-  | StartOf(l) -> ("%p",[addr_of_lv l])  
-  | _ -> 
+  | StartOf(l) -> ("%p",[addr_of_lv l])
+  | _ ->
       if (needsMemModel arg) then ( memPrefix ^ "_%p", [mkAddress arg] )
       else (d_string "%a" d_exp arg,[])
-	  
-let d_addr_exp (arg : exp ) : logStatement = 
-  if (needsMemModel arg) then 
-    match arg with 
-    | Lval(host,off) -> 
+	
+let d_addr_exp (arg : exp ) : logStatement =
+  if (needsMemModel arg) then
+    match arg with
+    | Lval(host,off) ->
 	begin match host with
 	| Var(vinfo) ->  (d_string "(%a == %%p)" d_exp (mkAddress arg), [mkAddress arg])
 	| Mem(e) -> (d_string "(%a == %%p)" d_exp (arg), [mkAddress arg])
@@ -195,8 +205,8 @@ let d_addr_exp (arg : exp ) : logStatement =
 
 
 (* generate both a pre and a post part because we might have int a[2][3] *)
-let rec mkTypeStr (t: typ) : (string * string) = 
-  match t with 
+let rec mkTypeStr (t: typ) : (string * string) =
+  match t with
  | TArray(t,eo,a) ->
       let (lhsStr,rhsStr) = mkTypeStr t in
  (*DSN should this be d_scope_exp??*)
@@ -213,54 +223,52 @@ let rec mkTypeStr (t: typ) : (string * string) =
  * structures - or other larger than word sized things
  * pointers to simple memory
  * DSN TODO consider the harder cases at some point
- *) 
-let mkVarDecl (v : varinfo) : instr = 
+ *)
+let mkVarDecl (v : varinfo) : instr =
   let(lhsStr,rhsStr) = mkTypeStr v.vtype in
   if(needsMemModelVarinfo v) then
-    mkPrintNoLoc "//%s %s%s %p;\n" 
-      [ mkString lhsStr; 
-	mkString v.vname; 
+    mkPrintNoLoc "//%s %s%s %p;\n"
+      [ mkString lhsStr;
+	mkString v.vname;
 	mkString rhsStr;
 	mkAddressVarinfo v
       ]
   else
-    mkPrintNoLoc "%s %s%s;\n" 
-      [ mkString lhsStr; 
-	mkString v.vname; 
+    mkPrintNoLoc "%s %s%s;\n"
+      [ mkString lhsStr;
+	mkString v.vname;
 	mkString rhsStr
       ]
-     
-let rec declareAllVars (slocals : varinfo list) : instr list = 
-  match slocals with
-  | x :: xs -> (mkVarDecl x) :: (declareAllVars xs)
-  | [] -> []
+
+let rec declareAllVars (slocals : varinfo list) : instr list =
+  List.map mkVarDecl slocals
 
 let declareAllVarsStmt (slocals : varinfo list) : stmt list =
   let instrs = declareAllVars slocals in
-  let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
+  let stmts = List.map mkStmtOneInstr instrs in
   compactStmts stmts
 
 (* DSN perhaps there should be a common make print assgt function *)
 
 
 (*DSN have to handle function pointers *)
-let getFunctionVinfo e = match e with 
+let getFunctionVinfo e = match e with
 | Lval(Var(vinfo),_) -> vinfo
 |_ -> raise (Failure "Not even an Lval.  Did you use function pointers?")
-      
-let getFormals e : (string * typ * attributes) list = 
-  let vinfo = getFunctionVinfo e in 
-  match vinfo.vtype with 
+
+let getFormals e : (string * typ * attributes) list =
+  let vinfo = getFunctionVinfo e in
+  match vinfo.vtype with
   | TFun(rtyp,args,varargs,attr) -> argsToList args
   | _ -> raise (Failure "Not a function")
 	
 
 (* DSN need a better name here *)
-let rec mkActualArg (al : exp list) : logStatement = 
+let rec mkActualArg (al : exp list) : logStatement =
   match al with
   | [] -> ("",[])
   | x::[] -> d_mem_exp x
-  | x::xs -> 
+  | x::xs ->
       let (thisStr,thisArg) = d_mem_exp x in
       let (restStr,restArgs) = mkActualArg xs in
       (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
@@ -270,34 +278,25 @@ let rec mkActualArg (al : exp list) : logStatement =
 
 let isDefinedFn e =
   let vinfo = getFunctionVinfo e in
-  match vinfo.vstorage with 
-  | Extern -> false 
+  match vinfo.vstorage with
+  | Extern -> false
   | _ ->  not (Hashtbl.mem builtinFunctions vinfo.vname)
 
 let i = ref 0
 let name = ref ""
 
 
-let currentFunc: string ref = ref ""
-
 class dsnconcreteVisitorClass = object
   inherit nopCilVisitor
 
-  val printfFun =   
-    let fdec = emptyFunction "printf" in
-    fdec.svar.vtype <- TFun(intType, 
-                            Some [("format", charConstPtrType, []) ], 
-                            true, []);
-    fdec
+  val mutable return_seen = false
 
-  (* Watch for a declaration for our printer *)
-  
   method vinst i = begin
     match i with
-      Set(lv, e, l) -> 
-	let typStr = "/* " 
-	  ^ (d_string "%a" d_type (typeOfLval lv)) 
-	  ^ "*/ " in
+      Set(lv, e, l) ->
+	let typStr = "/* "
+	  ^ (d_string "%a" d_type (typeOfLval lv))
+	  ^ " */ " in
 	let (lhsStr,lhsArg) = d_mem_lval lv in
 (* assume that we only have reduced expressions at this point!  Should maybe put an assert
 of that here? *)
@@ -311,8 +310,8 @@ of that here? *)
     | Call(lo,e,al,l) ->
 (* The only calls that can occur in a reduced format are to functions
  * where we do not have the implementation.  So just store the final value
- *) 
-	let (lhsStr,lhsArg) = 
+ *)
+	let (lhsStr,lhsArg) =
 	  match lo with
 	  | Some(lv) -> let (s,a) = d_mem_lval lv in (s ^ " = ",a)
 	  | None -> ("",[])
@@ -322,12 +321,53 @@ of that here? *)
 	let callStr = lhsStr ^ fnName ^ "(" ^ argsStr ^ ");\n" in
 	let callArgs = lhsArg @ argsArgs in
 	let printCall = mkPrint callStr callArgs in
-	ChangeTo [ printCall; i] 
+	ChangeTo [ printCall; i]
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
+    if s.labels <> [] then E.s (E.bug "Cannot have labels.");
     match s.skind with
-    | _ -> DoChildren
+    | If(_, _, else_b, _) when else_b.bstmts = [] ->
+        let postfn a =
+          decrIndent ();
+          match a.skind with
+          | If(e, then_b, else_b, loc) when else_b.bstmts = [] ->
+              let eStr, eArg = d_mem_exp e in
+              let fStr = "if(" ^ eStr ^ "){\n" in
+              then_b.bstmts <- [mkStmtOneInstr (mkPrintNoLoc fStr eArg)]
+                               @ then_b.bstmts @
+                               [mkStmtOneInstr (mkPrintNoLoc "}\n" [])];
+              a
+          | _ -> E.s (E.bug "If statement corrupted.") in
+        incrIndent ();
+        ChangeDoChildrenPost (s, postfn)
+    | If _ -> E.s (E.bug "If statement with an else branch.")
+
+    (* The only return we expect to see is the last return in main, so it is
+       safe to remove it. This is a hack to make printf("}\n") executed
+       for printing the closing bracket, which is placed after the return. *)
+    | Return _ ->
+        if return_seen = false then return_seen <- true
+        else E.s (E.bug "There should be only one return for main");
+        let printCall = mkPrintNoLoc ~noindent:true "} // main\n" [] in
+        ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall ; s])
+
+    | Instr(Set(lv, e, _)::_) ->
+        (* Output for inspection purpose. *)
+        ignore (Pretty.printf "DBG: Instr(Set(%a, %a, _))\n" d_lval lv d_exp e);
+        DoChildren
+    | Instr(Call(_, e, _, _)::_) ->
+        (* Output for inspection purpose. *)
+        ignore (Pretty.printf "DBG: Instr(Call(_, %a, _))\n" d_exp e);
+        DoChildren
+
+    | Instr _ -> E.s (E.bug "Not expecting assembly instructions.")
+
+    | Goto _ | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
+    | Break _ | Continue _ ->
+        E.s (E.bug "Not expecting control flow statements.")
+
+    | Block _ -> DoChildren
   end
 end
 
@@ -336,54 +376,50 @@ let dsnconcreteVisitor = new dsnconcreteVisitorClass
 let dsnconcrete (f: file) : unit =
 
   let doGlobal = function
-      
-    | GVarDecl (v, _) when v.vname = !printFunctionName -> 
+
+    | GVarDecl (v, _) when v.vname = !printFunctionName ->
         if !printf = None then
-          printf := Some v 
-    | GFun (fdec, loc) ->
-        currentFunc := fdec.svar.vname;
-        (* do the body *)
+          printf := Some v
+    | GFun (fdec, _) when fdec.svar.vname = "main" ->
+        incrIndent ();
+        let allVarDeclaresStmt = declareAllVarsStmt fdec.slocals in
         ignore (visitCilFunction dsnconcreteVisitor fdec);
-	
-        (* Now add the entry instruction *)
-        let pre = if !currentFunc = "main" then 
-	  [mkStmtOneInstr (mkPrint  "int main(int argc, char** argv){\n" [])]
-	else 
-	  [mkStmtOneInstr (mkPrint (d_string "//enter %s\n" !currentFunc) [])] 
-	in 
-        fdec.sbody <- 
-          mkBlock (compactStmts (pre @ 
-				 (declareAllVarsStmt fdec.slocals) @
-				 [mkStmt (Block fdec.sbody) ]
-				   ))
+        decrIndent ();
+
+        let pre =
+	  [mkStmtOneInstr (mkPrint "int main(int argc, char** argv){\n" [])] in
+        fdec.sbody <-
+          mkBlock (compactStmts (pre @ allVarDeclaresStmt @
+				 [mkStmt (Block fdec.sbody)]))
+    | GFun _ -> E.s (E.bug "Cannot have a function definition other than main.")
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;
   if !addProto then begin
-    let p = makePrintfFunction () in 
+    let p = makePrintfFunction () in
     E.log "Adding prototype for call logging function %s\n" p.vname;
-    f.globals <- 
+    f.globals <-
       GVarDecl (p, locUnknown) ::
       f.globals
-  end  
+  end
 
-let feature : featureDescr = 
+let feature : featureDescr =
   { fd_name = "dsnconcrete";
     fd_enabled = Cilutil.dsnConcrete;
     fd_description = "generation of code to log function calls";
     fd_extraopt = [];
     fd_doit = dsnconcrete;
     fd_post_check = true
-  } 
+  }
 
 (*
  *
- * Copyright (c) 2001-2002, 
+ * Copyright (c) 2001-2002,
  *  George C. Necula    <necula@cs.berkeley.edu>
  *  Scott McPeak        <smcpeak@cs.berkeley.edu>
  *  Wes Weimer          <weimer@cs.berkeley.edu>
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
