@@ -1,10 +1,15 @@
 #!/usr/bin/perl -w
 
-# Adds proper subscripts for memory location variables added for our memory
-# model (i.e., _dsn_mem variables) to make them in the SSA form.
+# What it does:
+#
+# Adds proper subscripts to memory location variables added during
+# concretization (i.e., _dsn_mem variables) to make them conform to SSA.
+#
+# End of general description.
 
-# Stores current subscripts for each memory address in a hash. This may be
-# slow if a program is huge.
+
+# We store most up-to-date subscript numbers for each memory address in a hash,
+# although this may be slow if an input program is huge.
 %ssa_tag = ();
 
 sub substitute_reads {
