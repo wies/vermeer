@@ -15,7 +15,11 @@ echo "[[ POSTPROCESS_LINEAR ]]"
 ./postprocess_linear $1.linear.c > $1.post.tmp
 if [ "$?" -ne "0" ]; then rm -f $1.post.tmp; exit 1; fi
 
-sed -e 's/^  __return__1 = /  int __return__1 = /' $1.post.tmp > $1.post.tmp2
+# Restore the return of 'main.' Its corresponding variable name always seems
+# to be '__return__1' (although not verified). As such, this substitution may
+# be broken. Works at least on simple cases.
+sed -e 's/^  __return__1 = /  return /' $1.post.tmp > $1.post.tmp2
+
 LINES=`wc $1.post.tmp2 | awk '{print $1}'`
 let LINES-=1
 tail -$LINES $1.post.tmp2 > $1.post.linear.c

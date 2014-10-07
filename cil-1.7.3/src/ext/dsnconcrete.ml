@@ -34,7 +34,7 @@ type logStatement = string * exp list
 
 
 (* Switches *)
-let printFunctionName = ref "printf"
+let printFunctionName = ref "dsn_log"(*printf*)
 
 let addProto = ref false
 
@@ -44,10 +44,8 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   in
   Pretty.gprintf f fmt
 
-
 let lineStr (loc: location) : string =
   "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\""
-
 
 let printf: varinfo option ref = ref None
 let makePrintfFunction () : varinfo =
@@ -63,7 +61,6 @@ let makePrintfFunction () : varinfo =
         addProto := true;
         v
     end
-
 
 let mkPrintNoLoc ?noindent (format: string) (args: exp list) : instr =
   let p: varinfo = makePrintfFunction () in
@@ -188,6 +185,10 @@ let rec d_mem_exp (arg :exp) : logStatement =
       ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
   | AddrOf(l) -> ("%p",[addr_of_lv l])
   | StartOf(l) -> ("%p",[addr_of_lv l])
+
+  | Question _ -> E.s (E.bug "Question should have been eliminated.")
+  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel should have been eliminated.")
+
   | _ ->
       if (needsMemModel arg) then ( memPrefix ^ "_%p", [mkAddress arg] )
       else (d_string "%a" d_exp arg,[])
@@ -334,7 +335,7 @@ of that here? *)
           | If(e, then_b, else_b, loc) when else_b.bstmts = [] ->
               let eStr, eArg = d_mem_exp e in
               let fStr = "if(" ^ eStr ^ "){\n" in
-              then_b.bstmts <- [mkStmtOneInstr (mkPrintNoLoc fStr eArg)]
+              then_b.bstmts <- [mkStmtOneInstr (mkPrint fStr eArg)]
                                @ then_b.bstmts @
                                [mkStmtOneInstr (mkPrintNoLoc "}\n" [])];
               a
@@ -343,14 +344,18 @@ of that here? *)
         ChangeDoChildrenPost (s, postfn)
     | If _ -> E.s (E.bug "If statement with an else branch.")
 
-    (* The only return we expect to see is the last return in main, so it is
-       safe to remove it. This is a hack to make printf("}\n") executed
-       for printing the closing bracket, which is placed after the return. *)
-    | Return _ ->
+    (* The only return we expect to see is the last return in 'main'. We add
+       printf("} // main\n") just before the return to print the missing
+       closing bracket for 'main.' *)
+    | Return (e_opt, _) ->
         if return_seen = false then return_seen <- true
-        else E.s (E.bug "There should be only one return for main");
-        let printCall = mkPrintNoLoc ~noindent:true "} // main\n" [] in
-        ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall ; s])
+        else E.s (E.bug "There should be only one return for main.");
+        let printCall = match e_opt with
+            None   -> mkPrint "return;\n" []
+          | Some e -> mkPrint (d_string "return %a;\n" d_exp e) [] in
+        let printCall' = mkPrintNoLoc ~noindent:true "} // main\n" [] in
+        ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall ;
+                                    mkStmtOneInstr printCall' ; s])
 
     | Instr(Set(lv, e, _)::_) ->
         (* Output for inspection purpose. *)
