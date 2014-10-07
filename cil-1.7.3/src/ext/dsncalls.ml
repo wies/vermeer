@@ -552,18 +552,10 @@ let dsn (f: file) : unit =
     | GVarDecl (v, _) when v.vname = !printFunctionName -> 
         if !printf = None then
           printf := Some v 
-    | GVarDecl (v,loc) as g -> 
-      (* d_global adds its own location *)
-      let arg = mkString (d_string "%a" d_global g) in 
-      globalDeclFn.sbody <- 
-	mkBlock (compactStmts 
-		   [mkStmt (Block globalDeclFn.sbody);
-		    mkPrintStmt ~locp:false "%s" [arg]])
-    | GVar (vinfo,iinfo,loc) as g -> 
-      (* d_global adds its own location *)
-      let arg = mkString (d_string "%a" d_global g) in 
-      globalDeclFn.sbody <- 
-	mkBlock (compactStmts 
+    | GVarDecl _ | GVar _ | GType _ | GCompTag _ | GEnumTag _ as g ->
+      let arg = mkString (d_string "%a" d_global g) in
+      globalDeclFn.sbody <-
+	mkBlock (compactStmts
 		   [mkStmt (Block globalDeclFn.sbody);
 		    mkPrintStmt ~locp:false "%s" [arg]])
     | GFun (fdec, loc) when fdec = globalDeclFn-> ()

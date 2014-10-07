@@ -165,6 +165,7 @@ let d_mem_lval (arg : lval) : logStatement =
 
 let rec d_mem_exp (arg :exp) : logStatement =
   match arg with
+  | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
   | CastE(t,e) ->
       let (str,arg) = d_mem_exp e in
       (d_string "(%a)(%s)" d_type t str,arg)
