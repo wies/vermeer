@@ -1,0 +1,47 @@
+#!/usr/bin/perl -w
+
+# Adds proper subscripts for memory location variables added for our memory
+# model (i.e., _dsn_mem variables) to make them in the SSA form.
+
+# Stores current subscripts for each memory address in a hash. This may be
+# slow if a program is huge.
+%ssa_tag = ();
+
+sub substitute_reads {
+    my $add_tag = sub {
+        my $addr = shift;
+        $ssa_tag{$addr} = 1 if !exists($ssa_tag{$addr});
+        return "_dsn_mem_0x${addr}_$ssa_tag{$addr}";
+    };
+
+    my $str = shift;
+    $str =~ s/_dsn_mem_0x([0-9a-fA-F]+)/$add_tag->($1)/eg;
+    return $str;
+}
+
+my ($infilename, @bad) = @ARGV;
+die "Too many arguments " if @bad;
+die "missing filename " unless $infilename;
+
+#print "$infilename\n";
+
+open INFILE, "<", $infilename or die $!;
+while ($line = <INFILE>) {
+
+    # Assignment to a memory location? Then we need to increase its subscript.
+    if ($line =~ m!^( */\* .* \*/ _dsn_mem_0x([0-9a-fA-F]+)) = (.*)!) {
+        # Normal substitution for the right-hand side. Should do this before
+        # increasing subscripts.
+        my $rhs = substitute_reads $3;
+
+        # Increase the current SSA subscript for this memory address.
+        $ssa_tag{$2} = 0 if !exists($ssa_tag{$2});
+        my $subscript = ++$ssa_tag{$2};
+
+        print "$1_$subscript = $rhs\n";
+
+    } else {
+        # Normal substitution for the entire line.
+        print (substitute_reads $line);
+    }
+}
