@@ -13,13 +13,17 @@
 %ssa_tag = ();
 
 sub substitute_reads {
+    my ($str, @bad) = @_;
+    die "Too many arguments " if @bad;
+
     my $add_tag = sub {
-        my $addr = shift;
+        my ($addr, @bad) = @_;
+        die "Too many arguments " if @bad;
+
         $ssa_tag{$addr} = 1 if !exists($ssa_tag{$addr});
         return "_dsn_mem_0x${addr}_$ssa_tag{$addr}";
     };
 
-    my $str = shift;
     $str =~ s/_dsn_mem_0x([0-9a-fA-F]+)/$add_tag->($1)/eg;
     return $str;
 }

@@ -12,18 +12,8 @@ if [ "$EC" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ POSTPROCESS_LINEAR ]]"
-./postprocess_linear $1.linear.c > $1.post.tmp
+./postprocess_linear $1.linear.c > $1.post.linear.c
 if [ "$?" -ne "0" ]; then rm -f $1.post.tmp; exit 1; fi
-
-# Restore the return of 'main.' Its corresponding variable name always seems
-# to be '__return__1' (although not verified). As such, this substitution may
-# be broken. Works at least on simple cases.
-sed -e 's/^  __return__1 = /  return /' $1.post.tmp > $1.post.tmp2
-
-LINES=`wc $1.post.tmp2 | awk '{print $1}'`
-let LINES-=1
-tail -$LINES $1.post.tmp2 > $1.post.linear.c
-rm -f $1.post.tmp $1.post.tmp2
 
 echo
 echo "[[ RUNCONCRETE ]]"
@@ -34,4 +24,8 @@ if [ "$EC" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ RUNCONCRETE_CONCRETE ]]"
-./postprocess_concrete $1.post.concrete.c
+./postprocess_concrete $1.post.concrete.c > $1.post.concrete.c.tmp
+EC=$?
+if [ "$EC" -ne "0" ]; then rm -f $1.post.concrete.c.tmp; exit 1; fi
+mv -f $1.post.concrete.c.tmp $1.post.concrete.c
+cat $1.post.concrete.c
