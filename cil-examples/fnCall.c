@@ -4,4 +4,5 @@ int foo(int a, char* b){
 
 int main(int argc, char** argv){
   int x = foo(argc,argv[0]);
+  return x;
 }

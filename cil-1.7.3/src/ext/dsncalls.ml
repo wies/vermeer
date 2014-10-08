@@ -16,7 +16,7 @@ module H = Hashtbl
 let indentSpaces = 2
 
 (* this should really be a commandline argument *)
-let controlSensitive = true
+let controlSensitive = false
 
 (* for future reference, how to add spaces in printf *)
 
@@ -481,26 +481,36 @@ class dsnVisitorClass = object
   method vstmt (s : stmt) = begin
     match s.skind with
       | Return(Some e, loc) -> 
-	let (lhsStr,lhsArg) = d_returnTemp in
-	let (rhsStr,rhsArg) = d_scope_exp e in
-	let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
-	let printArgs = lhsArg @ rhsArg in
-	let printCall = mkPrint printStr printArgs in
-	let printStmt = mkStmtOneInstr printCall in
-	let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-        ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
+	if (!currentFunc = "main") then
+	  let (rhsStr,rhsArg) = d_scope_exp e in
+	  let printStr = "return " ^ rhsStr ^ ";\n" in
+	  let printArgs = rhsArg in
+	  let printStmt = mkPrintStmt printStr printArgs in
+	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
+          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
+	else
+	  let (lhsStr,lhsArg) = d_returnTemp in
+	  let (rhsStr,rhsArg) = d_scope_exp e in
+	  let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
+	  let printArgs = lhsArg @ rhsArg in
+	  let printStmt = mkPrintStmt printStr printArgs in
+	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
+          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
       | Return(None,loc) ->
         ChangeTo (stmtFromStmtList 
 		    [ mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
-      |	Goto(sr, loc) ->
-	let labelStr = match (getLabelString !sr) with
-	  | Some(str) -> str
-	  | None -> raise (Failure "missing label") in
-	let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
-	ChangeTo (stmtFromStmtList 
-		    [ 
-		      mkCommentStmt commentStr []; 
-		      s ])
+      |	Goto(sr, loc) -> 
+	if controlSensitive then
+	  let labelStr = match (getLabelString !sr) with
+	    | Some(str) -> str
+	    | None -> raise (Failure "missing label") in
+	  let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
+	  ChangeTo (stmtFromStmtList 
+		      [ 
+			mkCommentStmt commentStr []; 
+			s ])
+	else 
+	  DoChildren
       | If(_) -> if controlSensitive then
 	  let postfn a = begin match a.skind with 
 	    | If(e,b1,b2,loc) ->
