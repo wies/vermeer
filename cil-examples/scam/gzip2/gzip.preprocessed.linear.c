@@ -651,7 +651,7 @@ static void do_exit(int exitcode ) ;
 #line 5451 "gzip.preprocessed.c"
 static int in_exit   = 0;
 #line 4634 "gzip.preprocessed.c"
-int main(int  argc__0, char ** argv__0){
+int main(int  argc__1, char ** argv__1){
   int  file_count__1;
   int  proglen__1;
   int  optc__1;
@@ -757,13 +757,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4642 "gzip.preprocessed.c"
   __cil_tmp22__1 = *__cil_tmp21__1;
 #line 4642 "gzip.preprocessed.c"
-  //progname = basename(__cil_tmp22__1);
+  //call progname = basename(__cil_tmp22__1);
   {
 #line 4642 "gzip.preprocessed.c"
     char * __arg_tmp_0__2  = __cil_tmp22__1;
 #line 4642 "gzip.preprocessed.c"
     char *__return__2;
-#line 4109 "gzip.preprocessed.c"
+    //done setup
     //enter basename
     char * fname__2 = __arg_tmp_0__2 ;
     char * p__2;
@@ -774,7 +774,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4113 "gzip.preprocessed.c"
     __cil_tmp3__2 = (char const   *)(fname__2);
 #line 4113 "gzip.preprocessed.c"
-    //p__2 = strrchr(__cil_tmp3__2, '/');
+    //call p__2 = strrchr(__cil_tmp3__2, '/');
     {
 #line 4113 "gzip.preprocessed.c"
       char const   * __arg_tmp_0__3  = __cil_tmp3__2;
@@ -782,6 +782,7 @@ int main(int  argc__0, char ** argv__0){
       int  __arg_tmp_1__3  = '/';
 #line 4113 "gzip.preprocessed.c"
       char *__return__3;
+      //done setup
 #line 4113 "gzip.preprocessed.c"
       p__2 = __return__3;
     }
@@ -793,7 +794,6 @@ int main(int  argc__0, char ** argv__0){
     __cil_tmp6__2 = (unsigned long )(p__2);
 #line 4113 "gzip.preprocessed.c"
     fname__2 = (p__2) + (1);
-#line 4115 "gzip.preprocessed.c"
     //exiting basename
 #line 4115 "gzip.preprocessed.c"
     __return__2 = fname__2;
@@ -803,12 +803,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4643 "gzip.preprocessed.c"
   __cil_tmp23__1 = (char const   *)(progname);
 #line 4643 "gzip.preprocessed.c"
-  //tmp__1 = strlen(__cil_tmp23__1);
+  //call tmp__1 = strlen(__cil_tmp23__1);
   {
 #line 4643 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp23__1;
 #line 4643 "gzip.preprocessed.c"
     size_t __return__2;
+    //done setup
 #line 4643 "gzip.preprocessed.c"
     tmp__1 = __return__2;
   }
@@ -821,7 +822,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4644 "gzip.preprocessed.c"
   __cil_tmp26__1 = (char const   *)(__cil_tmp25__1);
 #line 4644 "gzip.preprocessed.c"
-  //tmp___0__1 = strcmp(__cil_tmp26__1, ".exe");
+  //call tmp___0__1 = strcmp(__cil_tmp26__1, ".exe");
   {
 #line 4644 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp26__1;
@@ -829,13 +830,14 @@ int main(int  argc__0, char ** argv__0){
     char const   * __arg_tmp_1__2  = ".exe";
 #line 4644 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4644 "gzip.preprocessed.c"
     tmp___0__1 = __return__2;
   }
 #line 4647 "gzip.preprocessed.c"
   __cil_tmp29__1 = (char *)("GZIP");
 #line 4647 "gzip.preprocessed.c"
-  //env = add_envopt(&argc__1, &argv__1, __cil_tmp29__1);
+  //call env = add_envopt(&argc__1, &argv__1, __cil_tmp29__1);
   {
 #line 4647 "gzip.preprocessed.c"
     int * __arg_tmp_0__2  = &argc__2;
@@ -845,7 +847,7 @@ int main(int  argc__0, char ** argv__0){
     char * __arg_tmp_2__2  = __cil_tmp29__1;
 #line 4647 "gzip.preprocessed.c"
     char *__return__2;
-#line 4127 "gzip.preprocessed.c"
+    //done setup
     //enter add_envopt
     int * argcp__2 = __arg_tmp_0__2 ;
     char *** argvp__2 = __arg_tmp_1__2 ;
@@ -905,12 +907,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4137 "gzip.preprocessed.c"
     __cil_tmp25__2 = (char const   *)(env__2);
 #line 4137 "gzip.preprocessed.c"
-    //tmp__2 = getenv(__cil_tmp25__2);
+    //call tmp__2 = getenv(__cil_tmp25__2);
     {
 #line 4137 "gzip.preprocessed.c"
       char const   * __arg_tmp_0__3  = __cil_tmp25__2;
 #line 4137 "gzip.preprocessed.c"
       char *__return__3;
+      //done setup
 #line 4137 "gzip.preprocessed.c"
       tmp__2 = __return__3;
     }
@@ -924,7 +927,6 @@ int main(int  argc__0, char ** argv__0){
     __cil_tmp28__2 = (unsigned long )(env__2);
 #line 4138 "gzip.preprocessed.c"
     __cil_tmp29__2 = (void *)(0);
-#line 4138 "gzip.preprocessed.c"
     //exiting add_envopt
 #line 4138 "gzip.preprocessed.c"
     __return__2 = (char *)(__cil_tmp29__2);
@@ -940,7 +942,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4649 "gzip.preprocessed.c"
   __cil_tmp34__1 = (void (*)(int  ))(1);
 #line 4649 "gzip.preprocessed.c"
-  //tmp___1__1 = signal(2, __cil_tmp34__1);
+  //call tmp___1__1 = signal(2, __cil_tmp34__1);
   {
 #line 4649 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = 2;
@@ -948,6 +950,7 @@ int main(int  argc__0, char ** argv__0){
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp34__1;
 #line 4649 "gzip.preprocessed.c"
     __sighandler_t __return__2;
+    //done setup
 #line 4649 "gzip.preprocessed.c"
     tmp___1__1 = __return__2;
   }
@@ -962,17 +965,18 @@ int main(int  argc__0, char ** argv__0){
 #line 4651 "gzip.preprocessed.c"
   __cil_tmp38__1 = (void (*)(int  ))(&abort_gzip);
 #line 4651 "gzip.preprocessed.c"
-  //signal(2, __cil_tmp38__1);
+  //call signal(2, __cil_tmp38__1);
   {
 #line 4651 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = 2;
 #line 4651 "gzip.preprocessed.c"
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp38__1;
+    //done setup
   }
 #line 4653 "gzip.preprocessed.c"
   __cil_tmp39__1 = (void (*)(int  ))(1);
 #line 4653 "gzip.preprocessed.c"
-  //tmp___2__1 = signal(15, __cil_tmp39__1);
+  //call tmp___2__1 = signal(15, __cil_tmp39__1);
   {
 #line 4653 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = 15;
@@ -980,6 +984,7 @@ int main(int  argc__0, char ** argv__0){
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp39__1;
 #line 4653 "gzip.preprocessed.c"
     __sighandler_t __return__2;
+    //done setup
 #line 4653 "gzip.preprocessed.c"
     tmp___2__1 = __return__2;
   }
@@ -992,17 +997,18 @@ int main(int  argc__0, char ** argv__0){
 #line 4654 "gzip.preprocessed.c"
   __cil_tmp43__1 = (void (*)(int  ))(&abort_gzip);
 #line 4654 "gzip.preprocessed.c"
-  //signal(15, __cil_tmp43__1);
+  //call signal(15, __cil_tmp43__1);
   {
 #line 4654 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = 15;
 #line 4654 "gzip.preprocessed.c"
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp43__1;
+    //done setup
   }
 #line 4656 "gzip.preprocessed.c"
   __cil_tmp44__1 = (void (*)(int  ))(1);
 #line 4656 "gzip.preprocessed.c"
-  //tmp___3__1 = signal(1, __cil_tmp44__1);
+  //call tmp___3__1 = signal(1, __cil_tmp44__1);
   {
 #line 4656 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = 1;
@@ -1010,6 +1016,7 @@ int main(int  argc__0, char ** argv__0){
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp44__1;
 #line 4656 "gzip.preprocessed.c"
     __sighandler_t __return__2;
+    //done setup
 #line 4656 "gzip.preprocessed.c"
     tmp___3__1 = __return__2;
   }
@@ -1022,19 +1029,20 @@ int main(int  argc__0, char ** argv__0){
 #line 4657 "gzip.preprocessed.c"
   __cil_tmp48__1 = (void (*)(int  ))(&abort_gzip);
 #line 4657 "gzip.preprocessed.c"
-  //signal(1, __cil_tmp48__1);
+  //call signal(1, __cil_tmp48__1);
   {
 #line 4657 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = 1;
 #line 4657 "gzip.preprocessed.c"
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp48__1;
+    //done setup
   }
 #line 4659 "gzip.preprocessed.c"
   __cil_tmp49__1 = (char const   *)(progname);
 #line 4659 "gzip.preprocessed.c"
   __cil_tmp50__1 = (size_t )(2);
 #line 4659 "gzip.preprocessed.c"
-  //tmp___6__1 = strncmp(__cil_tmp49__1, "un", __cil_tmp50__1);
+  //call tmp___6__1 = strncmp(__cil_tmp49__1, "un", __cil_tmp50__1);
   {
 #line 4659 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp49__1;
@@ -1044,6 +1052,7 @@ int main(int  argc__0, char ** argv__0){
     size_t  __arg_tmp_2__2  = __cil_tmp50__1;
 #line 4659 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4659 "gzip.preprocessed.c"
     tmp___6__1 = __return__2;
   }
@@ -1052,7 +1061,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4659 "gzip.preprocessed.c"
   __cil_tmp52__1 = (size_t )(3);
 #line 4659 "gzip.preprocessed.c"
-  //tmp___7__1 = strncmp(__cil_tmp51__1, "gun", __cil_tmp52__1);
+  //call tmp___7__1 = strncmp(__cil_tmp51__1, "gun", __cil_tmp52__1);
   {
 #line 4659 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp51__1;
@@ -1062,6 +1071,7 @@ int main(int  argc__0, char ** argv__0){
     size_t  __arg_tmp_2__2  = __cil_tmp52__1;
 #line 4659 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4659 "gzip.preprocessed.c"
     tmp___7__1 = __return__2;
   }
@@ -1070,7 +1080,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4662 "gzip.preprocessed.c"
   __cil_tmp54__1 = (char const   *)(__cil_tmp53__1);
 #line 4662 "gzip.preprocessed.c"
-  //tmp___4__1 = strcmp(__cil_tmp54__1, "cat");
+  //call tmp___4__1 = strcmp(__cil_tmp54__1, "cat");
   {
 #line 4662 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp54__1;
@@ -1078,13 +1088,14 @@ int main(int  argc__0, char ** argv__0){
     char const   * __arg_tmp_1__2  = "cat";
 #line 4662 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4662 "gzip.preprocessed.c"
     tmp___4__1 = __return__2;
   }
 #line 4662 "gzip.preprocessed.c"
   __cil_tmp55__1 = (char const   *)(progname);
 #line 4662 "gzip.preprocessed.c"
-  //tmp___5__1 = strcmp(__cil_tmp55__1, "gzcat");
+  //call tmp___5__1 = strcmp(__cil_tmp55__1, "gzcat");
   {
 #line 4662 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp55__1;
@@ -1092,6 +1103,7 @@ int main(int  argc__0, char ** argv__0){
     char const   * __arg_tmp_1__2  = "gzcat";
 #line 4662 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4662 "gzip.preprocessed.c"
     tmp___5__1 = __return__2;
   }
@@ -1108,7 +1120,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4666 "gzip.preprocessed.c"
   __cil_tmp61__1 = (31UL) - (1UL);
 #line 4666 "gzip.preprocessed.c"
-  //strncpy(__cil_tmp59__1, __cil_tmp60__1, __cil_tmp61__1);
+  //call strncpy(__cil_tmp59__1, __cil_tmp60__1, __cil_tmp61__1);
   {
 #line 4666 "gzip.preprocessed.c"
     char * __restrict   __arg_tmp_0__2  = __cil_tmp59__1;
@@ -1116,6 +1128,7 @@ int main(int  argc__0, char ** argv__0){
     char const   * __restrict   __arg_tmp_1__2  = __cil_tmp60__1;
 #line 4666 "gzip.preprocessed.c"
     unsigned long  __arg_tmp_2__2  = __cil_tmp61__1;
+    //done setup
   }
 #line 4667 "gzip.preprocessed.c"
   __cil_tmp62__1 = (0) * (1UL);
@@ -1126,12 +1139,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4667 "gzip.preprocessed.c"
   __cil_tmp65__1 = (char const   *)(__cil_tmp64__1);
 #line 4667 "gzip.preprocessed.c"
-  //tmp___8__1 = strlen(__cil_tmp65__1);
+  //call tmp___8__1 = strlen(__cil_tmp65__1);
   {
 #line 4667 "gzip.preprocessed.c"
     char const   * __arg_tmp_0__2  = __cil_tmp65__1;
 #line 4667 "gzip.preprocessed.c"
     size_t __return__2;
+    //done setup
 #line 4667 "gzip.preprocessed.c"
     tmp___8__1 = __return__2;
   }
@@ -1158,7 +1172,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4668 "gzip.preprocessed.c"
   __cil_tmp75__1 = (int *)(0);
 #line 4668 "gzip.preprocessed.c"
-  //optc__1 = getopt_long(__cil_tmp67__1, __cil_tmp70__1, "ab:cdfhH?lLmMnNqrS:tvVZ123456789", __cil_tmp74__1, __cil_tmp75__1);
+  //call optc__1 = getopt_long(__cil_tmp67__1, __cil_tmp70__1, "ab:cdfhH?lLmMnNqrS:tvVZ123456789", __cil_tmp74__1, __cil_tmp75__1);
   {
 #line 4668 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = __cil_tmp67__1;
@@ -1172,6 +1186,7 @@ int main(int  argc__0, char ** argv__0){
     int * __arg_tmp_4__2  = __cil_tmp75__1;
 #line 4668 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4668 "gzip.preprocessed.c"
     optc__1 = __return__2;
   }
@@ -1198,7 +1213,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4668 "gzip.preprocessed.c"
   __cil_tmp75__1 = (int *)(0);
 #line 4668 "gzip.preprocessed.c"
-  //optc__1 = getopt_long(__cil_tmp67__1, __cil_tmp70__1, "ab:cdfhH?lLmMnNqrS:tvVZ123456789", __cil_tmp74__1, __cil_tmp75__1);
+  //call optc__1 = getopt_long(__cil_tmp67__1, __cil_tmp70__1, "ab:cdfhH?lLmMnNqrS:tvVZ123456789", __cil_tmp74__1, __cil_tmp75__1);
   {
 #line 4668 "gzip.preprocessed.c"
     int  __arg_tmp_0__2  = __cil_tmp67__1;
@@ -1212,6 +1227,7 @@ int main(int  argc__0, char ** argv__0){
     int * __arg_tmp_4__2  = __cil_tmp75__1;
 #line 4668 "gzip.preprocessed.c"
     int __return__2;
+    //done setup
 #line 4668 "gzip.preprocessed.c"
     optc__1 = __return__2;
   }
@@ -1226,9 +1242,9 @@ int main(int  argc__0, char ** argv__0){
 #line 4727 "gzip.preprocessed.c"
   file_count__1 = (__cil_tmp86__1) - (optind);
 #line 4751 "gzip.preprocessed.c"
-  //treat_stdin();
+  //call treat_stdin();
   {
-#line 4759 "gzip.preprocessed.c"
+    //done setup
     //enter treat_stdin
     char const   * tmp__2;
     char const   * tmp___0__2;
@@ -1276,22 +1292,24 @@ int main(int  argc__0, char ** argv__0){
 #line 4761 "gzip.preprocessed.c"
     tmp___1__2 = stdin;
 #line 4761 "gzip.preprocessed.c"
-    //tmp___2__2 = fileno(tmp___1__2);
+    //call tmp___2__2 = fileno(tmp___1__2);
     {
 #line 4761 "gzip.preprocessed.c"
       struct _IO_FILE * __arg_tmp_0__3  = tmp___1__2;
 #line 4761 "gzip.preprocessed.c"
       int __return__3;
+      //done setup
 #line 4761 "gzip.preprocessed.c"
       tmp___2__2 = __return__3;
     }
 #line 4761 "gzip.preprocessed.c"
-    //tmp___3__2 = isatty(tmp___2__2);
+    //call tmp___3__2 = isatty(tmp___2__2);
     {
 #line 4761 "gzip.preprocessed.c"
       int  __arg_tmp_0__3  = tmp___2__2;
 #line 4761 "gzip.preprocessed.c"
       int __return__3;
+      //done setup
 #line 4761 "gzip.preprocessed.c"
       tmp___3__2 = __return__3;
     }
@@ -1310,12 +1328,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4777 "gzip.preprocessed.c"
     __cil_tmp21__2 = (char const   * __restrict  )("stdin");
 #line 4777 "gzip.preprocessed.c"
-    //strcpy(__cil_tmp20__2, __cil_tmp21__2);
+    //call strcpy(__cil_tmp20__2, __cil_tmp21__2);
     {
 #line 4777 "gzip.preprocessed.c"
       char * __restrict   __arg_tmp_0__3  = __cil_tmp20__2;
 #line 4777 "gzip.preprocessed.c"
       char const   * __restrict   __arg_tmp_1__3  = __cil_tmp21__2;
+      //done setup
     }
 #line 4778 "gzip.preprocessed.c"
     __cil_tmp22__2 = (0) * (1UL);
@@ -1328,12 +1347,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4778 "gzip.preprocessed.c"
     __cil_tmp26__2 = (char const   * __restrict  )("stdout");
 #line 4778 "gzip.preprocessed.c"
-    //strcpy(__cil_tmp25__2, __cil_tmp26__2);
+    //call strcpy(__cil_tmp25__2, __cil_tmp26__2);
     {
 #line 4778 "gzip.preprocessed.c"
       char * __restrict   __arg_tmp_0__3  = __cil_tmp25__2;
 #line 4778 "gzip.preprocessed.c"
       char const   * __restrict   __arg_tmp_1__3  = __cil_tmp26__2;
+      //done setup
     }
 #line 4779 "gzip.preprocessed.c"
     __cil_tmp27__2 = &time_stamp;
@@ -1342,9 +1362,9 @@ int main(int  argc__0, char ** argv__0){
 #line 4786 "gzip.preprocessed.c"
     ifile_size = -1L;
 #line 4787 "gzip.preprocessed.c"
-    //clear_bufs();
+    //call clear_bufs();
     {
-#line 4046 "gzip.preprocessed.c"
+      //done setup
       //enter clear_bufs
 #line 4048 "gzip.preprocessed.c"
       outcnt = 0U;
@@ -1356,6 +1376,7 @@ int main(int  argc__0, char ** argv__0){
       bytes_out = 0L;
 #line 4050 "gzip.preprocessed.c"
       bytes_in = bytes_out;
+      //exiting clear_bufs
     }
 #line 4788 "gzip.preprocessed.c"
     to_stdout = 1;
@@ -1364,13 +1385,13 @@ int main(int  argc__0, char ** argv__0){
 #line 4791 "gzip.preprocessed.c"
     __cil_tmp30__2 = &method;
 #line 4791 "gzip.preprocessed.c"
-    //*__cil_tmp30__2 = get_method(ifd);
+    //call *__cil_tmp30__2 = get_method(ifd);
     {
 #line 4791 "gzip.preprocessed.c"
       int  __arg_tmp_0__3  = ifd;
 #line 4791 "gzip.preprocessed.c"
       int __return__3;
-#line 5062 "gzip.preprocessed.c"
+      //done setup
       //enter get_method
       int  in__3 = __arg_tmp_0__3 ;
       uch  flags___0__3;
@@ -1665,13 +1686,13 @@ int main(int  argc__0, char ** argv__0){
       uch * mem_291__3;
       uch * mem_292__3;
 #line 5072 "gzip.preprocessed.c"
-      //tmp___6__3 = fill_inbuf(0);
+      //call tmp___6__3 = fill_inbuf(0);
       {
 #line 5072 "gzip.preprocessed.c"
         int  __arg_tmp_0__4  = 0;
 #line 5072 "gzip.preprocessed.c"
         int __return__4;
-#line 4052 "gzip.preprocessed.c"
+        //done setup
         //enter fill_inbuf
         int  eof_ok__4 = __arg_tmp_0__4 ;
         int  len__4;
@@ -1696,10 +1717,11 @@ int main(int  argc__0, char ** argv__0){
 #line 4056 "gzip.preprocessed.c"
         insize = 0U;
 #line 4057 "gzip.preprocessed.c"
-        //tmp__4 = __errno_location();
+        //call tmp__4 = __errno_location();
         {
 #line 4057 "gzip.preprocessed.c"
           int *__return__5;
+          //done setup
 #line 4057 "gzip.preprocessed.c"
           tmp__4 = __return__5;
         }
@@ -1722,7 +1744,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4059 "gzip.preprocessed.c"
         __cil_tmp12__4 = (size_t )(__cil_tmp11__4);
 #line 4059 "gzip.preprocessed.c"
-        //tmp___0__4 = read(ifd, __cil_tmp10__4, __cil_tmp12__4);
+        //call tmp___0__4 = read(ifd, __cil_tmp10__4, __cil_tmp12__4);
         {
 #line 4059 "gzip.preprocessed.c"
           int  __arg_tmp_0__5  = ifd;
@@ -1732,6 +1754,7 @@ int main(int  argc__0, char ** argv__0){
           size_t  __arg_tmp_2__5  = __cil_tmp12__4;
 #line 4059 "gzip.preprocessed.c"
           ssize_t __return__5;
+          //done setup
 #line 4059 "gzip.preprocessed.c"
           tmp___0__4 = __return__5;
         }
@@ -1758,7 +1781,7 @@ int main(int  argc__0, char ** argv__0){
 #line 4059 "gzip.preprocessed.c"
         __cil_tmp12__4 = (size_t )(__cil_tmp11__4);
 #line 4059 "gzip.preprocessed.c"
-        //tmp___0__4 = read(ifd, __cil_tmp10__4, __cil_tmp12__4);
+        //call tmp___0__4 = read(ifd, __cil_tmp10__4, __cil_tmp12__4);
         {
 #line 4059 "gzip.preprocessed.c"
           int  __arg_tmp_0__5  = ifd;
@@ -1768,6 +1791,7 @@ int main(int  argc__0, char ** argv__0){
           size_t  __arg_tmp_2__5  = __cil_tmp12__4;
 #line 4059 "gzip.preprocessed.c"
           ssize_t __return__5;
+          //done setup
 #line 4059 "gzip.preprocessed.c"
           tmp___0__4 = __return__5;
         }
@@ -1791,7 +1815,6 @@ int main(int  argc__0, char ** argv__0){
         mem_20__4 = (uch *)(__cil_tmp18__4);
 #line 4069 "gzip.preprocessed.c"
         __cil_tmp19__4 = *mem_20__4;
-#line 4069 "gzip.preprocessed.c"
         //exiting fill_inbuf
 #line 4069 "gzip.preprocessed.c"
         __return__4 = (int )(__cil_tmp19__4);
@@ -1853,7 +1876,7 @@ int main(int  argc__0, char ** argv__0){
 #line 5079 "gzip.preprocessed.c"
       __cil_tmp100__3 = (size_t )(2);
 #line 5079 "gzip.preprocessed.c"
-      //tmp___61__3 = memcmp(__cil_tmp98__3, __cil_tmp99__3, __cil_tmp100__3);
+      //call tmp___61__3 = memcmp(__cil_tmp98__3, __cil_tmp99__3, __cil_tmp100__3);
       {
 #line 5079 "gzip.preprocessed.c"
         void const   * __arg_tmp_0__4  = __cil_tmp98__3;
@@ -1863,6 +1886,7 @@ int main(int  argc__0, char ** argv__0){
         size_t  __arg_tmp_2__4  = __cil_tmp100__3;
 #line 5079 "gzip.preprocessed.c"
         int __return__4;
+        //done setup
 #line 5079 "gzip.preprocessed.c"
         tmp___61__3 = __return__4;
       }
@@ -1879,7 +1903,7 @@ int main(int  argc__0, char ** argv__0){
 #line 5079 "gzip.preprocessed.c"
       __cil_tmp106__3 = (size_t )(2);
 #line 5079 "gzip.preprocessed.c"
-      //tmp___62__3 = memcmp(__cil_tmp104__3, __cil_tmp105__3, __cil_tmp106__3);
+      //call tmp___62__3 = memcmp(__cil_tmp104__3, __cil_tmp105__3, __cil_tmp106__3);
       {
 #line 5079 "gzip.preprocessed.c"
         void const   * __arg_tmp_0__4  = __cil_tmp104__3;
@@ -1889,6 +1913,7 @@ int main(int  argc__0, char ** argv__0){
         size_t  __arg_tmp_2__4  = __cil_tmp106__3;
 #line 5079 "gzip.preprocessed.c"
         int __return__4;
+        //done setup
 #line 5079 "gzip.preprocessed.c"
         tmp___62__3 = __return__4;
       }
@@ -2118,7 +2143,6 @@ int main(int  argc__0, char ** argv__0){
       __cil_tmp260__3 = *__cil_tmp259__3;
 #line 5186 "gzip.preprocessed.c"
       __cil_tmp261__3 = &method;
-#line 5186 "gzip.preprocessed.c"
       //exiting get_method
 #line 5186 "gzip.preprocessed.c"
       __return__3 = *__cil_tmp261__3;
@@ -2130,27 +2154,29 @@ int main(int  argc__0, char ** argv__0){
 #line 4792 "gzip.preprocessed.c"
     __cil_tmp32__2 = *__cil_tmp31__2;
 #line 4801 "gzip.preprocessed.c"
-    //tmp___8__2 = fileno(stdout);
+    //call tmp___8__2 = fileno(stdout);
     {
 #line 4801 "gzip.preprocessed.c"
       struct _IO_FILE * __arg_tmp_0__3  = stdout;
 #line 4801 "gzip.preprocessed.c"
       int __return__3;
+      //done setup
 #line 4801 "gzip.preprocessed.c"
       tmp___8__2 = __return__3;
     }
 #line 4801 "gzip.preprocessed.c"
-    //tmp___9__2 = fileno(stdin);
+    //call tmp___9__2 = fileno(stdin);
     {
 #line 4801 "gzip.preprocessed.c"
       struct _IO_FILE * __arg_tmp_0__3  = stdin;
 #line 4801 "gzip.preprocessed.c"
       int __return__3;
+      //done setup
 #line 4801 "gzip.preprocessed.c"
       tmp___9__2 = __return__3;
     }
 #line 4801 "gzip.preprocessed.c"
-    //tmp___10__2 = *work(tmp___9__2, tmp___8__2);
+    //call tmp___10__2 = *work(tmp___9__2, tmp___8__2);
     {
 #line 4801 "gzip.preprocessed.c"
       int  __arg_tmp_0__3  = tmp___9__2;
@@ -2158,7 +2184,7 @@ int main(int  argc__0, char ** argv__0){
       int  __arg_tmp_1__3  = tmp___8__2;
 #line 4801 "gzip.preprocessed.c"
       int __return__3;
-#line 3944 "gzip.preprocessed.c"
+      //done setup
       //enter unzip
       int  in__3 = __arg_tmp_0__3 ;
       int  out__3 = __arg_tmp_1__3 ;
@@ -2656,13 +2682,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3953 "gzip.preprocessed.c"
       __cil_tmp25__3 = (uch *)(__cil_tmp24__3);
 #line 3953 "gzip.preprocessed.c"
-      //updcrc(__cil_tmp25__3, 0U);
+      //call updcrc(__cil_tmp25__3, 0U);
       {
 #line 3953 "gzip.preprocessed.c"
         uch * __arg_tmp_0__4  = __cil_tmp25__3;
 #line 3953 "gzip.preprocessed.c"
         unsigned int  __arg_tmp_1__4  = 0U;
-#line 4029 "gzip.preprocessed.c"
+        //done setup
         //enter updcrc
         uch * s__4 = __arg_tmp_0__4 ;
         unsigned int  n__4 = __arg_tmp_1__4 ;
@@ -2691,7 +2717,6 @@ int main(int  argc__0, char ** argv__0){
         c__4 = (ulg )(4294967295L);
 #line 4043 "gzip.preprocessed.c"
         crc___0 = c__4;
-#line 4044 "gzip.preprocessed.c"
         //exiting updcrc
 #line 4044 "gzip.preprocessed.c"
         __return__4 = (c__4) ^ (4294967295UL);
@@ -2701,11 +2726,11 @@ int main(int  argc__0, char ** argv__0){
 #line 3958 "gzip.preprocessed.c"
       __cil_tmp109__3 = *__cil_tmp108__3;
 #line 3959 "gzip.preprocessed.c"
-      //tmp__3 = inflate();
+      //call tmp__3 = inflate();
       {
 #line 3959 "gzip.preprocessed.c"
         int __return__4;
-#line 2305 "gzip.preprocessed.c"
+        //done setup
         //enter inflate
         int  e__4;
         int  r__4;
@@ -2723,13 +2748,13 @@ int main(int  argc__0, char ** argv__0){
 #line 2315 "gzip.preprocessed.c"
         hufts = 0U;
 #line 2316 "gzip.preprocessed.c"
-        //r__4 = inflate_block(&e__4);
+        //call r__4 = inflate_block(&e__4);
         {
 #line 2316 "gzip.preprocessed.c"
           int * __arg_tmp_0__5  = &e__5;
 #line 2316 "gzip.preprocessed.c"
           int __return__5;
-#line 2281 "gzip.preprocessed.c"
+          //done setup
           //enter inflate_block
           int * e__5 = __arg_tmp_0__5 ;
           unsigned int  t__5;
@@ -2809,11 +2834,11 @@ int main(int  argc__0, char ** argv__0){
 #line 2296 "gzip.preprocessed.c"
           bk = k__5;
 #line 2298 "gzip.preprocessed.c"
-          //tmp___5__5 = inflate_dynamic();
+          //call tmp___5__5 = inflate_dynamic();
           {
 #line 2298 "gzip.preprocessed.c"
             int __return__6;
-#line 2164 "gzip.preprocessed.c"
+            //done setup
             //enter inflate_dynamic
             int  i__6;
             unsigned int  j__6;
@@ -3544,7 +3569,7 @@ int main(int  argc__0, char ** argv__0){
 #line 2203 "gzip.preprocessed.c"
             __cil_tmp96__6 = (ush *)(__cil_tmp95__6);
 #line 2203 "gzip.preprocessed.c"
-            //i__6 = huft_build(__cil_tmp92__6, 19U, 19U, __cil_tmp94__6, __cil_tmp96__6, &tl__6, &bl__6);
+            //call i__6 = huft_build(__cil_tmp92__6, 19U, 19U, __cil_tmp94__6, __cil_tmp96__6, &tl__6, &bl__6);
             {
 #line 2203 "gzip.preprocessed.c"
               unsigned int * __arg_tmp_0__7  = __cil_tmp92__6;
@@ -3562,7 +3587,7 @@ int main(int  argc__0, char ** argv__0){
               int * __arg_tmp_6__7  = &bl__7;
 #line 2203 "gzip.preprocessed.c"
               int __return__7;
-#line 1849 "gzip.preprocessed.c"
+              //done setup
               //enter huft_build
               unsigned int * b__7 = __arg_tmp_0__7 ;
               unsigned int  n__7 = __arg_tmp_1__7 ;
@@ -3765,7 +3790,7 @@ int main(int  argc__0, char ** argv__0){
 #line 1877 "gzip.preprocessed.c"
               __cil_tmp39__7 = (voidp )(__cil_tmp38__7);
 #line 1877 "gzip.preprocessed.c"
-              //memset(__cil_tmp39__7, 0, 68UL);
+              //call memset(__cil_tmp39__7, 0, 68UL);
               {
 #line 1877 "gzip.preprocessed.c"
                 voidp  __arg_tmp_0__8  = __cil_tmp39__7;
@@ -3773,6 +3798,7 @@ int main(int  argc__0, char ** argv__0){
                 int  __arg_tmp_1__8  = 0;
 #line 1877 "gzip.preprocessed.c"
                 unsigned long  __arg_tmp_2__8  = 68UL;
+                //done setup
               }
 #line 1878 "gzip.preprocessed.c"
               p__7 = b__7;
@@ -4248,7 +4274,6 @@ int main(int  argc__0, char ** argv__0){
               *t__7 = (struct huft *)(__cil_tmp50__7);
 #line 1887 "gzip.preprocessed.c"
               *m__7 = 0;
-#line 1888 "gzip.preprocessed.c"
               //exiting huft_build
 #line 1888 "gzip.preprocessed.c"
               __return__7 = 0;

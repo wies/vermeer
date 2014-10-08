@@ -17,6 +17,14 @@ use constant {CI_DEFAULT_STATE => 0,
 	      CI_INLINED_CALL => 4,
 	      CI_NON_INLINED_CALL => 5};
 
+my %stateName = (
+    0 => "CI_DEFAULT_STATE",
+    1 => "CI_CALL_FOUND",
+    2 => "CI_CALL_SETUP",
+    3 => "CI_DONE_SETUP",
+    4 => "CI_INLINED_CALL",
+    5 => "CI_NON_INLINED_CALL");
+
 
 my $spacesPerIndent = 2;
 main();
@@ -110,14 +118,23 @@ sub instantiateCalls {
     
     my @output;
     my $state = CI_DEFAULT_STATE;
-    my $currentCall;
     my $indentDepth;
+    my $currentCall;
     my @callSetup;
     my @inlineCallBody;
         
     foreach my $line (@$arrayRef) {
-	#print "$state: $line";
-	if ($state == CI_DEFAULT_STATE) {	
+	#print "$stateName{$state}: $line" if ($recursive);
+	if ($state == CI_DEFAULT_STATE) {
+	    #just to be clean, undef anything that 
+	    #isn't defined in the default state
+	    #we could move this to every time that we go into default state
+	    # but that is more error prone.
+	    undef $indentDepth;
+	    undef $currentCall;
+	    undef @callSetup;
+	    undef @inlineCallBody;
+	    	
 	    if ($line =~ m/^\s*\/\/call/){
 		$currentCall = $line;
 		$state = CI_CALL_FOUND;
@@ -132,12 +149,12 @@ sub instantiateCalls {
 	    #the first line after is an open brace
 	    isOpenBrace($line) or die "not an open brace";
 	    $indentDepth = indentLevel($line);
+	    push @callSetup, $line;
 	    $state = CI_CALL_SETUP;
 	}
 
 	elsif ($state == CI_CALL_SETUP) {
 	    push @callSetup, $line;
-
 	    if ($line =~ m/^\s*\/\/done setup/){
 		$state = CI_DONE_SETUP;
 	    } else {
@@ -156,8 +173,6 @@ sub instantiateCalls {
 		my $actualCall = "$1";
 		my $indentedCall = indentLine($indentDepth, $actualCall);
 		push @output, "$indentedCall\n";
-		undef @callSetup;
-		undef $currentCall;
 		if (isMatchingCloseBrace($line,$indentDepth)){
 		    $state = CI_DEFAULT_STATE;
 		} else {
@@ -168,25 +183,22 @@ sub instantiateCalls {
 
 	elsif ($state == CI_NON_INLINED_CALL) {
 	    if (isMatchingCloseBrace($line,$indentDepth)){
-		undef $indentDepth;
 		$state = CI_DEFAULT_STATE;
 	    } else {
 		$state = CI_NON_INLINED_CALL;
 	    }
 	}
 	
-
 	elsif($state == CI_INLINED_CALL) {
-	    if (isClosingBrace($line)){
+	    if (isMatchingCloseBrace($line,$indentDepth)){
+		push @inlineCallBody, $line;
+
 		my @reduced = instantiateCalls(\@inlineCallBody);
 		push @output, $currentCall;
 		push @output, @callSetup;
 		push @output, @reduced;
-		push @output, $line;
-		undef $currentCall;
-		undef @callSetup;
-		undef @reduced;
 		$state = CI_DEFAULT_STATE;
+
 	    } else {
 		push @inlineCallBody, $line;
 		$state = CI_INLINED_CALL;
@@ -205,7 +217,7 @@ sub main {
     die "Too many arguments " if @bad;
     die "missing filename " unless $infilename;
 
-    print "$infilename\n";
+    # print "$infilename\n";
 
     open INFILE, "<", $infilename or die $!;
     my @infile = <INFILE>;
