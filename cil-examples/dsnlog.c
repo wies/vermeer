@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 
 static FILE* pfile;
 
@@ -19,5 +20,21 @@ int dsn_log(const char* format, ...)
   va_start(arglist,format);
   int result = vfprintf(pfile,format,arglist);
   va_end(arglist);
+  return result;
+}
+
+int printf_dsn_wrapper(const char* format, ...)
+{
+  va_list arglist;
+  va_start(arglist, format);
+  int result = printf(format, arglist);
+  va_end(arglist);
+  return result;
+}
+
+double pow_dsn_wrapper(double x, double y)
+{
+  double result = pow(x, y);
+  dsn_log("%a", result);
   return result;
 }
