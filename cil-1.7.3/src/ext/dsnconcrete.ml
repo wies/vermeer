@@ -16,6 +16,7 @@ open Cil
 open Trace
 module E = Errormsg
 module H = Hashtbl
+module SS = Set.Make(String)
 
 (* DSN - from logwrites.ml *)
 (* David Park at Stanford points out that you cannot take the address of a
@@ -24,6 +25,11 @@ module H = Hashtbl
 let memPrefix = "_dsn_mem"
 let wrapper_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
+
+let preset_wrappers = ["sprintf";
+                       "pow" (* Doesn't need a wrapper; just for debugging. *)]
+
+let wrapper_set = List.fold_right SS.add preset_wrappers SS.empty
 
 let printIndent = true
 let indentSpaces = 2
@@ -263,9 +269,26 @@ let isDefinedFn e =
 
 (* DSN need a better name here *)
 let rec mkActualArg (al : exp list) : logStatement =
-  let f (str, args) x = let str_x, args_x = d_mem_exp x in
-    (str ^ ", " ^ str_x, args @ args_x) in
-  List.fold_left f ("", []) al
+  match al with
+  | [] -> ("",[])
+  | x::[] -> d_mem_exp x
+  | x::xs ->
+      let (thisStr,thisArg) = d_mem_exp x in
+      let (restStr,restArgs) = mkActualArg xs in
+      (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
+
+let format_ret_val (lv: lval) : logStatement =
+  let e = Lval(lv) in
+  match unrollType (typeOfLval lv) with
+  | TVoid _ | TFun _ | TBuiltin_va_list _ ->
+      E.s (E.bug "format_ret_val: bug; can never be this type.")
+  | TInt _ -> ("%d", [e])
+  | TFloat _ -> ("%a", [e])
+  | TPtr _ -> ("%p", [e])
+  | TComp _
+  | TArray _
+  | TEnum _ -> E.s (E.bug "Not yet implemented.")
+  | TNamed _ -> E.s (E.bug "format_ret_val: can't happen after unrollType.")
 
 class dsnconcreteVisitorClass = object
   inherit nopCilVisitor
@@ -290,21 +313,23 @@ of that here? *)
 	ChangeTo newInstrs
     | Call(lo,e,al,l) ->
 (* The only calls that can occur in a reduced format are to functions where
-   we do not have the implementation. We change them to call our wrappers. *)
-        (* Left-hand side of an assignment, if any. *)
-	let (lhsStr,lhsArg) = match lo with
-	  | Some(lv) -> let (s,a) = d_mem_lval lv in (s ^ " = ",a)
-	  | None -> ("",[]) in
-
+   we do not have the implementation. *)
         (* Let's record the call in a comment too. *)
         let fn_name = d_string "%a" d_exp e in
 	let (argsStr, argsArgs) = mkActualArg al in
-	let commentStr = "/*" ^ fn_name ^ "(" ^ argsStr ^ ")*/" in
-	let commentArgs = argsArgs in
+	let comment_str = "/* Called " ^ fn_name ^ "(" ^ argsStr ^ "). */\n" in
+	let comment_args = argsArgs in
 
-	let printCall = mkPrint (lhsStr ^ commentStr) (lhsArg @ commentArgs) in
-        let printCall' = mkPrintNoLoc ~noindent:true ";\n" [] in
-	ChangeTo [ printCall; i; printCall' ]
+        (* Left-hand side of an assignment, if any. *)
+	let str, args = match lo with
+	  | Some(lv) -> let lhs_s, lhs_a = d_mem_lval lv in
+                        let rhs_s, rhs_a = format_ret_val lv in
+                        (lhs_s ^ " = " ^ rhs_s ^ ";\n", lhs_a @ rhs_a)
+	  | None -> ("", []) (* No return value need to be printed. *) in
+
+        let printCall' = mkPrint comment_str comment_args in
+	let printCall = mkPrint str args in
+	ChangeTo [i; printCall'; printCall]
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
@@ -370,19 +395,21 @@ let globalDeclFn =
 let dsnconcrete (f: file) : unit =
 
   let doGlobal (g: global) =
+    (* Some helper functions. *)
     let isFunc (v: varinfo) = match v.vtype with TFun _ -> true | _ -> false in
-
-    match g with
-    (* If there are surviving functions (i.e., external library calls),
-       change them to point wrappers in dsn_log.c. *)
-    | GVarDecl (v, _) | GVar (v, _, _) when isFunc v ->
-        v.vname <- v.vname ^ wrapper_postfix
-
-    | GVarDecl _ | GVar _ | GType _ | GCompTag _ | GEnumTag _ ->
+    let declareFn (g: global) =
       let arg = mkString (d_string "%a" d_global g) in
       globalDeclFn.sbody <-
         mkBlock (compactStmts [mkStmt (Block globalDeclFn.sbody);
-                               mkStmtOneInstr (mkPrintNoLoc "%s" [arg])])
+                               mkStmtOneInstr (mkPrintNoLoc "%s" [arg])]) in
+
+    match g with
+    | GVarDecl (v, _) | GVar (v, _, _) when isFunc v ->
+        (* If this surviving function requires a wrapper, change its name to
+           point to the wrapper. Otherwise, don't bother printing anything. *)
+        if SS.exists (fun x -> x = v.vname) wrapper_set
+        then v.vname <- v.vname ^ wrapper_postfix
+    | GVarDecl _ | GVar _ | GType _ | GCompTag _ | GEnumTag _ -> declareFn g
 
     | GFun (fdec, _) when fdec.svar.vname = "main" ->
         incrIndent ();

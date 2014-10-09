@@ -23,18 +23,5 @@ int dsn_log(const char* format, ...)
   return result;
 }
 
-int printf_dsn_wrapper(const char* format, ...)
-{
-  va_list arglist;
-  va_start(arglist, format);
-  int result = printf(format, arglist);
-  va_end(arglist);
-  return result;
-}
-
-double pow_dsn_wrapper(double x, double y)
-{
-  double result = pow(x, y);
-  dsn_log("%a", result);
-  return result;
-}
+// As is obvious here, no wrapper is needed. Just for debugging purposes.
+double pow_dsn_wrapper(double x, double y) { return pow(x, y); }
