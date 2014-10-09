@@ -4,13 +4,13 @@
 #
 # Adds proper subscripts to memory location variables added during
 # concretization (i.e., _dsn_mem variables) to make them conform to SSA.
-#
-# End of general description.
 
+use strict;
+use warnings;
 
 # We store most up-to-date subscript numbers for each memory address in a hash,
 # although this may be slow if an input program is huge.
-%ssa_tag = ();
+my %ssa_tag = ();
 
 sub substitute_reads {
     my ($str, @bad) = @_;
@@ -35,7 +35,7 @@ die "missing filename " unless $infilename;
 #print "$infilename\n";
 
 open INFILE, "<", $infilename or die $!;
-while ($line = <INFILE>) {
+for (my $line; $line = <INFILE>; ) {
 
     # Assignment to a memory location? Then we need to increase its subscript.
     if ($line =~ m!^( */\* .* \*/ _dsn_mem_0x([0-9a-fA-F]+)) = (.*)!) {
