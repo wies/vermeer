@@ -26,8 +26,7 @@ let memPrefix = "_dsn_mem"
 let wrapper_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
 
-let preset_wrappers = ["sprintf";
-                       "pow" (* Doesn't need a wrapper; just for debugging. *)]
+let preset_wrappers = ["sprintf"]
 
 let wrapper_set = List.fold_right SS.add preset_wrappers SS.empty
 
@@ -277,18 +276,32 @@ let rec mkActualArg (al : exp list) : logStatement =
       let (restStr,restArgs) = mkActualArg xs in
       (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
 
-let format_ret_val (lv: lval) : logStatement =
+let rec lossless_val (lv: lval) : logStatement =
   let e = Lval(lv) in
   match unrollType (typeOfLval lv) with
-  | TVoid _ | TFun _ | TBuiltin_va_list _ ->
-      E.s (E.bug "format_ret_val: bug; can never be this type.")
-  | TInt _ -> ("%d", [e])
-  | TFloat _ -> ("%a", [e])
+  | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *)
   | TPtr _ -> ("%p", [e])
-  | TComp _
-  | TArray _
-  | TEnum _ -> E.s (E.bug "Not yet implemented.")
-  | TNamed _ -> E.s (E.bug "format_ret_val: can't happen after unrollType.")
+  (* TODO: I don't think so, but should we care about IULong, etc? *)
+  | TInt _ | TEnum _ -> ("%d", [e])
+
+  | TComp (ci, _) ->
+      let lhost, offset = lv in
+      let new_offset f = addOffset (Field(f, NoOffset)) offset in
+      if ci.cstruct then (* If not a union, iterate over all fields. *)
+        let rec iter_fields (str, args) = function
+          | [] -> E.s (E.bug "lossless_val: struct having no field?")
+          | [f] -> let s, a = lossless_val (lhost, new_offset f) in
+                   (str ^ s ^ " }", args @ a)
+          | f::fs -> let s, a = lossless_val (lhost, new_offset f) in
+                     iter_fields (str ^ s ^ ", ", args @ a) fs in
+        iter_fields ("{ ", []) ci.cfields
+      else (* TODO: for a union, need to identify a biggest-size field. *)
+        E.s (E.bug "Union not yet supported.")
+
+  | TArray _ -> E.s (E.bug "Look like this yields a compiler error.")
+  | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
+  | TVoid _ | TFun _ | TBuiltin_va_list _ ->
+      E.s (E.bug "lossless_val: bug; can never be this type.")
 
 class dsnconcreteVisitorClass = object
   inherit nopCilVisitor
@@ -319,17 +332,22 @@ of that here? *)
 	let (argsStr, argsArgs) = mkActualArg al in
 	let comment_str = "/* Called " ^ fn_name ^ "(" ^ argsStr ^ "). */\n" in
 	let comment_args = argsArgs in
-
-        (* Left-hand side of an assignment, if any. *)
-	let str, args = match lo with
-	  | Some(lv) -> let lhs_s, lhs_a = d_mem_lval lv in
-                        let rhs_s, rhs_a = format_ret_val lv in
-                        (lhs_s ^ " = " ^ rhs_s ^ ";\n", lhs_a @ rhs_a)
-	  | None -> ("", []) (* No return value need to be printed. *) in
-
         let printCall' = mkPrint comment_str comment_args in
-	let printCall = mkPrint str args in
-	ChangeTo [i; printCall'; printCall]
+
+	let printCalls = match lo with
+	  | None -> [] (* No return value needs to be printed. *)
+	  | Some(lv) ->
+              (* Print the actual value stored in the left-hand side
+                 variable in a lossless way. *)
+              let val_s, val_a = lossless_val lv in
+              let lhs_s, lhs_a = d_mem_lval lv in
+              let typ_str = d_string "%a" d_type (typeOfLval lv) in
+
+              (* Using a tmp variable is a hack so that an initialization form
+                 (e.g., { { 65, 66 }, 9 } for a struct) can be used. *)
+              [mkPrintNoLoc ("{ " ^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n") val_a;
+               mkPrintNoLoc ("  " ^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] in
+	ChangeTo (i :: printCall' :: printCalls)
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
@@ -358,11 +376,9 @@ of that here? *)
         if return_seen = false then return_seen <- true
         else E.s (E.bug "There should be only one return for main.");
         let printCall = match e_opt with
-            None   -> mkPrint "return;\n" []
-          | Some e -> mkPrint (d_string "return %a;\n" d_exp e) [] in
-        let printCall' = mkPrintNoLoc ~noindent:true "} // main\n" [] in
-        ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall ;
-                                    mkStmtOneInstr printCall' ; s])
+            None   -> mkPrint "return;\n} // main\n" []
+          | Some e -> mkPrint (d_string "return %a;\n} // main\n" d_exp e) [] in
+        ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall; s])
 
     | Instr(Set(lv, e, _)::_) ->
         (* Output for inspection purpose. *)

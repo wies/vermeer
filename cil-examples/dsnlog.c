@@ -23,5 +23,11 @@ int dsn_log(const char* format, ...)
   return result;
 }
 
-// As is obvious here, no wrapper is needed. Just for debugging purposes.
-double pow_dsn_wrapper(double x, double y) { return pow(x, y); }
+int sprintf_dsn_wrapper(char *str, const char *format, ...)
+{
+  va_list arglist;
+  va_start(arglist, format);
+  int result = sprintf(str, format, arglist);
+  va_end(arglist);
+  return result;
+}
