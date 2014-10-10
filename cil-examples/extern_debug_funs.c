@@ -7,3 +7,5 @@ struct MY_RET some_extern_fun()
 }
 
 int *return_a_pointer() { return 0; }
+
+void no_return() { }

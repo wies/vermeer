@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 
 static FILE* pfile;
 
@@ -27,7 +28,12 @@ int sprintf_dsn_wrapper(char *str, const char *format, ...)
 {
   va_list arglist;
   va_start(arglist, format);
-  int result = sprintf(str, format, arglist);
+  int result = vsprintf(str, format, arglist);
   va_end(arglist);
+
+  size_t i, len = strlen(str);
+  for (i = 0; i < len; i++)
+    dsn_log("/* sprintf_dsn_wrapper */ _dsn_mem_%p = %d\n", str+i, str[i]);
+
   return result;
 }
