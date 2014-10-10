@@ -58,8 +58,8 @@ let mkPrintNoLoc ?noindent (format: string) (args: exp list) : instr =
 
 let mkPrint (format: string) (args: exp list) : instr =
   let lineStr (loc: location) =
-    "#line " ^ string_of_int loc.line ^ " \"" ^ loc.file ^ "\"" in
-  let format = (lineStr !currentLoc) ^ "\n" ^ indent () ^ format in
+    "#line "^ string_of_int loc.line ^" \""^ loc.file ^"\"" in
+  let format = (lineStr !currentLoc) ^"\n"^ indent () ^ format in
   mkPrintNoLoc ~noindent:true format args
 
 let stmtFromStmtList (stmts : stmt list) : stmt =
@@ -154,7 +154,7 @@ let addr_of_lv (lh,lo) : exp =
 
 
 let d_mem_lval (arg : lval) : logStatement =
-  if (needsMemModelLval arg) then (  memPrefix ^ "_%p", [mkAddrOrStartOf arg])
+  if (needsMemModelLval arg) then (  memPrefix ^"_%p", [mkAddrOrStartOf arg])
   else (d_string "%a" d_lval arg,[])
 
 let rec d_mem_exp (arg :exp) : logStatement =
@@ -172,12 +172,12 @@ let rec d_mem_exp (arg :exp) : logStatement =
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_mem_exp e in
-      (opStr ^ "(" ^ str ^ ")",arg)
+      (opStr ^"("^ str ^")",arg)
   | BinOp(o,l,r,_) ->
       let (lhsStr,lhsArg) = d_mem_exp l in
       let opStr = d_string " %a " d_binop o in
       let (rhsStr,rhsArg) = d_mem_exp r in
-      ("(" ^ lhsStr ^ ")" ^ opStr ^ "(" ^ rhsStr ^ ")" ,lhsArg @ rhsArg)
+      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
   | AddrOf(l) -> ("%p",[addr_of_lv l])
   | StartOf(l) -> ("%p",[addr_of_lv l])
 
@@ -185,7 +185,7 @@ let rec d_mem_exp (arg :exp) : logStatement =
   | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel should have been eliminated.")
 
   | _ ->
-      if (needsMemModel arg) then ( memPrefix ^ "_%p", [mkAddress arg] )
+      if (needsMemModel arg) then ( memPrefix ^"_%p", [mkAddress arg] )
       else (d_string "%a" d_exp arg,[])
 
 (*
@@ -211,7 +211,7 @@ let rec mkTypeStr (t: typ) : (string * string) =
       | Some(e) -> d_string "%a" d_exp e
       | None -> ""
       in
-      (lhsStr, "[" ^ e_str ^ "]" ^ rhsStr)
+      (lhsStr, "["^ e_str ^"]"^ rhsStr)
   | _ -> let typeStr = d_string "%a" d_type t in (typeStr,"")
 
 (* I think there are a few cases we need to consider here
@@ -274,7 +274,7 @@ let rec mkActualArg (al : exp list) : logStatement =
   | x::xs ->
       let (thisStr,thisArg) = d_mem_exp x in
       let (restStr,restArgs) = mkActualArg xs in
-      (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
+      (thisStr ^", "^ restStr, thisArg @ restArgs)
 
 let rec lossless_val (lv: lval) : logStatement =
   let e = Lval(lv) in
@@ -291,9 +291,9 @@ let rec lossless_val (lv: lval) : logStatement =
         let rec iter_fields (str, args) = function
           | [] -> E.s (E.bug "lossless_val: struct having no field?")
           | [f] -> let s, a = lossless_val (lhost, new_offset f) in
-                   (str ^ s ^ " }", args @ a)
+                   (str ^ s ^" }", args @ a)
           | f::fs -> let s, a = lossless_val (lhost, new_offset f) in
-                     iter_fields (str ^ s ^ ", ", args @ a) fs in
+                     iter_fields (str ^ s ^", ", args @ a) fs in
         iter_fields ("{ ", []) ci.cfields
       else (* TODO: for a union, need to identify a biggest-size field. *)
         E.s (E.bug "Union not yet supported.")
@@ -311,15 +311,13 @@ class dsnconcreteVisitorClass = object
   method vinst i = begin
     match i with
       Set(lv, e, l) ->
-	let typStr = "/* "
-	  ^ (d_string "%a" d_type (typeOfLval lv))
-	  ^ " */ " in
+	let typStr = "/* "^ (d_string "%a" d_type (typeOfLval lv)) ^" */ " in
 	let (lhsStr,lhsArg) = d_mem_lval lv in
 (* assume that we only have reduced expressions at this point!  Should maybe put an assert
 of that here? *)
 (* DSN Does anything go weird if we have function pointers *)
 	let (rhsStr,rhsArg) = d_mem_exp e in
-	let printStr = typStr ^ lhsStr ^  " = " ^ rhsStr ^ ";\n" in
+	let printStr = typStr ^ lhsStr ^" = "^ rhsStr ^";\n" in
 	let printArgs = lhsArg @ rhsArg in
 	let printCall = mkPrint printStr printArgs in
 	let newInstrs =  printCall :: [i] in
@@ -330,23 +328,24 @@ of that here? *)
         (* Let's record the call in a comment too. *)
         let fn_name = d_string "%a" d_exp e in
 	let (argsStr, argsArgs) = mkActualArg al in
-	let comment_str = "/* Called " ^ fn_name ^ "(" ^ argsStr ^ "). */\n" in
+	let comment_str = "/* Called "^ fn_name ^"("^ argsStr ^"). */\n" in
 	let comment_args = argsArgs in
         let printCall' = mkPrint comment_str comment_args in
 
 	let printCalls = match lo with
-	  | None -> [] (* No return value needs to be printed. *)
+	  | None -> [] (* No assignment; nothing to print. *)
 	  | Some(lv) ->
-              (* Print the actual value stored in the left-hand side
-                 variable in a lossless way. *)
+              (* Print the actual return value stored in the left-hand side
+                 variable in a lossless representation. *)
               let val_s, val_a = lossless_val lv in
               let lhs_s, lhs_a = d_mem_lval lv in
               let typ_str = d_string "%a" d_type (typeOfLval lv) in
 
-              (* Using a tmp variable is a hack so that an initialization form
-                 (e.g., { { 65, 66 }, 9 } for a struct) can be used. *)
-              [mkPrintNoLoc ("{ " ^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n") val_a;
-               mkPrintNoLoc ("  " ^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] in
+              (* Declaring a tmp variable is a trick to use an initialization
+                 form (e.g., { { 65, 66 }, 9 } for a struct). *)
+              [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
+                            val_a;
+               mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] in
 	ChangeTo (i :: printCall' :: printCalls)
     | _ -> DoChildren
   end
@@ -359,7 +358,7 @@ of that here? *)
           match a.skind with
           | If(e, then_b, else_b, loc) when else_b.bstmts = [] ->
               let eStr, eArg = d_mem_exp e in
-              let fStr = "if(" ^ eStr ^ "){\n" in
+              let fStr = "if("^ eStr ^"){\n" in
               then_b.bstmts <- [mkStmtOneInstr (mkPrint fStr eArg)]
                                @ then_b.bstmts @
                                [mkStmtOneInstr (mkPrintNoLoc "}\n" [])];
