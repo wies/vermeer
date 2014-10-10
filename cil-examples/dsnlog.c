@@ -34,6 +34,7 @@ int sprintf_dsn_wrapper(char *str, const char *format, ...)
   size_t i, len = strlen(str);
   for (i = 0; i < len; i++)
     dsn_log("/* sprintf_dsn_wrapper */ _dsn_mem_%p = %d\n", str+i, str[i]);
+  dsn_log("/* sprintf_dsn_wrapper */ _dsn_mem_%p = 0\n", str+len);
 
   return result;
 }
