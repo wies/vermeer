@@ -13,8 +13,106 @@ void __globalDeclFn(void)
 
 
   {
+# 5 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 5 \"gzip.preprocessed.c\"\nstruct option {\n   char const   *name ;\n   int has_arg ;\n   int *flag ;\n   int val ;\n};\n");
+# 21 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 21 \"gzip.preprocessed.c\"\ntypedef void *voidp;\n");
+# 23 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 23 \"gzip.preprocessed.c\"\ntypedef unsigned long size_t;\n");
+# 55 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 55 \"gzip.preprocessed.c\"\ntypedef unsigned long __dev_t;\n");
+# 56 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 56 \"gzip.preprocessed.c\"\ntypedef unsigned int __uid_t;\n");
+# 57 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 57 \"gzip.preprocessed.c\"\ntypedef unsigned int __gid_t;\n");
+# 58 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 58 \"gzip.preprocessed.c\"\ntypedef unsigned long __ino_t;\n");
+# 60 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 60 \"gzip.preprocessed.c\"\ntypedef unsigned int __mode_t;\n");
+# 61 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 61 \"gzip.preprocessed.c\"\ntypedef unsigned long __nlink_t;\n");
+# 62 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 62 \"gzip.preprocessed.c\"\ntypedef long __off_t;\n");
+# 63 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 63 \"gzip.preprocessed.c\"\ntypedef long __off64_t;\n");
+# 70 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 70 \"gzip.preprocessed.c\"\ntypedef long __time_t;\n");
+# 78 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 78 \"gzip.preprocessed.c\"\ntypedef long __blksize_t;\n");
+# 79 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 79 \"gzip.preprocessed.c\"\ntypedef long __blkcnt_t;\n");
+# 85 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 85 \"gzip.preprocessed.c\"\ntypedef long __ssize_t;\n");
+# 93 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 93 \"gzip.preprocessed.c\"\ntypedef struct _IO_FILE FILE;\n");
+# 122 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 122 \"gzip.preprocessed.c\"\ntypedef void _IO_lock_t;\n");
+# 123 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 123 \"gzip.preprocessed.c\"\nstruct _IO_marker {\n   struct _IO_marker *_next ;\n   struct _IO_FILE *_sbuf ;\n   int _pos ;\n};\n");
+# 135 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 135 \"gzip.preprocessed.c\"\nstruct _IO_FILE {\n   int _flags ;\n   char *_IO_read_ptr ;\n   char *_IO_read_end ;\n   char *_IO_read_base ;\n   char *_IO_write_base ;\n   char *_IO_write_ptr ;\n   char *_IO_write_end ;\n   char *_IO_buf_base ;\n   char *_IO_buf_end ;\n   char *_IO_save_base ;\n   char *_IO_backup_base ;\n   char *_IO_save_end ;\n   struct _IO_marker *_markers ;\n   struct _IO_FILE *_chain ;\n   int _fileno ;\n   int _flags2 ;\n   __off_t _old_offset ;\n   unsigned short _cur_column ;\n   signed char _vtable_offset ;\n   char _shortbuf[1] ;\n   _IO_lock_t *_lock ;\n   __off64_t _offset ;\n   void *__pad1 ;\n   void *__pad2 ;\n   void *__pad3 ;\n   void *__pad4 ;\n   size_t __pad5 ;\n   int _mode ;\n   char _unused2[(15UL * sizeof(int ) - 4UL * sizeof(void *)) - sizeof(size_t )] ;\n};\n");
+# 166 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 166 \"gzip.preprocessed.c\"\ntypedef struct _IO_FILE _IO_FILE;\n");
+# 197 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 197 \"gzip.preprocessed.c\"\ntypedef __off_t off_t;\n");
+# 198 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 198 \"gzip.preprocessed.c\"\ntypedef __ssize_t ssize_t;\n");
+# 493 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 493 \"gzip.preprocessed.c\"\ntypedef unsigned char uch;\n");
+# 494 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 494 \"gzip.preprocessed.c\"\ntypedef unsigned short ush;\n");
+# 495 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 495 \"gzip.preprocessed.c\"\ntypedef unsigned long ulg;\n");
+# 515 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 515 \"gzip.preprocessed.c\"\ntypedef int file_t;\n");
+# 650 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 650 \"gzip.preprocessed.c\"\ntypedef __time_t time_t;\n");
+# 673 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 673 \"gzip.preprocessed.c\"\nstruct timespec {\n   __time_t tv_sec ;\n   long tv_nsec ;\n};\n");
+# 954 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 954 \"gzip.preprocessed.c\"\ntypedef void (*__sighandler_t)(int  );\n");
+# 1152 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1152 \"gzip.preprocessed.c\"\nstruct stat {\n   __dev_t st_dev ;\n   __ino_t st_ino ;\n   __nlink_t st_nlink ;\n   __mode_t st_mode ;\n   __uid_t st_uid ;\n   __gid_t st_gid ;\n   int __pad0 ;\n   __dev_t st_rdev ;\n   __off_t st_size ;\n   __blksize_t st_blksize ;\n   __blkcnt_t st_blocks ;\n   struct timespec st_atim ;\n   struct timespec st_mtim ;\n   struct timespec st_ctim ;\n   long __unused[3] ;\n};\n");
+# 1285 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1285 \"gzip.preprocessed.c\"\ntypedef ush Pos;\n");
+# 1286 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1286 \"gzip.preprocessed.c\"\ntypedef unsigned int IPos;\n");
+# 1299 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1299 \"gzip.preprocessed.c\"\nstruct config {\n   ush good_length ;\n   ush max_lazy ;\n   ush nice_length ;\n   ush max_chain ;\n};\n");
+# 1299 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1299 \"gzip.preprocessed.c\"\ntypedef struct config config;\n");
+# 1807 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1807 \"gzip.preprocessed.c\"\nunion __anonunion_v_47 {\n   ush n ;\n   struct huft *t ;\n};\n");
+# 1807 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 1807 \"gzip.preprocessed.c\"\nstruct huft {\n   uch e ;\n   uch b ;\n   union __anonunion_v_47 v ;\n};\n");
+# 2346 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 2346 \"gzip.preprocessed.c\"\nunion __anonunion_fc_48 {\n   ush freq ;\n   ush code ;\n};\n");
+# 2346 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 2346 \"gzip.preprocessed.c\"\nunion __anonunion_dl_49 {\n   ush dad ;\n   ush len ;\n};\n");
+# 2346 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 2346 \"gzip.preprocessed.c\"\nstruct ct_data {\n   union __anonunion_fc_48 fc ;\n   union __anonunion_dl_49 dl ;\n};\n");
+# 2346 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 2346 \"gzip.preprocessed.c\"\ntypedef struct ct_data ct_data;\n");
+# 2361 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 2361 \"gzip.preprocessed.c\"\nstruct tree_desc {\n   ct_data *dyn_tree ;\n   ct_data *static_tree ;\n   int *extra_bits ;\n   int extra_base ;\n   int elems ;\n   int max_length ;\n   int max_code ;\n};\n");
+# 2361 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 2361 \"gzip.preprocessed.c\"\ntypedef struct tree_desc tree_desc;\n");
+# 3650 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 3650 \"gzip.preprocessed.c\"\ntypedef unsigned char char_type;\n");
+# 3651 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 3651 \"gzip.preprocessed.c\"\ntypedef long code_int;\n");
+# 3654 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 3654 \"gzip.preprocessed.c\"\ntypedef unsigned long cmp_code_int;\n");
+# 4432 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 4432 \"gzip.preprocessed.c\"\nstruct dirent {\n   __ino_t d_ino ;\n   __off_t d_off ;\n   unsigned short d_reclen ;\n   unsigned char d_type ;\n   char d_name[256] ;\n};\n");
+# 4452 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 4452 \"gzip.preprocessed.c\"\ntypedef struct __dirstream DIR;\n");
+# 4479 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 4479 \"gzip.preprocessed.c\"\ntypedef struct dirent dir_type;\n");
+# 4481 "./gzip.preprocessed.cil.c"
+  dsn_log("%*s%s", __indent_level__, "", "#line 4481 \"gzip.preprocessed.c\"\nstruct utimbuf {\n   __time_t actime ;\n   __time_t modtime ;\n};\n");
 # 1 "./gzip.preprocessed.cil.c"
-  dsn_log("%*s%s", __indent_level__, "", "#line 1 \"gzip.preprocessed.c\"\nextern char *optarg ;\n");
+  dsn_log("%*s%s", __indent_level__, "", "#line 1\nextern char *optarg ;\n");
 # 2 "./gzip.preprocessed.cil.c"
   dsn_log("%*s%s", __indent_level__, "", "#line 2\nextern int optind ;\n");
 # 12 "./gzip.preprocessed.cil.c"
@@ -13684,10 +13782,10 @@ int inflate_fixed(void)
           __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2148 "gzip.preprocessed.c"
   dsn_log("%s\n%*sstruct huft ** __arg_tmp_5__%u  = &tl__%u;\n", "#line 2148 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2148 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_6__%u  = &bl__%u;\n", "#line 2148 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2148 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint __return__%u;\n", "#line 2148 \"gzip.preprocessed.c\"", __indent_level__,
           "", __scope_level__);
@@ -13836,10 +13934,10 @@ int inflate_fixed(void)
           __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2153 "gzip.preprocessed.c"
   dsn_log("%s\n%*sstruct huft ** __arg_tmp_5__%u  = &td__%u;\n", "#line 2153 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2153 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_6__%u  = &bd__%u;\n", "#line 2153 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2153 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint __return__%u;\n", "#line 2153 \"gzip.preprocessed.c\"", __indent_level__,
           "", __scope_level__);
@@ -15470,10 +15568,10 @@ int inflate_dynamic(void)
           __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2203 "gzip.preprocessed.c"
   dsn_log("%s\n%*sstruct huft ** __arg_tmp_5__%u  = &tl__%u;\n", "#line 2203 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2203 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_6__%u  = &bl__%u;\n", "#line 2203 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2203 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint __return__%u;\n", "#line 2203 \"gzip.preprocessed.c\"", __indent_level__,
           "", __scope_level__);
@@ -16631,10 +16729,10 @@ int inflate_dynamic(void)
           __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2257 "gzip.preprocessed.c"
   dsn_log("%s\n%*sstruct huft ** __arg_tmp_5__%u  = &tl__%u;\n", "#line 2257 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2257 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_6__%u  = &bl__%u;\n", "#line 2257 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2257 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint __return__%u;\n", "#line 2257 \"gzip.preprocessed.c\"", __indent_level__,
           "", __scope_level__);
@@ -16811,10 +16909,10 @@ int inflate_dynamic(void)
           __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2266 "gzip.preprocessed.c"
   dsn_log("%s\n%*sstruct huft ** __arg_tmp_5__%u  = &td__%u;\n", "#line 2266 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2266 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_6__%u  = &bd__%u;\n", "#line 2266 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2266 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint __return__%u;\n", "#line 2266 \"gzip.preprocessed.c\"", __indent_level__,
           "", __scope_level__);
@@ -17605,7 +17703,7 @@ int inflate(void)
     __indent_level__ += 2;
 # 2316 "gzip.preprocessed.c"
     dsn_log("%s\n%*sint * __arg_tmp_0__%u  = &e__%u;\n", "#line 2316 \"gzip.preprocessed.c\"",
-            __indent_level__, "", __scope_level__, __scope_level__);
+            __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 2316 "gzip.preprocessed.c"
     dsn_log("%s\n%*sint __return__%u;\n", "#line 2316 \"gzip.preprocessed.c\"", __indent_level__,
             "", __scope_level__);
@@ -49141,7 +49239,7 @@ int zip(int in , int out )
   __indent_level__ += 2;
 # 4299 "gzip.preprocessed.c"
   dsn_log("%s\n%*sush * __arg_tmp_0__%u  = &attr__%u;\n", "#line 4299 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4299 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_1__%u  = &method;\n", "#line 4299 \"gzip.preprocessed.c\"",
           __indent_level__, "", __scope_level__);
@@ -49163,7 +49261,7 @@ int zip(int in , int out )
           __indent_level__, "", __scope_level__);
 # 4300 "gzip.preprocessed.c"
   dsn_log("%s\n%*sush * __arg_tmp_1__%u  = &deflate_flags__%u;\n", "#line 4300 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4300 "gzip.preprocessed.c"
   dsn_log("%*s//done setup\n", __indent_level__, "");
 # 4300 "gzip.preprocessed.c"
@@ -51780,10 +51878,10 @@ int main(int argc , char **argv )
   __indent_level__ += 2;
 # 4647 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint * __arg_tmp_0__%u  = &argc__%u;\n", "#line 4647 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4647 "gzip.preprocessed.c"
   dsn_log("%s\n%*schar *** __arg_tmp_1__%u  = &argv__%u;\n", "#line 4647 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4647 "gzip.preprocessed.c"
   dsn_log("%s\n%*schar * __arg_tmp_2__%u  = __cil_tmp29__%u;\n", "#line 4647 \"gzip.preprocessed.c\"",
           __indent_level__, "", __scope_level__, __scope_level__ - 1);
@@ -53490,8 +53588,8 @@ int main(int argc , char **argv )
 # 4757 "gzip.preprocessed.c"
   dsn_log("%*s//exiting main\n", __indent_level__, "");
 # 4757 "gzip.preprocessed.c"
-  dsn_log("%s\n%*s__return__%u = exit_code;\n", "#line 4757 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__);
+  dsn_log("%s\n%*sreturn exit_code;\n", "#line 4757 \"gzip.preprocessed.c\"", __indent_level__,
+          "");
 # 4757 "gzip.preprocessed.c"
   return (exit_code);
 }
@@ -55056,7 +55154,7 @@ static void treat_file(char *iname )
               __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4831 "gzip.preprocessed.c"
       dsn_log("%s\n%*sstruct stat * __arg_tmp_1__%u  = &st__%u;\n", "#line 4831 \"gzip.preprocessed.c\"",
-              __indent_level__, "", __scope_level__, __scope_level__);
+              __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4831 "gzip.preprocessed.c"
       dsn_log("%*s//done setup\n", __indent_level__, "");
 # 4831 "gzip.preprocessed.c"
@@ -56979,7 +57077,7 @@ static int create_outfile(void)
             __indent_level__, "", __scope_level__);
 # 4941 "gzip.preprocessed.c"
     dsn_log("%s\n%*sstruct stat * __arg_tmp_1__%u  = &ostat__%u;\n", "#line 4941 \"gzip.preprocessed.c\"",
-            __indent_level__, "", __scope_level__, __scope_level__);
+            __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4941 "gzip.preprocessed.c"
     dsn_log("%s\n%*sint __return__%u;\n", "#line 4941 \"gzip.preprocessed.c\"", __indent_level__,
             "", __scope_level__);
@@ -57184,7 +57282,7 @@ static int create_outfile(void)
             __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4949 "gzip.preprocessed.c"
     dsn_log("%s\n%*sstruct stat * __arg_tmp_1__%u  = &ostat__%u;\n", "#line 4949 \"gzip.preprocessed.c\"",
-            __indent_level__, "", __scope_level__, __scope_level__);
+            __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 4949 "gzip.preprocessed.c"
     dsn_log("%s\n%*sint __return__%u;\n", "#line 4949 \"gzip.preprocessed.c\"", __indent_level__,
             "", __scope_level__);
@@ -65893,7 +65991,7 @@ static int name_too_long(char *name , struct stat *statb )
             __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 5284 "gzip.preprocessed.c"
     dsn_log("%s\n%*sstruct stat * __arg_tmp_1__%u  = &tstat__%u;\n", "#line 5284 \"gzip.preprocessed.c\"",
-            __indent_level__, "", __scope_level__, __scope_level__);
+            __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 5284 "gzip.preprocessed.c"
     dsn_log("%s\n%*sint __return__%u;\n", "#line 5284 \"gzip.preprocessed.c\"", __indent_level__,
             "", __scope_level__);
@@ -67322,7 +67420,7 @@ static int check_ofname(void)
             __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 5341 "gzip.preprocessed.c"
     dsn_log("%s\n%*sstruct stat * __arg_tmp_1__%u  = &ostat__%u;\n", "#line 5341 \"gzip.preprocessed.c\"",
-            __indent_level__, "", __scope_level__, __scope_level__);
+            __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 5341 "gzip.preprocessed.c"
     dsn_log("%s\n%*sint __return__%u;\n", "#line 5341 \"gzip.preprocessed.c\"", __indent_level__,
             "", __scope_level__);
@@ -67454,7 +67552,7 @@ static int check_ofname(void)
           __indent_level__, "", __scope_level__);
 # 5345 "gzip.preprocessed.c"
   dsn_log("%s\n%*sstruct stat * __arg_tmp_1__%u  = &ostat__%u;\n", "#line 5345 \"gzip.preprocessed.c\"",
-          __indent_level__, "", __scope_level__, __scope_level__);
+          __indent_level__, "", __scope_level__, __scope_level__ - 1);
 # 5345 "gzip.preprocessed.c"
   dsn_log("%s\n%*sint __return__%u;\n", "#line 5345 \"gzip.preprocessed.c\"", __indent_level__,
           "", __scope_level__);

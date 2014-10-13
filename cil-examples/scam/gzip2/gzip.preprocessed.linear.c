@@ -1,4 +1,198 @@
-#line 1 "gzip.preprocessed.c"
+#line 5 "gzip.preprocessed.c"
+struct option {
+   char const   *name ;
+   int has_arg ;
+   int *flag ;
+   int val ;
+};
+#line 21 "gzip.preprocessed.c"
+typedef void *voidp;
+#line 23 "gzip.preprocessed.c"
+typedef unsigned long size_t;
+#line 55 "gzip.preprocessed.c"
+typedef unsigned long __dev_t;
+#line 56 "gzip.preprocessed.c"
+typedef unsigned int __uid_t;
+#line 57 "gzip.preprocessed.c"
+typedef unsigned int __gid_t;
+#line 58 "gzip.preprocessed.c"
+typedef unsigned long __ino_t;
+#line 60 "gzip.preprocessed.c"
+typedef unsigned int __mode_t;
+#line 61 "gzip.preprocessed.c"
+typedef unsigned long __nlink_t;
+#line 62 "gzip.preprocessed.c"
+typedef long __off_t;
+#line 63 "gzip.preprocessed.c"
+typedef long __off64_t;
+#line 70 "gzip.preprocessed.c"
+typedef long __time_t;
+#line 78 "gzip.preprocessed.c"
+typedef long __blksize_t;
+#line 79 "gzip.preprocessed.c"
+typedef long __blkcnt_t;
+#line 85 "gzip.preprocessed.c"
+typedef long __ssize_t;
+#line 93 "gzip.preprocessed.c"
+typedef struct _IO_FILE FILE;
+#line 122 "gzip.preprocessed.c"
+typedef void _IO_lock_t;
+#line 123 "gzip.preprocessed.c"
+struct _IO_marker {
+   struct _IO_marker *_next ;
+   struct _IO_FILE *_sbuf ;
+   int _pos ;
+};
+#line 135 "gzip.preprocessed.c"
+struct _IO_FILE {
+   int _flags ;
+   char *_IO_read_ptr ;
+   char *_IO_read_end ;
+   char *_IO_read_base ;
+   char *_IO_write_base ;
+   char *_IO_write_ptr ;
+   char *_IO_write_end ;
+   char *_IO_buf_base ;
+   char *_IO_buf_end ;
+   char *_IO_save_base ;
+   char *_IO_backup_base ;
+   char *_IO_save_end ;
+   struct _IO_marker *_markers ;
+   struct _IO_FILE *_chain ;
+   int _fileno ;
+   int _flags2 ;
+   __off_t _old_offset ;
+   unsigned short _cur_column ;
+   signed char _vtable_offset ;
+   char _shortbuf[1] ;
+   _IO_lock_t *_lock ;
+   __off64_t _offset ;
+   void *__pad1 ;
+   void *__pad2 ;
+   void *__pad3 ;
+   void *__pad4 ;
+   size_t __pad5 ;
+   int _mode ;
+   char _unused2[(15UL * sizeof(int ) - 4UL * sizeof(void *)) - sizeof(size_t )] ;
+};
+#line 166 "gzip.preprocessed.c"
+typedef struct _IO_FILE _IO_FILE;
+#line 197 "gzip.preprocessed.c"
+typedef __off_t off_t;
+#line 198 "gzip.preprocessed.c"
+typedef __ssize_t ssize_t;
+#line 493 "gzip.preprocessed.c"
+typedef unsigned char uch;
+#line 494 "gzip.preprocessed.c"
+typedef unsigned short ush;
+#line 495 "gzip.preprocessed.c"
+typedef unsigned long ulg;
+#line 515 "gzip.preprocessed.c"
+typedef int file_t;
+#line 650 "gzip.preprocessed.c"
+typedef __time_t time_t;
+#line 673 "gzip.preprocessed.c"
+struct timespec {
+   __time_t tv_sec ;
+   long tv_nsec ;
+};
+#line 954 "gzip.preprocessed.c"
+typedef void (*__sighandler_t)(int  );
+#line 1152 "gzip.preprocessed.c"
+struct stat {
+   __dev_t st_dev ;
+   __ino_t st_ino ;
+   __nlink_t st_nlink ;
+   __mode_t st_mode ;
+   __uid_t st_uid ;
+   __gid_t st_gid ;
+   int __pad0 ;
+   __dev_t st_rdev ;
+   __off_t st_size ;
+   __blksize_t st_blksize ;
+   __blkcnt_t st_blocks ;
+   struct timespec st_atim ;
+   struct timespec st_mtim ;
+   struct timespec st_ctim ;
+   long __unused[3] ;
+};
+#line 1285 "gzip.preprocessed.c"
+typedef ush Pos;
+#line 1286 "gzip.preprocessed.c"
+typedef unsigned int IPos;
+#line 1299 "gzip.preprocessed.c"
+struct config {
+   ush good_length ;
+   ush max_lazy ;
+   ush nice_length ;
+   ush max_chain ;
+};
+#line 1299 "gzip.preprocessed.c"
+typedef struct config config;
+#line 1807 "gzip.preprocessed.c"
+union __anonunion_v_47 {
+   ush n ;
+   struct huft *t ;
+};
+#line 1807 "gzip.preprocessed.c"
+struct huft {
+   uch e ;
+   uch b ;
+   union __anonunion_v_47 v ;
+};
+#line 2346 "gzip.preprocessed.c"
+union __anonunion_fc_48 {
+   ush freq ;
+   ush code ;
+};
+#line 2346 "gzip.preprocessed.c"
+union __anonunion_dl_49 {
+   ush dad ;
+   ush len ;
+};
+#line 2346 "gzip.preprocessed.c"
+struct ct_data {
+   union __anonunion_fc_48 fc ;
+   union __anonunion_dl_49 dl ;
+};
+#line 2346 "gzip.preprocessed.c"
+typedef struct ct_data ct_data;
+#line 2361 "gzip.preprocessed.c"
+struct tree_desc {
+   ct_data *dyn_tree ;
+   ct_data *static_tree ;
+   int *extra_bits ;
+   int extra_base ;
+   int elems ;
+   int max_length ;
+   int max_code ;
+};
+#line 2361 "gzip.preprocessed.c"
+typedef struct tree_desc tree_desc;
+#line 3650 "gzip.preprocessed.c"
+typedef unsigned char char_type;
+#line 3651 "gzip.preprocessed.c"
+typedef long code_int;
+#line 3654 "gzip.preprocessed.c"
+typedef unsigned long cmp_code_int;
+#line 4432 "gzip.preprocessed.c"
+struct dirent {
+   __ino_t d_ino ;
+   __off_t d_off ;
+   unsigned short d_reclen ;
+   unsigned char d_type ;
+   char d_name[256] ;
+};
+#line 4452 "gzip.preprocessed.c"
+typedef struct __dirstream DIR;
+#line 4479 "gzip.preprocessed.c"
+typedef struct dirent dir_type;
+#line 4481 "gzip.preprocessed.c"
+struct utimbuf {
+   __time_t actime ;
+   __time_t modtime ;
+};
+#line 1
 extern char *optarg ;
 #line 2
 extern int optind ;
@@ -840,9 +1034,9 @@ int main(int  argc__1, char ** argv__1){
   //call env = add_envopt(&argc__1, &argv__1, __cil_tmp29__1);
   {
 #line 4647 "gzip.preprocessed.c"
-    int * __arg_tmp_0__2  = &argc__2;
+    int * __arg_tmp_0__2  = &argc__1;
 #line 4647 "gzip.preprocessed.c"
-    char *** __arg_tmp_1__2  = &argv__2;
+    char *** __arg_tmp_1__2  = &argv__1;
 #line 4647 "gzip.preprocessed.c"
     char * __arg_tmp_2__2  = __cil_tmp29__1;
 #line 4647 "gzip.preprocessed.c"
@@ -2751,7 +2945,7 @@ int main(int  argc__1, char ** argv__1){
         //call r__4 = inflate_block(&e__4);
         {
 #line 2316 "gzip.preprocessed.c"
-          int * __arg_tmp_0__5  = &e__5;
+          int * __arg_tmp_0__5  = &e__4;
 #line 2316 "gzip.preprocessed.c"
           int __return__5;
           //done setup
@@ -3582,9 +3776,9 @@ int main(int  argc__1, char ** argv__1){
 #line 2203 "gzip.preprocessed.c"
               ush * __arg_tmp_4__7  = __cil_tmp96__6;
 #line 2203 "gzip.preprocessed.c"
-              struct huft ** __arg_tmp_5__7  = &tl__7;
+              struct huft ** __arg_tmp_5__7  = &tl__6;
 #line 2203 "gzip.preprocessed.c"
-              int * __arg_tmp_6__7  = &bl__7;
+              int * __arg_tmp_6__7  = &bl__6;
 #line 2203 "gzip.preprocessed.c"
               int __return__7;
               //done setup

@@ -203,14 +203,14 @@ let mkVarDecl (v : varinfo) : instr =
    
 let rec declareAllVarsHelper (slocals : varinfo list) : instr list = 
   match slocals with
-  | x :: xs -> (mkVarDecl x) :: (declareAllVarsHelper xs)
-  | [] -> []
-
+    | x :: xs -> (mkVarDecl x) :: (declareAllVarsHelper xs)
+    | [] -> []
+      
 let declareAllVarsStmt (slocals : varinfo list) : stmt =
   let instrs = declareAllVarsHelper slocals in
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
   stmtFromStmtList stmts
-
+    
 let mkFormalDecl (v : varinfo) (idx : int) : instr = 
   let (lhsStr,lhsArgs) = d_decl v in
   let (rhsStr, rhsArgs) = d_tempArg idx in
@@ -219,27 +219,53 @@ let mkFormalDecl (v : varinfo) (idx : int) : instr =
   
 let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
   match slocals with
-  | x :: xs -> (mkFormalDecl x idx ) :: (declareAllFormalsHelper xs (idx + 1))
-  | [] -> []
-
-
+    | x :: xs -> (mkFormalDecl x idx ) :: (declareAllFormalsHelper xs (idx + 1))
+    | [] -> []
+      
+      
 let declareAllFormalsStmt (sformals : varinfo list) : stmt = 
   let instrs = declareAllFormalsHelper sformals 0 in
   let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
   stmtFromStmtList stmts
+    
+let rec d_xScope_offset (scopeExp : exp) (o : offset) : logStatement = 
+  match o with 
+    | NoOffset -> "",[]
+    | Field(finfo,foffset) -> 
+      (* There are no args for a field afaik *)
+      let restStr,restArgs = d_xScope_offset scopeExp foffset in
+      ("." ^ finfo.fname ^ restStr, restArgs)
+    | Index(fexp,foffset) -> 	
+      raise (Failure "didn't think that array indexing was happening at this point")
 
-
+	
+      
 (* two ways we might need a current scope expression here
  * the first is that we are directly a variable
  * the second is that it is a memory access
  *)
-let d_scope_lval (arg : lval) : logStatement = 
-  if (isLocalVarLval arg) then (d_string "%a__%%u" d_lval arg, [currentScopeExpr] )
-  else (d_string "%a" d_lval arg,[])
 
+let d_xScope_lval (scopeExp : exp) (arg : lval) : logStatement = 
+  if (not (isLocalVarLval arg)) then (d_string "%a" d_lval arg,[])
+  else match arg with
+      | Var(v),NoOffset -> (d_string "%a__%%u" d_lval arg, [scopeExp] )
+      | Var(v),Field(finfo, foffset) -> 
+	let _ = Printf.printf "got to a field %s \n" v.vname in
+	let theField = Field(finfo, foffset) in
+	let offsetStr,offsetArgs = d_xScope_offset scopeExp theField in
+	let varStr = v.vname ^ "__%u" in
+	let varArg = scopeExp in
+	(varStr ^ offsetStr, varArg :: offsetArgs)
+      | Var(v),Index(fexp,foffset) -> 
+	raise (Failure "didn't think that array indexing was happening at this point")
+      | Mem(_),_ -> 
+	raise (Failure "How can mem be a local var lval?")
+
+let d_scope_lval (arg : lval) : logStatement = 
+  d_xScope_lval currentScopeExpr arg
+    
 let d_outerScope_lval (arg : lval) : logStatement = 
-  if (isLocalVarLval arg) then (d_string "%a__%%u" d_lval arg, [prevScopeExpr] )
-  else (d_string "%a" d_lval arg,[])
+  d_xScope_lval prevScopeExpr arg
 
 
 (* print an expression *)
@@ -251,34 +277,45 @@ let d_outerScope_lval (arg : lval) : logStatement =
  *  "__builtin_va_arg_pack" && (not !printCilAsIs) -> 
  *  text "__builtin_va_arg_pack()"
  *)
+
+let default_print arg = (d_string "%a" d_exp arg,[])
+
 let d_xScope_exp  (scopeExp : exp)  = 
-  let rec dExp (arg :exp) : logStatement = 
-   match arg with 
-   | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
-   | CastE(t,e) -> 
-       let (str,arg) = dExp e in
-       (d_string "(%a)(%s)" d_type t str,arg)
-   | SizeOfE(e) -> 
-       let (str,arg) = dExp e in
-       (d_string "sizeof(%s) " str ,arg)
-   | AlignOfE(e) ->
-       let (str,arg) = dExp e in
-       (d_string "__alignof__(%s)" str,arg)
-   | UnOp(o,e,_) ->
-       let opArg = mkString (d_string "%a" d_unop o) in
-       let (str,arg) = dExp e in
-       ("%s(" ^ str ^ ")",[opArg] @ arg)
-   | BinOp(o,l,r,_) ->  
-       let (lhsStr,lhsArg) = dExp l in
-       let opArg = mkString (d_string "%a" d_binop o) in
-       let (rhsStr,rhsArg) = dExp r in
-       ("(" ^ lhsStr ^ ") %s (" ^ rhsStr ^ ")" ,lhsArg @ [opArg] @ rhsArg)
-   | AddrOf(l) -> let (lhsStr,lhsArg) = d_scope_lval l in
-     ("&"^lhsStr, lhsArg)
-   | StartOf(l) -> d_scope_lval l
-   | _ -> 
-       if (needsScopeId arg) then (d_string "%a__%%u" d_exp arg, [scopeExp] )
-       else (d_string "%a" d_exp arg,[])
+  let rec dExp (arg :exp) : logStatement =
+    match arg with 
+      | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
+      | Const(c) -> (d_string "%a" d_exp arg,[]) (*for other constants, do the standard thing *)
+      | Lval(l) -> 
+	if isLocalVarLval l then
+	  d_xScope_lval scopeExp l
+	else default_print arg
+      | SizeOf(t) -> default_print arg
+      | SizeOfE(e) -> 
+	let (str,arg) = dExp e in
+	(d_string "sizeof(%s) " str ,arg)
+      | SizeOfStr(s) -> default_print arg
+      | AlignOf(t) -> default_print arg
+      | AlignOfE(e) ->
+	let (str,arg) = dExp e in
+	(d_string "__alignof__(%s)" str,arg)
+      | UnOp(o,e,_) ->
+	let opArg = mkString (d_string "%a" d_unop o) in
+	let (str,arg) = dExp e in
+	("%s(" ^ str ^ ")",[opArg] @ arg)
+      | BinOp(o,l,r,_) ->  
+	let (lhsStr,lhsArg) = dExp l in
+	let opArg = mkString (d_string "%a" d_binop o) in
+	let (rhsStr,rhsArg) = dExp r in
+	("(" ^ lhsStr ^ ") %s (" ^ rhsStr ^ ")" ,lhsArg @ [opArg] @ rhsArg)
+      | CastE(t,e) -> 
+	let (str,arg) = dExp e in
+	(d_string "(%a)(%s)" d_type t str,arg)
+      | AlignOfE(e) ->
+	let (str,arg) = dExp e in
+	(d_string "__alignof__(%s)" str,arg)
+      | AddrOf(l) -> let (lhsStr,lhsArg) = d_xScope_lval scopeExp  l in
+		     ("&"^lhsStr, lhsArg)
+      | StartOf(l) -> d_xScope_lval scopeExp l
   in dExp
     
 let d_outerScope_exp = d_xScope_exp prevScopeExpr
