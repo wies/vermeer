@@ -235,38 +235,28 @@ let rec d_xScope_offset (scopeExp : exp) (o : offset) : logStatement =
       (* There are no args for a field afaik *)
       let restStr,restArgs = d_xScope_offset scopeExp foffset in
       ("." ^ finfo.fname ^ restStr, restArgs)
-    | Index(fexp,foffset) -> 	
-      raise (Failure "didn't think that array indexing was happening at this point")
-
-	
+    | Index(fexp,foffset) -> 
+      let restStr,restArgs = d_xScope_offset scopeExp foffset in
+      let expStr,expArgs = d_xScope_exp scopeExp fexp in
+      ("[" ^ expStr ^ "]" ^restStr, expArgs @ restArgs)
       
 (* two ways we might need a current scope expression here
  * the first is that we are directly a variable
  * the second is that it is a memory access
  *)
 
-let d_xScope_lval (scopeExp : exp) (arg : lval) : logStatement = 
+and d_xScope_lval (scopeExp : exp) (hst,off as arg : lval) : logStatement = 
   if (not (isLocalVarLval arg)) then (d_string "%a" d_lval arg,[])
-  else match arg with
-      | Var(v),NoOffset -> (d_string "%a__%%u" d_lval arg, [scopeExp] )
-      | Var(v),Field(finfo, foffset) -> 
-	let _ = Printf.printf "got to a field %s \n" v.vname in
-	let theField = Field(finfo, foffset) in
-	let offsetStr,offsetArgs = d_xScope_offset scopeExp theField in
+  else 
+    let offsetStr,offsetArgs = d_xScope_offset scopeExp off in
+    match hst with
+      | Var(v) -> 
 	let varStr = v.vname ^ "__%u" in
 	let varArg = scopeExp in
 	(varStr ^ offsetStr, varArg :: offsetArgs)
-      | Var(v),Index(fexp,foffset) -> 
-	raise (Failure "didn't think that array indexing was happening at this point")
-      | Mem(_),_ -> 
-	raise (Failure "How can mem be a local var lval?")
-
-let d_scope_lval (arg : lval) : logStatement = 
-  d_xScope_lval currentScopeExpr arg
-    
-let d_outerScope_lval (arg : lval) : logStatement = 
-  d_xScope_lval prevScopeExpr arg
-
+      | Mem(e) -> 
+	let str,arg = d_xScope_exp scopeExp e in
+	"*" ^ str ^ offsetStr, arg @ offsetArgs
 
 (* print an expression *)
 (* DSN TODO - do I need to worry about special characters like %? *)
@@ -278,9 +268,9 @@ let d_outerScope_lval (arg : lval) : logStatement =
  *  text "__builtin_va_arg_pack()"
  *)
 
-let default_print arg = (d_string "%a" d_exp arg,[])
 
-let d_xScope_exp  (scopeExp : exp)  = 
+and d_xScope_exp  (scopeExp : exp)  =
+  let default_print arg = (d_string "%a" d_exp arg,[]) in
   let rec dExp (arg :exp) : logStatement =
     match arg with 
       | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
@@ -310,14 +300,16 @@ let d_xScope_exp  (scopeExp : exp)  =
       | CastE(t,e) -> 
 	let (str,arg) = dExp e in
 	(d_string "(%a)(%s)" d_type t str,arg)
-      | AlignOfE(e) ->
-	let (str,arg) = dExp e in
-	(d_string "__alignof__(%s)" str,arg)
       | AddrOf(l) -> let (lhsStr,lhsArg) = d_xScope_lval scopeExp  l in
 		     ("&"^lhsStr, lhsArg)
       | StartOf(l) -> d_xScope_lval scopeExp l
+      | _ -> raise (Failure "unexpected exp here.  Maybe a Question?")
   in dExp
-    
+
+
+
+let d_scope_lval = d_xScope_lval currentScopeExpr 
+let d_outerScope_lval = d_xScope_lval prevScopeExpr
 let d_outerScope_exp = d_xScope_exp prevScopeExpr
 let d_scope_exp = d_xScope_exp currentScopeExpr
 	  
