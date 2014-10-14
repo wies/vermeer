@@ -61,8 +61,6 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   in
   Pretty.gprintf f fmt 
 
-let debug_msg (msg :string) (str :string) = Printf.printf "%s %s\n" msg str
-
 let d_tempArg (idx : int) : logStatement = 
   (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])
 
@@ -73,15 +71,15 @@ let locStr () = sprint 800 (d_thisloc ())
 
 let printf: varinfo option ref = ref None
 let makePrintfFunction () : varinfo = 
-    match !printf with 
+  match !printf with 
       Some v -> v
     | None -> begin 
-        let v = makeGlobalVar !printFunctionName 
-                     (TFun(intType, Some [("format", charConstPtrType, [])],
-                             true, [])) in
-        printf := Some v;
-        addProto := true;
-        v
+      let v = makeGlobalVar !printFunctionName 
+        (TFun(intType, Some [("format", charConstPtrType, [])],
+              true, [])) in
+      printf := Some v;
+      addProto := true;
+      v
     end
 
 let getLabelString s = 
@@ -118,7 +116,7 @@ let mkCloseBraceStmt ?(indentp = true) ?(locp = false) (): stmt =
   mkPrintStmt ~indentp:indentp ~locp:locp ("}\n") []
 
 let mkComment ?(indentp = true) ?(locp = false) msg args : instr = 
-    mkPrint ~indentp:indentp ~locp:locp (commentLine ^ msg) args
+  mkPrint ~indentp:indentp ~locp:locp (commentLine ^ msg) args
 
 let mkCommentStmt ?(indentp = true) ?(locp = false) msg args: stmt =
   mkPrintStmt ~indentp:indentp ~locp:locp (commentLine ^ msg) args
@@ -128,70 +126,70 @@ let mkCommentStmt ?(indentp = true) ?(locp = false) msg args: stmt =
 let isGlobalVarLval (l : lval) = 
   let (host,off) = l in
   match host with 
-  | Var(vinfo) -> vinfo.vglob
-  | _ -> false 
+    | Var(vinfo) -> vinfo.vglob
+    | _ -> false 
 
 let isGlobalVarExp (e : exp) = match e with
-| Lval(l) -> isGlobalVarLval l
-| _ -> false
+  | Lval(l) -> isGlobalVarLval l
+  | _ -> false
 
 let rec isLocalVarLval (l : lval) = 
   let (host,off) = l in
   match host with 
-  | Var(vinfo) -> not vinfo.vglob
-  | Mem(e) -> isLocalVarExp e 
+    | Var(vinfo) -> not vinfo.vglob
+    | Mem(e) -> isLocalVarExp e 
 
 and isLocalVarExp (e: exp) = match e with
-| Lval(l) -> isLocalVarLval l
-| AddrOf(l) -> isLocalVarLval l
-| StartOf(l) -> isLocalVarLval l
-| _ -> false
+  | Lval(l) -> isLocalVarLval l
+  | AddrOf(l) -> isLocalVarLval l
+  | StartOf(l) -> isLocalVarLval l
+  | _ -> false
 
 let needsScopeId (e: exp) = isLocalVarExp e
 
 (* needed only for declaring unnamed args, e.g. function pointers *)
 let rec d_unnamedArgsList lst  = match lst with 
-| (s,t,a) :: [] -> 
+  | (s,t,a) :: [] -> 
     let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in 
     (lhsStr ^ rhsStr,lhsArgs@rhsArgs)
-| (s,t,a) :: xs -> 
+  | (s,t,a) :: xs -> 
     let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in 
     let thisStr = lhsStr ^ rhsStr in
     let thisArgs = lhsArgs @ rhsArgs in
     let (restStr,restArgs) = d_unnamedArgsList xs in
     (thisStr ^ ", " ^ restStr,thisArgs @ restArgs)
-| [] -> ("",[])
+  | [] -> ("",[])
 (* generate both a pre and a post part because we might have int a[2][3] *)
 (* or a function pointer *)
 and d_logType (tTop: typ) : (logStatement * logStatement) = 
   match tTop with 
- | TArray(t,eo,a) ->
+    | TArray(t,eo,a) ->
       let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in
- (*DSN should this be d_scope_exp??*)
+      (*DSN should this be d_scope_exp??*)
       let e_str = match eo with
-      | Some(e) -> d_string "%a" d_exp e
-      | None -> ""
+	| Some(e) -> d_string "%a" d_exp e
+	| None -> ""
       in
       ((lhsStr,lhsArgs),
        ("[" ^ e_str ^ "]" ^ rhsStr,rhsArgs))
- | TPtr (TFun(retT,argsTLst,isVarArgs,_),_) -> 
-(* DSN things might go crazy if we have return / take fn pointers.  Not worrying about that for now *)
-     let retStr = d_string "%a" d_type retT in
-     let (argsStr,argsArgs) = match argsTLst with 
-     | Some(l) -> d_unnamedArgsList l 
-     | None -> ("",[])
-     in
-     ((retStr ^ "(*" ,[]),
-      (")(" ^ argsStr ^")",argsArgs))
- | _ -> let typeStr = d_string "%a" d_type tTop in 
-   ((typeStr,[]),
-    ("",[]))
+    | TPtr (TFun(retT,argsTLst,isVarArgs,_),_) -> 
+      (* DSN things might go crazy if we have return / take fn pointers.  Not worrying about that for now *)
+      let retStr = d_string "%a" d_type retT in
+      let (argsStr,argsArgs) = match argsTLst with 
+	| Some(l) -> d_unnamedArgsList l 
+	| None -> ("",[])
+      in
+      ((retStr ^ "(*" ,[]),
+       (")(" ^ argsStr ^")",argsArgs))
+    | _ -> let typeStr = d_string "%a" d_type tTop in 
+	   ((typeStr,[]),
+	    ("",[]))
 
 let d_fn_decl (v : varinfo) : logStatement = 
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
   ((lhsStr ^ " %s__%d" ^ rhsStr),
    (lhsArgs @ [ mkString v.vname; nextScopeExpr] @ rhsArgs))
-   
+    
 let d_decl (v : varinfo) : logStatement = 
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
   ((lhsStr ^ " %s__%d" ^ rhsStr),
@@ -203,7 +201,7 @@ let stmtFromStmtList (stmts : stmt list) : stmt =
 let mkVarDecl (v : varinfo) : instr = 
   let (str,args) = d_decl v in
   mkPrint ~locp:false (str ^ ";\n") args
-   
+    
 let rec declareAllVarsHelper (slocals : varinfo list) : instr list = 
   match slocals with
     | x :: xs -> (mkVarDecl x) :: (declareAllVarsHelper xs)
@@ -219,7 +217,7 @@ let mkFormalDecl (v : varinfo) (idx : int) : instr =
   let (rhsStr, rhsArgs) = d_tempArg idx in
   let argStr = lhsStr ^ " = " ^ rhsStr ^ ";\n" in
   mkPrint ~locp:false argStr ( lhsArgs @ rhsArgs)   
-  
+    
 let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
   match slocals with
     | x :: xs -> (mkFormalDecl x idx ) :: (declareAllFormalsHelper xs (idx + 1))
@@ -242,7 +240,7 @@ let rec d_xScope_offset (scopeExp : exp) (o : offset) : logStatement =
       let restStr,restArgs = d_xScope_offset scopeExp foffset in
       let expStr,expArgs = d_xScope_exp scopeExp fexp in
       ("[" ^ expStr ^ "]" ^restStr, expArgs @ restArgs)
-      
+	
 (* two ways we might need a current scope expression here
  * the first is that we are directly a variable
  * the second is that it is a memory access
@@ -321,36 +319,42 @@ let d_scope_lval = d_xScope_lval currentScopeExpr
 let d_outerScope_lval = d_xScope_lval prevScopeExpr
 let d_outerScope_exp = d_xScope_exp prevScopeExpr
 let d_scope_exp = d_xScope_exp currentScopeExpr
-	  
+  
 let d_returnTemp : logStatement = ("__return__%u",[currentScopeExpr])
+
+let fn_return_type (fnexp : exp) : typ = 
+  match typeOf fnexp with
+    | TFun(t,_,_,_) -> t
+    | _ -> raise (Failure "not a function type")
 
 (* DSN perhaps there should be a common make print assgt function *)
 let mkCopyReturnToOuterscope lo : instr list = 
   match lo with 
-  | Some (lv) ->
+    | Some (lv) ->
       let (lhsStr,lhsArg) = d_outerScope_lval lv in
       let (rhsStr,rhsArg) = d_returnTemp in
       let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
       let printArgs = lhsArg @ rhsArg in
       let printCall = mkPrint printStr printArgs in
       [printCall]
-  | None -> []
-
-let mkReturnTemp lo : instr list = 
-  match lo with 
-    | Some (lv) ->
-	let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType (typeOfLval lv) in 
-	let (varNameStr,varNameArgs) = d_returnTemp in
-       	let printStr = lhsStr ^ varNameStr ^ rhsStr ^ ";\n" in
-	let printArgs  = lhsArgs @ varNameArgs @ rhsArgs in
-	let printCall = mkPrint printStr printArgs in
-	[printCall]
     | None -> []
+
+let mkReturnTemp fexp : instr list = 
+  match fn_return_type fexp with 
+    | TVoid(_) -> []
+    | t ->
+      let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in 
+      let (varNameStr,varNameArgs) = d_returnTemp in
+      let printStr = lhsStr ^ varNameStr ^ rhsStr ^ ";\n" in
+      let printArgs  = lhsArgs @ varNameArgs @ rhsArgs in
+      let printCall = mkPrint printStr printArgs in
+      [printCall]
+
 
 (*DSN have to handle function pointers *)
 let getFunctionVinfo e = match e with 
-| Lval(Var(vinfo),_) ->  Some vinfo
-|_ -> None
+  | Lval(Var(vinfo),_) ->  Some vinfo
+  |_ -> None
 
 (* DSN currently this only works for expressions that are 
  * directly functions.  Does not work for function ptrs 
@@ -358,12 +362,12 @@ let getFunctionVinfo e = match e with
 let getFormals e : (string * typ * attributes) list option = 
   let vinfoOpt = getFunctionVinfo e in 
   match vinfoOpt with
-    Some(vinfo) -> begin
-      match vinfo.vtype with 
-      | TFun(rtyp,args,varargs,attr) -> Some(argsToList args)
-      | _ -> raise (Failure ("Not a function.\n" ^
-			     locStr ())) end
-  | None -> None
+      Some(vinfo) -> begin
+	match vinfo.vtype with 
+	  | TFun(rtyp,args,varargs,attr) -> Some(argsToList args)
+	  | _ -> raise (Failure ("Not a function.\n" ^
+				    locStr ())) end
+    | None -> None
 
 let mkActualToTemp (actual : exp) (idx : int) = 
   let ((preTypeStr,preTypeArgs),(postTypeStr,postTypeArgs)) = d_logType (typeOf actual) in 
@@ -379,8 +383,8 @@ let mkActualToTemp (actual : exp) (idx : int) =
 
 let rec mkActualsToTempsRec (actual : exp list) (idx : int) : instr list  = 
   match actual with 
-  | [] -> []
-  | x :: xs -> (mkActualToTemp x idx) :: (mkActualsToTempsRec xs (idx +1))
+    | [] -> []
+    | x :: xs -> (mkActualToTemp x idx) :: (mkActualsToTempsRec xs (idx +1))
 
 let mkActualsToTempInstrs (actual :exp list) : instr list = 
   mkActualsToTempsRec actual 0
@@ -401,8 +405,8 @@ let mkTempToFormal (formal : (string * typ * attributes)) (idx : int) =
 
 let rec mkTempToFormalListRec  (formals : (string * typ * attributes) list) (idx : int) : instr list  = 
   match formals with 
-  | [] -> []
-  | x :: xs -> (mkTempToFormal x idx) :: (mkTempToFormalListRec xs (idx +1))
+    | [] -> []
+    | x :: xs -> (mkTempToFormal x idx) :: (mkTempToFormalListRec xs (idx +1))
 
 let mkTempToFormalList (formals : (string * typ * attributes) list) : instr list = 
   mkTempToFormalListRec formals 0
@@ -412,9 +416,9 @@ let mkTempToFormalList (formals : (string * typ * attributes) list) : instr list
 (* DSN need a better name here *)
 let rec mkConcreteArgs (al : exp list) : logStatement = 
   match al with
-  | [] -> ("",[])
-  | x::[] -> d_scope_exp x
-  | x::xs -> 
+    | [] -> ("",[])
+    | x::[] -> d_scope_exp x
+    | x::xs -> 
       let (thisStr,thisArg) = d_scope_exp x in
       let (restStr,restArgs) = mkConcreteArgs xs in
       (thisStr ^ ", " ^ restStr, thisArg @ restArgs)
@@ -474,47 +478,47 @@ let currentFunc: string ref = ref ""
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
-  
+    
   method vinst i = begin
     match i with
-      Set(lv, e, l) -> 
-	let (lhsStr,lhsArg) = d_scope_lval lv in
-(* assume that we only have reduced expressions at this point!  Should maybe put an assert
-   of that here? *)
-(* DSN Does anything go weird if we have function pointers *)
-	let (rhsStr,rhsArg) = d_scope_exp e in
-	let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
-	let printArgs = lhsArg @ rhsArg in
-	let printCall = mkPrint printStr printArgs in
-	let newInstrs =  printCall :: [i] in
-	ChangeTo newInstrs
-    | Call(lo,e,al,l) ->
-    (* first, make the actual call *)
+	Set(lv, e, l) -> 
+	  let (lhsStr,lhsArg) = d_scope_lval lv in
+	  (* assume that we only have reduced expressions at this point!  Should maybe put an assert
+	     of that here? *)
+	  (* DSN Does anything go weird if we have function pointers *)
+	  let (rhsStr,rhsArg) = d_scope_exp e in
+	  let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
+	  let printArgs = lhsArg @ rhsArg in
+	  let printCall = mkPrint printStr printArgs in
+	  let newInstrs =  printCall :: [i] in
+	  ChangeTo newInstrs
+      | Call(lo,e,al,l) ->
+	(* first, make the actual call *)
 	let (lhsStr,lhsArg) = 
 	  match lo with
-	  | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
-	  | None -> ("",[])
+	    | Some(lv) -> let (s,a) = d_scope_lval lv in (s ^ " = ",a)
+	    | None -> ("",[])
 	in
 	let (fnNameStr,fnNameArgs) = d_scope_exp e in
 	let (argsStr, argsArgs) = mkConcreteArgs al in
 	let callStr ="call " ^ lhsStr ^ fnNameStr ^ "(" ^ argsStr ^ ");\n" in
 	let callArgs = lhsArg @ fnNameArgs @ argsArgs in
 	let logCall = [mkComment ~locp:true callStr callArgs] in
-(* Now, we are ready to log the variables into temps.  In some cases, we might not need
-   * to actually use them *)
+	(* Now, we are ready to log the variables into temps.  In some cases, we might not need
+	 * to actually use them *)
 	let temps = mkActualsToTempInstrs al in
-	let returnTemp = mkReturnTemp lo in
+	let returnTemp = mkReturnTemp e in
 	let saveReturn = mkCopyReturnToOuterscope lo in 
 	let doneSetupComment = [mkComment "done setup\n" []] in
 	let newInstrs =  
-	   logCall @ makeScopeOpen  
+	  logCall @ makeScopeOpen  
 	  @ temps @ returnTemp @ doneSetupComment
 	  @ [i] 
 	  @ saveReturn
 	  @ makeScopeClose 
 	in 
-	  ChangeTo newInstrs
-    | _ -> DoChildren
+	ChangeTo newInstrs
+      | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
     match s.skind with
@@ -592,14 +596,36 @@ let globalDeclFn =
   let typ = TFun(voidType, Some[], false, []) in
   let _  = setFunctionType fdec typ  in
   fdec 
-  
-let dsn (f: file) : unit =  
-  
-  let doGlobal = function
+
+let is_initilized_fp (vi :varinfo) (ii : initinfo) = 
+  match vi.vtype, ii.init with 
+    | TPtr((TFun _),_), (Some _) -> true
+    | _,_ -> false
       
+let dsn (f: file) : unit =  
+
+  (*
+    let is_initilized_fp (vi :varinfo) (ii : initinfo) = 
+    match vi.vtype, ii.init with 
+    | (TFun _), (Some _) -> true
+    | _,_ -> false
+  *)	
+  let doGlobal = function
+  
     | GVarDecl (v, _) when v.vname = !printFunctionName -> 
-        if !printf = None then
-          printf := Some v 
+      if !printf = None then
+	printf := Some v 
+    | GVar(vi,ii,l) as g when is_initilized_fp vi ii ->
+      (* could also print 0, or the actual hex value here *)
+      let newVar = GVar(vi,{init = None},l) in
+      let arg1 = mkString (d_string "%a" d_global newVar) in
+      let arg2 = mkString (d_string "//%a" dn_global g ) in
+      globalDeclFn.sbody <-
+	mkBlock (compactStmts
+		   [mkStmt (Block globalDeclFn.sbody);
+		    mkPrintStmt ~locp:false "%s" [arg1];
+		    mkPrintStmt ~locp:false "%s" [arg2];
+		   ])
     | GVarDecl _ | GVar _ | GType _ | GCompTag _ | GEnumTag _ as g ->
       let arg = mkString (d_string "%a" d_global g) in
       globalDeclFn.sbody <-
@@ -609,10 +635,10 @@ let dsn (f: file) : unit =
     | GFun (fdec, loc) when fdec = globalDeclFn-> ()
     | GFun (fdec, loc) when fdec.svar.vname = "main" ->
       currentFunc := fdec.svar.vname;
-      (* do the body *)
+    (* do the body *)
       ignore (visitCilFunction dsnVisitor fdec);
       
-      (* Now add the entry instruction *)
+    (* Now add the entry instruction *)
       let formalDeclList = List.map d_fn_decl fdec.sformals in
       let rec mkMainArgs lst = 
 	match lst with 
@@ -624,7 +650,7 @@ let dsn (f: file) : unit =
 	  | _ -> raise (Failure ("main with no args???\n" ^ locStr ())) in 
       let (formalStr, formalArgs) = mkMainArgs formalDeclList in
       fdec.sbody <- 
-        mkBlock (compactStmts (
+	mkBlock (compactStmts (
 	  [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown));
 	   mkPrintStmt ~indentp:false ("int main(" ^ formalStr ^ ")") formalArgs;
 	   mkOpenBraceStmt ();
@@ -634,14 +660,14 @@ let dsn (f: file) : unit =
 	   mkStmt (Block fdec.sbody) ]))
     | GFun (fdec, loc) ->
       currentFunc := fdec.svar.vname;
-      (* do the body *)
+    (* do the body *)
       ignore (visitCilFunction dsnVisitor fdec);
       fdec.sbody <- 
-        mkBlock (compactStmts (
-		 [mkCommentStmt (d_string "enter %s\n" !currentFunc) [];
-		  declareAllFormalsStmt fdec.sformals;
-		  declareAllVarsStmt fdec.slocals;
-		  mkStmt (Block fdec.sbody) ]))	
+	mkBlock (compactStmts (
+	  [mkCommentStmt (d_string "enter %s\n" !currentFunc) [];
+	   declareAllFormalsStmt fdec.sformals;
+	   declareAllVarsStmt fdec.slocals;
+	   mkStmt (Block fdec.sbody) ]))	
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;

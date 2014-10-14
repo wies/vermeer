@@ -808,7 +808,8 @@ static void do_exit(int exitcode ) ;
 #line 4582
 int main(int argc , char **argv ) ;
 #line 4583 "gzip.preprocessed.c"
-int (*work)(int infile , int outfile )   = & zip;
+int (*work)(int infile , int outfile )  ;
+//int (*work)(int infile , int outfile )   = & zip;
 #line 4584
 static void treat_dir(char *dir ) ;
 #line 4585
@@ -1157,7 +1158,7 @@ int main(int  argc__1, char ** argv__1){
 #line 4649 "gzip.preprocessed.c"
   foreground = (__cil_tmp37__1) != (__cil_tmp36__1);
 #line 4651 "gzip.preprocessed.c"
-  __cil_tmp38__1 = (void (*)(int  ))(&abort_gzip);
+  __cil_tmp38__1 = (void (*)(int  ))(0 /*&abort_gzip*/);
 #line 4651 "gzip.preprocessed.c"
   //call signal(2, __cil_tmp38__1);
   {
@@ -1165,6 +1166,8 @@ int main(int  argc__1, char ** argv__1){
     int  __arg_tmp_0__2  = 2;
 #line 4651 "gzip.preprocessed.c"
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp38__1;
+#line 4651 "gzip.preprocessed.c"
+    __sighandler_t __return__2;
     //done setup
   }
 #line 4653 "gzip.preprocessed.c"
@@ -1189,7 +1192,7 @@ int main(int  argc__1, char ** argv__1){
 #line 4653 "gzip.preprocessed.c"
   __cil_tmp42__1 = (unsigned long )(tmp___2__1);
 #line 4654 "gzip.preprocessed.c"
-  __cil_tmp43__1 = (void (*)(int  ))(&abort_gzip);
+  __cil_tmp43__1 = (void (*)(int  ))(0 /*&abort_gzip*/);
 #line 4654 "gzip.preprocessed.c"
   //call signal(15, __cil_tmp43__1);
   {
@@ -1197,6 +1200,8 @@ int main(int  argc__1, char ** argv__1){
     int  __arg_tmp_0__2  = 15;
 #line 4654 "gzip.preprocessed.c"
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp43__1;
+#line 4654 "gzip.preprocessed.c"
+    __sighandler_t __return__2;
     //done setup
   }
 #line 4656 "gzip.preprocessed.c"
@@ -1221,7 +1226,7 @@ int main(int  argc__1, char ** argv__1){
 #line 4656 "gzip.preprocessed.c"
   __cil_tmp47__1 = (unsigned long )(tmp___3__1);
 #line 4657 "gzip.preprocessed.c"
-  __cil_tmp48__1 = (void (*)(int  ))(&abort_gzip);
+  __cil_tmp48__1 = (void (*)(int  ))(0 /*&abort_gzip*/);
 #line 4657 "gzip.preprocessed.c"
   //call signal(1, __cil_tmp48__1);
   {
@@ -1229,6 +1234,8 @@ int main(int  argc__1, char ** argv__1){
     int  __arg_tmp_0__2  = 1;
 #line 4657 "gzip.preprocessed.c"
     void (* __arg_tmp_1__2 )(int ) = __cil_tmp48__1;
+#line 4657 "gzip.preprocessed.c"
+    __sighandler_t __return__2;
     //done setup
   }
 #line 4659 "gzip.preprocessed.c"
@@ -1322,6 +1329,8 @@ int main(int  argc__1, char ** argv__1){
     char const   * __restrict   __arg_tmp_1__2  = __cil_tmp60__1;
 #line 4666 "gzip.preprocessed.c"
     unsigned long  __arg_tmp_2__2  = __cil_tmp61__1;
+#line 4666 "gzip.preprocessed.c"
+    char *__return__2;
     //done setup
   }
 #line 4667 "gzip.preprocessed.c"
@@ -1528,6 +1537,8 @@ int main(int  argc__1, char ** argv__1){
       char * __restrict   __arg_tmp_0__3  = __cil_tmp20__2;
 #line 4777 "gzip.preprocessed.c"
       char const   * __restrict   __arg_tmp_1__3  = __cil_tmp21__2;
+#line 4777 "gzip.preprocessed.c"
+      char *__return__3;
       //done setup
     }
 #line 4778 "gzip.preprocessed.c"
@@ -1547,6 +1558,8 @@ int main(int  argc__1, char ** argv__1){
       char * __restrict   __arg_tmp_0__3  = __cil_tmp25__2;
 #line 4778 "gzip.preprocessed.c"
       char const   * __restrict   __arg_tmp_1__3  = __cil_tmp26__2;
+#line 4778 "gzip.preprocessed.c"
+      char *__return__3;
       //done setup
     }
 #line 4779 "gzip.preprocessed.c"
@@ -2134,7 +2147,7 @@ int main(int  argc__1, char ** argv__1){
 #line 5082 "gzip.preprocessed.c"
       __cil_tmp112__3 = *__cil_tmp111__3;
 #line 5089 "gzip.preprocessed.c"
-      work = &unzip;
+      work = 0 /*&unzip*/;
 #line 5090 "gzip.preprocessed.c"
       tmp___14__3 = inptr;
 #line 5090 "gzip.preprocessed.c"
@@ -2882,6 +2895,8 @@ int main(int  argc__1, char ** argv__1){
         uch * __arg_tmp_0__4  = __cil_tmp25__3;
 #line 3953 "gzip.preprocessed.c"
         unsigned int  __arg_tmp_1__4  = 0U;
+#line 3953 "gzip.preprocessed.c"
+        ulg __return__4;
         //done setup
         //enter updcrc
         uch * s__4 = __arg_tmp_0__4 ;
@@ -3992,6 +4007,8 @@ int main(int  argc__1, char ** argv__1){
                 int  __arg_tmp_1__8  = 0;
 #line 1877 "gzip.preprocessed.c"
                 unsigned long  __arg_tmp_2__8  = 68UL;
+#line 1877 "gzip.preprocessed.c"
+                void *__return__8;
                 //done setup
               }
 #line 1878 "gzip.preprocessed.c"
