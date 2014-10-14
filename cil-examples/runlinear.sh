@@ -9,3 +9,5 @@ fi
 if [ "$?" -ne "0" -o ! -x ./a.out ]; then exit 1; fi
 ./a.out 
 mv dsn_logfile.txt "$1.linear.c"
+
+./postprocess_linear "$1.linear.c" > "$1.postlinear.c"

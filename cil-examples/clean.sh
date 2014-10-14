@@ -4,4 +4,5 @@ rm -f *.linear.c \
       *.i \
       *.o \
       *~ \
+      *.postlinear.c \
       a.out
