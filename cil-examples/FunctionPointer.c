@@ -1,4 +1,5 @@
 //A simple recursive adder
+#include <stdio.h>
 int global_var = 1;
 
 int adder(int x, int y)
@@ -19,5 +20,6 @@ int main(int argc, char** argv){
   int (*f)(int,int) = adder;
   int x =  f(a, b);
   int y = foo(a,b);
-  return x + y;
+  printf("%d \n",x+y);
+  return 0;
 }

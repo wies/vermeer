@@ -17,6 +17,7 @@ let indentSpaces = 2
 
 (* this should really be a commandline argument *)
 let controlSensitive = false
+let trackFnAddr = false
 
 (* for future reference, how to add spaces in printf *)
 
@@ -59,6 +60,8 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
     Pretty.sprint 800 d
   in
   Pretty.gprintf f fmt 
+
+let debug_msg (msg :string) (str :string) = Printf.printf "%s %s\n" msg str
 
 let d_tempArg (idx : int) : logStatement = 
   (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])
@@ -300,8 +303,14 @@ and d_xScope_exp  (scopeExp : exp)  =
       | CastE(t,e) -> 
 	let (str,arg) = dExp e in
 	(d_string "(%a)(%s)" d_type t str,arg)
-      | AddrOf(l) -> let (lhsStr,lhsArg) = d_xScope_lval scopeExp  l in
-		     ("&"^lhsStr, lhsArg)
+      | AddrOf(l) -> begin    
+	let (lhsStr,lhsArg) = d_xScope_lval scopeExp l in
+	match typeOfLval l with
+	  | TFun(_) -> 
+	    if trackFnAddr then ("%p /*&"^lhsStr^"*/", [arg] @ lhsArg)
+	    else ("0 /*&"^lhsStr^"*/", lhsArg)
+	  | _ -> ("&"^lhsStr, lhsArg)
+      end
       | StartOf(l) -> d_xScope_lval scopeExp l
       | _ -> raise (Failure "unexpected exp here.  Maybe a Question?")
   in dExp
