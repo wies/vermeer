@@ -12,6 +12,28 @@ module H = Hashtbl
 let indexMap = Hashtbl.create 1000
 let currentFunc = ref None
 
+let init_ssa_map v = Hashtbl.add indexMap v.vname (v,0)
+let update_ssa_map v newIdx = Hashtbl.add indexMap v.vname (v,newIdx)
+let get_ssa_var v = let var,idx = Hashtbl.find indexMap v.vname in var
+
+let rec update_rhs_exp e = match e with
+  | Const _ | SizeOf _ | SizeOfStr _ | AlignOf _ -> e
+  | Lval(l) -> Lval(update_rhs_lval l)
+  | SizeOfE(e) -> SizeOfE(update_rhs_exp e)
+  | AlignOfE(e) -> AlignOfE(update_rhs_exp e)
+  | UnOp(o,e,t) -> UnOp(o,update_rhs_exp e, t)
+  | BinOp(b,e1,e2,t) -> BinOp(b,update_rhs_exp e1, update_rhs_exp e2, t)
+  | CastE(t,e) -> CastE(t,update_rhs_exp e)
+  | AddrOf(l) -> AddrOf(update_rhs_lval l)
+  | StartOf(l) -> StartOf(update_rhs_lval l)
+  | _ -> raise (Failure "unexpected exp type")
+and update_rhs_lval (lh,o) = 
+  match lh with 
+    | Var(v) -> Var (get_ssa_var v)
+    | Mem _ -> raise (Failure "shouldn't be any mem after concrete transformation")
+and update_rhs_offset o = 
+
+
 class dsnVisitorClass = object
   inherit nopCilVisitor
     
@@ -25,12 +47,20 @@ class dsnVisitorClass = object
   end
 end
 
+(* assume that there is only one function at this point *)
+(* otherwise things get messy *)
 let dsnVisitor = new dsnVisitorClass
 
 let dsn (f: file) : unit =  
   let doGlobal = function
-    | GVarDecl (v, _) -> Hashtbl.add indexMap v.vname 0
-    | GFun(fdec,loc) -> currentFunc := Some fdec
+    | GVarDecl (v, _) | GVar (v, _,_) ->  updateSSAMap v 0
+    | GFun(fdec,loc) -> 
+      if (fdec.svar.vname <> "main") then 
+	raise (Failure "main should be the only function") else ();
+      currentFunc := Some fdec;
+      List.iter init_ssa_map fdec.slocals;
+      List.iter init_ssa_map fdec.sformals;
+      ignore (visitCilFunction dsnVisitor fdec)
     | _ -> ()
   in
   Stats.time "dsn" (iterGlobals f) doGlobal
