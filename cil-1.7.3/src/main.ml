@@ -107,6 +107,7 @@ let features : C.featureDescr list =
     Dsncalls.feature;
     Dsnconcrete.feature;
     Dsnsmt.feature;
+    Dsnssa.feature;
   ] 
   @ Feature_config.features 
 

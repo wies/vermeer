@@ -1,10 +1,521 @@
+#line 22 "sed.preprocessed.c"
+typedef long __off_t;
+#line 23 "sed.preprocessed.c"
+typedef long __off64_t;
+#line 123 "sed.preprocessed.c"
+typedef unsigned long size_t;
+#line 126 "sed.preprocessed.c"
+typedef struct _IO_FILE FILE;
+#line 153 "sed.preprocessed.c"
+typedef __builtin_va_list __gnuc_va_list;
+#line 155 "sed.preprocessed.c"
+typedef void _IO_lock_t;
+#line 156 "sed.preprocessed.c"
+struct _IO_marker {
+   struct _IO_marker *_next ;
+   struct _IO_FILE *_sbuf ;
+   int _pos ;
+};
+#line 168 "sed.preprocessed.c"
+struct _IO_FILE {
+   int _flags ;
+   char *_IO_read_ptr ;
+   char *_IO_read_end ;
+   char *_IO_read_base ;
+   char *_IO_write_base ;
+   char *_IO_write_ptr ;
+   char *_IO_write_end ;
+   char *_IO_buf_base ;
+   char *_IO_buf_end ;
+   char *_IO_save_base ;
+   char *_IO_backup_base ;
+   char *_IO_save_end ;
+   struct _IO_marker *_markers ;
+   struct _IO_FILE *_chain ;
+   int _fileno ;
+   int _flags2 ;
+   __off_t _old_offset ;
+   unsigned short _cur_column ;
+   signed char _vtable_offset ;
+   char _shortbuf[1] ;
+   _IO_lock_t *_lock ;
+   __off64_t _offset ;
+   void *__pad1 ;
+   void *__pad2 ;
+   void *__pad3 ;
+   void *__pad4 ;
+   size_t __pad5 ;
+   int _mode ;
+   char _unused2[(15UL * sizeof(int ) - 4UL * sizeof(void *)) - sizeof(size_t )] ;
+};
+#line 199 "sed.preprocessed.c"
+typedef struct _IO_FILE _IO_FILE;
+#line 244 "sed.preprocessed.c"
+typedef __gnuc_va_list va_list;
+#line 638 "sed.preprocessed.c"
+typedef unsigned int RX_subset;
+#line 639 "sed.preprocessed.c"
+typedef RX_subset *rx_Bitset;
+#line 649 "sed.preprocessed.c"
+struct rx_hash_item {
+   struct rx_hash_item *next_same_hash ;
+   struct rx_hash *table ;
+   unsigned long hash ;
+   void *data ;
+   void *binding ;
+};
+#line 657 "sed.preprocessed.c"
+struct rx_hash {
+   struct rx_hash *parent ;
+   int refs ;
+   struct rx_hash *children[13] ;
+   struct rx_hash_item *buckets[13] ;
+   int bucket_size[13] ;
+};
+#line 674 "sed.preprocessed.c"
+struct rx_hash_rules {
+   int (*eq)(void * , void * ) ;
+   struct rx_hash *(*hash_alloc)(struct rx_hash_rules * ) ;
+   void (*free_hash)(struct rx_hash * , struct rx_hash_rules * ) ;
+   struct rx_hash_item *(*hash_item_alloc)(struct rx_hash_rules * , void * ) ;
+   void (*free_hash_item)(struct rx_hash_item * , struct rx_hash_rules * ) ;
+};
+#line 682 "sed.preprocessed.c"
+struct rx_inx {
+   void *inx ;
+   void *data ;
+   void *data_2 ;
+   void *fnord ;
+};
+#line 695 "sed.preprocessed.c"
+struct rx {
+   int rx_id ;
+   struct rx_cache *cache ;
+   int local_cset_size ;
+   void *buffer ;
+   unsigned long allocated ;
+   unsigned long reserved ;
+   int nodec ;
+   int epsnodec ;
+   struct rx_hash se_list_memo ;
+   struct rx_hash set_list_memo ;
+   void **instruction_table ;
+   struct rx_nfa_state *nfa_states ;
+   struct rx_nfa_state *start ;
+   int (*se_list_cmp)(struct rx * , struct rx_se_list * , struct rx_se_list * ) ;
+   struct rx_superset *start_set ;
+};
+#line 713 "sed.preprocessed.c"
+typedef void *rx_side_effect;
+#line 714 "sed.preprocessed.c"
+struct rx_se_list {
+   rx_side_effect car ;
+   struct rx_se_list *cdr ;
+};
+#line 719
+enum rexp_node_type {
+    r_cset = 0,
+    r_concat = 1,
+    r_alternate = 2,
+    r_opt = 3,
+    r_star = 4,
+    r_2phase_star = 5,
+    r_side_effect = 6,
+    r_data = 7
+} ;
+#line 730 "sed.preprocessed.c"
+struct __anonstruct_pair_22 {
+   struct rexp_node *left ;
+   struct rexp_node *right ;
+};
+#line 730 "sed.preprocessed.c"
+union __anonunion_params_21 {
+   rx_Bitset cset ;
+   rx_side_effect side_effect ;
+   struct __anonstruct_pair_22 pair ;
+   void *data ;
+};
+#line 730 "sed.preprocessed.c"
+struct rexp_node {
+   enum rexp_node_type type ;
+   union __anonunion_params_21 params ;
+};
+#line 745 "sed.preprocessed.c"
+struct rx_nfa_state {
+   int id ;
+   struct rx_nfa_edge *edges ;
+   struct rx_possible_future *futures ;
+   unsigned int is_final : 1 ;
+   unsigned int is_start : 1 ;
+   unsigned int eclosure_needed : 1 ;
+   struct rx_nfa_state *next ;
+   unsigned int mark : 1 ;
+};
+#line 756
+enum rx_nfa_etype {
+    ne_cset = 0,
+    ne_epsilon = 1,
+    ne_side_effect = 2
+} ;
+#line 762 "sed.preprocessed.c"
+union __anonunion_params_23 {
+   rx_Bitset cset ;
+   rx_side_effect side_effect ;
+};
+#line 762 "sed.preprocessed.c"
+struct rx_nfa_edge {
+   struct rx_nfa_edge *next ;
+   enum rx_nfa_etype type ;
+   struct rx_nfa_state *dest ;
+   union __anonunion_params_23 params ;
+};
+#line 773 "sed.preprocessed.c"
+struct rx_nfa_state_set {
+   struct rx_nfa_state *car ;
+   struct rx_nfa_state_set *cdr ;
+};
+#line 778 "sed.preprocessed.c"
+struct rx_possible_future {
+   struct rx_possible_future *next ;
+   struct rx_se_list *effects ;
+   struct rx_nfa_state_set *destset ;
+};
+#line 784
+enum rx_opcode {
+    rx_backtrack_point = 0,
+    rx_do_side_effects = 1,
+    rx_cache_miss = 2,
+    rx_next_char = 3,
+    rx_backtrack = 4,
+    rx_error_inx = 5,
+    rx_num_instructions = 6
+} ;
+#line 795 "sed.preprocessed.c"
+struct rx_superset {
+   int refs ;
+   struct rx_nfa_state *car ;
+   int id ;
+   struct rx_superset *cdr ;
+   struct rx_superstate *superstate ;
+   struct rx *starts_for ;
+   struct rx_hash_item hash_item ;
+};
+#line 805 "sed.preprocessed.c"
+struct rx_super_edge {
+   struct rx_super_edge *next ;
+   struct rx_inx rx_backtrack_frame ;
+   int cset_size ;
+   rx_Bitset cset ;
+   struct rx_distinct_future *options ;
+};
+#line 813 "sed.preprocessed.c"
+struct rx_superstate {
+   int rx_id ;
+   int locks ;
+   struct rx_superstate *next_recyclable ;
+   struct rx_superstate *prev_recyclable ;
+   struct rx_distinct_future *transition_refs ;
+   struct rx_superset *contents ;
+   struct rx_super_edge *edges ;
+   int is_semifree ;
+   int trans_size ;
+   struct rx_inx transitions[1] ;
+};
+#line 826 "sed.preprocessed.c"
+struct rx_distinct_future {
+   struct rx_distinct_future *next_same_super_edge[2] ;
+   struct rx_distinct_future *next_same_dest ;
+   struct rx_distinct_future *prev_same_dest ;
+   struct rx_superstate *present ;
+   struct rx_superstate *future ;
+   struct rx_super_edge *edge ;
+   struct rx_inx future_frame ;
+   struct rx_inx side_effects_frame ;
+   struct rx_se_list *effects ;
+};
+#line 838 "sed.preprocessed.c"
+struct rx_blocklist {
+   struct rx_blocklist *next ;
+   int bytes ;
+};
+#line 843 "sed.preprocessed.c"
+struct rx_freelist {
+   struct rx_freelist *next ;
+};
+#line 849 "sed.preprocessed.c"
+struct rx_cache {
+   struct rx_hash_rules superset_hash_rules ;
+   struct rx_blocklist *memory ;
+   struct rx_blocklist *memory_pos ;
+   int bytes_left ;
+   char *memory_addr ;
+   void (*morecore)(struct rx_cache * ) ;
+   struct rx_freelist *free_superstates ;
+   struct rx_freelist *free_transition_classes ;
+   struct rx_freelist *free_discernable_futures ;
+   struct rx_freelist *free_supersets ;
+   struct rx_freelist *free_hash ;
+   struct rx_superstate *lru_superstate ;
+   struct rx_superstate *semifree_superstate ;
+   struct rx_superset *empty_superset ;
+   int superstates ;
+   int semifree_superstates ;
+   int hits ;
+   int misses ;
+   int superstates_allowed ;
+   int local_cset_size ;
+   void **instruction_table ;
+   struct rx_hash superset_table ;
+};
+#line 875
+enum __anonenum_reg_errcode_t_24 {
+    REG_NOERROR = 0,
+    REG_NOMATCH = 1,
+    REG_BADPAT = 2,
+    REG_ECOLLATE = 3,
+    REG_ECTYPE = 4,
+    REG_EESCAPE = 5,
+    REG_ESUBREG = 6,
+    REG_EBRACK = 7,
+    REG_EPAREN = 8,
+    REG_EBRACE = 9,
+    REG_BADBR = 10,
+    REG_ERANGE = 11,
+    REG_ESPACE = 12,
+    REG_BADRPT = 13,
+    REG_EEND = 14,
+    REG_ESIZE = 15,
+    REG_ERPAREN = 16
+} ;
+#line 875 "sed.preprocessed.c"
+typedef enum __anonenum_reg_errcode_t_24 reg_errcode_t;
+#line 895
+enum re_side_effects {
+    re_se_try = -1,
+    re_se_pushback = -2,
+    re_se_push0 = -3,
+    re_se_pushpos = -4,
+    re_se_chkpos = -5,
+    re_se_poppos = -6,
+    re_se_at_dot = -7,
+    re_se_syntax = -8,
+    re_se_not_syntax = -9,
+    re_se_begbuf = -10,
+    re_se_hat = -11,
+    re_se_wordbeg = -12,
+    re_se_wordbound = -13,
+    re_se_notwordbound = -14,
+    re_se_wordend = -15,
+    re_se_endbuf = -16,
+    re_se_dollar = -17,
+    re_se_fail = -18,
+    re_se_win = 0,
+    re_se_lparen = 1,
+    re_se_rparen = 2,
+    re_se_backref = 3,
+    re_se_iter = 4,
+    re_se_end_iter = 5,
+    re_se_tv = 6,
+    re_floogle_flap = 65533
+} ;
+#line 924 "sed.preprocessed.c"
+struct re_se_params {
+   enum re_side_effects se ;
+   int op1 ;
+   int op2 ;
+};
+#line 930 "sed.preprocessed.c"
+typedef unsigned int reg_syntax_t;
+#line 931 "sed.preprocessed.c"
+struct re_pattern_buffer {
+   struct rx rx ;
+   reg_syntax_t syntax ;
+   unsigned int no_sub : 1 ;
+   unsigned int not_bol : 1 ;
+   unsigned int not_eol : 1 ;
+   unsigned int newline_anchor : 1 ;
+   unsigned int least_subs : 1 ;
+   unsigned int match_regs_on_stack : 1 ;
+   unsigned int search_regs_on_stack : 1 ;
+   unsigned int is_anchored : 1 ;
+   unsigned int begbuf_only : 1 ;
+   unsigned int regs_allocated : 2 ;
+   char *translate ;
+   char *syntax_parens ;
+   size_t re_nsub ;
+   void *buffer ;
+   unsigned long allocated ;
+   char *fastmap ;
+   unsigned int fastmap_accurate : 1 ;
+   unsigned int can_match_empty : 1 ;
+   struct rx_nfa_state *start ;
+   struct re_se_params *se_params ;
+   rx_Bitset fastset ;
+};
+#line 957 "sed.preprocessed.c"
+typedef int regoff_t;
+#line 958 "sed.preprocessed.c"
+struct re_registers {
+   unsigned int num_regs ;
+   regoff_t *start ;
+   regoff_t *end ;
+};
+#line 964 "sed.preprocessed.c"
+typedef struct re_pattern_buffer regex_t;
+#line 965 "sed.preprocessed.c"
+struct __anonstruct_regmatch_t_25 {
+   regoff_t rm_so ;
+   regoff_t rm_eo ;
+};
+#line 965 "sed.preprocessed.c"
+typedef struct __anonstruct_regmatch_t_25 regmatch_t;
+#line 1014 "sed.preprocessed.c"
+struct option {
+   char const   *name ;
+   int has_arg ;
+   int *flag ;
+   int val ;
+};
+#line 1526 "sed.preprocessed.c"
+struct vector {
+   struct sed_cmd *v ;
+   int v_length ;
+   int v_allocated ;
+   struct vector *return_v ;
+   int return_i ;
+};
+#line 1534 "sed.preprocessed.c"
+struct sed_label {
+   struct vector *v ;
+   int v_index ;
+   char *name ;
+   struct sed_label *next ;
+};
+#line 1549 "sed.preprocessed.c"
+struct addr {
+   int addr_type ;
+   struct re_pattern_buffer *addr_regex ;
+   int addr_number ;
+   int modulo ;
+   int offset ;
+};
+#line 1556 "sed.preprocessed.c"
+struct __anonstruct_cmd_txt_33 {
+   char *text ;
+   int text_len ;
+};
+#line 1556 "sed.preprocessed.c"
+struct __anonstruct_cmd_regex_34 {
+   struct re_pattern_buffer *regx ;
+   char *replacement ;
+   int replace_length ;
+   int flags ;
+   int numb ;
+   FILE *wio_file ;
+};
+#line 1556 "sed.preprocessed.c"
+union __anonunion_x_32 {
+   struct __anonstruct_cmd_txt_33 cmd_txt ;
+   struct sed_cmd *label ;
+   FILE *io_file ;
+   struct __anonstruct_cmd_regex_34 cmd_regex ;
+   unsigned char *translate ;
+   struct vector *sub ;
+   struct sed_label *jump ;
+};
+#line 1556 "sed.preprocessed.c"
+struct sed_cmd {
+   struct addr a1 ;
+   struct addr a2 ;
+   int aflags ;
+   char cmd ;
+   union __anonunion_x_32 x ;
+};
+#line 1586 "sed.preprocessed.c"
+struct line {
+   char *text ;
+   int length ;
+   int alloc ;
+};
+#line 1592 "sed.preprocessed.c"
+struct __anonstruct_file_ptrs_35 {
+   FILE *for_read ;
+   FILE *for_write ;
+   char *name ;
+};
+#line 3057 "sed.preprocessed.c"
+struct id {
+   FILE *fp ;
+   char *name ;
+};
+#line 3159 "sed.preprocessed.c"
+struct buffer {
+   int allocated ;
+   int length ;
+   char *b ;
+};
+#line 3237 "sed.preprocessed.c"
+typedef char boolean;
+#line 4267 "sed.preprocessed.c"
+struct eclose_frame {
+   struct rx_se_list *prog_backwards ;
+};
+#line 5624 "sed.preprocessed.c"
+typedef unsigned int regnum_t;
+#line 5625 "sed.preprocessed.c"
+typedef int pattern_offset_t;
+#line 5626 "sed.preprocessed.c"
+struct __anonstruct_compile_stack_elt_t_36 {
+   struct rexp_node **top_expression ;
+   struct rexp_node **last_expression ;
+   pattern_offset_t inner_group_offset ;
+   regnum_t regnum ;
+};
+#line 5626 "sed.preprocessed.c"
+typedef struct __anonstruct_compile_stack_elt_t_36 compile_stack_elt_t;
+#line 5633 "sed.preprocessed.c"
+struct __anonstruct_compile_stack_type_37 {
+   compile_stack_elt_t *stack ;
+   unsigned int size ;
+   unsigned int avail ;
+};
+#line 5633 "sed.preprocessed.c"
+typedef struct __anonstruct_compile_stack_type_37 compile_stack_type;
+#line 7127 "sed.preprocessed.c"
+struct stack_chunk {
+   struct stack_chunk *next_chunk ;
+   int bytes_left ;
+   char *sp ;
+};
+#line 7133 "sed.preprocessed.c"
+struct counter_frame {
+   int tag ;
+   int val ;
+   struct counter_frame *inherited_from ;
+   struct counter_frame *cdr ;
+};
+#line 7140 "sed.preprocessed.c"
+struct backtrack_frame {
+   char *counter_stack_sp ;
+   struct rx_superstate *stk_super ;
+   unsigned char const   *stk_tst_pos ;
+   int stk_tst_half ;
+   unsigned int stk_c ;
+   unsigned char const   *stk_tst_str_half ;
+   unsigned char const   *stk_tst_end_half ;
+   int stk_last_l ;
+   int stk_last_r ;
+   int stk_test_ret ;
+   struct rx_distinct_future *df ;
+   struct rx_distinct_future *first_df ;
+};
 /* compiler builtin: 
-   void __builtin_va_start(__builtin_va_list  ) ;  */
+   void *__builtin_alloca(unsigned long  ) ;  */
 /* compiler builtin: 
    void __builtin_va_end(__builtin_va_list  ) ;  */
 /* compiler builtin: 
-   void *__builtin_alloca(unsigned long  ) ;  */
-#line 67 "sed.preprocessed.c"
+   void __builtin_va_start(__builtin_va_list  ) ;  */
+#line 67
 extern  __attribute__((__nothrow__)) unsigned short const   **( __attribute__((__leaf__)) __ctype_b_loc)(void)  __attribute__((__const__)) ;
 #line 85
 extern  __attribute__((__nothrow__)) int ( __attribute__((__leaf__)) tolower)(int __c ) ;
@@ -425,7 +936,7 @@ static char slowmap[256]   =
 #line 8080 "sed.preprocessed.c"
 reg_syntax_t re_syntax_options   = (reg_syntax_t )0;
 #line 1674 "sed.preprocessed.c"
-int main(int  argc__0, char ** argv__0){
+int main(int  argc__1, char ** argv__1){
   int  opt__1;
   char * e_strings__1;
   int  compiled__1;
@@ -677,11 +1188,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1683 "sed.preprocessed.c"
   __cil_tmp65__1 = (reg_syntax_t )(__cil_tmp64__1);
 #line 1683 "sed.preprocessed.c"
-  //re_set_syntax(__cil_tmp65__1);
+  //call re_set_syntax(__cil_tmp65__1);
   {
 #line 1683 "sed.preprocessed.c"
     reg_syntax_t  __arg_tmp_0__2  = __cil_tmp65__1;
-#line 8081 "sed.preprocessed.c"
+#line 1683 "sed.preprocessed.c"
+    reg_syntax_t __return__2;
+    //done setup
     //enter re_set_syntax
     reg_syntax_t  syntax__2 = __arg_tmp_0__2 ;
     reg_syntax_t  ret__2;
@@ -689,7 +1202,6 @@ int main(int  argc__0, char ** argv__0){
     ret__2 = re_syntax_options;
 #line 8085 "sed.preprocessed.c"
     re_syntax_options = syntax__2;
-#line 8086 "sed.preprocessed.c"
     //exiting re_set_syntax
 #line 8086 "sed.preprocessed.c"
     __return__2 = ret__2;
@@ -711,7 +1223,7 @@ int main(int  argc__0, char ** argv__0){
 #line 1686 "sed.preprocessed.c"
   __cil_tmp71__1 = (int *)(0);
 #line 1686 "sed.preprocessed.c"
-  //opt__1 = getopt_long(argc__1, __cil_tmp66__1, "hne:f:V", __cil_tmp70__1, __cil_tmp71__1);
+  //call opt__1 = getopt_long(argc__1, __cil_tmp66__1, "hne:f:V", __cil_tmp70__1, __cil_tmp71__1);
   {
 #line 1686 "sed.preprocessed.c"
     int  __arg_tmp_0__2  = argc__1;
@@ -725,15 +1237,16 @@ int main(int  argc__0, char ** argv__0){
     int * __arg_tmp_4__2  = __cil_tmp71__1;
 #line 1686 "sed.preprocessed.c"
     int __return__2;
+    //done setup
 #line 1686 "sed.preprocessed.c"
     opt__1 = __return__2;
   }
 #line 1715 "sed.preprocessed.c"
-  //compile_file(optarg);
+  //call compile_file(optarg);
   {
 #line 1715 "sed.preprocessed.c"
     char * __arg_tmp_0__2  = optarg;
-#line 1802 "sed.preprocessed.c"
+    //done setup
     //enter compile_file
     char * str__2 = __arg_tmp_0__2 ;
     int  ch__2;
@@ -764,7 +1277,7 @@ int main(int  argc__0, char ** argv__0){
 #line 1813 "sed.preprocessed.c"
     __cil_tmp10__2 = (char *)("r");
 #line 1813 "sed.preprocessed.c"
-    //prog_file = ck_fopen(str__2, __cil_tmp10__2);
+    //call prog_file = ck_fopen(str__2, __cil_tmp10__2);
     {
 #line 1813 "sed.preprocessed.c"
       char * __arg_tmp_0__3  = str__2;
@@ -772,7 +1285,7 @@ int main(int  argc__0, char ** argv__0){
       char * __arg_tmp_1__3  = __cil_tmp10__2;
 #line 1813 "sed.preprocessed.c"
       FILE *__return__3;
-#line 3073 "sed.preprocessed.c"
+      //done setup
       //enter ck_fopen
       char * name__3 = __arg_tmp_0__3 ;
       char * mode__3 = __arg_tmp_1__3 ;
@@ -844,7 +1357,7 @@ int main(int  argc__0, char ** argv__0){
 #line 3080 "sed.preprocessed.c"
       __cil_tmp10__3 = (char const   * __restrict  )(mode__3);
 #line 3080 "sed.preprocessed.c"
-      //ret__3 = fopen(__cil_tmp9__3, __cil_tmp10__3);
+      //call ret__3 = fopen(__cil_tmp9__3, __cil_tmp10__3);
       {
 #line 3080 "sed.preprocessed.c"
         char const   * __restrict   __arg_tmp_0__4  = __cil_tmp9__3;
@@ -852,6 +1365,7 @@ int main(int  argc__0, char ** argv__0){
         char const   * __restrict   __arg_tmp_1__4  = __cil_tmp10__3;
 #line 3080 "sed.preprocessed.c"
         FILE *__return__4;
+        //done setup
 #line 3080 "sed.preprocessed.c"
         ret__3 = __return__4;
       }
@@ -1338,12 +1852,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3098 "sed.preprocessed.c"
       __cil_tmp46__3 = (char const   *)(name__3);
 #line 3098 "sed.preprocessed.c"
-      //tmp___2__3 = strlen(__cil_tmp46__3);
+      //call tmp___2__3 = strlen(__cil_tmp46__3);
       {
 #line 3098 "sed.preprocessed.c"
         char const   * __arg_tmp_0__4  = __cil_tmp46__3;
 #line 3098 "sed.preprocessed.c"
         size_t __return__4;
+        //done setup
 #line 3098 "sed.preprocessed.c"
         tmp___2__3 = __return__4;
       }
@@ -1352,13 +1867,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3098 "sed.preprocessed.c"
       __cil_tmp48__3 = (int )(__cil_tmp47__3);
 #line 3098 "sed.preprocessed.c"
-      //tmp___3__3 = ck_malloc(__cil_tmp48__3);
+      //call tmp___3__3 = ck_malloc(__cil_tmp48__3);
       {
 #line 3098 "sed.preprocessed.c"
         int  __arg_tmp_0__4  = __cil_tmp48__3;
 #line 3098 "sed.preprocessed.c"
         void *__return__4;
-#line 3119 "sed.preprocessed.c"
+        //done setup
         //enter ck_malloc
         int  size__4 = __arg_tmp_0__4 ;
         void * ret__4;
@@ -1370,12 +1885,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
         __cil_tmp3__4 = (size_t )(size__4);
 #line 3126 "sed.preprocessed.c"
-        //ret__4 = malloc(__cil_tmp3__4);
+        //call ret__4 = malloc(__cil_tmp3__4);
         {
 #line 3126 "sed.preprocessed.c"
           size_t  __arg_tmp_0__5  = __cil_tmp3__4;
 #line 3126 "sed.preprocessed.c"
           void *__return__5;
+          //done setup
 #line 3126 "sed.preprocessed.c"
           ret__4 = __return__5;
         }
@@ -1385,7 +1901,6 @@ int main(int  argc__0, char ** argv__0){
         __cil_tmp5__4 = (unsigned long )(__cil_tmp4__4);
 #line 3127 "sed.preprocessed.c"
         __cil_tmp6__4 = (unsigned long )(ret__4);
-#line 3129 "sed.preprocessed.c"
         //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
         __return__4 = ret__4;
@@ -1417,14 +1932,16 @@ int main(int  argc__0, char ** argv__0){
 #line 3099 "sed.preprocessed.c"
       __cil_tmp57__3 = (char const   * __restrict  )(name__3);
 #line 3099 "sed.preprocessed.c"
-      //strcpy(__cil_tmp56__3, __cil_tmp57__3);
+      //call strcpy(__cil_tmp56__3, __cil_tmp57__3);
       {
 #line 3099 "sed.preprocessed.c"
         char * __restrict   __arg_tmp_0__4  = __cil_tmp56__3;
 #line 3099 "sed.preprocessed.c"
         char const   * __restrict   __arg_tmp_1__4  = __cil_tmp57__3;
+#line 3099 "sed.preprocessed.c"
+        char *__return__4;
+        //done setup
       }
-#line 3101 "sed.preprocessed.c"
       //exiting ck_fopen
 #line 3101 "sed.preprocessed.c"
       __return__3 = ret__3;
@@ -1432,25 +1949,29 @@ int main(int  argc__0, char ** argv__0){
       prog_file = __return__3;
     }
 #line 1814 "sed.preprocessed.c"
-    //ch__2 = _IO_getc(prog_file);
+    //call ch__2 = _IO_getc(prog_file);
     {
 #line 1814 "sed.preprocessed.c"
       FILE * __arg_tmp_0__3  = prog_file;
 #line 1814 "sed.preprocessed.c"
       int __return__3;
+      //done setup
 #line 1814 "sed.preprocessed.c"
       ch__2 = __return__3;
     }
 #line 1829 "sed.preprocessed.c"
-    //ungetc(ch__2, prog_file);
+    //call ungetc(ch__2, prog_file);
     {
 #line 1829 "sed.preprocessed.c"
       int  __arg_tmp_0__3  = ch__2;
 #line 1829 "sed.preprocessed.c"
       FILE * __arg_tmp_1__3  = prog_file;
+#line 1829 "sed.preprocessed.c"
+      int __return__3;
+      //done setup
     }
 #line 1830 "sed.preprocessed.c"
-    //the_program = compile_program(the_program, prog_line);
+    //call the_program = compile_program(the_program, prog_line);
     {
 #line 1830 "sed.preprocessed.c"
       struct vector * __arg_tmp_0__3  = the_program;
@@ -1458,7 +1979,7 @@ int main(int  argc__0, char ** argv__0){
       int  __arg_tmp_1__3  = prog_line;
 #line 1830 "sed.preprocessed.c"
       struct vector *__return__3;
-#line 1832 "sed.preprocessed.c"
+      //done setup
       //enter compile_program
       struct vector * vector__3 = __arg_tmp_0__3 ;
       int  open_line__3 = __arg_tmp_1__3 ;
@@ -1917,13 +2438,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1846 "sed.preprocessed.c"
       __cil_tmp32__3 = (int )(32UL);
 #line 1846 "sed.preprocessed.c"
-      //tmp__3 = ck_malloc(__cil_tmp32__3);
+      //call tmp__3 = ck_malloc(__cil_tmp32__3);
       {
 #line 1846 "sed.preprocessed.c"
         int  __arg_tmp_0__4  = __cil_tmp32__3;
 #line 1846 "sed.preprocessed.c"
         void *__return__4;
-#line 3119 "sed.preprocessed.c"
+        //done setup
         //enter ck_malloc
         int  size__4 = __arg_tmp_0__4 ;
         void * ret__4;
@@ -1935,12 +2456,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
         __cil_tmp3__4 = (size_t )(size__4);
 #line 3126 "sed.preprocessed.c"
-        //ret__4 = malloc(__cil_tmp3__4);
+        //call ret__4 = malloc(__cil_tmp3__4);
         {
 #line 3126 "sed.preprocessed.c"
           size_t  __arg_tmp_0__5  = __cil_tmp3__4;
 #line 3126 "sed.preprocessed.c"
           void *__return__5;
+          //done setup
 #line 3126 "sed.preprocessed.c"
           ret__4 = __return__5;
         }
@@ -1950,7 +2472,6 @@ int main(int  argc__0, char ** argv__0){
         __cil_tmp5__4 = (unsigned long )(__cil_tmp4__4);
 #line 3127 "sed.preprocessed.c"
         __cil_tmp6__4 = (unsigned long )(ret__4);
-#line 3129 "sed.preprocessed.c"
         //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
         __return__4 = ret__4;
@@ -1964,13 +2485,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1847 "sed.preprocessed.c"
       __cil_tmp34__3 = (int )(__cil_tmp33__3);
 #line 1847 "sed.preprocessed.c"
-      //tmp___0__3 = ck_malloc(__cil_tmp34__3);
+      //call tmp___0__3 = ck_malloc(__cil_tmp34__3);
       {
 #line 1847 "sed.preprocessed.c"
         int  __arg_tmp_0__4  = __cil_tmp34__3;
 #line 1847 "sed.preprocessed.c"
         void *__return__4;
-#line 3119 "sed.preprocessed.c"
+        //done setup
         //enter ck_malloc
         int  size__4 = __arg_tmp_0__4 ;
         void * ret__4;
@@ -1982,12 +2503,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
         __cil_tmp3__4 = (size_t )(size__4);
 #line 3126 "sed.preprocessed.c"
-        //ret__4 = malloc(__cil_tmp3__4);
+        //call ret__4 = malloc(__cil_tmp3__4);
         {
 #line 3126 "sed.preprocessed.c"
           size_t  __arg_tmp_0__5  = __cil_tmp3__4;
 #line 3126 "sed.preprocessed.c"
           void *__return__5;
+          //done setup
 #line 3126 "sed.preprocessed.c"
           ret__4 = __return__5;
         }
@@ -1997,7 +2519,6 @@ int main(int  argc__0, char ** argv__0){
         __cil_tmp5__4 = (unsigned long )(__cil_tmp4__4);
 #line 3127 "sed.preprocessed.c"
         __cil_tmp6__4 = (unsigned long )(ret__4);
-#line 3129 "sed.preprocessed.c"
         //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
         __return__4 = ret__4;
@@ -2043,11 +2564,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1858 "sed.preprocessed.c"
       pch__3 = ch__3;
 #line 1859 "sed.preprocessed.c"
-      //ch__3 = inchar();
+      //call ch__3 = inchar();
       {
 #line 1859 "sed.preprocessed.c"
         int __return__4;
-#line 2154 "sed.preprocessed.c"
+        //done setup
         //enter inchar
         int  ch__4;
         int  tmp__4;
@@ -2056,28 +2577,29 @@ int main(int  argc__0, char ** argv__0){
         unsigned long  __cil_tmp5__4;
         unsigned char  __cil_tmp6__4;
 #line 2160 "sed.preprocessed.c"
-        //tmp__4 = feof(prog_file);
+        //call tmp__4 = feof(prog_file);
         {
 #line 2160 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2160 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2160 "sed.preprocessed.c"
           tmp__4 = __return__5;
         }
 #line 2163 "sed.preprocessed.c"
-        //ch__4 = _IO_getc(prog_file);
+        //call ch__4 = _IO_getc(prog_file);
         {
 #line 2163 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2163 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2163 "sed.preprocessed.c"
           ch__4 = __return__5;
         }
 #line 2178 "sed.preprocessed.c"
         prog_line = (prog_line) + (1);
-#line 2179 "sed.preprocessed.c"
         //exiting inchar
 #line 2179 "sed.preprocessed.c"
         __return__4 = ch__4;
@@ -2085,10 +2607,11 @@ int main(int  argc__0, char ** argv__0){
         ch__3 = __return__4;
       }
 #line 1856 "sed.preprocessed.c"
-      //tmp___1__3 = __ctype_b_loc();
+      //call tmp___1__3 = __ctype_b_loc();
       {
 #line 1856 "sed.preprocessed.c"
         unsigned short const   **__return__4;
+        //done setup
 #line 1856 "sed.preprocessed.c"
         tmp___1__3 = __return__4;
       }
@@ -2103,11 +2626,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1858 "sed.preprocessed.c"
       pch__3 = ch__3;
 #line 1859 "sed.preprocessed.c"
-      //ch__3 = inchar();
+      //call ch__3 = inchar();
       {
 #line 1859 "sed.preprocessed.c"
         int __return__4;
-#line 2154 "sed.preprocessed.c"
+        //done setup
         //enter inchar
         int  ch__4;
         int  tmp__4;
@@ -2116,26 +2639,27 @@ int main(int  argc__0, char ** argv__0){
         unsigned long  __cil_tmp5__4;
         unsigned char  __cil_tmp6__4;
 #line 2160 "sed.preprocessed.c"
-        //tmp__4 = feof(prog_file);
+        //call tmp__4 = feof(prog_file);
         {
 #line 2160 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2160 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2160 "sed.preprocessed.c"
           tmp__4 = __return__5;
         }
 #line 2163 "sed.preprocessed.c"
-        //ch__4 = _IO_getc(prog_file);
+        //call ch__4 = _IO_getc(prog_file);
         {
 #line 2163 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2163 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2163 "sed.preprocessed.c"
           ch__4 = __return__5;
         }
-#line 2179 "sed.preprocessed.c"
         //exiting inchar
 #line 2179 "sed.preprocessed.c"
         __return__4 = ch__4;
@@ -2143,10 +2667,11 @@ int main(int  argc__0, char ** argv__0){
         ch__3 = __return__4;
       }
 #line 1856 "sed.preprocessed.c"
-      //tmp___1__3 = __ctype_b_loc();
+      //call tmp___1__3 = __ctype_b_loc();
       {
 #line 1856 "sed.preprocessed.c"
         unsigned short const   **__return__4;
+        //done setup
 #line 1856 "sed.preprocessed.c"
         tmp___1__3 = __return__4;
       }
@@ -2159,21 +2684,25 @@ int main(int  argc__0, char ** argv__0){
 #line 1856 "sed.preprocessed.c"
       __cil_tmp46__3 = (int const   )(__cil_tmp45__3);
 #line 1866 "sed.preprocessed.c"
-      //savchar(ch__3);
+      //call savchar(ch__3);
       {
 #line 1866 "sed.preprocessed.c"
         int  __arg_tmp_0__4  = ch__3;
-#line 2181 "sed.preprocessed.c"
+        //done setup
         //enter savchar
         int  ch__4 = __arg_tmp_0__4 ;
 #line 2190 "sed.preprocessed.c"
-        //ungetc(ch__4, prog_file);
+        //call ungetc(ch__4, prog_file);
         {
 #line 2190 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = ch__4;
 #line 2190 "sed.preprocessed.c"
           FILE * __arg_tmp_1__5  = prog_file;
+#line 2190 "sed.preprocessed.c"
+          int __return__5;
+          //done setup
         }
+        //exiting savchar
       }
 #line 1867 "sed.preprocessed.c"
       __cil_tmp47__3 = (unsigned long )(vector__3);
@@ -2252,13 +2781,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1881 "sed.preprocessed.c"
       __cil_tmp82__3 = (struct addr *)(cur_cmd__3);
 #line 1881 "sed.preprocessed.c"
-      //tmp___5__3 = compile_address(__cil_tmp82__3);
+      //call tmp___5__3 = compile_address(__cil_tmp82__3);
       {
 #line 1881 "sed.preprocessed.c"
         struct addr * __arg_tmp_0__4  = __cil_tmp82__3;
 #line 1881 "sed.preprocessed.c"
         int __return__4;
-#line 2194 "sed.preprocessed.c"
+        //done setup
         //enter compile_address
         struct addr * addr__4 = __arg_tmp_0__4 ;
         int  ch__4;
@@ -2331,11 +2860,11 @@ int main(int  argc__0, char ** argv__0){
         struct re_pattern_buffer ** mem_69__4;
         int * mem_70__4;
 #line 2200 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 2200 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -2344,26 +2873,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -2371,10 +2901,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 2201 "sed.preprocessed.c"
-        //tmp___5__4 = __ctype_b_loc();
+        //call tmp___5__4 = __ctype_b_loc();
         {
 #line 2201 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 2201 "sed.preprocessed.c"
           tmp___5__4 = __return__5;
         }
@@ -2391,11 +2922,11 @@ int main(int  argc__0, char ** argv__0){
 #line 2232 "sed.preprocessed.c"
         *mem_68__4 = 2;
 #line 2235 "sed.preprocessed.c"
-        //buffer_regex(ch__4);
+        //call buffer_regex(ch__4);
         {
 #line 2235 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = ch__4;
-#line 2256 "sed.preprocessed.c"
+          //done setup
           //enter buffer_regex
           int  slash__5 = __arg_tmp_0__5 ;
           void * b__5;
@@ -2436,11 +2967,11 @@ int main(int  argc__0, char ** argv__0){
 #line 2262 "sed.preprocessed.c"
           char_class_pos__5 = -1;
 #line 2263 "sed.preprocessed.c"
-          //b__5 = init_buffer();
+          //call b__5 = init_buffer();
           {
 #line 2263 "sed.preprocessed.c"
             void *__return__6;
-#line 3164 "sed.preprocessed.c"
+            //done setup
             //enter init_buffer
             struct buffer * b__6;
             void * tmp___0__6;
@@ -2456,13 +2987,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3168 "sed.preprocessed.c"
             __cil_tmp4__6 = (int )(16UL);
 #line 3168 "sed.preprocessed.c"
-            //tmp___0__6 = ck_malloc(__cil_tmp4__6);
+            //call tmp___0__6 = ck_malloc(__cil_tmp4__6);
             {
 #line 3168 "sed.preprocessed.c"
               int  __arg_tmp_0__7  = __cil_tmp4__6;
 #line 3168 "sed.preprocessed.c"
               void *__return__7;
-#line 3119 "sed.preprocessed.c"
+              //done setup
               //enter ck_malloc
               int  size__7 = __arg_tmp_0__7 ;
               void * ret__7;
@@ -2474,12 +3005,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
               __cil_tmp3__7 = (size_t )(size__7);
 #line 3126 "sed.preprocessed.c"
-              //ret__7 = malloc(__cil_tmp3__7);
+              //call ret__7 = malloc(__cil_tmp3__7);
               {
 #line 3126 "sed.preprocessed.c"
                 size_t  __arg_tmp_0__8  = __cil_tmp3__7;
 #line 3126 "sed.preprocessed.c"
                 void *__return__8;
+                //done setup
 #line 3126 "sed.preprocessed.c"
                 ret__7 = __return__8;
               }
@@ -2489,7 +3021,6 @@ int main(int  argc__0, char ** argv__0){
               __cil_tmp5__7 = (unsigned long )(__cil_tmp4__7);
 #line 3127 "sed.preprocessed.c"
               __cil_tmp6__7 = (unsigned long )(ret__7);
-#line 3129 "sed.preprocessed.c"
               //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
               __return__7 = ret__7;
@@ -2503,13 +3034,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3169 "sed.preprocessed.c"
             *mem_9__6 = 50;
 #line 3170 "sed.preprocessed.c"
-            //tmp___1__6 = ck_malloc(50);
+            //call tmp___1__6 = ck_malloc(50);
             {
 #line 3170 "sed.preprocessed.c"
               int  __arg_tmp_0__7  = 50;
 #line 3170 "sed.preprocessed.c"
               void *__return__7;
-#line 3119 "sed.preprocessed.c"
+              //done setup
               //enter ck_malloc
               int  size__7 = __arg_tmp_0__7 ;
               void * ret__7;
@@ -2521,12 +3052,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
               __cil_tmp3__7 = (size_t )(size__7);
 #line 3126 "sed.preprocessed.c"
-              //ret__7 = malloc(__cil_tmp3__7);
+              //call ret__7 = malloc(__cil_tmp3__7);
               {
 #line 3126 "sed.preprocessed.c"
                 size_t  __arg_tmp_0__8  = __cil_tmp3__7;
 #line 3126 "sed.preprocessed.c"
                 void *__return__8;
+                //done setup
 #line 3126 "sed.preprocessed.c"
                 ret__7 = __return__8;
               }
@@ -2536,7 +3068,6 @@ int main(int  argc__0, char ** argv__0){
               __cil_tmp5__7 = (unsigned long )(__cil_tmp4__7);
 #line 3127 "sed.preprocessed.c"
               __cil_tmp6__7 = (unsigned long )(ret__7);
-#line 3129 "sed.preprocessed.c"
               //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
               __return__7 = ret__7;
@@ -2559,7 +3090,6 @@ int main(int  argc__0, char ** argv__0){
             mem_11__6 = (int *)(__cil_tmp8__6);
 #line 3171 "sed.preprocessed.c"
             *mem_11__6 = 0;
-#line 3172 "sed.preprocessed.c"
             //exiting init_buffer
 #line 3172 "sed.preprocessed.c"
             __return__6 = (void *)(b__6);
@@ -2567,11 +3097,11 @@ int main(int  argc__0, char ** argv__0){
             b__5 = __return__6;
           }
 #line 2264 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2264 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -2580,26 +3110,27 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
-#line 2179 "sed.preprocessed.c"
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -2607,11 +3138,11 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2316 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2316 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -2620,26 +3151,27 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
-#line 2179 "sed.preprocessed.c"
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -2647,297 +3179,13 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2325 "sed.preprocessed.c"
-          //add1_buffer(b__5, '\\');
-          {
-#line 2325 "sed.preprocessed.c"
-            void * __arg_tmp_0__6  = b__5;
-#line 2325 "sed.preprocessed.c"
-            int  __arg_tmp_1__6  = '\\';
-#line 3214 "sed.preprocessed.c"
-            //enter add1_buffer
-            void * bb__6 = __arg_tmp_0__6 ;
-            int  ch__6 = __arg_tmp_1__6 ;
-            struct buffer * b__6;
-            void * tmp___0__6;
-            int  __cil_tmp5__6;
-            unsigned long  __cil_tmp6__6;
-            unsigned long  __cil_tmp7__6;
-            int  __cil_tmp8__6;
-            int  __cil_tmp9__6;
-            int  __cil_tmp10__6;
-            unsigned long  __cil_tmp11__6;
-            unsigned long  __cil_tmp12__6;
-            char * __cil_tmp13__6;
-            void * __cil_tmp14__6;
-            int  __cil_tmp15__6;
-            unsigned long  __cil_tmp16__6;
-            unsigned long  __cil_tmp17__6;
-            unsigned long  __cil_tmp18__6;
-            unsigned long  __cil_tmp19__6;
-            int  __cil_tmp20__6;
-            unsigned long  __cil_tmp21__6;
-            unsigned long  __cil_tmp22__6;
-            char * __cil_tmp23__6;
-            char * __cil_tmp24__6;
-            unsigned long  __cil_tmp25__6;
-            unsigned long  __cil_tmp26__6;
-            unsigned long  __cil_tmp27__6;
-            unsigned long  __cil_tmp28__6;
-            int  __cil_tmp29__6;
-            int * mem_30__6;
-            int * mem_31__6;
-            int * mem_32__6;
-            int * mem_33__6;
-            char ** mem_34__6;
-            int * mem_35__6;
-            char ** mem_36__6;
-            int * mem_37__6;
-            char ** mem_38__6;
-            int * mem_39__6;
-            int * mem_40__6;
-#line 3220 "sed.preprocessed.c"
-            b__6 = (struct buffer *)(bb__6);
-#line 3221 "sed.preprocessed.c"
-            mem_30__6 = (int *)(b__6);
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp5__6 = *mem_30__6;
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp6__6 = (unsigned long )(b__6);
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp7__6 = (__cil_tmp6__6) + (4);
-#line 3221 "sed.preprocessed.c"
-            mem_31__6 = (int *)(__cil_tmp7__6);
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp8__6 = *mem_31__6;
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp9__6 = (__cil_tmp8__6) + (1);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp18__6 = (unsigned long )(b__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp19__6 = (__cil_tmp18__6) + (4);
-#line 3225 "sed.preprocessed.c"
-            mem_37__6 = (int *)(__cil_tmp19__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp20__6 = *mem_37__6;
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp21__6 = (unsigned long )(b__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp22__6 = (__cil_tmp21__6) + (8);
-#line 3225 "sed.preprocessed.c"
-            mem_38__6 = (char **)(__cil_tmp22__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp23__6 = *mem_38__6;
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp24__6 = (__cil_tmp23__6) + (__cil_tmp20__6);
-#line 3225 "sed.preprocessed.c"
-            *__cil_tmp24__6 = (char )(ch__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp25__6 = (unsigned long )(b__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp26__6 = (__cil_tmp25__6) + (4);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp27__6 = (unsigned long )(b__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp28__6 = (__cil_tmp27__6) + (4);
-#line 3226 "sed.preprocessed.c"
-            mem_39__6 = (int *)(__cil_tmp28__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp29__6 = *mem_39__6;
-#line 3226 "sed.preprocessed.c"
-            mem_40__6 = (int *)(__cil_tmp26__6);
-#line 3226 "sed.preprocessed.c"
-            *mem_40__6 = (__cil_tmp29__6) + (1);
-          }
-#line 2326 "sed.preprocessed.c"
-          //add1_buffer(b__5, ch__5);
-          {
-#line 2326 "sed.preprocessed.c"
-            void * __arg_tmp_0__6  = b__5;
-#line 2326 "sed.preprocessed.c"
-            int  __arg_tmp_1__6  = ch__5;
-#line 3214 "sed.preprocessed.c"
-            //enter add1_buffer
-            void * bb__6 = __arg_tmp_0__6 ;
-            int  ch__6 = __arg_tmp_1__6 ;
-            struct buffer * b__6;
-            void * tmp___0__6;
-            int  __cil_tmp5__6;
-            unsigned long  __cil_tmp6__6;
-            unsigned long  __cil_tmp7__6;
-            int  __cil_tmp8__6;
-            int  __cil_tmp9__6;
-            int  __cil_tmp10__6;
-            unsigned long  __cil_tmp11__6;
-            unsigned long  __cil_tmp12__6;
-            char * __cil_tmp13__6;
-            void * __cil_tmp14__6;
-            int  __cil_tmp15__6;
-            unsigned long  __cil_tmp16__6;
-            unsigned long  __cil_tmp17__6;
-            unsigned long  __cil_tmp18__6;
-            unsigned long  __cil_tmp19__6;
-            int  __cil_tmp20__6;
-            unsigned long  __cil_tmp21__6;
-            unsigned long  __cil_tmp22__6;
-            char * __cil_tmp23__6;
-            char * __cil_tmp24__6;
-            unsigned long  __cil_tmp25__6;
-            unsigned long  __cil_tmp26__6;
-            unsigned long  __cil_tmp27__6;
-            unsigned long  __cil_tmp28__6;
-            int  __cil_tmp29__6;
-            int * mem_30__6;
-            int * mem_31__6;
-            int * mem_32__6;
-            int * mem_33__6;
-            char ** mem_34__6;
-            int * mem_35__6;
-            char ** mem_36__6;
-            int * mem_37__6;
-            char ** mem_38__6;
-            int * mem_39__6;
-            int * mem_40__6;
-#line 3220 "sed.preprocessed.c"
-            b__6 = (struct buffer *)(bb__6);
-#line 3221 "sed.preprocessed.c"
-            mem_30__6 = (int *)(b__6);
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp5__6 = *mem_30__6;
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp6__6 = (unsigned long )(b__6);
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp7__6 = (__cil_tmp6__6) + (4);
-#line 3221 "sed.preprocessed.c"
-            mem_31__6 = (int *)(__cil_tmp7__6);
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp8__6 = *mem_31__6;
-#line 3221 "sed.preprocessed.c"
-            __cil_tmp9__6 = (__cil_tmp8__6) + (1);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp18__6 = (unsigned long )(b__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp19__6 = (__cil_tmp18__6) + (4);
-#line 3225 "sed.preprocessed.c"
-            mem_37__6 = (int *)(__cil_tmp19__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp20__6 = *mem_37__6;
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp21__6 = (unsigned long )(b__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp22__6 = (__cil_tmp21__6) + (8);
-#line 3225 "sed.preprocessed.c"
-            mem_38__6 = (char **)(__cil_tmp22__6);
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp23__6 = *mem_38__6;
-#line 3225 "sed.preprocessed.c"
-            __cil_tmp24__6 = (__cil_tmp23__6) + (__cil_tmp20__6);
-#line 3225 "sed.preprocessed.c"
-            *__cil_tmp24__6 = (char )(ch__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp25__6 = (unsigned long )(b__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp26__6 = (__cil_tmp25__6) + (4);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp27__6 = (unsigned long )(b__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp28__6 = (__cil_tmp27__6) + (4);
-#line 3226 "sed.preprocessed.c"
-            mem_39__6 = (int *)(__cil_tmp28__6);
-#line 3226 "sed.preprocessed.c"
-            __cil_tmp29__6 = *mem_39__6;
-#line 3226 "sed.preprocessed.c"
-            mem_40__6 = (int *)(__cil_tmp26__6);
-#line 3226 "sed.preprocessed.c"
-            *mem_40__6 = (__cil_tmp29__6) + (1);
-          }
-#line 2264 "sed.preprocessed.c"
-          //ch__5 = inchar();
-          {
-#line 2264 "sed.preprocessed.c"
-            int __return__6;
-#line 2154 "sed.preprocessed.c"
-            //enter inchar
-            int  ch__6;
-            int  tmp__6;
-            unsigned char * tmp___0__6;
-            unsigned long  __cil_tmp4__6;
-            unsigned long  __cil_tmp5__6;
-            unsigned char  __cil_tmp6__6;
-#line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
-            {
-#line 2160 "sed.preprocessed.c"
-              FILE * __arg_tmp_0__7  = prog_file;
-#line 2160 "sed.preprocessed.c"
-              int __return__7;
-#line 2160 "sed.preprocessed.c"
-              tmp__6 = __return__7;
-            }
-#line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
-            {
-#line 2163 "sed.preprocessed.c"
-              FILE * __arg_tmp_0__7  = prog_file;
-#line 2163 "sed.preprocessed.c"
-              int __return__7;
-#line 2163 "sed.preprocessed.c"
-              ch__6 = __return__7;
-            }
-#line 2179 "sed.preprocessed.c"
-            //exiting inchar
-#line 2179 "sed.preprocessed.c"
-            __return__6 = ch__6;
-#line 2264 "sed.preprocessed.c"
-            ch__5 = __return__6;
-          }
-#line 2316 "sed.preprocessed.c"
-          //ch__5 = inchar();
-          {
-#line 2316 "sed.preprocessed.c"
-            int __return__6;
-#line 2154 "sed.preprocessed.c"
-            //enter inchar
-            int  ch__6;
-            int  tmp__6;
-            unsigned char * tmp___0__6;
-            unsigned long  __cil_tmp4__6;
-            unsigned long  __cil_tmp5__6;
-            unsigned char  __cil_tmp6__6;
-#line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
-            {
-#line 2160 "sed.preprocessed.c"
-              FILE * __arg_tmp_0__7  = prog_file;
-#line 2160 "sed.preprocessed.c"
-              int __return__7;
-#line 2160 "sed.preprocessed.c"
-              tmp__6 = __return__7;
-            }
-#line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
-            {
-#line 2163 "sed.preprocessed.c"
-              FILE * __arg_tmp_0__7  = prog_file;
-#line 2163 "sed.preprocessed.c"
-              int __return__7;
-#line 2163 "sed.preprocessed.c"
-              ch__6 = __return__7;
-            }
-#line 2179 "sed.preprocessed.c"
-            //exiting inchar
-#line 2179 "sed.preprocessed.c"
-            __return__6 = ch__6;
-#line 2316 "sed.preprocessed.c"
-            ch__5 = __return__6;
-          }
-#line 2325 "sed.preprocessed.c"
-          //add1_buffer(b__5, '\\');
+          //call add1_buffer(b__5, '\\');
           {
 #line 2325 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2325 "sed.preprocessed.c"
             int  __arg_tmp_1__6  = '\\';
-#line 3214 "sed.preprocessed.c"
+            //done setup
             //enter add1_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             int  ch__6 = __arg_tmp_1__6 ;
@@ -3031,15 +3279,16 @@ int main(int  argc__0, char ** argv__0){
             mem_40__6 = (int *)(__cil_tmp26__6);
 #line 3226 "sed.preprocessed.c"
             *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
           }
 #line 2326 "sed.preprocessed.c"
-          //add1_buffer(b__5, ch__5);
+          //call add1_buffer(b__5, ch__5);
           {
 #line 2326 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2326 "sed.preprocessed.c"
             int  __arg_tmp_1__6  = ch__5;
-#line 3214 "sed.preprocessed.c"
+            //done setup
             //enter add1_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             int  ch__6 = __arg_tmp_1__6 ;
@@ -3133,13 +3382,14 @@ int main(int  argc__0, char ** argv__0){
             mem_40__6 = (int *)(__cil_tmp26__6);
 #line 3226 "sed.preprocessed.c"
             *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
           }
 #line 2264 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2264 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -3148,26 +3398,315 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
+            //exiting inchar
 #line 2179 "sed.preprocessed.c"
+            __return__6 = ch__6;
+#line 2264 "sed.preprocessed.c"
+            ch__5 = __return__6;
+          }
+#line 2316 "sed.preprocessed.c"
+          //call ch__5 = inchar();
+          {
+#line 2316 "sed.preprocessed.c"
+            int __return__6;
+            //done setup
+            //enter inchar
+            int  ch__6;
+            int  tmp__6;
+            unsigned char * tmp___0__6;
+            unsigned long  __cil_tmp4__6;
+            unsigned long  __cil_tmp5__6;
+            unsigned char  __cil_tmp6__6;
+#line 2160 "sed.preprocessed.c"
+            //call tmp__6 = feof(prog_file);
+            {
+#line 2160 "sed.preprocessed.c"
+              FILE * __arg_tmp_0__7  = prog_file;
+#line 2160 "sed.preprocessed.c"
+              int __return__7;
+              //done setup
+#line 2160 "sed.preprocessed.c"
+              tmp__6 = __return__7;
+            }
+#line 2163 "sed.preprocessed.c"
+            //call ch__6 = _IO_getc(prog_file);
+            {
+#line 2163 "sed.preprocessed.c"
+              FILE * __arg_tmp_0__7  = prog_file;
+#line 2163 "sed.preprocessed.c"
+              int __return__7;
+              //done setup
+#line 2163 "sed.preprocessed.c"
+              ch__6 = __return__7;
+            }
+            //exiting inchar
+#line 2179 "sed.preprocessed.c"
+            __return__6 = ch__6;
+#line 2316 "sed.preprocessed.c"
+            ch__5 = __return__6;
+          }
+#line 2325 "sed.preprocessed.c"
+          //call add1_buffer(b__5, '\\');
+          {
+#line 2325 "sed.preprocessed.c"
+            void * __arg_tmp_0__6  = b__5;
+#line 2325 "sed.preprocessed.c"
+            int  __arg_tmp_1__6  = '\\';
+            //done setup
+            //enter add1_buffer
+            void * bb__6 = __arg_tmp_0__6 ;
+            int  ch__6 = __arg_tmp_1__6 ;
+            struct buffer * b__6;
+            void * tmp___0__6;
+            int  __cil_tmp5__6;
+            unsigned long  __cil_tmp6__6;
+            unsigned long  __cil_tmp7__6;
+            int  __cil_tmp8__6;
+            int  __cil_tmp9__6;
+            int  __cil_tmp10__6;
+            unsigned long  __cil_tmp11__6;
+            unsigned long  __cil_tmp12__6;
+            char * __cil_tmp13__6;
+            void * __cil_tmp14__6;
+            int  __cil_tmp15__6;
+            unsigned long  __cil_tmp16__6;
+            unsigned long  __cil_tmp17__6;
+            unsigned long  __cil_tmp18__6;
+            unsigned long  __cil_tmp19__6;
+            int  __cil_tmp20__6;
+            unsigned long  __cil_tmp21__6;
+            unsigned long  __cil_tmp22__6;
+            char * __cil_tmp23__6;
+            char * __cil_tmp24__6;
+            unsigned long  __cil_tmp25__6;
+            unsigned long  __cil_tmp26__6;
+            unsigned long  __cil_tmp27__6;
+            unsigned long  __cil_tmp28__6;
+            int  __cil_tmp29__6;
+            int * mem_30__6;
+            int * mem_31__6;
+            int * mem_32__6;
+            int * mem_33__6;
+            char ** mem_34__6;
+            int * mem_35__6;
+            char ** mem_36__6;
+            int * mem_37__6;
+            char ** mem_38__6;
+            int * mem_39__6;
+            int * mem_40__6;
+#line 3220 "sed.preprocessed.c"
+            b__6 = (struct buffer *)(bb__6);
+#line 3221 "sed.preprocessed.c"
+            mem_30__6 = (int *)(b__6);
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp5__6 = *mem_30__6;
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp6__6 = (unsigned long )(b__6);
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp7__6 = (__cil_tmp6__6) + (4);
+#line 3221 "sed.preprocessed.c"
+            mem_31__6 = (int *)(__cil_tmp7__6);
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp8__6 = *mem_31__6;
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp9__6 = (__cil_tmp8__6) + (1);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp18__6 = (unsigned long )(b__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp19__6 = (__cil_tmp18__6) + (4);
+#line 3225 "sed.preprocessed.c"
+            mem_37__6 = (int *)(__cil_tmp19__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp20__6 = *mem_37__6;
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp21__6 = (unsigned long )(b__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp22__6 = (__cil_tmp21__6) + (8);
+#line 3225 "sed.preprocessed.c"
+            mem_38__6 = (char **)(__cil_tmp22__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp23__6 = *mem_38__6;
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp24__6 = (__cil_tmp23__6) + (__cil_tmp20__6);
+#line 3225 "sed.preprocessed.c"
+            *__cil_tmp24__6 = (char )(ch__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp25__6 = (unsigned long )(b__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp26__6 = (__cil_tmp25__6) + (4);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp27__6 = (unsigned long )(b__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp28__6 = (__cil_tmp27__6) + (4);
+#line 3226 "sed.preprocessed.c"
+            mem_39__6 = (int *)(__cil_tmp28__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp29__6 = *mem_39__6;
+#line 3226 "sed.preprocessed.c"
+            mem_40__6 = (int *)(__cil_tmp26__6);
+#line 3226 "sed.preprocessed.c"
+            *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
+          }
+#line 2326 "sed.preprocessed.c"
+          //call add1_buffer(b__5, ch__5);
+          {
+#line 2326 "sed.preprocessed.c"
+            void * __arg_tmp_0__6  = b__5;
+#line 2326 "sed.preprocessed.c"
+            int  __arg_tmp_1__6  = ch__5;
+            //done setup
+            //enter add1_buffer
+            void * bb__6 = __arg_tmp_0__6 ;
+            int  ch__6 = __arg_tmp_1__6 ;
+            struct buffer * b__6;
+            void * tmp___0__6;
+            int  __cil_tmp5__6;
+            unsigned long  __cil_tmp6__6;
+            unsigned long  __cil_tmp7__6;
+            int  __cil_tmp8__6;
+            int  __cil_tmp9__6;
+            int  __cil_tmp10__6;
+            unsigned long  __cil_tmp11__6;
+            unsigned long  __cil_tmp12__6;
+            char * __cil_tmp13__6;
+            void * __cil_tmp14__6;
+            int  __cil_tmp15__6;
+            unsigned long  __cil_tmp16__6;
+            unsigned long  __cil_tmp17__6;
+            unsigned long  __cil_tmp18__6;
+            unsigned long  __cil_tmp19__6;
+            int  __cil_tmp20__6;
+            unsigned long  __cil_tmp21__6;
+            unsigned long  __cil_tmp22__6;
+            char * __cil_tmp23__6;
+            char * __cil_tmp24__6;
+            unsigned long  __cil_tmp25__6;
+            unsigned long  __cil_tmp26__6;
+            unsigned long  __cil_tmp27__6;
+            unsigned long  __cil_tmp28__6;
+            int  __cil_tmp29__6;
+            int * mem_30__6;
+            int * mem_31__6;
+            int * mem_32__6;
+            int * mem_33__6;
+            char ** mem_34__6;
+            int * mem_35__6;
+            char ** mem_36__6;
+            int * mem_37__6;
+            char ** mem_38__6;
+            int * mem_39__6;
+            int * mem_40__6;
+#line 3220 "sed.preprocessed.c"
+            b__6 = (struct buffer *)(bb__6);
+#line 3221 "sed.preprocessed.c"
+            mem_30__6 = (int *)(b__6);
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp5__6 = *mem_30__6;
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp6__6 = (unsigned long )(b__6);
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp7__6 = (__cil_tmp6__6) + (4);
+#line 3221 "sed.preprocessed.c"
+            mem_31__6 = (int *)(__cil_tmp7__6);
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp8__6 = *mem_31__6;
+#line 3221 "sed.preprocessed.c"
+            __cil_tmp9__6 = (__cil_tmp8__6) + (1);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp18__6 = (unsigned long )(b__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp19__6 = (__cil_tmp18__6) + (4);
+#line 3225 "sed.preprocessed.c"
+            mem_37__6 = (int *)(__cil_tmp19__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp20__6 = *mem_37__6;
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp21__6 = (unsigned long )(b__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp22__6 = (__cil_tmp21__6) + (8);
+#line 3225 "sed.preprocessed.c"
+            mem_38__6 = (char **)(__cil_tmp22__6);
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp23__6 = *mem_38__6;
+#line 3225 "sed.preprocessed.c"
+            __cil_tmp24__6 = (__cil_tmp23__6) + (__cil_tmp20__6);
+#line 3225 "sed.preprocessed.c"
+            *__cil_tmp24__6 = (char )(ch__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp25__6 = (unsigned long )(b__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp26__6 = (__cil_tmp25__6) + (4);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp27__6 = (unsigned long )(b__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp28__6 = (__cil_tmp27__6) + (4);
+#line 3226 "sed.preprocessed.c"
+            mem_39__6 = (int *)(__cil_tmp28__6);
+#line 3226 "sed.preprocessed.c"
+            __cil_tmp29__6 = *mem_39__6;
+#line 3226 "sed.preprocessed.c"
+            mem_40__6 = (int *)(__cil_tmp26__6);
+#line 3226 "sed.preprocessed.c"
+            *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
+          }
+#line 2264 "sed.preprocessed.c"
+          //call ch__5 = inchar();
+          {
+#line 2264 "sed.preprocessed.c"
+            int __return__6;
+            //done setup
+            //enter inchar
+            int  ch__6;
+            int  tmp__6;
+            unsigned char * tmp___0__6;
+            unsigned long  __cil_tmp4__6;
+            unsigned long  __cil_tmp5__6;
+            unsigned char  __cil_tmp6__6;
+#line 2160 "sed.preprocessed.c"
+            //call tmp__6 = feof(prog_file);
+            {
+#line 2160 "sed.preprocessed.c"
+              FILE * __arg_tmp_0__7  = prog_file;
+#line 2160 "sed.preprocessed.c"
+              int __return__7;
+              //done setup
+#line 2160 "sed.preprocessed.c"
+              tmp__6 = __return__7;
+            }
+#line 2163 "sed.preprocessed.c"
+            //call ch__6 = _IO_getc(prog_file);
+            {
+#line 2163 "sed.preprocessed.c"
+              FILE * __arg_tmp_0__7  = prog_file;
+#line 2163 "sed.preprocessed.c"
+              int __return__7;
+              //done setup
+#line 2163 "sed.preprocessed.c"
+              ch__6 = __return__7;
+            }
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -3175,13 +3714,13 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2313 "sed.preprocessed.c"
-          //add1_buffer(b__5, ch__5);
+          //call add1_buffer(b__5, ch__5);
           {
 #line 2313 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2313 "sed.preprocessed.c"
             int  __arg_tmp_1__6  = ch__5;
-#line 3214 "sed.preprocessed.c"
+            //done setup
             //enter add1_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             int  ch__6 = __arg_tmp_1__6 ;
@@ -3275,13 +3814,14 @@ int main(int  argc__0, char ** argv__0){
             mem_40__6 = (int *)(__cil_tmp26__6);
 #line 3226 "sed.preprocessed.c"
             *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
           }
 #line 2264 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2264 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -3290,28 +3830,29 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
 #line 2178 "sed.preprocessed.c"
             prog_line = (prog_line) + (1);
-#line 2179 "sed.preprocessed.c"
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -3319,13 +3860,13 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2313 "sed.preprocessed.c"
-          //add1_buffer(b__5, ch__5);
+          //call add1_buffer(b__5, ch__5);
           {
 #line 2313 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2313 "sed.preprocessed.c"
             int  __arg_tmp_1__6  = ch__5;
-#line 3214 "sed.preprocessed.c"
+            //done setup
             //enter add1_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             int  ch__6 = __arg_tmp_1__6 ;
@@ -3419,13 +3960,14 @@ int main(int  argc__0, char ** argv__0){
             mem_40__6 = (int *)(__cil_tmp26__6);
 #line 3226 "sed.preprocessed.c"
             *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
           }
 #line 2264 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2264 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -3434,28 +3976,29 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
 #line 2178 "sed.preprocessed.c"
             prog_line = (prog_line) + (1);
-#line 2179 "sed.preprocessed.c"
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -3463,13 +4006,13 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2313 "sed.preprocessed.c"
-          //add1_buffer(b__5, ch__5);
+          //call add1_buffer(b__5, ch__5);
           {
 #line 2313 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2313 "sed.preprocessed.c"
             int  __arg_tmp_1__6  = ch__5;
-#line 3214 "sed.preprocessed.c"
+            //done setup
             //enter add1_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             int  ch__6 = __arg_tmp_1__6 ;
@@ -3563,13 +4106,14 @@ int main(int  argc__0, char ** argv__0){
             mem_40__6 = (int *)(__cil_tmp26__6);
 #line 3226 "sed.preprocessed.c"
             *mem_40__6 = (__cil_tmp29__6) + (1);
+            //exiting add1_buffer
           }
 #line 2264 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2264 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -3578,26 +4122,27 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
-#line 2179 "sed.preprocessed.c"
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -3605,13 +4150,13 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2332 "sed.preprocessed.c"
-          //tmp___9__5 = size_buffer(b__5);
+          //call tmp___9__5 = size_buffer(b__5);
           {
 #line 2332 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2332 "sed.preprocessed.c"
             int __return__6;
-#line 3186 "sed.preprocessed.c"
+            //done setup
             //enter size_buffer
             void * b__6 = __arg_tmp_0__6 ;
             struct buffer * bb__6;
@@ -3626,7 +4171,6 @@ int main(int  argc__0, char ** argv__0){
             __cil_tmp4__6 = (__cil_tmp3__6) + (4);
 #line 3192 "sed.preprocessed.c"
             mem_5__6 = (int *)(__cil_tmp4__6);
-#line 3192 "sed.preprocessed.c"
             //exiting size_buffer
 #line 3192 "sed.preprocessed.c"
             __return__6 = *mem_5__6;
@@ -3634,13 +4178,13 @@ int main(int  argc__0, char ** argv__0){
             tmp___9__5 = __return__6;
           }
 #line 2338 "sed.preprocessed.c"
-          //tmp___4__5 = size_buffer(b__5);
+          //call tmp___4__5 = size_buffer(b__5);
           {
 #line 2338 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2338 "sed.preprocessed.c"
             int __return__6;
-#line 3186 "sed.preprocessed.c"
+            //done setup
             //enter size_buffer
             void * b__6 = __arg_tmp_0__6 ;
             struct buffer * bb__6;
@@ -3655,7 +4199,6 @@ int main(int  argc__0, char ** argv__0){
             __cil_tmp4__6 = (__cil_tmp3__6) + (4);
 #line 3192 "sed.preprocessed.c"
             mem_5__6 = (int *)(__cil_tmp4__6);
-#line 3192 "sed.preprocessed.c"
             //exiting size_buffer
 #line 3192 "sed.preprocessed.c"
             __return__6 = *mem_5__6;
@@ -3665,13 +4208,13 @@ int main(int  argc__0, char ** argv__0){
 #line 2338 "sed.preprocessed.c"
           __cil_tmp29__5 = (tmp___4__5) + (1);
 #line 2338 "sed.preprocessed.c"
-          //tmp___5__5 = ck_malloc(__cil_tmp29__5);
+          //call tmp___5__5 = ck_malloc(__cil_tmp29__5);
           {
 #line 2338 "sed.preprocessed.c"
             int  __arg_tmp_0__6  = __cil_tmp29__5;
 #line 2338 "sed.preprocessed.c"
             void *__return__6;
-#line 3119 "sed.preprocessed.c"
+            //done setup
             //enter ck_malloc
             int  size__6 = __arg_tmp_0__6 ;
             void * ret__6;
@@ -3683,12 +4226,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
             __cil_tmp3__6 = (size_t )(size__6);
 #line 3126 "sed.preprocessed.c"
-            //ret__6 = malloc(__cil_tmp3__6);
+            //call ret__6 = malloc(__cil_tmp3__6);
             {
 #line 3126 "sed.preprocessed.c"
               size_t  __arg_tmp_0__7  = __cil_tmp3__6;
 #line 3126 "sed.preprocessed.c"
               void *__return__7;
+              //done setup
 #line 3126 "sed.preprocessed.c"
               ret__6 = __return__7;
             }
@@ -3698,7 +4242,6 @@ int main(int  argc__0, char ** argv__0){
             __cil_tmp5__6 = (unsigned long )(__cil_tmp4__6);
 #line 3127 "sed.preprocessed.c"
             __cil_tmp6__6 = (unsigned long )(ret__6);
-#line 3129 "sed.preprocessed.c"
             //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
             __return__6 = ret__6;
@@ -3708,13 +4251,13 @@ int main(int  argc__0, char ** argv__0){
 #line 2338 "sed.preprocessed.c"
           last_regex_string = (char *)(tmp___5__5);
 #line 2339 "sed.preprocessed.c"
-          //tmp___6__5 = size_buffer(b__5);
+          //call tmp___6__5 = size_buffer(b__5);
           {
 #line 2339 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2339 "sed.preprocessed.c"
             int __return__6;
-#line 3186 "sed.preprocessed.c"
+            //done setup
             //enter size_buffer
             void * b__6 = __arg_tmp_0__6 ;
             struct buffer * bb__6;
@@ -3729,7 +4272,6 @@ int main(int  argc__0, char ** argv__0){
             __cil_tmp4__6 = (__cil_tmp3__6) + (4);
 #line 3192 "sed.preprocessed.c"
             mem_5__6 = (int *)(__cil_tmp4__6);
-#line 3192 "sed.preprocessed.c"
             //exiting size_buffer
 #line 3192 "sed.preprocessed.c"
             __return__6 = *mem_5__6;
@@ -3737,13 +4279,13 @@ int main(int  argc__0, char ** argv__0){
             tmp___6__5 = __return__6;
           }
 #line 2339 "sed.preprocessed.c"
-          //tmp___7__5 = get_buffer(b__5);
+          //call tmp___7__5 = get_buffer(b__5);
           {
 #line 2339 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2339 "sed.preprocessed.c"
             char *__return__6;
-#line 3228 "sed.preprocessed.c"
+            //done setup
             //enter get_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             struct buffer * b__6;
@@ -3758,7 +4300,6 @@ int main(int  argc__0, char ** argv__0){
             __cil_tmp4__6 = (__cil_tmp3__6) + (8);
 #line 3234 "sed.preprocessed.c"
             mem_5__6 = (char **)(__cil_tmp4__6);
-#line 3234 "sed.preprocessed.c"
             //exiting get_buffer
 #line 3234 "sed.preprocessed.c"
             __return__6 = *mem_5__6;
@@ -3772,7 +4313,7 @@ int main(int  argc__0, char ** argv__0){
 #line 2339 "sed.preprocessed.c"
           __cil_tmp32__5 = (size_t )(tmp___6__5);
 #line 2339 "sed.preprocessed.c"
-          //bcopy(__cil_tmp30__5, __cil_tmp31__5, __cil_tmp32__5);
+          //call bcopy(__cil_tmp30__5, __cil_tmp31__5, __cil_tmp32__5);
           {
 #line 2339 "sed.preprocessed.c"
             void const   * __arg_tmp_0__6  = __cil_tmp30__5;
@@ -3780,15 +4321,16 @@ int main(int  argc__0, char ** argv__0){
             void * __arg_tmp_1__6  = __cil_tmp31__5;
 #line 2339 "sed.preprocessed.c"
             size_t  __arg_tmp_2__6  = __cil_tmp32__5;
+            //done setup
           }
 #line 2340 "sed.preprocessed.c"
-          //tmp___8__5 = size_buffer(b__5);
+          //call tmp___8__5 = size_buffer(b__5);
           {
 #line 2340 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
 #line 2340 "sed.preprocessed.c"
             int __return__6;
-#line 3186 "sed.preprocessed.c"
+            //done setup
             //enter size_buffer
             void * b__6 = __arg_tmp_0__6 ;
             struct buffer * bb__6;
@@ -3803,7 +4345,6 @@ int main(int  argc__0, char ** argv__0){
             __cil_tmp4__6 = (__cil_tmp3__6) + (4);
 #line 3192 "sed.preprocessed.c"
             mem_5__6 = (int *)(__cil_tmp4__6);
-#line 3192 "sed.preprocessed.c"
             //exiting size_buffer
 #line 3192 "sed.preprocessed.c"
             __return__6 = *mem_5__6;
@@ -3815,11 +4356,11 @@ int main(int  argc__0, char ** argv__0){
 #line 2340 "sed.preprocessed.c"
           *__cil_tmp33__5 = (char)0;
 #line 2344 "sed.preprocessed.c"
-          //flush_buffer(b__5);
+          //call flush_buffer(b__5);
           {
 #line 2344 "sed.preprocessed.c"
             void * __arg_tmp_0__6  = b__5;
-#line 3174 "sed.preprocessed.c"
+            //done setup
             //enter flush_buffer
             void * bb__6 = __arg_tmp_0__6 ;
             struct buffer * b__6;
@@ -3849,10 +4390,11 @@ int main(int  argc__0, char ** argv__0){
 #line 3180 "sed.preprocessed.c"
             __cil_tmp6__6 = (void *)(__cil_tmp5__6);
 #line 3180 "sed.preprocessed.c"
-            //free(__cil_tmp6__6);
+            //call free(__cil_tmp6__6);
             {
 #line 3180 "sed.preprocessed.c"
               void * __arg_tmp_0__7  = __cil_tmp6__6;
+              //done setup
             }
 #line 3181 "sed.preprocessed.c"
             __cil_tmp7__6 = (unsigned long )(b__6);
@@ -3877,12 +4419,15 @@ int main(int  argc__0, char ** argv__0){
 #line 3184 "sed.preprocessed.c"
             __cil_tmp11__6 = (void *)(b__6);
 #line 3184 "sed.preprocessed.c"
-            //free(__cil_tmp11__6);
+            //call free(__cil_tmp11__6);
             {
 #line 3184 "sed.preprocessed.c"
               void * __arg_tmp_0__7  = __cil_tmp11__6;
+              //done setup
             }
+            //exiting flush_buffer
           }
+          //exiting buffer_regex
         }
 #line 2236 "sed.preprocessed.c"
         __cil_tmp50__4 = (unsigned long )(addr__4);
@@ -3893,11 +4438,11 @@ int main(int  argc__0, char ** argv__0){
 #line 2236 "sed.preprocessed.c"
         *mem_69__4 = last_regex;
 #line 2238 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 2238 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -3906,26 +4451,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -3933,10 +4479,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 2237 "sed.preprocessed.c"
-        //tmp___3__4 = __ctype_b_loc();
+        //call tmp___3__4 = __ctype_b_loc();
         {
 #line 2237 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 2237 "sed.preprocessed.c"
           tmp___3__4 = __return__5;
         }
@@ -3949,23 +4496,26 @@ int main(int  argc__0, char ** argv__0){
 #line 2237 "sed.preprocessed.c"
         __cil_tmp55__4 = (int const   )(__cil_tmp54__4);
 #line 2240 "sed.preprocessed.c"
-        //savchar(ch__4);
+        //call savchar(ch__4);
         {
 #line 2240 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = ch__4;
-#line 2181 "sed.preprocessed.c"
+          //done setup
           //enter savchar
           int  ch__5 = __arg_tmp_0__5 ;
 #line 2190 "sed.preprocessed.c"
-          //ungetc(ch__5, prog_file);
+          //call ungetc(ch__5, prog_file);
           {
 #line 2190 "sed.preprocessed.c"
             int  __arg_tmp_0__6  = ch__5;
 #line 2190 "sed.preprocessed.c"
             FILE * __arg_tmp_1__6  = prog_file;
+#line 2190 "sed.preprocessed.c"
+            int __return__6;
+            //done setup
           }
+          //exiting savchar
         }
-#line 2241 "sed.preprocessed.c"
         //exiting compile_address
 #line 2241 "sed.preprocessed.c"
         __return__4 = 1;
@@ -3973,11 +4523,11 @@ int main(int  argc__0, char ** argv__0){
         tmp___5__3 = __return__4;
       }
 #line 1883 "sed.preprocessed.c"
-      //ch__3 = inchar();
+      //call ch__3 = inchar();
       {
 #line 1883 "sed.preprocessed.c"
         int __return__4;
-#line 2154 "sed.preprocessed.c"
+        //done setup
         //enter inchar
         int  ch__4;
         int  tmp__4;
@@ -3986,26 +4536,27 @@ int main(int  argc__0, char ** argv__0){
         unsigned long  __cil_tmp5__4;
         unsigned char  __cil_tmp6__4;
 #line 2160 "sed.preprocessed.c"
-        //tmp__4 = feof(prog_file);
+        //call tmp__4 = feof(prog_file);
         {
 #line 2160 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2160 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2160 "sed.preprocessed.c"
           tmp__4 = __return__5;
         }
 #line 2163 "sed.preprocessed.c"
-        //ch__4 = _IO_getc(prog_file);
+        //call ch__4 = _IO_getc(prog_file);
         {
 #line 2163 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2163 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2163 "sed.preprocessed.c"
           ch__4 = __return__5;
         }
-#line 2179 "sed.preprocessed.c"
         //exiting inchar
 #line 2179 "sed.preprocessed.c"
         __return__4 = ch__4;
@@ -4013,32 +4564,36 @@ int main(int  argc__0, char ** argv__0){
         ch__3 = __return__4;
       }
 #line 1896 "sed.preprocessed.c"
-      //savchar(ch__3);
+      //call savchar(ch__3);
       {
 #line 1896 "sed.preprocessed.c"
         int  __arg_tmp_0__4  = ch__3;
-#line 2181 "sed.preprocessed.c"
+        //done setup
         //enter savchar
         int  ch__4 = __arg_tmp_0__4 ;
 #line 2190 "sed.preprocessed.c"
-        //ungetc(ch__4, prog_file);
+        //call ungetc(ch__4, prog_file);
         {
 #line 2190 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = ch__4;
 #line 2190 "sed.preprocessed.c"
           FILE * __arg_tmp_1__5  = prog_file;
+#line 2190 "sed.preprocessed.c"
+          int __return__5;
+          //done setup
         }
+        //exiting savchar
       }
 #line 1898 "sed.preprocessed.c"
       mem_391__3 = (int *)(cur_cmd__3);
 #line 1898 "sed.preprocessed.c"
       __cil_tmp91__3 = *mem_391__3;
 #line 1902 "sed.preprocessed.c"
-      //ch__3 = inchar();
+      //call ch__3 = inchar();
       {
 #line 1902 "sed.preprocessed.c"
         int __return__4;
-#line 2154 "sed.preprocessed.c"
+        //done setup
         //enter inchar
         int  ch__4;
         int  tmp__4;
@@ -4047,26 +4602,27 @@ int main(int  argc__0, char ** argv__0){
         unsigned long  __cil_tmp5__4;
         unsigned char  __cil_tmp6__4;
 #line 2160 "sed.preprocessed.c"
-        //tmp__4 = feof(prog_file);
+        //call tmp__4 = feof(prog_file);
         {
 #line 2160 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2160 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2160 "sed.preprocessed.c"
           tmp__4 = __return__5;
         }
 #line 2163 "sed.preprocessed.c"
-        //ch__4 = _IO_getc(prog_file);
+        //call ch__4 = _IO_getc(prog_file);
         {
 #line 2163 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2163 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2163 "sed.preprocessed.c"
           ch__4 = __return__5;
         }
-#line 2179 "sed.preprocessed.c"
         //exiting inchar
 #line 2179 "sed.preprocessed.c"
         __return__4 = ch__4;
@@ -4092,7 +4648,7 @@ int main(int  argc__0, char ** argv__0){
 #line 1957 "sed.preprocessed.c"
       mem_408__3 = (struct vector **)(__cil_tmp163__3);
 #line 1957 "sed.preprocessed.c"
-      //*mem_408__3 = compile_program(__cil_tmp164__3, prog_line);
+      //call *mem_408__3 = compile_program(__cil_tmp164__3, prog_line);
       {
 #line 1957 "sed.preprocessed.c"
         struct vector * __arg_tmp_0__4  = __cil_tmp164__3;
@@ -4100,7 +4656,7 @@ int main(int  argc__0, char ** argv__0){
         int  __arg_tmp_1__4  = prog_line;
 #line 1957 "sed.preprocessed.c"
         struct vector *__return__4;
-#line 1832 "sed.preprocessed.c"
+        //done setup
         //enter compile_program
         struct vector * vector__4 = __arg_tmp_0__4 ;
         int  open_line__4 = __arg_tmp_1__4 ;
@@ -4559,13 +5115,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1846 "sed.preprocessed.c"
         __cil_tmp32__4 = (int )(32UL);
 #line 1846 "sed.preprocessed.c"
-        //tmp__4 = ck_malloc(__cil_tmp32__4);
+        //call tmp__4 = ck_malloc(__cil_tmp32__4);
         {
 #line 1846 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = __cil_tmp32__4;
 #line 1846 "sed.preprocessed.c"
           void *__return__5;
-#line 3119 "sed.preprocessed.c"
+          //done setup
           //enter ck_malloc
           int  size__5 = __arg_tmp_0__5 ;
           void * ret__5;
@@ -4577,12 +5133,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
           __cil_tmp3__5 = (size_t )(size__5);
 #line 3126 "sed.preprocessed.c"
-          //ret__5 = malloc(__cil_tmp3__5);
+          //call ret__5 = malloc(__cil_tmp3__5);
           {
 #line 3126 "sed.preprocessed.c"
             size_t  __arg_tmp_0__6  = __cil_tmp3__5;
 #line 3126 "sed.preprocessed.c"
             void *__return__6;
+            //done setup
 #line 3126 "sed.preprocessed.c"
             ret__5 = __return__6;
           }
@@ -4592,7 +5149,6 @@ int main(int  argc__0, char ** argv__0){
           __cil_tmp5__5 = (unsigned long )(__cil_tmp4__5);
 #line 3127 "sed.preprocessed.c"
           __cil_tmp6__5 = (unsigned long )(ret__5);
-#line 3129 "sed.preprocessed.c"
           //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
           __return__5 = ret__5;
@@ -4606,13 +5162,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1847 "sed.preprocessed.c"
         __cil_tmp34__4 = (int )(__cil_tmp33__4);
 #line 1847 "sed.preprocessed.c"
-        //tmp___0__4 = ck_malloc(__cil_tmp34__4);
+        //call tmp___0__4 = ck_malloc(__cil_tmp34__4);
         {
 #line 1847 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = __cil_tmp34__4;
 #line 1847 "sed.preprocessed.c"
           void *__return__5;
-#line 3119 "sed.preprocessed.c"
+          //done setup
           //enter ck_malloc
           int  size__5 = __arg_tmp_0__5 ;
           void * ret__5;
@@ -4624,12 +5180,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
           __cil_tmp3__5 = (size_t )(size__5);
 #line 3126 "sed.preprocessed.c"
-          //ret__5 = malloc(__cil_tmp3__5);
+          //call ret__5 = malloc(__cil_tmp3__5);
           {
 #line 3126 "sed.preprocessed.c"
             size_t  __arg_tmp_0__6  = __cil_tmp3__5;
 #line 3126 "sed.preprocessed.c"
             void *__return__6;
+            //done setup
 #line 3126 "sed.preprocessed.c"
             ret__5 = __return__6;
           }
@@ -4639,7 +5196,6 @@ int main(int  argc__0, char ** argv__0){
           __cil_tmp5__5 = (unsigned long )(__cil_tmp4__5);
 #line 3127 "sed.preprocessed.c"
           __cil_tmp6__5 = (unsigned long )(ret__5);
-#line 3129 "sed.preprocessed.c"
           //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
           __return__5 = ret__5;
@@ -4685,11 +5241,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1858 "sed.preprocessed.c"
         pch__4 = ch__4;
 #line 1859 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1859 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -4698,26 +5254,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -4725,10 +5282,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1856 "sed.preprocessed.c"
-        //tmp___1__4 = __ctype_b_loc();
+        //call tmp___1__4 = __ctype_b_loc();
         {
 #line 1856 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1856 "sed.preprocessed.c"
           tmp___1__4 = __return__5;
         }
@@ -4741,21 +5299,25 @@ int main(int  argc__0, char ** argv__0){
 #line 1856 "sed.preprocessed.c"
         __cil_tmp46__4 = (int const   )(__cil_tmp45__4);
 #line 1866 "sed.preprocessed.c"
-        //savchar(ch__4);
+        //call savchar(ch__4);
         {
 #line 1866 "sed.preprocessed.c"
           int  __arg_tmp_0__5  = ch__4;
-#line 2181 "sed.preprocessed.c"
+          //done setup
           //enter savchar
           int  ch__5 = __arg_tmp_0__5 ;
 #line 2190 "sed.preprocessed.c"
-          //ungetc(ch__5, prog_file);
+          //call ungetc(ch__5, prog_file);
           {
 #line 2190 "sed.preprocessed.c"
             int  __arg_tmp_0__6  = ch__5;
 #line 2190 "sed.preprocessed.c"
             FILE * __arg_tmp_1__6  = prog_file;
+#line 2190 "sed.preprocessed.c"
+            int __return__6;
+            //done setup
           }
+          //exiting savchar
         }
 #line 1867 "sed.preprocessed.c"
         __cil_tmp47__4 = (unsigned long )(vector__4);
@@ -4834,13 +5396,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1881 "sed.preprocessed.c"
         __cil_tmp82__4 = (struct addr *)(cur_cmd__4);
 #line 1881 "sed.preprocessed.c"
-        //tmp___5__4 = compile_address(__cil_tmp82__4);
+        //call tmp___5__4 = compile_address(__cil_tmp82__4);
         {
 #line 1881 "sed.preprocessed.c"
           struct addr * __arg_tmp_0__5  = __cil_tmp82__4;
 #line 1881 "sed.preprocessed.c"
           int __return__5;
-#line 2194 "sed.preprocessed.c"
+          //done setup
           //enter compile_address
           struct addr * addr__5 = __arg_tmp_0__5 ;
           int  ch__5;
@@ -4913,11 +5475,11 @@ int main(int  argc__0, char ** argv__0){
           struct re_pattern_buffer ** mem_69__5;
           int * mem_70__5;
 #line 2200 "sed.preprocessed.c"
-          //ch__5 = inchar();
+          //call ch__5 = inchar();
           {
 #line 2200 "sed.preprocessed.c"
             int __return__6;
-#line 2154 "sed.preprocessed.c"
+            //done setup
             //enter inchar
             int  ch__6;
             int  tmp__6;
@@ -4926,26 +5488,27 @@ int main(int  argc__0, char ** argv__0){
             unsigned long  __cil_tmp5__6;
             unsigned char  __cil_tmp6__6;
 #line 2160 "sed.preprocessed.c"
-            //tmp__6 = feof(prog_file);
+            //call tmp__6 = feof(prog_file);
             {
 #line 2160 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2160 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2160 "sed.preprocessed.c"
               tmp__6 = __return__7;
             }
 #line 2163 "sed.preprocessed.c"
-            //ch__6 = _IO_getc(prog_file);
+            //call ch__6 = _IO_getc(prog_file);
             {
 #line 2163 "sed.preprocessed.c"
               FILE * __arg_tmp_0__7  = prog_file;
 #line 2163 "sed.preprocessed.c"
               int __return__7;
+              //done setup
 #line 2163 "sed.preprocessed.c"
               ch__6 = __return__7;
             }
-#line 2179 "sed.preprocessed.c"
             //exiting inchar
 #line 2179 "sed.preprocessed.c"
             __return__6 = ch__6;
@@ -4953,10 +5516,11 @@ int main(int  argc__0, char ** argv__0){
             ch__5 = __return__6;
           }
 #line 2201 "sed.preprocessed.c"
-          //tmp___5__5 = __ctype_b_loc();
+          //call tmp___5__5 = __ctype_b_loc();
           {
 #line 2201 "sed.preprocessed.c"
             unsigned short const   **__return__6;
+            //done setup
 #line 2201 "sed.preprocessed.c"
             tmp___5__5 = __return__6;
           }
@@ -4969,23 +5533,26 @@ int main(int  argc__0, char ** argv__0){
 #line 2201 "sed.preprocessed.c"
           __cil_tmp14__5 = (int const   )(__cil_tmp13__5);
 #line 2253 "sed.preprocessed.c"
-          //savchar(ch__5);
+          //call savchar(ch__5);
           {
 #line 2253 "sed.preprocessed.c"
             int  __arg_tmp_0__6  = ch__5;
-#line 2181 "sed.preprocessed.c"
+            //done setup
             //enter savchar
             int  ch__6 = __arg_tmp_0__6 ;
 #line 2190 "sed.preprocessed.c"
-            //ungetc(ch__6, prog_file);
+            //call ungetc(ch__6, prog_file);
             {
 #line 2190 "sed.preprocessed.c"
               int  __arg_tmp_0__7  = ch__6;
 #line 2190 "sed.preprocessed.c"
               FILE * __arg_tmp_1__7  = prog_file;
+#line 2190 "sed.preprocessed.c"
+              int __return__7;
+              //done setup
             }
+            //exiting savchar
           }
-#line 2254 "sed.preprocessed.c"
           //exiting compile_address
 #line 2254 "sed.preprocessed.c"
           __return__5 = 0;
@@ -4997,11 +5564,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1898 "sed.preprocessed.c"
         __cil_tmp91__4 = *mem_391__4;
 #line 1902 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1902 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5010,26 +5577,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5061,11 +5629,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1923 "sed.preprocessed.c"
         *mem_402__4 = (__cil_tmp129__4) | (2);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5074,26 +5642,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5101,10 +5670,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5117,11 +5687,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5130,26 +5700,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5157,10 +5728,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5173,11 +5745,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5186,26 +5758,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5213,10 +5786,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5229,11 +5803,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5242,26 +5816,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5269,10 +5844,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5285,11 +5861,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5298,26 +5874,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5325,10 +5902,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5341,11 +5919,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5354,26 +5932,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5381,10 +5960,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5397,11 +5977,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5410,26 +5990,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5437,10 +6018,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5453,11 +6035,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5466,26 +6048,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5493,10 +6076,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5509,11 +6093,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5522,26 +6106,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5549,10 +6134,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5565,11 +6151,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5578,26 +6164,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5605,10 +6192,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5621,11 +6209,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5634,26 +6222,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5661,10 +6250,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5677,11 +6267,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5690,26 +6280,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5717,10 +6308,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5733,11 +6325,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5746,26 +6338,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5773,10 +6366,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5789,11 +6383,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5802,26 +6396,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5829,10 +6424,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5845,11 +6441,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5858,26 +6454,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5885,10 +6482,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5901,11 +6499,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5914,26 +6512,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5941,10 +6540,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -5957,11 +6557,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -5970,26 +6570,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -5997,10 +6598,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -6013,11 +6615,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1924 "sed.preprocessed.c"
         __cil_tmp133__4 = (int const   )(__cil_tmp132__4);
 #line 1925 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1925 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -6026,26 +6628,27 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
@@ -6053,10 +6656,11 @@ int main(int  argc__0, char ** argv__0){
           ch__4 = __return__5;
         }
 #line 1924 "sed.preprocessed.c"
-        //tmp___6__4 = __ctype_b_loc();
+        //call tmp___6__4 = __ctype_b_loc();
         {
 #line 1924 "sed.preprocessed.c"
           unsigned short const   **__return__5;
+          //done setup
 #line 1924 "sed.preprocessed.c"
           tmp___6__4 = __return__5;
         }
@@ -6083,11 +6687,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1966 "sed.preprocessed.c"
         __cil_tmp181__4 = *mem_415__4;
 #line 1968 "sed.preprocessed.c"
-        //ch__4 = inchar();
+        //call ch__4 = inchar();
         {
 #line 1968 "sed.preprocessed.c"
           int __return__5;
-#line 2154 "sed.preprocessed.c"
+          //done setup
           //enter inchar
           int  ch__5;
           int  tmp__5;
@@ -6096,33 +6700,33 @@ int main(int  argc__0, char ** argv__0){
           unsigned long  __cil_tmp5__5;
           unsigned char  __cil_tmp6__5;
 #line 2160 "sed.preprocessed.c"
-          //tmp__5 = feof(prog_file);
+          //call tmp__5 = feof(prog_file);
           {
 #line 2160 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2160 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2160 "sed.preprocessed.c"
             tmp__5 = __return__6;
           }
 #line 2163 "sed.preprocessed.c"
-          //ch__5 = _IO_getc(prog_file);
+          //call ch__5 = _IO_getc(prog_file);
           {
 #line 2163 "sed.preprocessed.c"
             FILE * __arg_tmp_0__6  = prog_file;
 #line 2163 "sed.preprocessed.c"
             int __return__6;
+            //done setup
 #line 2163 "sed.preprocessed.c"
             ch__5 = __return__6;
           }
-#line 2179 "sed.preprocessed.c"
           //exiting inchar
 #line 2179 "sed.preprocessed.c"
           __return__5 = ch__5;
 #line 1968 "sed.preprocessed.c"
           ch__4 = __return__5;
         }
-#line 1971 "sed.preprocessed.c"
         //exiting compile_program
 #line 1971 "sed.preprocessed.c"
         __return__4 = vector__4;
@@ -6172,11 +6776,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1858 "sed.preprocessed.c"
       pch__3 = ch__3;
 #line 1859 "sed.preprocessed.c"
-      //ch__3 = inchar();
+      //call ch__3 = inchar();
       {
 #line 1859 "sed.preprocessed.c"
         int __return__4;
-#line 2154 "sed.preprocessed.c"
+        //done setup
         //enter inchar
         int  ch__4;
         int  tmp__4;
@@ -6185,29 +6789,29 @@ int main(int  argc__0, char ** argv__0){
         unsigned long  __cil_tmp5__4;
         unsigned char  __cil_tmp6__4;
 #line 2160 "sed.preprocessed.c"
-        //tmp__4 = feof(prog_file);
+        //call tmp__4 = feof(prog_file);
         {
 #line 2160 "sed.preprocessed.c"
           FILE * __arg_tmp_0__5  = prog_file;
 #line 2160 "sed.preprocessed.c"
           int __return__5;
+          //done setup
 #line 2160 "sed.preprocessed.c"
           tmp__4 = __return__5;
         }
-#line 2161 "sed.preprocessed.c"
         //exiting inchar
 #line 2161 "sed.preprocessed.c"
         __return__4 = -1;
 #line 1859 "sed.preprocessed.c"
         ch__3 = __return__4;
       }
-#line 2141 "sed.preprocessed.c"
       //exiting compile_program
 #line 2141 "sed.preprocessed.c"
       __return__3 = vector__3;
 #line 1830 "sed.preprocessed.c"
       the_program = __return__3;
     }
+    //exiting compile_file
   }
 #line 1716 "sed.preprocessed.c"
   compiled__1 = 1;
@@ -6224,7 +6828,7 @@ int main(int  argc__0, char ** argv__0){
 #line 1686 "sed.preprocessed.c"
   __cil_tmp71__1 = (int *)(0);
 #line 1686 "sed.preprocessed.c"
-  //opt__1 = getopt_long(argc__1, __cil_tmp66__1, "hne:f:V", __cil_tmp70__1, __cil_tmp71__1);
+  //call opt__1 = getopt_long(argc__1, __cil_tmp66__1, "hne:f:V", __cil_tmp70__1, __cil_tmp71__1);
   {
 #line 1686 "sed.preprocessed.c"
     int  __arg_tmp_0__2  = argc__1;
@@ -6238,6 +6842,7 @@ int main(int  argc__0, char ** argv__0){
     int * __arg_tmp_4__2  = __cil_tmp71__1;
 #line 1686 "sed.preprocessed.c"
     int __return__2;
+    //done setup
 #line 1686 "sed.preprocessed.c"
     opt__1 = __return__2;
   }
@@ -6256,13 +6861,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1751 "sed.preprocessed.c"
   *mem_147__1 = 50;
 #line 1752 "sed.preprocessed.c"
-  //tmp___6__1 = ck_malloc(50);
+  //call tmp___6__1 = ck_malloc(50);
   {
 #line 1752 "sed.preprocessed.c"
     int  __arg_tmp_0__2  = 50;
 #line 1752 "sed.preprocessed.c"
     void *__return__2;
-#line 3119 "sed.preprocessed.c"
+    //done setup
     //enter ck_malloc
     int  size__2 = __arg_tmp_0__2 ;
     void * ret__2;
@@ -6274,12 +6879,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
     __cil_tmp3__2 = (size_t )(size__2);
 #line 3126 "sed.preprocessed.c"
-    //ret__2 = malloc(__cil_tmp3__2);
+    //call ret__2 = malloc(__cil_tmp3__2);
     {
 #line 3126 "sed.preprocessed.c"
       size_t  __arg_tmp_0__3  = __cil_tmp3__2;
 #line 3126 "sed.preprocessed.c"
       void *__return__3;
+      //done setup
 #line 3126 "sed.preprocessed.c"
       ret__2 = __return__3;
     }
@@ -6289,7 +6895,6 @@ int main(int  argc__0, char ** argv__0){
     __cil_tmp5__2 = (unsigned long )(__cil_tmp4__2);
 #line 3127 "sed.preprocessed.c"
     __cil_tmp6__2 = (unsigned long )(ret__2);
-#line 3129 "sed.preprocessed.c"
     //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
     __return__2 = ret__2;
@@ -6307,13 +6912,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1754 "sed.preprocessed.c"
   append.alloc = 50;
 #line 1755 "sed.preprocessed.c"
-  //tmp___7__1 = ck_malloc(50);
+  //call tmp___7__1 = ck_malloc(50);
   {
 #line 1755 "sed.preprocessed.c"
     int  __arg_tmp_0__2  = 50;
 #line 1755 "sed.preprocessed.c"
     void *__return__2;
-#line 3119 "sed.preprocessed.c"
+    //done setup
     //enter ck_malloc
     int  size__2 = __arg_tmp_0__2 ;
     void * ret__2;
@@ -6325,12 +6930,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
     __cil_tmp3__2 = (size_t )(size__2);
 #line 3126 "sed.preprocessed.c"
-    //ret__2 = malloc(__cil_tmp3__2);
+    //call ret__2 = malloc(__cil_tmp3__2);
     {
 #line 3126 "sed.preprocessed.c"
       size_t  __arg_tmp_0__3  = __cil_tmp3__2;
 #line 3126 "sed.preprocessed.c"
       void *__return__3;
+      //done setup
 #line 3126 "sed.preprocessed.c"
       ret__2 = __return__3;
     }
@@ -6340,7 +6946,6 @@ int main(int  argc__0, char ** argv__0){
     __cil_tmp5__2 = (unsigned long )(__cil_tmp4__2);
 #line 3127 "sed.preprocessed.c"
     __cil_tmp6__2 = (unsigned long )(ret__2);
-#line 3129 "sed.preprocessed.c"
     //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
     __return__2 = ret__2;
@@ -6362,13 +6967,13 @@ int main(int  argc__0, char ** argv__0){
 #line 1757 "sed.preprocessed.c"
   *mem_150__1 = 50;
 #line 1758 "sed.preprocessed.c"
-  //tmp___8__1 = ck_malloc(50);
+  //call tmp___8__1 = ck_malloc(50);
   {
 #line 1758 "sed.preprocessed.c"
     int  __arg_tmp_0__2  = 50;
 #line 1758 "sed.preprocessed.c"
     void *__return__2;
-#line 3119 "sed.preprocessed.c"
+    //done setup
     //enter ck_malloc
     int  size__2 = __arg_tmp_0__2 ;
     void * ret__2;
@@ -6380,12 +6985,13 @@ int main(int  argc__0, char ** argv__0){
 #line 3126 "sed.preprocessed.c"
     __cil_tmp3__2 = (size_t )(size__2);
 #line 3126 "sed.preprocessed.c"
-    //ret__2 = malloc(__cil_tmp3__2);
+    //call ret__2 = malloc(__cil_tmp3__2);
     {
 #line 3126 "sed.preprocessed.c"
       size_t  __arg_tmp_0__3  = __cil_tmp3__2;
 #line 3126 "sed.preprocessed.c"
       void *__return__3;
+      //done setup
 #line 3126 "sed.preprocessed.c"
       ret__2 = __return__3;
     }
@@ -6395,7 +7001,6 @@ int main(int  argc__0, char ** argv__0){
     __cil_tmp5__2 = (unsigned long )(__cil_tmp4__2);
 #line 3127 "sed.preprocessed.c"
     __cil_tmp6__2 = (unsigned long )(ret__2);
-#line 3129 "sed.preprocessed.c"
     //exiting ck_malloc
 #line 3129 "sed.preprocessed.c"
     __return__2 = ret__2;
@@ -6427,11 +7032,11 @@ int main(int  argc__0, char ** argv__0){
 #line 1770 "sed.preprocessed.c"
   __cil_tmp135__1 = *__cil_tmp134__1;
 #line 1770 "sed.preprocessed.c"
-  //read_file(__cil_tmp135__1);
+  //call read_file(__cil_tmp135__1);
   {
 #line 1770 "sed.preprocessed.c"
     char * __arg_tmp_0__2  = __cil_tmp135__1;
-#line 2428 "sed.preprocessed.c"
+    //done setup
     //enter read_file
     char * name__2 = __arg_tmp_0__2 ;
     char * ptr__2;
@@ -6466,7 +7071,7 @@ int main(int  argc__0, char ** argv__0){
 #line 2436 "sed.preprocessed.c"
     __cil_tmp12__2 = (char const   * __restrict  )("r");
 #line 2436 "sed.preprocessed.c"
-    //input_file = fopen(__cil_tmp11__2, __cil_tmp12__2);
+    //call input_file = fopen(__cil_tmp11__2, __cil_tmp12__2);
     {
 #line 2436 "sed.preprocessed.c"
       char const   * __restrict   __arg_tmp_0__3  = __cil_tmp11__2;
@@ -6474,6 +7079,7 @@ int main(int  argc__0, char ** argv__0){
       char const   * __restrict   __arg_tmp_1__3  = __cil_tmp12__2;
 #line 2436 "sed.preprocessed.c"
       FILE *__return__3;
+      //done setup
 #line 2436 "sed.preprocessed.c"
       input_file = __return__3;
     }
@@ -6484,11 +7090,11 @@ int main(int  argc__0, char ** argv__0){
 #line 2437 "sed.preprocessed.c"
     __cil_tmp15__2 = (unsigned long )(input_file);
 #line 2445 "sed.preprocessed.c"
-    //tmp___1__2 = read_pattern_space();
+    //call tmp___1__2 = read_pattern_space();
     {
 #line 2445 "sed.preprocessed.c"
       int __return__3;
-#line 2909 "sed.preprocessed.c"
+      //done setup
       //enter read_pattern_space
       int  n__3;
       char * p__3;
@@ -6549,12 +7155,13 @@ int main(int  argc__0, char ** argv__0){
 #line 2916 "sed.preprocessed.c"
       n__3 = *mem_33__3;
 #line 2917 "sed.preprocessed.c"
-      //tmp___0__3 = feof(input_file);
+      //call tmp___0__3 = feof(input_file);
       {
 #line 2917 "sed.preprocessed.c"
         FILE * __arg_tmp_0__4  = input_file;
 #line 2917 "sed.preprocessed.c"
         int __return__4;
+        //done setup
 #line 2917 "sed.preprocessed.c"
         tmp___0__3 = __return__4;
       }
@@ -6563,12 +7170,640 @@ int main(int  argc__0, char ** argv__0){
 #line 2920 "sed.preprocessed.c"
       replaced = 0;
 #line 2930 "sed.preprocessed.c"
-      //ch__3 = _IO_getc(input_file);
+      //call ch__3 = _IO_getc(input_file);
       {
 #line 2930 "sed.preprocessed.c"
         FILE * __arg_tmp_0__4  = input_file;
 #line 2930 "sed.preprocessed.c"
         int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
+#line 2930 "sed.preprocessed.c"
+        ch__3 = __return__4;
+      }
+#line 2940 "sed.preprocessed.c"
+      tmp___2__3 = p__3;
+#line 2940 "sed.preprocessed.c"
+      p__3 = (p__3) + (1);
+#line 2940 "sed.preprocessed.c"
+      *tmp___2__3 = (char )(ch__3);
+#line 2941 "sed.preprocessed.c"
+      n__3 = (n__3) - (1);
+#line 2930 "sed.preprocessed.c"
+      //call ch__3 = _IO_getc(input_file);
+      {
+#line 2930 "sed.preprocessed.c"
+        FILE * __arg_tmp_0__4  = input_file;
+#line 2930 "sed.preprocessed.c"
+        int __return__4;
+        //done setup
 #line 2930 "sed.preprocessed.c"
         ch__3 = __return__4;
       }
@@ -6593,24 +7828,18 @@ int main(int  argc__0, char ** argv__0){
 #line 2944 "sed.preprocessed.c"
       *mem_46__3 = (__cil_tmp31__3) - (n__3);
 #line 2948 "sed.preprocessed.c"
-      //ch__3 = _IO_getc(input_file);
+      //call ch__3 = _IO_getc(input_file);
       {
 #line 2948 "sed.preprocessed.c"
         FILE * __arg_tmp_0__4  = input_file;
 #line 2948 "sed.preprocessed.c"
         int __return__4;
+        //done setup
 #line 2948 "sed.preprocessed.c"
         ch__3 = __return__4;
       }
-#line 2950 "sed.preprocessed.c"
-      //ungetc(ch__3, input_file);
-      {
-#line 2950 "sed.preprocessed.c"
-        int  __arg_tmp_0__4  = ch__3;
-#line 2950 "sed.preprocessed.c"
-        FILE * __arg_tmp_1__4  = input_file;
-      }
-#line 2953 "sed.preprocessed.c"
+#line 2952 "sed.preprocessed.c"
+      input_EOF = (input_EOF) + (1);
       //exiting read_pattern_space
 #line 2953 "sed.preprocessed.c"
       __return__3 = 1;
@@ -6618,11 +7847,11 @@ int main(int  argc__0, char ** argv__0){
       tmp___1__2 = __return__3;
     }
 #line 2447 "sed.preprocessed.c"
-    //execute_program(the_program);
+    //call execute_program(the_program);
     {
 #line 2447 "sed.preprocessed.c"
       struct vector * __arg_tmp_0__3  = the_program;
-#line 2481 "sed.preprocessed.c"
+      //done setup
       //enter execute_program
       struct vector * vec__3 = __arg_tmp_0__3 ;
       struct sed_cmd * cur_cmd__3;
@@ -7307,13 +8536,13 @@ int main(int  argc__0, char ** argv__0){
 #line 2511 "sed.preprocessed.c"
       __cil_tmp56__3 = (struct addr *)(cur_cmd__3);
 #line 2511 "sed.preprocessed.c"
-      //tmp___2__3 = match_address(__cil_tmp56__3);
+      //call tmp___2__3 = match_address(__cil_tmp56__3);
       {
 #line 2511 "sed.preprocessed.c"
         struct addr * __arg_tmp_0__4  = __cil_tmp56__3;
 #line 2511 "sed.preprocessed.c"
         int __return__4;
-#line 2879 "sed.preprocessed.c"
+        //done setup
         //enter match_address
         struct addr * addr__4 = __arg_tmp_0__4 ;
         int  trail_nl_p__4;
@@ -7431,7 +8660,7 @@ int main(int  argc__0, char ** argv__0){
 #line 2894 "sed.preprocessed.c"
         __cil_tmp37__4 = (struct re_registers *)(0);
 #line 2894 "sed.preprocessed.c"
-        //tmp___2__4 = re_search(__cil_tmp27__4, __cil_tmp30__4, __cil_tmp33__4, 0, __cil_tmp36__4, __cil_tmp37__4);
+        //call tmp___2__4 = re_search(__cil_tmp27__4, __cil_tmp30__4, __cil_tmp33__4, 0, __cil_tmp36__4, __cil_tmp37__4);
         {
 #line 2894 "sed.preprocessed.c"
           struct re_pattern_buffer * __arg_tmp_0__5  = __cil_tmp27__4;
@@ -7447,7 +8676,7 @@ int main(int  argc__0, char ** argv__0){
           struct re_registers * __arg_tmp_5__5  = __cil_tmp37__4;
 #line 2894 "sed.preprocessed.c"
           int __return__5;
-#line 8037 "sed.preprocessed.c"
+          //done setup
           //enter re_search
           struct re_pattern_buffer * rxb__5 = __arg_tmp_0__5 ;
           char const   * string__5 = __arg_tmp_1__5 ;
@@ -7460,7 +8689,7 @@ int main(int  argc__0, char ** argv__0){
 #line 8042 "sed.preprocessed.c"
           __cil_tmp8__5 = (char const   *)(0);
 #line 8042 "sed.preprocessed.c"
-          //tmp___0__5 = re_search_2(rxb__5, __cil_tmp8__5, 0, string__5, size__5, startpos__5, range__5, regs___0__5, size__5);
+          //call tmp___0__5 = re_search_2(rxb__5, __cil_tmp8__5, 0, string__5, size__5, startpos__5, range__5, regs___0__5, size__5);
           {
 #line 8042 "sed.preprocessed.c"
             struct re_pattern_buffer * __arg_tmp_0__6  = rxb__5;
@@ -7482,7 +8711,7 @@ int main(int  argc__0, char ** argv__0){
             int  __arg_tmp_8__6  = size__5;
 #line 8042 "sed.preprocessed.c"
             int __return__6;
-#line 7155 "sed.preprocessed.c"
+            //done setup
             //enter re_search_2
             struct re_pattern_buffer * rxb__6 = __arg_tmp_0__6 ;
             char const   * string1__6 = __arg_tmp_1__6 ;
