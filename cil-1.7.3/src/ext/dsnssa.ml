@@ -51,6 +51,8 @@ let rec update_lhs_lval = function
 class dsnVisitorClass = object
   inherit nopCilVisitor
     
+  method vfunc f = ChangeDoChildrenPost (f,Rmciltmps.eliminate_temps)
+
   method vinst i = begin
     match i with
       | Set(lhs,rhs,loc) -> 

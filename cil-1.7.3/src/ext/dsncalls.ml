@@ -635,10 +635,10 @@ let dsn (f: file) : unit =
     | GFun (fdec, loc) when fdec = globalDeclFn-> ()
     | GFun (fdec, loc) when fdec.svar.vname = "main" ->
       currentFunc := fdec.svar.vname;
-    (* do the body *)
+      (* do the body *)
       ignore (visitCilFunction dsnVisitor fdec);
       
-    (* Now add the entry instruction *)
+      (* Now add the entry instruction *)
       let formalDeclList = List.map d_fn_decl fdec.sformals in
       let rec mkMainArgs lst = 
 	match lst with 
@@ -660,7 +660,7 @@ let dsn (f: file) : unit =
 	   mkStmt (Block fdec.sbody) ]))
     | GFun (fdec, loc) ->
       currentFunc := fdec.svar.vname;
-    (* do the body *)
+      (* do the body *)
       ignore (visitCilFunction dsnVisitor fdec);
       fdec.sbody <- 
 	mkBlock (compactStmts (
