@@ -7,6 +7,11 @@ int main(int argc, char** argv) {
         MY_INT snd_field;
     } local_record[2];
 
+    int argc2 = argc;
+    int* argc_ptr = &argc;
+    char** argv2 = argv;
+    char*** argv_ptr = &argv;
+    
     local_record[0].snd_field = 1111;
     int *ptr = &(local_record[0].snd_field);
     struct my_struct *my_struct_ptr = local_record;

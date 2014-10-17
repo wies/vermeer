@@ -12,7 +12,7 @@ int main(int argc, char** argv){
   printf("Result \t is %f\n", r);
   pow(x,r);
 
-  struct MY_RET z = some_extern_fun();
+  //struct MY_RET z = some_extern_fun();
   int *p = return_a_pointer();
   no_return();
   sprintf(buf, "pow(x,y) = %f", r);

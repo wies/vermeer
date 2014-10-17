@@ -1,56 +1,32 @@
 #!/usr/bin/perl -w
 
-# What it does:
-#
-# Adds proper subscripts to memory location variables added during
-# concretization (i.e., _dsn_mem variables) to make them conform to SSA.
-
 use strict;
 use warnings;
-
-# We store most up-to-date subscript numbers for each memory address in a hash,
-# although this may be slow if an input program is huge.
-my %ssa_tag = ();
-
-sub substitute_reads {
-    my ($str, @bad) = @_;
-    die "Too many arguments " if @bad;
-
-    my $add_tag = sub {
-        my ($addr, @bad) = @_;
-        die "Too many arguments " if @bad;
-
-        $ssa_tag{$addr} = 1 if !exists($ssa_tag{$addr});
-        return "_dsn_mem_0x${addr}_$ssa_tag{$addr}";
-    };
-
-    $str =~ s/_dsn_mem_0x([0-9a-fA-F]+)/$add_tag->($1)/eg;
-    return $str;
-}
 
 my ($infilename, @bad) = @ARGV;
 die "Too many arguments " if @bad;
 die "missing filename " unless $infilename;
-
 #print "$infilename\n";
 
+my %mem_vars = ();
+
 open INFILE, "<", $infilename or die $!;
-for (my $line; $line = <INFILE>; ) {
+while (<INFILE>) {
+    while (m!(_dsn_mem_0x[0-9a-fA-F]+)/\*\|([^|]*)\|\*/!g) {
+        if (!exists($mem_vars{$1})) {
+            $mem_vars{$1} = $2;
+        } else {
+            die "$1: multiple types " if ($2 ne $mem_vars{$1});
+        }
+    }
+}
 
-    # Assignment to a memory location? Then we need to increase its subscript.
-    if ($line =~ m!^( */\* .* \*/ _dsn_mem_0x([0-9a-fA-F]+)) = (.*)!) {
-        # Normal substitution for the right-hand side. Should do this before
-        # increasing subscripts.
-        my $rhs = substitute_reads $3;
-
-        # Increase the current SSA subscript for this memory address.
-        $ssa_tag{$2} = 0 if !exists($ssa_tag{$2});
-        my $subscript = ++$ssa_tag{$2};
-
-        print "$1_$subscript = $rhs\n";
-
-    } else {
-        # Normal substitution for the entire line.
-        print (substitute_reads $line);
+open INFILE, "<", $infilename or die $!;
+while (<INFILE>) {
+    print;
+    if (/^int main\(int argc/) {
+        for my $key (keys %mem_vars) {
+            print "  $mem_vars{$key} $key;\n";
+        }
     }
 }
