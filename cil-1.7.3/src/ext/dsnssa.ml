@@ -12,12 +12,25 @@ module H = Hashtbl
 let indexMap = Hashtbl.create 1000
 let currentFunc = ref None
 
-let init_ssa_map v = Hashtbl.add indexMap v.vname (v,0)
-let update_ssa_map v newIdx = Hashtbl.add indexMap v.vname (v,newIdx)
+let make_new_ssa_var v idx = 
+  match !currentFunc with
+    | Some fd -> 
+      let newvarName = "_ssa_" ^ v.vname ^ "_" ^ (string_of_int idx) in
+      let newVar = makeLocalVar fd newvarName v.vtype in
+      Hashtbl.add indexMap v.vname (newVar,idx);
+      newVar
+    | None -> raise (Failure "no fundec at this point")
+      
+let init_ssa_map v = ignore (make_new_ssa_var v 0)
+let incremented_ssa_var v = 
+      let var,idx = Hashtbl.find indexMap v.vname in 
+      let newVar = make_new_ssa_var v (idx + 1) in
+      newVar
+
 let get_ssa_var v = let var,idx = Hashtbl.find indexMap v.vname in var
 
-let rec update_rhs_exp e = match e with
-  | Const _ | SizeOf _ | SizeOfStr _ | AlignOf _ -> e
+let rec update_rhs_exp = function
+  | Const _ | SizeOf _ | SizeOfStr _ | AlignOf _ as e -> e
   | Lval(l) -> Lval(update_rhs_lval l)
   | SizeOfE(e) -> SizeOfE(update_rhs_exp e)
   | AlignOfE(e) -> AlignOfE(update_rhs_exp e)
@@ -27,23 +40,44 @@ let rec update_rhs_exp e = match e with
   | AddrOf(l) -> AddrOf(update_rhs_lval l)
   | StartOf(l) -> StartOf(update_rhs_lval l)
   | _ -> raise (Failure "unexpected exp type")
-and update_rhs_lval (lh,o) = 
-  match lh with 
-    | Var(v) -> Var (get_ssa_var v)
-    | Mem _ -> raise (Failure "shouldn't be any mem after concrete transformation")
-and update_rhs_offset o = 
+and update_rhs_lval  = function  
+  | Var v, NoOffset -> Var (get_ssa_var v), NoOffset
+  | _ -> raise (Failure "shouldn't be any mem after concrete transformation")
 
+let rec update_lhs_lval = function 
+  | Var v, NoOffset -> Var (incremented_ssa_var v), NoOffset
+  | _ -> raise (Failure "LHS shouldn't be any mem or offsets after concrete transformation")
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
     
   method vinst i = begin
     match i with
-      | _ -> DoChildren
+      | Set(lhs,rhs,loc) -> 
+	let _ = Printf.printf "well this was a set\n" in
+	(* need to do right before left because the map updates after left *)  
+	let updated_rhs = update_rhs_exp rhs in
+	let updated_lhs = update_lhs_lval lhs in
+	ChangeTo [Set(updated_lhs,updated_rhs,loc)]
+      | _ -> raise (Failure "was not expecting call or asm at this point")
   end
   method vstmt (s : stmt) = begin
+    let replace_skind sk : stmt = 
+      (* we don't need to replace the CFG stuff *)
+      let nstmt = mkStmt sk in
+      nstmt.labels <- s.labels;
+      nstmt in
     match s.skind with
-      | _ -> DoChildren
+      | Return (Some e, loc) -> (*the return at the end of main *)
+	ChangeTo (replace_skind (Return (Some (update_rhs_exp e),loc)))
+      | If (c,t,e,l) -> 
+	let newCond = update_rhs_exp c in
+	let updatedStmt = replace_skind (If(newCond,t,e,l)) in
+	ChangeDoChildrenPost (updatedStmt, (fun x -> x))
+      | Return _ | Instr _ | Block _ -> DoChildren
+      | Goto _ | Break _ | Continue _ | TryFinally _ | TryExcept _ 
+      | Switch _ | Loop _ | ComputedGoto _
+	-> raise (Failure "did not expect to see these in the trace at this point")
   end
 end
 
@@ -53,7 +87,7 @@ let dsnVisitor = new dsnVisitorClass
 
 let dsn (f: file) : unit =  
   let doGlobal = function
-    | GVarDecl (v, _) | GVar (v, _,_) ->  updateSSAMap v 0
+    | GVarDecl (v, _) | GVar (v, _,_) ->  init_ssa_map v
     | GFun(fdec,loc) -> 
       if (fdec.svar.vname <> "main") then 
 	raise (Failure "main should be the only function") else ();
