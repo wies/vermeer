@@ -154,7 +154,9 @@ let addr_of_lv (lh,lo) : exp =
 
 
 let d_mem_lval (arg : lval) : logStatement =
-  if (needsMemModelLval arg) then (  memPrefix ^"_%p", [mkAddrOrStartOf arg])
+  if (needsMemModelLval arg) then
+    let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval arg)) in
+    (memPrefix ^"_%p/*|"^ typ_str ^"|*/"), [mkAddrOrStartOf arg]
   else (d_string "%a" d_lval arg,[])
 
 let rec d_mem_exp (arg :exp) : logStatement =
@@ -178,14 +180,26 @@ let rec d_mem_exp (arg :exp) : logStatement =
       let opStr = d_string " %a " d_binop o in
       let (rhsStr,rhsArg) = d_mem_exp r in
       ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
-  | AddrOf(l) -> ("%p",[addr_of_lv l])
-  | StartOf(l) -> ("%p",[addr_of_lv l])
+  | AddrOf(l)
+  | StartOf(l) ->
+(*
+      if (d_string "%a" d_lval l) = "argc__1" then (d_string "%a" d_exp arg, [])
+      else if (d_string "%a" d_lval l) = "argv__1" then ("argv__1", []) else
+*)
+      ("%p",[addr_of_lv l])
 
   | Question _ -> E.s (E.bug "Question should have been eliminated.")
   | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel should have been eliminated.")
 
   | _ ->
-      if (needsMemModel arg) then ( memPrefix ^"_%p", [mkAddress arg] )
+      ignore (Pretty.printf "DBG: %a\n" d_exp arg);
+(*
+      if (d_string "%a" d_exp arg) = "argc__1" then ("argc__1", [])
+      else if (d_string "%a" d_exp arg) = "argv__1" then ("argv__1", []) else
+*)
+      if (needsMemModel arg) then
+        let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOf arg)) in
+        (memPrefix ^"_%p/*|"^ typ_str ^ "|*/"), [mkAddress arg]
       else (d_string "%a" d_exp arg,[])
 
 (*
@@ -201,6 +215,7 @@ let d_addr_exp (arg : exp ) : logStatement =
   else raise (Failure "trying to print an unneeded address expression")
 *)
 
+(*
 (* generate both a pre and a post part because we might have int a[2][3] *)
 let rec mkTypeStr (t: typ) : (string * string) =
   match t with
@@ -236,6 +251,54 @@ let mkVarDecl (v : varinfo) : instr =
 	mkString v.vname;
 	mkString rhsStr
       ]
+*)
+
+(* needed only for declaring unnamed args, e.g. function pointers *)
+let rec d_unnamedArgsList lst  = match lst with
+  | (s,t,a) :: [] ->
+    let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in
+    (lhsStr ^ rhsStr,lhsArgs@rhsArgs)
+  | (s,t,a) :: xs ->
+    let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in
+    let thisStr = lhsStr ^ rhsStr in
+    let thisArgs = lhsArgs @ rhsArgs in
+    let (restStr,restArgs) = d_unnamedArgsList xs in
+    (thisStr ^ ", " ^ restStr,thisArgs @ restArgs)
+  | [] -> ("",[])
+(* generate both a pre and a post part because we might have int a[2][3] *)
+(* or a function pointer *)
+and d_logType (tTop: typ) : (logStatement * logStatement) =
+  match tTop with
+    | TArray(t,eo,a) ->
+      let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType t in
+      (*DSN should this be d_scope_exp??*)
+      let e_str = match eo with
+        | Some(e) -> d_string "%a" d_exp e
+        | None -> ""
+      in
+      ((lhsStr,lhsArgs),
+       ("[" ^ e_str ^ "]" ^ rhsStr,rhsArgs))
+    | TPtr (TFun(retT,argsTLst,isVarArgs,_),_) ->
+      (* DSN things might go crazy if we have return / take fn pointers.  Not worrying about that for now *)
+      let retStr = d_string "%a" d_type retT in
+      let (argsStr,argsArgs) = match argsTLst with
+        | Some(l) -> d_unnamedArgsList l
+        | None -> ("",[])
+      in
+      ((retStr ^ "(*" ,[]),
+       (")(" ^ argsStr ^")",argsArgs))
+    | _ -> let typeStr = d_string "%a" d_type tTop in
+           ((typeStr,[]),
+            ("",[]))
+
+let d_decl (v : varinfo) : logStatement =
+  let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in
+  ((lhsStr ^ " %s" ^ rhsStr),
+   (lhsArgs @ [ mkString v.vname ] @ rhsArgs))
+
+let mkVarDecl (v : varinfo) : instr =
+  let (str,args) = d_decl v in
+  mkPrintNoLoc (str ^ ";\n") args
 
 let rec declareAllVars (slocals : varinfo list) : instr list =
   List.map mkVarDecl slocals
@@ -284,6 +347,7 @@ let rec lossless_val (lv: lval) : logStatement =
   (* TODO: I don't think so, but should we care about IULong, etc? *)
   | TInt _ | TEnum _ -> ("%d", [e])
 
+(* Let's just announce that we don't support returns with struct copying.
   | TComp (ci, _) ->
       let lhost, offset = lv in
       let new_offset f = addOffset (Field(f, NoOffset)) offset in
@@ -297,6 +361,8 @@ let rec lossless_val (lv: lval) : logStatement =
         iter_fields ("{ ", []) ci.cfields
       else (* TODO: for a union, need to identify a biggest-size field. *)
         E.s (E.bug "Union not yet supported.")
+*)
+  | TComp _ -> E.s (E.bug "Struct-copying return disabled.")
 
   | TArray _ -> E.s (E.bug "Look like this yields a compiler error.")
   | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
@@ -339,13 +405,15 @@ of that here? *)
                  variable in a lossless representation. *)
               let val_s, val_a = lossless_val lv in
               let lhs_s, lhs_a = d_mem_lval lv in
-              let typ_str = d_string "%a" d_type (typeOfLval lv) in
-
+              [mkPrintNoLoc (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
+              (* Support for struct-copying returns disabled. Take a look at
+                 'loosless_val' function.
               (* Declaring a tmp variable is a trick to use an initialization
                  form (e.g., { { 65, 66 }, 9 } for a struct). *)
+              let typ_str = d_string "%a" d_type (typeOfLval lv) in
               [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
                             val_a;
-               mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] in
+               mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
 	ChangeTo (i :: printCall' :: printCalls)
     | _ -> DoChildren
   end
@@ -379,15 +447,15 @@ of that here? *)
           | Some e -> mkPrint (d_string "return %a;\n} // main\n" d_exp e) [] in
         ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall; s])
 
-    | Instr(Set(lv, e, _)::_) ->
+    | Instr(Set(_)::_) | Instr(Call(_)::_) -> DoChildren
+(*  | Instr(Set(lv, e, _)::_) ->
         (* Output for inspection purpose. *)
         ignore (Pretty.printf "DBG: Instr(Set(%a, %a, _))\n" d_lval lv d_exp e);
         DoChildren
     | Instr(Call(_, e, _, _)::_) ->
         (* Output for inspection purpose. *)
         ignore (Pretty.printf "DBG: Instr(Call(_, %a, _))\n" d_exp e);
-        DoChildren
-
+        DoChildren *)
     | Instr _ -> E.s (E.bug "Not expecting assembly instructions.")
 
     | Goto _ | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
