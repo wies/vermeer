@@ -49,6 +49,12 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   in
   Pretty.gprintf f fmt
 
+let argc_argv_handler =
+  makeGlobalVar "main_argc_argv_dsn_printer"
+    (TFun(voidType, Some [("p_argc", intPtrType, []);
+                          ("argv", TPtr(TPtr(charPtrType, []), []), [])],
+          false, []))
+
 let log_fn = makeGlobalVar log_fn_name
                (TFun(voidType, Some [("format", charPtrType, [])], true, []))
 
@@ -107,9 +113,9 @@ let needsMemModel (e: exp) =
  *)
 
 (*DSN is it ok to use NoOffset here *)
-let mkAddressVarinfo (v : varinfo) : exp =
+(*let mkAddressVarinfo (v : varinfo) : exp =
   let lv = (Var(v),NoOffset) in
-  mkAddrOrStartOf lv
+  mkAddrOrStartOf lv*)
 
 let mkAddress (e : exp) : exp =
   match e with
@@ -181,22 +187,12 @@ let rec d_mem_exp (arg :exp) : logStatement =
       let (rhsStr,rhsArg) = d_mem_exp r in
       ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
   | AddrOf(l)
-  | StartOf(l) ->
-(*
-      if (d_string "%a" d_lval l) = "argc__1" then (d_string "%a" d_exp arg, [])
-      else if (d_string "%a" d_lval l) = "argv__1" then ("argv__1", []) else
-*)
-      ("%p",[addr_of_lv l])
+  | StartOf(l) -> ("%p",[addr_of_lv l])
 
   | Question _ -> E.s (E.bug "Question should have been eliminated.")
   | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel should have been eliminated.")
 
   | _ ->
-      ignore (Pretty.printf "DBG: %a\n" d_exp arg);
-(*
-      if (d_string "%a" d_exp arg) = "argc__1" then ("argc__1", [])
-      else if (d_string "%a" d_exp arg) = "argv__1" then ("argv__1", []) else
-*)
       if (needsMemModel arg) then
         let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOf arg)) in
         (memPrefix ^"_%p/*|"^ typ_str ^ "|*/"), [mkAddress arg]
@@ -362,7 +358,7 @@ let rec lossless_val (lv: lval) : logStatement =
       else (* TODO: for a union, need to identify a biggest-size field. *)
         E.s (E.bug "Union not yet supported.")
 *)
-  | TComp _ -> E.s (E.bug "Struct-copying return disabled.")
+  | TComp _ -> E.s (E.bug "Struct-copying returns disabled.")
 
   | TArray _ -> E.s (E.bug "Look like this yields a compiler error.")
   | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
@@ -388,15 +384,20 @@ of that here? *)
 	let printCall = mkPrint printStr printArgs in
 	let newInstrs =  printCall :: [i] in
 	ChangeTo newInstrs
+
+    (* The only calls that can occur in a reduced format are to functions
+       where we do not have the implementation. *)
     | Call(lo,e,al,l) ->
-(* The only calls that can occur in a reduced format are to functions where
-   we do not have the implementation. *)
+        let lhs_s, lhs_a = match lo with None -> "", []
+                                       | Some(lv) -> d_mem_lval lv in
+        let lhs_s = if lhs_s = "" then "" else lhs_s ^ " = " in
+
         (* Let's record the call in a comment too. *)
         let fn_name = d_string "%a" d_exp e in
 	let (argsStr, argsArgs) = mkActualArg al in
-	let comment_str = "/* Called "^ fn_name ^"("^ argsStr ^"). */\n" in
-	let comment_args = argsArgs in
-        let printCall' = mkPrint comment_str comment_args in
+	let cmnt_str = "/* Call: "^ lhs_s ^ fn_name ^"("^ argsStr ^") */\n" in
+	let cmnt_args = lhs_a @ argsArgs in
+        let cmntPrintCall = mkPrint cmnt_str cmnt_args in
 
 	let printCalls = match lo with
 	  | None -> [] (* No assignment; nothing to print. *)
@@ -404,8 +405,7 @@ of that here? *)
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
               let val_s, val_a = lossless_val lv in
-              let lhs_s, lhs_a = d_mem_lval lv in
-              [mkPrintNoLoc (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
+              [mkPrintNoLoc (lhs_s ^ val_s ^";\n") (lhs_a @ val_a)]
               (* Support for struct-copying returns disabled. Take a look at
                  'loosless_val' function.
               (* Declaring a tmp variable is a trick to use an initialization
@@ -414,7 +414,7 @@ of that here? *)
               [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
-	ChangeTo (i :: printCall' :: printCalls)
+	ChangeTo (i :: cmntPrintCall :: printCalls)
     | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
@@ -474,7 +474,6 @@ let globalDeclFn =
   let _  = setFunctionType fdec typ  in
   fdec
 
-
 let dsnconcrete (f: file) : unit =
 
   let doGlobal (g: global) =
@@ -500,9 +499,19 @@ let dsnconcrete (f: file) : unit =
         ignore (visitCilFunction dsnconcreteVisitor fdec);
         decrIndent ();
 
+        let argc_argv_handler_call =
+          let argc_vi, argv_vi = match fdec.sformals with
+            | [x; y] -> x, y | _ -> E.s (E.bug ("Where's argc or argv?")) in
+          let p_argc_e = mkAddrOrStartOf (var argc_vi) in
+          let p_argv_e = mkAddrOrStartOf (var argv_vi) in
+          Call(None, Lval(var argc_argv_handler),
+                     [p_argc_e; p_argv_e], locUnknown) in
+
         let stmts = List.map mkStmtOneInstr
           [Call(None,Lval(var globalDeclFn.svar),[],locUnknown);
-	   mkPrint "int main(int argc, char** argv){\n" []] in
+	   mkPrint ("int main(int argc, char** argv){" ^
+                   "/* Parameters should not be used. */\n") [];
+           argc_argv_handler_call] in
         fdec.sbody <-
           mkBlock (compactStmts (stmts @ allVarDeclaresStmt @
 				 [mkStmt (Block fdec.sbody)]))
@@ -514,6 +523,7 @@ let dsnconcrete (f: file) : unit =
   E.log "Adding prototype for call logging function %s\n" log_fn.vname;
   f.globals <-
     GVarDecl (log_fn, locUnknown) ::
+    GVarDecl (argc_argv_handler, locUnknown) ::
     GFun (globalDeclFn, locUnknown) :: (*should be declared last*)
     f.globals
 
