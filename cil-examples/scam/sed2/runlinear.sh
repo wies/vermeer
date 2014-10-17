@@ -5,5 +5,5 @@ then echo "needs an argument";
 fi
 
 ../../../cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --domakeCFG --dodsnlinear --save-temps "$1.c" ../../dsnlog.o -lm
-./a.out -d < file000001
+./a.out -f pattern000001 file000001
 mv dsn_logfile.txt "$1.linear.c"
