@@ -2,12 +2,12 @@
 
 # What it does:
 #
-# 1. Substitute 0 for (nil). There are two cases where (nil) is printed.
+# 1. Substitutes 0 for (nil). There are two cases where (nil) is printed.
 #   a) A function call returning a null value, e.g.,
 #      int* p = null_returning_function();
 #   b) In a memory variable name as in _dsn_mem_(nil).
-# 2. Add declarations for _dsm_mem variables.
-# 3. 
+# 2. Adds declarations for _dsm_mem variables.
+# 3. Adds a missing closing bracket in the case of a crash.
 
 use strict;
 use warnings;
