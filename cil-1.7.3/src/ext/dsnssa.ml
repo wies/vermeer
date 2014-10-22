@@ -33,7 +33,6 @@ let new_ssa_var v =
   let newvarName = "x_" ^ string_of_int varId ^ "_" ^ (string_of_int idx) in
   let newVar = makeLocalVar fd newvarName v.vtype in
   Hashtbl.replace indexMap v.vname (newVar,varId,idx);
-  Printf.printf "made a new var %s %d %d\n" v.vname varId idx;
   newVar
 
 let get_ssa_var v = 
