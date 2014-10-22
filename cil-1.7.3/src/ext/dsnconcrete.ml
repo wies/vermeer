@@ -26,7 +26,7 @@ let memPrefix = "_dsn_mem"
 let wrapper_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
 
-let preset_wrappers = ["sprintf"]
+let preset_wrappers = ["memset"; "read"; "sprintf"]
 
 let wrapper_set = List.fold_right SS.add preset_wrappers SS.empty
 
