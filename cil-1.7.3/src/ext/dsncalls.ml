@@ -198,36 +198,29 @@ let d_decl (v : varinfo) : logStatement =
 let stmtFromStmtList (stmts : stmt list) : stmt =
   mkStmt(Block(mkBlock (compactStmts stmts)))
 
-let mkVarDecl (v : varinfo) : instr = 
-  let (str,args) = d_decl v in
-  mkPrint ~locp:false (str ^ ";\n") args
-    
-let rec declareAllVarsHelper (slocals : varinfo list) : instr list = 
-  match slocals with
-    | x :: xs -> (mkVarDecl x) :: (declareAllVarsHelper xs)
-    | [] -> []
-      
+let stmtFromInstrList (instrs) : stmt = mkStmt (Instr(instrs))
+
 let declareAllVarsStmt (slocals : varinfo list) : stmt =
-  let instrs = declareAllVarsHelper slocals in
-  let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
-  stmtFromStmtList stmts
-    
-let mkFormalDecl (v : varinfo) (idx : int) : instr = 
-  let (lhsStr,lhsArgs) = d_decl v in
-  let (rhsStr, rhsArgs) = d_tempArg idx in
-  let argStr = lhsStr ^ " = " ^ rhsStr ^ ";\n" in
-  mkPrint ~locp:false argStr ( lhsArgs @ rhsArgs)   
-    
-let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
-  match slocals with
-    | x :: xs -> (mkFormalDecl x idx ) :: (declareAllFormalsHelper xs (idx + 1))
-    | [] -> []
-      
-      
+  let mkVarDecl (v : varinfo) : instr = 
+    let (str,args) = d_decl v in
+    mkPrint ~locp:false (str ^ ";\n") args 
+  in
+  stmtFromInstrList (List.map mkVarDecl slocals)
+
+
 let declareAllFormalsStmt (sformals : varinfo list) : stmt = 
-  let instrs = declareAllFormalsHelper sformals 0 in
-  let stmts = List.map (fun x -> mkStmtOneInstr x) instrs in
-  stmtFromStmtList stmts
+  let mkFormalDecl (v : varinfo) (idx : int) : instr = 
+    let (lhsStr,lhsArgs) = d_decl v in
+    let (rhsStr, rhsArgs) = d_tempArg idx in
+    let argStr = lhsStr ^ " = " ^ rhsStr ^ ";\n" in
+    mkPrint ~locp:false argStr ( lhsArgs @ rhsArgs)   
+  in
+  let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
+    match slocals with
+      | x :: xs -> (mkFormalDecl x idx ) :: (declareAllFormalsHelper xs (idx + 1))
+      | [] -> []
+  in
+  stmtFromInstrList(declareAllFormalsHelper sformals 0)
     
 let rec d_xScope_offset (scopeExp : exp) (o : offset) : logStatement = 
   match o with 
@@ -639,16 +632,14 @@ let dsn (f: file) : unit =
       ignore (visitCilFunction dsnVisitor fdec);
       
       (* Now add the entry instruction *)
-      let formalDeclList = List.map d_fn_decl fdec.sformals in
-      let rec mkMainArgs lst = 
-	match lst with 
-	  | x :: [] -> x
-	  | x :: xs -> 
-	    let (strs,args) = mkMainArgs xs in
-	    let (str,arg) = x in
-	    (str ^ ", " ^ strs, arg @ args)
-	  | _ -> raise (Failure ("main with no args???\n" ^ locStr ())) in 
-      let (formalStr, formalArgs) = mkMainArgs formalDeclList in
+      let (formalStr,formalArgs) = 
+	match fdec.sformals with
+	  | [argc;argv] -> 
+	    let argcStr,argcArgs = d_fn_decl argc in
+	    let argvStr,argvArgs = d_fn_decl argv in
+	    (argcStr ^ ", " ^ argvStr, argcArgs @ argvArgs)
+	  | _ ->  raise (Failure ("main with wrong # of args???\n" ^ locStr ())) 
+      in 
       fdec.sbody <- 
 	mkBlock (compactStmts (
 	  [mkStmtOneInstr (Call(None,Lval(var globalDeclFn.svar),[],locUnknown));
