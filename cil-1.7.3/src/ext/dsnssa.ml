@@ -10,24 +10,36 @@ module E = Errormsg
 module H = Hashtbl
 
 let indexMap = Hashtbl.create 1000
+let reverseMap = Hashtbl.create 1000
 let currentFunc = ref None
+let varIdCtr = ref 0
 
-let make_new_ssa_var v idx = 
-  match !currentFunc with
-    | Some fd -> 
-      let newvarName = "_ssa_" ^ v.vname ^ "_" ^ (string_of_int idx) in
-      let newVar = makeLocalVar fd newvarName v.vtype in
-      Hashtbl.add indexMap v.vname (newVar,idx);
-      newVar
-    | None -> raise (Failure "no fundec at this point")
-      
-let init_ssa_map v = ignore (make_new_ssa_var v 0)
-let incremented_ssa_var v = 
-      let var,idx = Hashtbl.find indexMap v.vname in 
-      let newVar = make_new_ssa_var v (idx + 1) in
-      newVar
+let find_safe h k = try Some (Hashtbl.find h k) with Not_found -> None
+let find_var k = find_safe indexMap k.vname  
+let getFd () = match !currentFunc with
+  | Some fd -> fd
+  | None -> raise (Failure "no fundec at this point")
 
-let get_ssa_var v = let var,idx = Hashtbl.find indexMap v.vname in var
+let new_ssa_var v = 
+  let varId,idx = 
+    match find_var v with
+      | Some (_,id,idx) -> id,idx + 1
+      | None -> 
+	incr varIdCtr;
+	Hashtbl.replace reverseMap !varIdCtr v.vname;
+	!varIdCtr,0
+  in
+  let fd = getFd () in
+  let newvarName = "x_" ^ string_of_int varId ^ "_" ^ (string_of_int idx) in
+  let newVar = makeLocalVar fd newvarName v.vtype in
+  Hashtbl.replace indexMap v.vname (newVar,varId,idx);
+  Printf.printf "made a new var %s %d %d\n" v.vname varId idx;
+  newVar
+
+let get_ssa_var v = 
+  match find_var v with
+    | Some(newVar,varId,idx) -> newVar
+    | None -> new_ssa_var v
 
 let rec update_rhs_exp = function
   | Const _ | SizeOf _ | SizeOfStr _ | AlignOf _ as e -> e
@@ -45,19 +57,19 @@ and update_rhs_lval  = function
   | _ -> raise (Failure "shouldn't be any mem after concrete transformation")
 
 let rec update_lhs_lval = function 
-  | Var v, NoOffset -> Var (incremented_ssa_var v), NoOffset
+  | Var v, NoOffset -> Var (new_ssa_var v), NoOffset
   | _ -> raise (Failure "LHS shouldn't be any mem or offsets after concrete transformation")
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
     
-  method vfunc f = ChangeDoChildrenPost (f,Rmciltmps.eliminate_temps)
+  method vfunc f = 
+    ChangeDoChildrenPost (f,Rmciltmps.eliminate_temps)
 
   method vinst i = begin
     match i with
       | Set(lhs,rhs,loc) -> 
-	let _ = Printf.printf "well this was a set\n" in
-	(* need to do right before left because the map updates after left *)  
+	  (* need to do right before left because the map updates after left *)  
 	let updated_rhs = update_rhs_exp rhs in
 	let updated_lhs = update_lhs_lval lhs in
 	ChangeTo [Set(updated_lhs,updated_rhs,loc)]
@@ -65,7 +77,7 @@ class dsnVisitorClass = object
   end
   method vstmt (s : stmt) = begin
     let replace_skind sk : stmt = 
-      (* we don't need to replace the CFG stuff *)
+	(* we don't need to replace the CFG stuff *)
       let nstmt = mkStmt sk in
       nstmt.labels <- s.labels;
       nstmt in
@@ -83,24 +95,22 @@ class dsnVisitorClass = object
   end
 end
 
-(* assume that there is only one function at this point *)
-(* otherwise things get messy *)
+  (* assume that there is only one function at this point *)
+  (* otherwise things get messy *)
 let dsnVisitor = new dsnVisitorClass
 
 let dsn (f: file) : unit =  
   let doGlobal = function
-    | GVarDecl (v, _) | GVar (v, _,_) ->  init_ssa_map v
     | GFun(fdec,loc) -> 
       if (fdec.svar.vname <> "main") then 
-	raise (Failure "main should be the only function") else ();
+	raise (Failure "main should be the only function");
       currentFunc := Some fdec;
-      List.iter init_ssa_map fdec.slocals;
-      List.iter init_ssa_map fdec.sformals;
       ignore (visitCilFunction dsnVisitor fdec)
     | _ -> ()
   in
-  Stats.time "dsn" (iterGlobals f) doGlobal
-  
+  Stats.time "dsn" (iterGlobals f) doGlobal;
+  Hashtbl.iter (fun k v -> Printf.printf "%d -> %s\n" k v) reverseMap
+    
 
 let feature : featureDescr = 
   { fd_name = "dsnssa";

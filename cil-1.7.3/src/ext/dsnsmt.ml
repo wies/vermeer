@@ -5,9 +5,6 @@
  * remap interpolants when returning them
  * fix the "ands" and extra () in the interpolation split
  *)
-(** See copyright notice at the end of this file *)
-
-(** Add printf before each function call *)
 
 open Pretty
 open Cil
