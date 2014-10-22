@@ -59,8 +59,30 @@ void *memset_dsn_wrapper(void *s, int c, size_t n)
   char *p = (char *)s;
   char *end = p + n;
   for (; p < end; p++)
-    dsn_log("/* [memset_dsn_wrapper] */ _dsn_mem_%p = %d\n", p, c);
+    dsn_log("/* [memset_dsn_wrapper] */ _dsn_mem_%p = %d;\n", p, c);
 
+  return result;
+}
+
+char *strcpy_dsn_wrapper(char *dest, const char *src)
+{
+  char *result = strcpy(dest, src);
+
+  size_t i, len = strlen(src);
+  for (i = 0; i < len; i++)
+    dsn_log("/* [strcpy_dsn_wrapper] */ _dsn_mem_%p = %d;\n", dest+i, dest[i]);
+  dsn_log("/* [strcpy_dsn_wrapper] */ _dsn_mem_%p = 0;\n", dest+len);
+  return result;
+}
+
+char *strncpy_dsn_wrapper(char *dest, const char *src, size_t n)
+{
+  char *result = strncpy(dest, src, n);
+
+  size_t i;
+  // strncpy always writes exactly n bytes (with possible trailing nulls).
+  for (i = 0; i < n; i++)
+    dsn_log("/* [strncpy_dsn_wrapper] */ _dsn_mem_%p = %d;\n", dest+i, dest[i]);
   return result;
 }
 
@@ -81,7 +103,7 @@ ssize_t read_dsn_wrapper(int fildes, void *buf, size_t nbyte)
   char *p = (char *)buf;
   char *end = p + result;
   for (; p < end; p++)
-    dsn_log("/* [read_dsn_wrapper] */ _dsn_mem_%p = %d\n", p, *p);
+    dsn_log("/* [read_dsn_wrapper] */ _dsn_mem_%p = %d;\n", p, *p);
 
   return result;
 }
@@ -95,8 +117,8 @@ int sprintf_dsn_wrapper(char *str, const char *format, ...)
 
   size_t i, len = strlen(str);
   for (i = 0; i < len; i++)
-    dsn_log("/* [sprintf_dsn_wrapper] */ _dsn_mem_%p = %d\n", str+i, str[i]);
-  dsn_log("/* [sprintf_dsn_wrapper] */ _dsn_mem_%p = 0\n", str+len);
+    dsn_log("/* [sprintf_dsn_wrapper] */ _dsn_mem_%p = %d;\n", str+i, str[i]);
+  dsn_log("/* [sprintf_dsn_wrapper] */ _dsn_mem_%p = 0;\n", str+len);
 
   return result;
 }

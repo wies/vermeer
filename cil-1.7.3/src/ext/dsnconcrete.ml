@@ -26,7 +26,10 @@ let memPrefix = "_dsn_mem"
 let wrapper_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
 
-let preset_wrappers = ["memset"; "read"; "sprintf"]
+let preset_wrappers =
+  (* unistd.h *) ["read";
+  (* string.h *)  "memset"; "strcpy"; "strncpy";
+  (* stdio.h  *)  "sprintf"]
 
 let wrapper_set = List.fold_right SS.add preset_wrappers SS.empty
 
@@ -299,10 +302,8 @@ let mkVarDecl (v : varinfo) : instr =
 let rec declareAllVars (slocals : varinfo list) : instr list =
   List.map mkVarDecl slocals
 
-let declareAllVarsStmt (slocals : varinfo list) : stmt list =
-  let instrs = declareAllVars slocals in
-  let stmts = List.map mkStmtOneInstr instrs in
-  compactStmts stmts
+let declareAllVarsStmt (slocals : varinfo list) : stmt =
+  mkStmt (Instr (declareAllVars slocals))
 
 (* DSN perhaps there should be a common make print assgt function *)
 
@@ -497,14 +498,13 @@ let dsnconcrete (f: file) : unit =
           Call(None, Lval(var argc_argv_handler),
                      [p_argc_e; p_argv_e], locUnknown) in
 
-        let stmts = List.map mkStmtOneInstr
+        let stmt = mkStmt (Instr
           [Call(None, Lval(var globalDeclFn.svar), [], locUnknown);
 	   mkPrint ("int main(int argc, char** argv){" ^
-                   "/* Parameters should not be used. */\n") [];
-           argc_argv_handler_call] in
-        fdec.sbody <-
-          mkBlock (compactStmts (stmts @ allVarDeclaresStmt @
-				 [mkStmt (Block fdec.sbody)]))
+                    "/* Parameters should not be used. */\n") [];
+           argc_argv_handler_call]) in
+        fdec.sbody <- mkBlock
+          [stmt; allVarDeclaresStmt; mkStmt (Block fdec.sbody)]
 
     | GFun _ -> E.s (E.bug "Cannot have a function definition other than main.")
     | _ -> ()
