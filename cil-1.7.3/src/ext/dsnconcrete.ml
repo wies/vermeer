@@ -416,7 +416,7 @@ of that here? *)
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
 	ChangeTo (i :: cmntPrintCall :: printCalls)
-    | _ -> DoChildren
+    | _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
     if s.labels <> [] then E.s (E.bug "Cannot have labels.");
@@ -447,23 +447,10 @@ of that here? *)
             None   -> mkPrint "return;\n} // main\n" []
           | Some e -> mkPrint (d_string "return %a;\n} // main\n" d_exp e) [] in
         ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall; s])
-
-    | Instr(Set(_)::_) | Instr(Call(_)::_) -> DoChildren
-(*  | Instr(Set(lv, e, _)::_) ->
-        (* Output for inspection purpose. *)
-        ignore (Pretty.printf "DBG: Instr(Set(%a, %a, _))\n" d_lval lv d_exp e);
-        DoChildren
-    | Instr(Call(_, e, _, _)::_) ->
-        (* Output for inspection purpose. *)
-        ignore (Pretty.printf "DBG: Instr(Call(_, %a, _))\n" d_exp e);
-        DoChildren *)
-    | Instr _ -> E.s (E.bug "Not expecting assembly instructions.")
-
+    | Instr _  | Block _ ->  DoChildren
     | Goto _ | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
     | Break _ | Continue _ ->
         E.s (E.bug "Not expecting control flow statements.")
-
-    | Block _ -> DoChildren
   end
 end
 
