@@ -390,12 +390,13 @@ of that here? *)
     | Call(lo,e,al,l) ->
         let lhs_s, lhs_a = match lo with None -> "", []
                                        | Some(lv) -> d_mem_lval lv in
-        let lhs_s = if lhs_s = "" then "" else lhs_s ^ " = " in
 
         (* Let's record the call in a comment too. *)
         let fn_name = d_string "%a" d_exp e in
 	let (argsStr, argsArgs) = mkActualArg al in
-	let cmnt_str = "/* Call: "^ lhs_s ^ fn_name ^"("^ argsStr ^") */\n" in
+        let lhs_cs =
+          if lhs_s = "" then "(no return or ignored) " else lhs_s ^ " = " in
+	let cmnt_str = "/* Call: "^ lhs_cs ^ fn_name ^"("^ argsStr ^") */\n" in
 	let cmnt_args = lhs_a @ argsArgs in
         let cmntPrintCall = mkPrint cmnt_str cmnt_args in
 
@@ -405,7 +406,7 @@ of that here? *)
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
               let val_s, val_a = lossless_val lv in
-              [mkPrintNoLoc (lhs_s ^ val_s ^";\n") (lhs_a @ val_a)]
+              [mkPrintNoLoc (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
               (* Support for struct-copying returns disabled. Take a look at
                  'loosless_val' function.
               (* Declaring a tmp variable is a trick to use an initialization
