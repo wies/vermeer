@@ -10,4 +10,4 @@ if [ "$?" -ne "0" -o ! -x ./a.out ]; then exit 1; fi
 ./a.out
 mv dsn_logfile.txt "$1.concrete.c"
 
-./postprocess_linear "$1.concrete.c" > "$1.postconcrete.c"
+./postprocess_concrete "$1.concrete.c" > "$1.postconcrete.c"

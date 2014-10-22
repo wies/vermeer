@@ -7,6 +7,7 @@
 #      int* p = null_returning_function();
 #   b) In a memory variable name as in _dsn_mem_(nil).
 # 2. Add declarations for _dsm_mem variables.
+# 3. 
 
 use strict;
 use warnings;
@@ -35,14 +36,22 @@ while (<INFILE>) {
 }
 
 open INFILE, "<", $infilename or die $!;
+my $last_seen = "";
 while (<INFILE>) {
     s/ = \(nil\);/ = 0;/;
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
-    print;
+    print ($last_seen = $_);
     if (/^int main\(int argc/) {
         for my $key (keys %mem_vars) {
             my $var = "_dsn_mem_" . ($key eq "(nil)" ? "0x0" : $key);
             print "  $mem_vars{$key} $var;\n";
         }
     }
+}
+
+if ($last_seen ne "} // main") {
+    print "  // Looks like the concretized trace ran into a crash.\n";
+    print "  // Adding an assert and a closing bracket for main.\n";
+    print "  assert(false);\n";
+    print "} // main";
 }

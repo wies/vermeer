@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <signal.h>
 
-void *handler(int dont_care) {
-    return 0;
-}
+void *handler(int dont_care) { return 0; }
 
 int main(int argc, char** argv) {
     typedef int MY_INT;
@@ -17,7 +15,7 @@ int main(int argc, char** argv) {
     char** argv2 = argv;
     char*** argv_ptr = &argv;
 
-    void* vp = (void*) signal(SIGINT, &handler);
+    void* vp = (void*) signal(SIGXCPU, &handler);
 
     char* p = 0;
     *p = 10;
