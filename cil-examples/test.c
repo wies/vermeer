@@ -1,4 +1,9 @@
 #include <stdio.h>
+#include <signal.h>
+
+void *handler(int dont_care) {
+    return 0;
+}
 
 int main(int argc, char** argv) {
     typedef int MY_INT;
@@ -11,6 +16,11 @@ int main(int argc, char** argv) {
     int* argc_ptr = &argc;
     char** argv2 = argv;
     char*** argv_ptr = &argv;
+
+    void* vp = (void*) signal(SIGINT, &handler);
+
+    char* p = 0;
+    *p = 10;
     
     local_record[0].snd_field = 1111;
     int *ptr = &(local_record[0].snd_field);

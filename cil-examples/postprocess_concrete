@@ -1,32 +1,48 @@
 #!/usr/bin/perl -w
 
+# What it does:
+#
+# 1. Substitute 0 for (nil). There are two cases where (nil) is printed.
+#   a) A function call returning a null value, e.g.,
+#      int* p = null_returning_function();
+#   b) In a memory variable name as in _dsn_mem_(nil).
+# 2. Add declarations for _dsm_mem variables.
+
 use strict;
 use warnings;
 
 my ($infilename, @bad) = @ARGV;
 die "Too many arguments " if @bad;
 die "missing filename " unless $infilename;
-#print "$infilename\n";
 
 my %mem_vars = ();
 
+# 
+# Identify memory variables (i.e., _dsn_mem vars) with correct types.
+# Assumes that the type information follows immediately in a comment in the
+# form of, e.g,. '/*|int |*/'.
+#
 open INFILE, "<", $infilename or die $!;
 while (<INFILE>) {
-    while (m!(_dsn_mem_0x[0-9a-fA-F]+)/\*\|([^|]*)\|\*/!g) {
-        if (!exists($mem_vars{$1})) {
-            $mem_vars{$1} = $2;
+    while (m!(_dsn_mem_(0x[0-9a-fA-F]+|\(nil\)))/\*\|([^|]*)\|\*/!g) {
+        if (!exists($mem_vars{$2})) {
+            $mem_vars{$2} = $3;
         } else {
-            die "$1: multiple types " if ($2 ne $mem_vars{$1});
+            # Type unrolling in the concrete pass should give a canonical type.
+            die "$1: multiple types " if ($3 ne $mem_vars{$2});
         }
     }
 }
 
 open INFILE, "<", $infilename or die $!;
 while (<INFILE>) {
+    s/ = \(nil\);/ = 0;/;
+    s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     print;
     if (/^int main\(int argc/) {
         for my $key (keys %mem_vars) {
-            print "  $mem_vars{$key} $key;\n";
+            my $var = "_dsn_mem_" . ($key eq "(nil)" ? "0x0" : $key);
+            print "  $mem_vars{$key} $var;\n";
         }
     }
 }

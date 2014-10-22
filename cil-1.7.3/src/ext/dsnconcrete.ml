@@ -499,6 +499,8 @@ let dsnconcrete (f: file) : unit =
         ignore (visitCilFunction dsnconcreteVisitor fdec);
         decrIndent ();
 
+        (* We want to inject a function call right after the start of main
+           that will setup proper assignments for given argc and argv values. *)
         let argc_argv_handler_call =
           let argc_vi, argv_vi = match fdec.sformals with
             | [x; y] -> x, y | _ -> E.s (E.bug ("Where's argc or argv?")) in
@@ -508,7 +510,7 @@ let dsnconcrete (f: file) : unit =
                      [p_argc_e; p_argv_e], locUnknown) in
 
         let stmts = List.map mkStmtOneInstr
-          [Call(None,Lval(var globalDeclFn.svar),[],locUnknown);
+          [Call(None, Lval(var globalDeclFn.svar), [], locUnknown);
 	   mkPrint ("int main(int argc, char** argv){" ^
                    "/* Parameters should not be used. */\n") [];
            argc_argv_handler_call] in

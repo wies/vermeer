@@ -30,24 +30,24 @@ void main_argc_argv_dsn_printer(int *p_argc, char ***p_argv)
   int argc = *p_argc;
   char **argv = *p_argv;
 
-  dsn_log("\n    /********************************************************/\n");
-  dsn_log("    /* argc = %d */\n", argc);
+  dsn_log("\n    //////////////////////////////////////////////////////////\n");
+  dsn_log("    // Setting up argc and argv.                            //\n");
+  dsn_log("    //////////////////////////////////////////////////////////\n");
+  dsn_log("    // argc = %d\n", argc);
   dsn_log("    int argc__1 = %d;\n", argc);
   dsn_log("    _dsn_mem_%p/*|int |*/ = %d;\n", p_argc, argc);
 
-  dsn_log("    /* argv = %p */\n", argv);
+  dsn_log("    // argv = %p\n", argv);
   dsn_log("    char **argv__1 = %p;\n", argv);
   dsn_log("    _dsn_mem_%p/*|char **|*/ = %p;\n", p_argv, argv);
-  // I don't think we need this, so commenting out.
-  //dsn_log("    /* *argv = %p */\n", *argv);
-  //dsn_log("    _dsn_mem_%p/*|char *|*/ = %p;\n", argv, *argv);
   for (i = 0; i < *p_argc; i++){
-    dsn_log("    /* argv[%d] = \"%s\" */\n", i, argv[i]);
+    dsn_log("    // argv[%d] = \"%s\"\n", i, argv[i]);
+    dsn_log("    _dsn_mem_%p/*|char *|*/ = %p;\n", argv+i, argv[i]);
     for (j = 0; argv[i][j] != 0; j++)
-      dsn_log("    _dsn_mem_%p/*|char |*/ = %d; /* '%c' */\n",
+      dsn_log("    _dsn_mem_%p/*|char |*/ = %d; // '%c'\n",
               argv[i]+j, argv[i][j], argv[i][j]);
   }
-  dsn_log("    /********************************************************/\n\n");
+  dsn_log("    //////////////////////////////////////////////////////////\n\n");
 }
 
 int sprintf_dsn_wrapper(char *str, const char *format, ...)
