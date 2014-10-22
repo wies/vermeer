@@ -429,9 +429,10 @@ of that here? *)
           | If(e, then_b, else_b, loc) when else_b.bstmts = [] ->
               let eStr, eArg = d_mem_exp e in
               let fStr = "if("^ eStr ^"){\n" in
-              then_b.bstmts <- [mkStmtOneInstr (mkPrint fStr eArg)]
-                               @ then_b.bstmts @
-                               [mkStmtOneInstr (mkPrintNoLoc "}\n" [])];
+              then_b.bstmts <- compactStmts (
+		[mkStmtOneInstr (mkPrint fStr eArg)] 
+		@  then_b.bstmts 
+                @  [mkStmtOneInstr (mkPrintNoLoc "}\n" [])]);
               a
           | _ -> E.s (E.bug "If statement corrupted.") in
         incrIndent ();
