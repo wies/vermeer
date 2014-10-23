@@ -36,7 +36,7 @@ type varOwner = | Thread of int
 		| Global
 
 type smtVarType = SMTBool | SMTInt | SMTUnknown
-		    
+    
 type smtvar = {fullname : string; 
 	       vidx: int; 
 	       owner : int; 
@@ -96,7 +96,7 @@ let outfile = smtDir ^ "outfile.smt2"
 let infile = smtDir ^ "infile.smt2"
 
 let smtOpts = 
-"(set-option :print-success false)
+  "(set-option :print-success false)
 (set-option :produce-proofs true)
 (set-logic QF_LIA)\n"
 
@@ -124,14 +124,12 @@ let flowSensitiveEncoding = true
 let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
 
 let rec last = function
-    | [] -> None
-    | [x] -> Some x
-    | _ :: t -> last t;;
+  | [] -> None
+  | [x] -> Some x
+  | _ :: t -> last t;;
 
-let rec all_but_last lst = match lst with
-  | [] -> raise (Failure "empty list can't remove last")
-  | [x] -> []
-  | x::xs -> x :: (all_but_last xs)
+let rec all_but_last lst = 
+  List.rev  (List.tl (List.rev lst))
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
   let f (d: doc) : string = 
@@ -140,8 +138,7 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   Pretty.gprintf f fmt 
 
 let safe_mkdir name mask = 
-  if Sys.file_exists name then ()
-  else Unix.mkdir name mask
+  if not (Sys.file_exists name) then Unix.mkdir name mask
 
 (****************************** Clauses ******************************)
 (* two possibilities: either maintain a mapping at each point
@@ -191,13 +188,13 @@ let analyze_var_type (topForm : term) =
 			   (string_of_vartype newType)))
   in
   let rec analyze_type_list typ tl  = 
-  match tl with 
-    | [] -> typ
-    | x::xs -> 
-      let updatedTyp = analyze_type typ x in
-      if types_match typ updatedTyp then 
-	analyze_type_list updatedTyp xs
-      else raise (Failure "types don't match")
+    match tl with 
+      | [] -> typ
+      | x::xs -> 
+	let updatedTyp = analyze_type typ x in
+	if types_match typ updatedTyp then 
+	  analyze_type_list updatedTyp xs
+	else raise (Failure "types don't match")
   and analyze_type typ f = 
     match f with 
       | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
@@ -211,12 +208,21 @@ let analyze_var_type (topForm : term) =
 	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
 	    let _ = analyze_type_list SMTBool l in
 	    second_if_matching typ SMTBool
-	  | "=" | "distinct" | "ite" -> 
-	    (*we analyze the list twice.  Once to find out what kind it is
-	     * the second time to propegate that result to everything in it *)
+	  | "ite" -> 
+	    (* we analyze the list twice.  Once to find out what kind it is
+	     * the second time to propegate that result to everything in it 
+	     * The type of an ite is the type of its list
+	     *)
 	    let t1 = analyze_type_list SMTUnknown l in
 	    let t2 = second_if_matching t1 (analyze_type_list t1 l) in
-	    second_if_matching typ t2	    
+	    second_if_matching typ t2
+	  | "=" | "distinct" ->
+	    (* we analyze the list twice.  Once to find out what kind it is
+	     * the second time to propegate that result to everything in it 
+	     *)
+	    let t1 = analyze_type_list SMTUnknown l in
+	    let _ = second_if_matching t1 (analyze_type_list t1 l) in
+	    second_if_matching typ SMTBool
 	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
 	    let _ = analyze_type_list SMTInt l in
 	    second_if_matching typ SMTInt
@@ -235,7 +241,7 @@ let rec get_vars formulaList set =
 	| SMTRelation(s,l) -> get_vars l set
 	| SMTConstant(_) | SMTFalse | SMTTrue -> set
 	| SMTVar(v) -> VarSet.add v set 
-	
+	  
 let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
   match vars with 
     | [] -> ssaMap
@@ -278,10 +284,8 @@ let negate_clause cls =
  *)
 
 let get_current_var oldVar ssaMap = 
-  if VarSSAMap.mem oldVar.vidx ssaMap then
-    Some (VarSSAMap.find oldVar.vidx ssaMap)
-  else 
-    None
+  try Some (VarSSAMap.find oldVar.vidx ssaMap)
+  with Not_found -> None
 
 let rec remap_formula ssaMap form =
   match form with
@@ -344,29 +348,30 @@ and debug_formula f =
     | SMTFalse | SMTTrue -> string_of_formula f
 
 (* could make tail rec if I cared *)
-let rec debug_SSAMap_rec bindings = 
-  match bindings with
-    | [] -> ""
-    | (k,v)::bs -> 
-      "\t(" ^ string_of_int k
-      ^ ", " ^ debug_var v
-      ^ ")\n"
-      ^ debug_SSAMap_rec bs
-
 let debug_SSAMap m = 
+  let rec debug_SSAMap_rec bindings = 
+    match bindings with
+      | [] -> ""
+      | (k,v)::bs -> 
+	"\t(" ^ string_of_int k
+	^ ", " ^ debug_var v
+	^ ")\n"
+	^ debug_SSAMap_rec bs
+  in
   debug_SSAMap_rec (VarSSAMap.bindings m)
 
-let rec debug_vars_rec vars = 
-  match vars with
-    | [] -> ""
-    | v::vs -> "\t" ^ debug_var v ^ "\n" ^ debug_vars_rec vs
 let debug_vars vars = 
+  let rec debug_vars_rec vars = 
+    match vars with
+      | [] -> ""
+      | v::vs -> "\t" ^ debug_var v ^ "\n" ^ debug_vars_rec vs
+  in
   debug_vars_rec (VarSet.elements vars)
-
+    
 let rec debug_clause c = 
-   "\nidx: " ^ (string_of_int(c.idx))
+  "\nidx: " ^ (string_of_int(c.idx))
   ^"\n\tsexp: " ^ string_of_formula c.formula
-(* ^ "\n\tformula:\n" ^ (debug_formula c.formula)  *)
+  (* ^ "\n\tformula:\n" ^ (debug_formula c.formula)  *)
   ^ "\n\tSSA:\n" ^ debug_SSAMap c.ssaIdxs
   ^ "\n\tvars:\n" ^ debug_vars c.vars
 
@@ -392,8 +397,8 @@ let make_assertion_string c =
   let form = 
     if flowSensitiveEncoding then
       SMTRelation("=>", 
-		[make_ifContext_formula c.ifContext; 
-		 c.formula])
+		  [make_ifContext_formula c.ifContext; 
+		   c.formula])
     else c.formula in 
   "(assert (! " 
   ^ string_of_formula form
@@ -403,14 +408,15 @@ let make_assertion_string c =
 let make_interpolation_list program = 
   List.map (fun x -> (assertion_name x) ^ " " ) program
 
-let rec get_all_vars_rec clauses  accum =
-  match clauses with 
-    | [] -> accum
-    | x::xs -> 
-      let accum =  VarSet.union x.vars accum in
-      get_all_vars_rec xs accum
 
 let get_all_vars clauses = 
+  let rec get_all_vars_rec clauses  accum =
+    match clauses with 
+      | [] -> accum
+      | x::xs -> 
+	let accum =  VarSet.union x.vars accum in
+	get_all_vars_rec xs accum
+  in
   get_all_vars_rec clauses emptyVarSet
 
 let make_var_decl vars =
@@ -454,26 +460,25 @@ let print_to_file filename lines =
   let printf_oc = Printf.fprintf oc "%s" in
   let _  = List.map printf_oc lines in
   close_out oc                (* flush and close the channel *)
-  
+    
 
 (******************** Input functions *************************)
 
 (* for now only worry about ' ' *)
 (* ocaml 4.0 would allow trim *)
-let rec trim_rec_left str i = 
-  if i = length str || str.[i] <> ' ' then
-    i
-  else 
-    trim_rec_left str (i + 1)
-    
-let rec trim_rec_right str i = 
-  if i < 0 || str.[i] <> ' ' then
-    i
-  else 
-    trim_rec_right str (i - 1)
+let trim_left str = 
+  let rec trim_rec_left str i = 
+    if i = length str || str.[i] <> ' ' then i
+    else trim_rec_left str (i + 1)
+  in
+  trim_rec_left str 0
 
-let trim_left str = trim_rec_left str 0
-let trim_right str = trim_rec_right str ((length str) -1)
+let trim_right str = 
+  let rec trim_rec_right str i = 
+    if i < 0 || str.[i] <> ' ' then i
+    else trim_rec_right str (i - 1)
+  in 
+  trim_rec_right str ((length str) -1)
 
 let trim str =
   if (contains str ' ' )then 
@@ -508,15 +513,13 @@ let getFirstArgType str =
       end
 
 let split_on_underscore str = 
-  if not ( contains str '_') then 
-    raise (Failure "split on underscore missing underscore")
-  else 
-    let idx = rindex str '_' in
-    let len = (length str) - idx - 1 in 
-    (*-1 because we ignore the _ *)
-    let lhs = sub str 0 idx in    
-    let rhs  = sub str (idx + 1) len in
-    (lhs,rhs)
+  if not ( contains str '_') then raise (Failure "split on underscore missing underscore");
+  let idx = rindex str '_' in
+  let len = (length str) - idx - 1 in 
+  (*-1 because we ignore the _ *)
+  let lhs = sub str 0 idx in    
+  let rhs  = sub str (idx + 1) len in
+  (lhs,rhs)
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
@@ -618,12 +621,9 @@ let clause_from_form (f : term) (ssaBefore: varSSAMap) (ic : ifContext) (ct : cl
 
 let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
     : clause = 
-  let term_lst = extract_term sexp in
-  let t = List.hd term_lst in (* should assert exactly one elt *)
-  let idx = !count in
-  let _ = incr count in
-  let cls : clause = make_clause t idx ssaBefore ct ic in
-  cls
+  match extract_term sexp with 
+    | [t] -> clause_from_form t ssaBefore ic ct
+    | _ -> raise (Failure ("should only get one term from the sexp: " ^ sexp))
 
 let begins_with str header = 
   let ls = length str in
@@ -650,7 +650,7 @@ let rec parse_smtresult lines pt =
       else if begins_with l "sat" then
 	Sat
       else 
-	raise (Failure "unmatched line")
+	raise (Failure ("unmatched line: " ^ l))
 
 let input_lines filename = 
   let lines = ref [] in
@@ -704,7 +704,38 @@ let is_valid_interpolant (before :clause list) (after : clause list) (inter :cla
 	| Sat -> false
 	| Unsat(_) -> true 
 
-(* keep the leftSuffix in reversed order
+(* there are a number of algorithms.  Try em all! 
+ * this is the signiture for the propegate 
+ * it takes the current state, and a suffix
+ * which it splits into removed,reduced such that
+ * (current state ^ removed) => interpolant
+ * interpolant ^ reduced is unsat
+ * it then returns reduced.  We also need to return the interpolant,
+ * because it has been recast into the right ssa variables
+ * 
+ * let rec propegate_interpolant_forward 
+ *    (currentState :clause) (interpolant :clause) (suffix :clause list) 
+ *     : (clause, clause list)
+ *)
+
+(* this version is simple: it just propegates forward from the left until no longer valid
+ * interpolant 
+ *)
+let rec propegate_interpolant_forward_right currentState interpolant suffix =
+  match suffix with
+    | left :: right ->
+      let interpolantPrime = remap_clause left.ssaIdxs interpolant in
+      if is_valid_interpolant [currentState;left] right interpolant then
+	propegate_interpolant_forward_right interpolantPrime interpolantPrime right
+      else 
+	interpolant,suffix
+    | _ -> interpolant,suffix  (* nothing left to reduce *) 
+
+(* When we are done, the elements of the left suffix are subsumed by the interpolant
+ * and the elements of the right suffix are what comes after the interpolant
+ * 
+
+keep the leftSuffix in reversed order
  * the last two elements of the leftSuffix are the currentState
  * and the first update after that 
  *)
@@ -725,9 +756,7 @@ let rec find_farthest_point_interpolant_valid
       let ssa = match (last before) with
 	| Some(x) -> x.ssaIdxs
 	| None -> raise (Failure "is_valid_interpolant before should have elements") in
-      let _  = printf "inter a %s\n" (string_of_clause interpolant) in
       let interpolant = remap_clause ssa interpolant in 
-      let _  = printf "inter b %s\n" (string_of_clause interpolant) in
       if (is_valid_interpolant before after interpolant) then
 	interpolant,rightSuffix
       else
@@ -751,7 +780,6 @@ let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
     | [] -> reducedPrefix
     | [x] -> reducedPrefix @ [x]
     | x :: xs ->
-      let _ = printf "foo: current state %s\n" (string_of_clause currentState) in
       let clist = currentState :: unreducedSuffix in
       let p = make_program clist in
       let before = [currentState;x] in
@@ -761,8 +789,9 @@ let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
       match do_smt "foo" p smt_cmds probType with 
 	| Unsat (Some(interpolant)) -> 
 	  let newCurrentState, unreducedSuffix = 
-	    find_farthest_point_interpolant_valid 
-	      currentState interpolant unreducedSuffix [] in
+	    (*find_farthest_point_interpolant_valid *)
+	    propegate_interpolant_forward_right
+	      currentState interpolant unreducedSuffix in
 	  reduce_trace_imp 
 	    (reducedPrefix @ [currentState; x])
 	    newCurrentState
@@ -789,20 +818,20 @@ let smtOpFromBinop op =
     | _ -> raise (Failure ("unexpected operator " ^ (d_string "%a" d_binop op)))
 
 let rec formula_from_exp e = 
-match e with 
-  | Const(CInt64(c,_,_)) -> SMTConstant(c)
-  | Const(_) -> raise (Failure "Constants should only be of type int")
-  | Lval(l) -> formula_from_lval l 
-  | UnOp(o,e1,t) -> 
-    let opArg = d_string "%a" d_unop o in
-    let eForm = formula_from_exp e1 in
-    SMTRelation(opArg,[eForm])
-  | BinOp(o,e1,e2,t) ->
-    let opArg = smtOpFromBinop o in
-    let eForm1 = formula_from_exp e1 in
-    let eForm2 = formula_from_exp e2 in
-    SMTRelation(opArg,[eForm1;eForm2])
-  | _ -> raise (Failure "not handelling this yet") 
+  match e with 
+    | Const(CInt64(c,_,_)) -> SMTConstant(c)
+    | Const(_) -> raise (Failure "Constants should only be of type int")
+    | Lval(l) -> formula_from_lval l 
+    | UnOp(o,e1,t) -> 
+      let opArg = d_string "%a" d_unop o in
+      let eForm = formula_from_exp e1 in
+      SMTRelation(opArg,[eForm])
+    | BinOp(o,e1,e2,t) ->
+      let opArg = smtOpFromBinop o in
+      let eForm1 = formula_from_exp e1 in
+      let eForm2 = formula_from_exp e2 in
+      SMTRelation(opArg,[eForm1;eForm2])
+    | _ -> raise (Failure "not handelling this yet") 
 
 let get_ssa_before () = 
   match !revProgram with
@@ -818,7 +847,7 @@ let make_bool f =
 				       (debug_typemap())))
       
 
-  
+      
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
@@ -832,31 +861,30 @@ class dsnsmtVisitorClass = object
 	let cls = clause_from_form assgt ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
 	DoChildren
-    | Call(lo,e,al,l) ->
-      let fname = d_string "%a" d_exp e in
-      if fname = "assert" then
+      | Call(lo,e,al,l) ->
+	let fname = d_string "%a" d_exp e in
+	if fname <> "assert" then raise (Failure "shouldn't have calls in a concrete trace");
 	(*assert should have exactly one element asserted *)
 	let form = formula_from_exp (List.hd al) in
+	Printf.printf "1 %s\n" (string_of_formula form);
 	let form = make_bool form in 
+	Printf.printf "2 %s\n" (string_of_formula form);
 	let ssaBefore = get_ssa_before() in
 	let cls = clause_from_form form ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
 	DoChildren
-      else
-	raise (Failure "shouldn't have calls in a concrete trace")
-    | _ -> DoChildren
+      | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
     match s.skind with
       | If(i,t,e,l) ->
-	if not (e.bstmts = []) then raise (Failure "else block not handeled") 
-	else
-	  let cond = make_bool (formula_from_exp i) in
-	  currentIfContext := cond :: !currentIfContext;
-	  ChangeDoChildrenPost (s,
-				fun x -> 
-				  currentIfContext := List.tl !currentIfContext;
-				  x)
+	if e.bstmts <> [] then raise (Failure "else block not handeled");
+	let cond = make_bool (formula_from_exp i) in
+	currentIfContext := cond :: !currentIfContext;
+	ChangeDoChildrenPost (s,
+			      fun x -> 
+				currentIfContext := List.tl !currentIfContext;
+				x)
       | _ -> DoChildren
   end
 end
@@ -879,7 +907,7 @@ let dsnsmt (f: file) : unit =
   let _ = printf "reduced\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) reduced in
   ()
-  
+    
 
 let feature : featureDescr = 
   { fd_name = "dsnsmt";

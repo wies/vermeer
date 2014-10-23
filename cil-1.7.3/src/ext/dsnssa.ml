@@ -14,6 +14,10 @@ let reverseMap = Hashtbl.create 1000
 let currentFunc = ref None
 let varIdCtr = ref 0
 
+let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
+  let f (d: doc) : string = Pretty.sprint 800 d in
+  Pretty.gprintf f fmt 
+
 let find_safe h k = try Some (Hashtbl.find h k) with Not_found -> None
 let find_var k = find_safe indexMap k.vname  
 let getFd () = match !currentFunc with
@@ -72,6 +76,11 @@ class dsnVisitorClass = object
 	let updated_rhs = update_rhs_exp rhs in
 	let updated_lhs = update_lhs_lval lhs in
 	ChangeTo [Set(updated_lhs,updated_rhs,loc)]
+      | Call(lo,e,al,l) ->
+	let fname = d_string "%a" d_exp e in
+	if fname <> "assert" then 
+	  raise (Failure "shouldn't have non-assert calls in a concrete trace");
+	ChangeTo [Call(lo,e,List.map update_rhs_exp al,l)]
       | _ -> raise (Failure "was not expecting call or asm at this point")
   end
   method vstmt (s : stmt) = begin

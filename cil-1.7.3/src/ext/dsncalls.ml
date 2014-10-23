@@ -56,9 +56,7 @@ let addProto = ref false
 let counter = ref 0
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
-  let f (d: doc) : string = 
-    Pretty.sprint 800 d
-  in
+  let f (d: doc) : string = Pretty.sprint 800 d in
   Pretty.gprintf f fmt 
 
 let d_tempArg (idx : int) : logStatement = 
