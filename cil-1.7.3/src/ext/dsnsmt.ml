@@ -655,7 +655,7 @@ let read_smtresult filename pt =
 	else if begins_with l "sat" then
 	  Sat
 	else 
-	  raise (Failure ("unmatched line: " ^ l))
+	  raise (Failure ("unmatched line:\n" ^ l ^ "\n in " ^filename))
   in
   let input_lines = 
     let lines = ref [] in
