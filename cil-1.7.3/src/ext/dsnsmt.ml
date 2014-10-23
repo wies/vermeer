@@ -635,39 +635,41 @@ let begins_with str header =
     false
 
 (* should I perhaps pass in the ssabefore *)
-let rec parse_smtresult lines pt = 
-  match lines with
-    | []-> raise (Failure "bad smt result file")
-    |  l::ls -> 
-      if begins_with l "INFO" then 
-	parse_smtresult ls pt (*skip *)
-      else if begins_with l "unsat" then 
-	match pt with
-	  | SMTOnly -> Unsat(None)
-	  | Interpolation(v) -> 
-	    let cls = clause_from_sexp (List.hd ls) v emptyIfContext Interpolant in
-	    Unsat(Some(cls))
-      else if begins_with l "sat" then
-	Sat
-      else 
-	raise (Failure ("unmatched line: " ^ l))
 
-let input_lines filename = 
-  let lines = ref [] in
-  let chan = open_in filename in
-  try
-    while true; do
-      lines := input_line chan :: !lines
-    done; []
-  with End_of_file ->
-    close_in chan;
-    List.rev !lines
+
       
 
 let read_smtresult filename pt = 
-  let lines = input_lines filename in
-  parse_smtresult lines pt
-
+  let rec parse_smtresult lines pt = 
+    match lines with
+      | []-> raise (Failure "bad smt result file")
+      |  l::ls -> 
+	if begins_with l "INFO" then 
+	  parse_smtresult ls pt (*skip *)
+	else if begins_with l "unsat" then 
+	  match pt with
+	    | SMTOnly -> Unsat(None)
+	    | Interpolation(v) -> 
+	      let cls = clause_from_sexp (List.hd ls) v emptyIfContext Interpolant in
+	      Unsat(Some(cls))
+	else if begins_with l "sat" then
+	  Sat
+	else 
+	  raise (Failure ("unmatched line: " ^ l))
+  in
+  let input_lines = 
+    let lines = ref [] in
+    let chan = open_in filename in
+    try
+      while true; do
+	lines := input_line chan :: !lines
+      done; []
+    with End_of_file ->
+      close_in chan;
+      List.rev !lines
+  in
+  parse_smtresult input_lines pt
+    
 (****************************** Interpolation ******************************)
 let do_smt basename prog smtCmds pt =
   let solver_string = "java -jar /home/dsn/sw/smtinterpol/smtinterpol.jar" in
@@ -735,7 +737,7 @@ let rec propegate_interpolant_forward_right currentState interpolant suffix =
  * and the elements of the right suffix are what comes after the interpolant
  * 
 
-keep the leftSuffix in reversed order
+ * keep the leftSuffix in reversed order
  * the last two elements of the leftSuffix are the currentState
  * and the first update after that 
  *)
