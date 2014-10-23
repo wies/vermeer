@@ -8,6 +8,7 @@
 #   b) In a memory variable name as in _dsn_mem_(nil).
 # 2. Adds declarations for _dsm_mem variables.
 # 3. Adds a missing closing bracket in the case of a crash.
+# 4. Initializes optind to 1 if the said extern variable presents.
 
 use strict;
 use warnings;
@@ -18,33 +19,109 @@ die "missing filename " unless $infilename;
 
 my %mem_vars = ();
 
-# 
+sub push_no_dup {
+    my ($href, $key, $val, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    if (not exists($href->{$key}) or not ($val ~~ @{$href->{$key}})) {
+        push(@{$href->{$key}}, $val);
+    }
+}
+
 # Identify memory variables (i.e., _dsn_mem vars) with correct types.
-# Assumes that the type information follows immediately in a comment in the
-# form of, e.g,. '/*|int |*/'.
-#
+# Assumes that type information follows immediately in a comment
+# in the form of, e.g,. '/*|int |*/'.
 open INFILE, "<", $infilename or die $!;
 while (<INFILE>) {
     while (m!(_dsn_mem_(0x[0-9a-fA-F]+|\(nil\)))/\*\|([^|]*)\|\*/!g) {
-        my $key = $2 eq "(nil)" ? "0x0" : $2;
-        if (!exists($mem_vars{$key})) {
-            $mem_vars{$key} = $3;
-        } else {
-            # Type unrolling in the concrete pass should give a canonical type.
-            die "$1: multiple types " if ($3 ne $mem_vars{$key});
+        my $type = $3;
+        my $addr = $2 eq "(nil)" ? "0x0" : $2;
+        push_no_dup(\%mem_vars, $addr, $type)
+    }
+}
+
+#
+# Let's try to resolve unknowns.
+#
+
+my %unknowns = ();
+
+# First, construct a map from unknowns to types actually used.
+print "/*\n";
+for my $addr (keys %mem_vars) {
+    my $t_rep;
+    # What is a representative type for this variable?
+    for my $e (@{$mem_vars{$addr}}) {
+        if (not ($e =~ /^unknown/)) {
+            # Type unrolling should have given a canonical type.
+            die "postconcrete: _dsn_mem_$addr: $e != $t_rep? " if $t_rep;
+            $t_rep = $e; # Got a representative.
         }
+    }
+    print "_dsn_mem_$addr: " . ($t_rep ? $t_rep : "(no rep)");
+
+    # Map unknowns associated with this variable to the representative found.
+    for my $e (@{$mem_vars{$addr}}) {
+        if ($e =~ /^unknown_([0-9]+)/) {
+            print " / unknown_$1";
+            next if not $t_rep;
+            if (!exists($unknowns{$1})) {
+                $unknowns{$1} = $t_rep; # Set up this mapping.
+            } elsif ($unknowns{$1} ne $t_rep) {
+                # This unknown was mapped to a different type before.
+                die "postconcrete: _dsn_mem_$addr: $e != $unknowns{$1}? ";
+            }
+        }
+    }
+    print "\n";
+}
+
+# For debugging.
+print "\nUnknown-to-type mapping:\n";
+for (keys %unknowns) {
+    print "unknown_$_ ==> $unknowns{$_}\n";
+}
+print "*/\n";
+
+# Check if types all agree and finalize types for all variables.
+for my $addr (keys %mem_vars) {
+    my $t_cur;
+    my $t_rep;
+    for my $e (@{$mem_vars{$addr}}) {
+        my $t_e;
+        if ($e =~ /^unknown_([0-9]+)/) {
+            next if not exists($unknowns{$1});
+            $t_e = $unknowns{$1};
+        } else {
+            $t_e = $t_rep = $e;
+        }
+        die "postconcrete: needs manual type resolution "
+            if ($t_cur and $t_cur ne $t_e);
+        $t_cur = $t_e if not $t_cur;
+    }
+
+    if ($t_rep) {
+        @{$mem_vars{$addr}} = ($t_rep);
+    } else { # All were unknowns; take an arbitrary fallback type.
+        @{$mem_vars{$addr}}[0] =~ /^unknown_[0-9]+:(.*)/;
+        @{$mem_vars{$addr}} = ("$1/*unknown*/");
     }
 }
 
 open INFILE, "<", $infilename or die $!;
 my $last_seen = "";
+my $need_optind = 0;
 while (<INFILE>) {
+    $need_optind = 1 if /^extern int optind/;
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     s/ = \(nil\);/ = 0;/;
     print ($last_seen = $_);
     if (/^int main\(int argc/) {
-        for my $key (keys %mem_vars) {
-            print "  $mem_vars{$key} _dsn_mem_$key;\n";
+        if ($need_optind) {
+            print "  optind = 1;\n";
+        }
+        for my $addr (keys %mem_vars) {
+            print "  @{$mem_vars{$addr}}[0] _dsn_mem_$addr;\n";
         }
     }
 }
