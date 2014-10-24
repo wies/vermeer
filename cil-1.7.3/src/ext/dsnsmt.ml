@@ -259,12 +259,13 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
 	  VarSSAMap.add vidx v ssaMap in
       make_ssa_map vs ssaMap
 
-let make_clause (f: term) (i :int) (ssa: varSSAMap) (typ: clauseType) (ic : term list) 
+let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
     : clause = 
+  incr count;
   let v  = get_vars [f] emptyVarSet in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
   let _ = analyze_var_type f in (* update the typemap to include this clause *)
-  let c  = {formula = f; idx = i; vars = v; ssaIdxs = ssa; typ = typ; ifContext = ic} in
+  let c  = {formula = f; idx = !count; vars = v; ssaIdxs = ssa; typ = ct; ifContext = ic} in
   c
 
 let negate_clause cls = 
@@ -299,15 +300,16 @@ let rec remap_formula ssaMap form =
 	| Some (newVar) -> SMTVar(newVar)
 	| None -> raise (CantMap v)
 
-(* I guess we should remap the if context too.  Does this make sense? *)
+(* I guess we should remap the if context too.  Does this make sense? 
+ * Also, there is a bug where we ended up with two clauses with the same interpolation
+ * id.  Make a new clause with a new id
+ *)
 let remap_clause ssaMap cls = 
   make_clause 
-    (remap_formula ssaMap cls.formula)
-    cls.idx
-    ssaMap
-    cls.typ
+    (remap_formula ssaMap cls.formula) 
+    ssaMap 
     (List.map (remap_formula ssaMap) cls.ifContext)
-    
+    cls.typ    
 
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
@@ -612,17 +614,12 @@ let rec extract_term (str) : term list =
 	else if headStr = "false" then SMTFalse :: tailExp
 	else raise (Failure "neither true nor false???")
 
-let clause_from_form (f : term) (ssaBefore: varSSAMap) (ic : ifContext) (ct : clauseType) 
-    : clause =
-  let idx = !count in
-  let _ = incr count in
-  let cls : clause = make_clause f idx ssaBefore ct ic in
-  cls
+
 
 let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
     : clause = 
   match extract_term sexp with 
-    | [t] -> clause_from_form t ssaBefore ic ct
+    | [t] -> make_clause t ssaBefore ic ct
     | _ -> raise (Failure ("should only get one term from the sexp: " ^ sexp))
 
 let begins_with str header = 
@@ -860,19 +857,17 @@ class dsnsmtVisitorClass = object
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
 	let ssaBefore = get_ssa_before() in
-	let cls = clause_from_form assgt ssaBefore !currentIfContext (ProgramStmt i) in
+	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | Call(lo,e,al,l) ->
 	let fname = d_string "%a" d_exp e in
 	if fname <> "assert" then raise (Failure "shouldn't have calls in a concrete trace");
-	(*assert should have exactly one element asserted *)
+	if List.length al <> 1 then raise (Failure "assert should have exactly one element");
 	let form = formula_from_exp (List.hd al) in
-	Printf.printf "1 %s\n" (string_of_formula form);
 	let form = make_bool form in 
-	Printf.printf "2 %s\n" (string_of_formula form);
 	let ssaBefore = get_ssa_before() in
-	let cls = clause_from_form form ssaBefore !currentIfContext (ProgramStmt i) in
+	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | _ -> DoChildren
