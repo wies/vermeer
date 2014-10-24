@@ -79,7 +79,7 @@ for my $addr (keys %mem_vars) {
 # For debugging.
 print "\nUnknown-to-type mapping:\n";
 for (keys %unknowns) {
-    print "unknown_$_ ==> $unknowns{$_}\n";
+    print "  unknown_$_ ==> $unknowns{$_}\n";
 }
 print "*/\n";
 

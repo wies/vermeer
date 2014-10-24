@@ -17,6 +17,12 @@ int main(int argc, char** argv) {
 
     void* vp = (void*) signal(SIGXCPU, &handler);
 
+    int size_of_str = sizeof("abcd");
+    int size_of_ull = sizeof(unsigned long long);
+    int size_of_argc2 = sizeof(argc2);
+    int ao1 = __alignof__(unsigned long long);
+    int ao2 = __alignof__(argc2);
+
     char* p = 0;
     *p = 10;
     

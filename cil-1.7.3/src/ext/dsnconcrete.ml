@@ -1,11 +1,7 @@
-(* TODOS
- * remove the scope stuff
- * fix how indents work
- *)
-(** See copyright notice at the end of this file *)
+(* See copyright notice at the end of this file *)
 
-(* The translation is never perfect. For example, bizarre low-level memory
-   manipulation is mostly not handled proplery:
+(* The translation can never be perfect. For example, bizarre low-level memory
+   manipulation will mostly not be handled proplery:
 
      int x = 0xFFFF;
      *(char * )&x = 0;
@@ -47,9 +43,7 @@ let indent () =
 type logStatement = string * exp list
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
-  let f (d: doc) : string =
-    Pretty.sprint 800 d
-  in
+  let f (d: doc) : string = Pretty.sprint 800 d in
   Pretty.gprintf f fmt
 
 let argc_argv_handler =
@@ -61,18 +55,57 @@ let argc_argv_handler =
 let log_fn = makeGlobalVar log_fn_name
                (TFun(voidType, Some [("format", charPtrType, [])], true, []))
 
-let mkPrintNoLoc ?noindent (format: string) (args: exp list) : instr =
+let mkPrintNoLoc ?noindent (fmt: string) (args: exp list) : instr =
   let spaces = match noindent with None -> indent () | _ -> "" in
-  Call(None, Lval(var log_fn), (mkString (spaces ^ format)) :: args, !currentLoc)
+  Call(None, Lval(var log_fn), (mkString (spaces ^ fmt)) :: args, !currentLoc)
 
-let mkPrint (format: string) (args: exp list) : instr =
+let mkPrint (fmt: string) (args: exp list) : instr =
   let lineStr (loc: location) =
     "#line "^ string_of_int loc.line ^" \""^ loc.file ^"\"" in
-  let format = (lineStr !currentLoc) ^"\n"^ indent () ^ format in
-  mkPrintNoLoc ~noindent:true format args
+  let fmt' = (lineStr !currentLoc) ^"\n"^ indent () ^ fmt in
+  mkPrintNoLoc ~noindent:true fmt' args
 
 let stmtFromStmtList (stmts : stmt list) : stmt =
   mkStmt(Block(mkBlock (compactStmts stmts)))
+
+(* Generates a logStatement (i.e., string output) that accurately describes
+   an actual value considering its type. The string representation can directly
+   be embedded in C code. *)
+(* struct will generate a string in the intiailization form, which can only
+   be used in variable initialization. However, the support for struct is
+   currently dropped. *)
+let rec lossless_val (lv: lval) : logStatement =
+  let e = Lval(lv) in
+  match unrollType (typeOfLval lv) with
+  | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *)
+  | TPtr _ -> ("%p", [e])
+  (* TODO: I don't think so, but should we care about IULong, etc? *)
+  | TEnum _ -> ("%d", [e])
+  | TInt(ik, _) -> (match ik with
+    | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> ("%d", [e])
+    | IUChar | IUInt | IUShort | IULong | IULongLong -> ("%u", [e]))
+
+(* Let's just announce that we don't support returns with struct copying.
+  | TComp (ci, _) ->
+      let lhost, offset = lv in
+      let new_offset f = addOffset (Field(f, NoOffset)) offset in
+      if ci.cstruct then (* If not a union, iterate over all fields. *)
+        let rec iter_fields (str, args) = function
+          | [] -> E.s (E.bug "lossless_val: struct having no field?")
+          | [f] -> let s, a = lossless_val (lhost, new_offset f) in
+                   (str ^ s ^" }", args @ a)
+          | f::fs -> let s, a = lossless_val (lhost, new_offset f) in
+                     iter_fields (str ^ s ^", ", args @ a) fs in
+        iter_fields ("{ ", []) ci.cfields
+      else (* TODO: for a union, need to identify a biggest-size field. *)
+        E.s (E.bug "Union not yet supported.")
+*)
+  | TComp _ -> E.s (E.bug "Struct-copying returns disabled.")
+
+  | TArray _ -> E.s (E.bug "Look like this yields a compiler error.")
+  | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
+  | TVoid _ | TFun _ | TBuiltin_va_list _ ->
+      E.s (E.bug "lossless_val: bug; can never be this type.")
 
 (*
 let isGlobalVarLval (l : lval) =
@@ -120,10 +153,10 @@ let needsMemModel (e: exp) =
   let lv = (Var(v),NoOffset) in
   mkAddrOrStartOf lv*)
 
-let mkAddress (e : exp) : exp =
+(*let mkAddress (e : exp) : exp =
   match e with
   | Lval(l) -> mkAddrOrStartOf l
-  | _ -> raise (Failure "expected an Lval here")
+  | _ -> raise (Failure "expected an Lval here")*)
 
 (* Returns true if the given lvalue offset ends in a bitfield access. *)
 let rec is_bitfield lo = match lo with
@@ -162,24 +195,20 @@ let addr_of_lv (lh,lo) : exp =
 
 
 
-let d_mem_lval (arg : lval) : logStatement =
-  if (needsMemModelLval arg) then
-    let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval arg)) in
-    (memPrefix ^"_%p/*|"^ typ_str ^"|*/"), [mkAddrOrStartOf arg]
-  else (d_string "%a" d_lval arg,[])
+let d_mem_lval (lv : lval) : logStatement =
+  if (needsMemModelLval lv) then
+    let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
+    ((memPrefix ^"_%p/*|"^ typ_str ^"|*/"), [mkAddrOrStartOf lv])
+  else (d_string "%a" d_lval lv,[])
 
 let rec d_mem_exp (arg :exp) : logStatement =
   match arg with
+  | Lval lv -> d_mem_lval lv
   | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
+  | Const _ -> (d_string "%a" d_exp arg,[])
   | CastE(t,e) ->
       let (str,arg) = d_mem_exp e in
       (d_string "(%a)(%s)" d_type t str,arg)
-  | SizeOfE(e) ->
-      let (str,arg) = d_mem_exp e in
-      (d_string "sizeof(%s) " str ,arg)
-  | AlignOfE(e) ->
-      let (str,arg) = d_mem_exp e in
-      (d_string "__alignof__(%s)" str,arg)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_mem_exp e in
@@ -192,14 +221,10 @@ let rec d_mem_exp (arg :exp) : logStatement =
   | AddrOf(l)
   | StartOf(l) -> ("%p",[addr_of_lv l])
 
-  | Question _ -> E.s (E.bug "Question should have been eliminated.")
-  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel should have been eliminated.")
-
-  | _ ->
-      if (needsMemModel arg) then
-        let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOf arg)) in
-        (memPrefix ^"_%p/*|"^ typ_str ^ "|*/"), [mkAddress arg]
-      else (d_string "%a" d_exp arg,[])
+  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
+  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
+  | Question _ -> E.s (E.bug "Question exp not expected.")
+  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
 
 (*
 let d_addr_exp (arg : exp ) : logStatement =
@@ -336,36 +361,6 @@ let rec mkActualArg (al : exp list) : logStatement =
       let (restStr,restArgs) = mkActualArg xs in
       (thisStr ^", "^ restStr, thisArg @ restArgs)
 
-let rec lossless_val (lv: lval) : logStatement =
-  let e = Lval(lv) in
-  match unrollType (typeOfLval lv) with
-  | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *)
-  | TPtr _ -> ("%p", [e])
-  (* TODO: I don't think so, but should we care about IULong, etc? *)
-  | TInt _ | TEnum _ -> ("%d", [e])
-
-(* Let's just announce that we don't support returns with struct copying.
-  | TComp (ci, _) ->
-      let lhost, offset = lv in
-      let new_offset f = addOffset (Field(f, NoOffset)) offset in
-      if ci.cstruct then (* If not a union, iterate over all fields. *)
-        let rec iter_fields (str, args) = function
-          | [] -> E.s (E.bug "lossless_val: struct having no field?")
-          | [f] -> let s, a = lossless_val (lhost, new_offset f) in
-                   (str ^ s ^" }", args @ a)
-          | f::fs -> let s, a = lossless_val (lhost, new_offset f) in
-                     iter_fields (str ^ s ^", ", args @ a) fs in
-        iter_fields ("{ ", []) ci.cfields
-      else (* TODO: for a union, need to identify a biggest-size field. *)
-        E.s (E.bug "Union not yet supported.")
-*)
-  | TComp _ -> E.s (E.bug "Struct-copying returns disabled.")
-
-  | TArray _ -> E.s (E.bug "Look like this yields a compiler error.")
-  | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
-  | TVoid _ | TFun _ | TBuiltin_va_list _ ->
-      E.s (E.bug "lossless_val: bug; can never be this type.")
-
 class dsnconcreteVisitorClass = object
   inherit nopCilVisitor
 
@@ -380,10 +375,16 @@ class dsnconcreteVisitorClass = object
 of that here? *)
 (* DSN Does anything go weird if we have function pointers *)
 	let (rhsStr,rhsArg) = d_mem_exp e in
-	let printStr = typStr ^ lhsStr ^" = "^ rhsStr ^";\n" in
+	let printStr = typStr ^ lhsStr ^" = "^ rhsStr ^"; " in
 	let printArgs = lhsArg @ rhsArg in
-	let printCall = mkPrint printStr printArgs in
-	let newInstrs =  printCall :: [i] in
+	let print_asgn = mkPrint printStr printArgs in
+
+        (* Let's print the actual value too. *)
+        let val_s, val_a = lossless_val lv in
+        let print_val = mkPrintNoLoc ~noindent:true
+                        ("/* Assigned: "^ val_s ^" */\n") val_a in
+
+	let newInstrs =  [print_asgn; i; print_val] in
 	ChangeTo newInstrs
 
     (* The only calls that can occur in a reduced format are to functions
@@ -417,7 +418,7 @@ of that here? *)
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
 	ChangeTo (i :: cmntPrintCall :: printCalls)
-    | _ -> E.s (E.bug "Not expecting assembly instructions.")
+    | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
     if s.labels <> [] then E.s (E.bug "Cannot have labels.");
@@ -431,8 +432,8 @@ of that here? *)
               let fStr = "if("^ eStr ^"){\n" in
               then_b.bstmts <- compactStmts (
 		[mkStmtOneInstr (mkPrint fStr eArg)] 
-		@  then_b.bstmts 
-                @  [mkStmtOneInstr (mkPrintNoLoc "}\n" [])]);
+		@ then_b.bstmts 
+                @ [mkStmtOneInstr (mkPrintNoLoc "}\n" [])]);
               a
           | _ -> E.s (E.bug "If statement corrupted.") in
         incrIndent ();
@@ -449,6 +450,7 @@ of that here? *)
             None   -> mkPrint "return;\n} // main\n" []
           | Some e -> mkPrint (d_string "return %a;\n} // main\n" d_exp e) [] in
         ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall; s])
+
     | Instr _  | Block _ ->  DoChildren
     | Goto _ | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
     | Break _ | Continue _ ->
