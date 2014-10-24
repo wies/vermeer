@@ -221,7 +221,7 @@ let analyze_var_type (topForm : term) =
 	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
 	    let _ = analyze_type_list SMTInt l in
 	    second_if_matching typ SMTInt
-	  | _ -> raise (Failure ("unexpected operator " ^ s))
+	  | _ -> raise (Failure ("unexpected operator in analyze type |" ^ s ^ "|"))
       end
   in
   analyze_type SMTUnknown topForm
@@ -816,7 +816,9 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-    | _ -> raise (Failure ("unexpected operator " ^ (d_string "%a" d_binop op)))
+    | _ -> raise (Failure 
+		    ("unexpected operator in smtopfrombinop |" 
+		     ^ (d_string "%a" d_binop op ) ^ "|"))
 
 let rec formula_from_exp e = 
   match e with 
@@ -832,7 +834,8 @@ let rec formula_from_exp e =
       let eForm1 = formula_from_exp e1 in
       let eForm2 = formula_from_exp e2 in
       SMTRelation(opArg,[eForm1;eForm2])
-    | _ -> raise (Failure "not handelling this yet") 
+    | CastE(t,e) -> formula_from_exp e
+    | _ -> raise (Failure ("not handelling this yet" ^ (d_string "%a" d_exp e)))
 
 let get_ssa_before () = 
   match !revProgram with
