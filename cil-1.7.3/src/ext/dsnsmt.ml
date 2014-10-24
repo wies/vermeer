@@ -328,8 +328,13 @@ and string_of_formula f =
     | SMTFalse -> "false"
     | SMTTrue -> "true"
 
-let rec string_of_clause c = 
+let string_of_clause c = 
   string_of_formula c.formula
+
+let string_of_cprogram c =
+  match c.typ with 
+    | ProgramStmt i -> d_string "%a" d_instr i
+    | Interpolant | Constant -> "//" ^ string_of_formula c.formula
 
 let debug_var v = 
   "{name: " ^ v.fullname 
@@ -898,11 +903,14 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
-  let _ = printf "orig\n" in
+  let _ = printf "****orig****\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) clauses in
   let reduced = reduce_trace_imp [] trueClause clauses in
-  let _ = printf "reduced\n" in
+  let _ = printf "****reduced****\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) reduced in
+  let _ = printf "****program****\n" in
+  let _ = List.map (fun x-> printf "%s\n" (string_of_cprogram x)) reduced in
+
   ()
     
 
