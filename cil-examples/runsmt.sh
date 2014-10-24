@@ -5,4 +5,3 @@ then echo "needs an argument";
 fi
 
 ../cil-1.7.3/bin/cilly --dodsnsmt  "$1.ssa.c" -lm
-mv "$1.postconcrete.cil.c" "$1.ssa.c"
