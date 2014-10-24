@@ -106,11 +106,6 @@ let smtExit = "(exit)\n"
 let smtZero = SMTConstant(0L)
 let emptyIfContext = []
 
-let trueClause = 
-  {formula = SMTTrue; idx = 0; 
-   vars = emptyVarSet; ssaIdxs=emptySSAMap;
-   typ=Constant; ifContext=emptyIfContext}
-
 (******************** Globals *************************)
 let count = ref 1
 let currentFunc: string ref = ref ""
@@ -267,6 +262,8 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
   let _ = analyze_var_type f in (* update the typemap to include this clause *)
   let c  = {formula = f; idx = !count; vars = v; ssaIdxs = ssa; typ = ct; ifContext = ic} in
   c
+
+let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant
 
 let negate_clause cls = 
   {formula = SMTRelation("not",[cls.formula]);
@@ -903,14 +900,15 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
+  (* add a true assertion at the begining of the program *)
+  let clauses = make_true_clause () :: clauses in
   let _ = printf "****orig****\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) clauses in
-  let reduced = reduce_trace_imp [] trueClause clauses in
+  let reduced = reduce_trace_imp [] (make_true_clause ()) clauses in
   let _ = printf "****reduced****\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) reduced in
   let _ = printf "****program****\n" in
   let _ = List.map (fun x-> printf "%s\n" (string_of_cprogram x)) reduced in
-
   ()
     
 
