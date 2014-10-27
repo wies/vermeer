@@ -11,7 +11,6 @@ open Pretty
 open Cil
 open Trace
 module E = Errormsg
-module H = Hashtbl
 module SS = Set.Make(String)
 
 (* DSN - from logwrites.ml *)
@@ -431,8 +430,8 @@ of that here? *)
               let eStr, eArg = d_mem_exp e in
               let fStr = "if("^ eStr ^"){\n" in
               then_b.bstmts <- compactStmts (
-		[mkStmtOneInstr (mkPrint fStr eArg)] 
-		@ then_b.bstmts 
+		[mkStmtOneInstr (mkPrint fStr eArg)]
+		@ then_b.bstmts
                 @ [mkStmtOneInstr (mkPrintNoLoc "}\n" [])]);
               a
           | _ -> E.s (E.bug "If statement corrupted.") in

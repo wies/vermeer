@@ -19,6 +19,8 @@ die "missing filename " unless $infilename;
 
 my %mem_vars = ();
 
+# General function to add a new value to a hash of arrays without duplication,
+# i.e., multiple but unique values are stored in an array for a hash key.
 sub push_no_dup {
     my ($href, $key, $val, @bad) = @_;
     die "Too many arguments " if @bad;
@@ -27,6 +29,7 @@ sub push_no_dup {
         push(@{$href->{$key}}, $val);
     }
 }
+
 
 # Identify memory variables (i.e., _dsn_mem vars) with correct types.
 # Assumes that type information follows immediately in a comment
@@ -83,7 +86,7 @@ for (keys %unknowns) {
 }
 print "*/\n";
 
-# Check if types all agree and finalize types for all variables.
+# Check if types all agree, and finalize types for all variables.
 for my $addr (keys %mem_vars) {
     my $t_cur;
     my $t_rep;
@@ -110,14 +113,14 @@ for my $addr (keys %mem_vars) {
 
 open INFILE, "<", $infilename or die $!;
 my $last_seen = "";
-my $need_optind = 0;
+my $needs_optind = 0;
 while (<INFILE>) {
-    $need_optind = 1 if /^extern int optind/;
+    $needs_optind = 1 if /^extern int optind/;
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     s/ = \(nil\);/ = 0;/;
     print ($last_seen = $_);
     if (/^int main\(int argc/) {
-        if ($need_optind) {
+        if ($needs_optind) {
             print "  optind = 1;\n";
         }
         for my $addr (keys %mem_vars) {

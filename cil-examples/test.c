@@ -23,6 +23,8 @@ int main(int argc, char** argv) {
     int ao1 = __alignof__(unsigned long long);
     int ao2 = __alignof__(argc2);
 
+    if (argc == 3) vp = 0;
+
     char* p = 0;
     *p = 10;
     

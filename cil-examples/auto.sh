@@ -16,3 +16,10 @@ echo "[[ RUNCONCRETE ]]"
 EXIT=$?
 rm -f ./a.out $1.postlinear.o $1.postlinear.i $1.postlinear.cil.i
 if [ "$EXIT" -ne "0" ]; then exit 1; fi
+
+echo
+echo "[[ RUNSLL ]]"
+./runsll.sh $1
+EXIT=$?
+rm -f ./a.out $1.postconcrete.o $1.postconcrete.i $1.postconcrete.cil.i
+if [ "$EXIT" -ne "0" ]; then exit 1; fi

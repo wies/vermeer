@@ -106,6 +106,7 @@ let features : C.featureDescr list =
     Liveness.feature;
     Dsncalls.feature;
     Dsnconcrete.feature;
+    Dsnsll.feature;
     Dsnsmt.feature;
     Dsnssa.feature;
   ] 
