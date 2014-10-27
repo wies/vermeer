@@ -46,8 +46,8 @@ let dsnVisitor = new dsnVisitorClass
 let dsnsll (f: file) : unit =
   (* Drop typedefs, structs and unions (forward decl or def), and enums. *)
   let pred = function
-    | GType _ | GVarDecl _ | GCompTag _ | GCompTagDecl _
-    | GEnumTag _ | GEnumTagDecl _ -> false
+    | GType _ | GVarDecl _
+    | GCompTag _ | GCompTagDecl _ | GEnumTag _ | GEnumTagDecl _ -> false
     | _ -> true in
   f.globals <- List.filter pred f.globals;
   let doGlobal g = ignore (visitCilGlobal dsnVisitor g) in

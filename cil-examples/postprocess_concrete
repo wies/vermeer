@@ -113,16 +113,12 @@ for my $addr (keys %mem_vars) {
 
 open INFILE, "<", $infilename or die $!;
 my $last_seen = "";
-my $needs_optind = 0;
 while (<INFILE>) {
-    $needs_optind = 1 if /^extern int optind/;
+    s/^extern int optind.*/int optind = 1;\n/;
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     s/ = \(nil\);/ = 0;/;
     print ($last_seen = $_);
     if (/^int main\(int argc/) {
-        if ($needs_optind) {
-            print "  optind = 1;\n";
-        }
         for my $addr (keys %mem_vars) {
             print "  @{$mem_vars{$addr}}[0] _dsn_mem_$addr;\n";
         }
