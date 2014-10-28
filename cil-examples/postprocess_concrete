@@ -18,6 +18,8 @@ die "Too many arguments " if @bad;
 die "missing filename " unless $infilename;
 
 my %mem_vars = ();
+my %mem_vars_safe = ();
+my %mem_vars_init = ();
 
 # General function to add a new value to a hash of arrays without duplication,
 # i.e., multiple but unique values are stored in an array for a hash key.
@@ -33,13 +35,23 @@ sub push_no_dup {
 
 # Identify memory variables (i.e., _dsn_mem vars) with correct types.
 # Assumes that type information follows immediately in a comment
-# in the form of, e.g,. '/*|int |*/'.
+# in the form of, e.g,. '/*|int |*/' or '*|int |val: 9|*/'.
 open INFILE, "<", $infilename or die $!;
 while (<INFILE>) {
-    while (m!_dsn_mem_(0x[0-9a-fA-F]+|\(nil\))/\*\|([^|]*)\|!g) {
+    while (m!_dsn_mem_(0x[0-9a-fA-F]+|\(nil\))/\*\|([^|]*)\|(|val: ([^|]*)\|)\*/(| = )!g) {
         my $type = $2;
         my $addr = $1 eq "(nil)" ? "0x0" : $1;
-        push_no_dup(\%mem_vars, $addr, $type)
+        my $val = $4;
+        my $is_asgn = defined $5;
+        push_no_dup(\%mem_vars, $addr, $type);
+
+        # Check if the memory location being accessed is initialized.
+        if (!$is_asgn and !exists($mem_vars_safe{$addr})) {
+            # Uninitialized; record the current value to add initialization
+            # in the final output.
+            $mem_vars_init{$addr} = $val;
+        }
+        $mem_vars_safe{$addr} = 1;
     }
 }
 
@@ -124,12 +136,14 @@ while (<INFILE>) {
     print ($last_seen = $_);
     if (/^int main\(int argc/) {
         for my $addr (keys %mem_vars) {
-            print "  @{$mem_vars{$addr}}[0] _dsn_mem_$addr;\n";
+            my $init = exists($mem_vars_init{$addr}) ?
+                          " = $mem_vars_init{$addr}" : "";
+            print "  @{$mem_vars{$addr}}[0] _dsn_mem_$addr$init;\n";
         }
     }
 }
 
-if ($last_seen ne "} // main") {
+if ($last_seen ne "} // main\n") {
     print "\n  // Looks like the concretized trace ran into a crash.\n";
     print "  // Adding an assert and a closing bracket for main.\n";
     print "  assert(0);\n";

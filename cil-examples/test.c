@@ -26,15 +26,15 @@ int main(int argc, char** argv) {
     if (argc == 3) vp = 0;
 
     char* p = 0;
-    *p = 10;
+    //*p = 10;
     
     local_record[0].snd_field = 1111;
     int *ptr = &(local_record[0].snd_field);
     struct my_struct *my_struct_ptr = local_record;
-    struct my_struct struct_copy = *(my_struct_ptr + 1);
-    int *arr_ptr = struct_copy.fst_field + 1;
-    *arr_ptr = 10;
-    int val1 = *arr_ptr;
+    //struct my_struct struct_copy = *(my_struct_ptr + 1);
+    //int *arr_ptr = struct_copy.fst_field + 1;
+    //*arr_ptr = 10;
+    //int val1 = *arr_ptr;
     int val2 = local_record[1].fst_field[1];
     int *last_ptr = &(local_record[1].fst_field[1]);
     printf("%d\n", *last_ptr);

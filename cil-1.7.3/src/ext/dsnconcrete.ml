@@ -70,12 +70,14 @@ let stmtFromStmtList (stmts : stmt list) : stmt =
 (* Generates a logStatement (i.e., string output) that accurately describes
    an actual value considering its type. The string representation can directly
    be embedded in C code. *)
-(* struct will generate a string in the intiailization form, which can only
+(* Structs will generate a string in the intiailization form, which can only
    be used in variable initialization. However, the support for struct is
    currently dropped. *)
-let rec lossless_val (lv: lval) : logStatement =
+let rec lossless_val ?ptr_for_comp (lv: lval) : logStatement =
   let e = Lval(lv) in
-  match unrollType (typeOfLval lv) with
+  let typ = if ptr_for_comp = None then unrollType (typeOfLval lv)
+                                   else voidPtrType in
+  match typ with
   | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *)
   | TPtr _ -> ("%p", [e])
   | TEnum _ -> ("%d", [e])
@@ -83,7 +85,7 @@ let rec lossless_val (lv: lval) : logStatement =
     | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> ("%d", [e])
     | IUChar | IUInt | IUShort | IULong | IULongLong -> ("%u", [e]))
 
-(* Let's just announce that we don't support returns with struct copying.
+(*
   | TComp (ci, _) ->
       let lhost, offset = lv in
       let new_offset f = addOffset (Field(f, NoOffset)) offset in
@@ -98,9 +100,8 @@ let rec lossless_val (lv: lval) : logStatement =
       else (* TODO: for a union, need to identify a biggest-size field. *)
         E.s (E.bug "Union not yet supported.")
 *)
-  | TComp _ -> E.s (E.bug "Struct-copying returns disabled.")
-
-  | TArray _ -> E.s (E.bug "Look like this yields a compiler error.")
+  | TComp _ -> E.s (E.bug "Struct-copying is not supported.")
+  | TArray _ -> E.s (E.bug "Looks like this yields a compiler error.")
   | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
   | TVoid _ | TFun _ | TBuiltin_va_list _ ->
       E.s (E.bug "lossless_val: bug; can never be this type.")
@@ -197,27 +198,52 @@ let d_mem_lval ?pr_val (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
     let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
     let val_s, val_a = if pr_val = None then "", []
-      else let s, a = lossless_val lv in "|val: "^ s, a in
-    ((memPrefix ^"_%p/*|"^ typ_str ^"|*/"),
+      else let s, a = lossless_val ~ptr_for_comp:true lv in "|val: "^ s, a in
+    ((memPrefix ^"_%p/*|"^ typ_str ^ val_s ^"|*/"),
      [mkAddrOrStartOf lv] @ val_a)
   else (d_string "%a" d_lval lv,[])
 
-let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
+let rec d_simp_exp arg : logStatement =
   match arg with
-  | Lval lv -> d_mem_lval ~pr_val:(pr_val <> None) lv
-  | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
-  | Const _ -> (d_string "%a" d_exp arg,[])
+  | Const(CStr s) -> ("\"%s\"",[mkString (String.escaped s)])
+  | Const _ | Lval _ -> (d_string "%a" d_exp arg,[])
   | CastE(t,e) ->
-      let (str,arg) = d_mem_exp e in
+      let (str,arg) = d_simp_exp e in
       (d_string "(%a)(%s)" d_type t str,arg)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
-      let (str,arg) = d_mem_exp e in
+      let (str,arg) = d_simp_exp e in
       (opStr ^"("^ str ^")",arg)
   | BinOp(o,l,r,_) ->
-      let (lhsStr,lhsArg) = d_mem_exp l in
+      let (lhsStr,lhsArg) = d_simp_exp l in
       let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = d_mem_exp r in
+      let (rhsStr,rhsArg) = d_simp_exp r in
+      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
+  | AddrOf(l)
+  | StartOf(l) -> ("%p",[addr_of_lv l])
+
+  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
+  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
+  | Question _ -> E.s (E.bug "Question exp not expected.")
+  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
+
+let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
+  let pv = pr_val <> None in
+  match arg with
+  | Lval lv -> d_mem_lval ~pr_val:pv lv
+  | Const(CStr s) -> ("\"%s\"",[mkString (String.escaped s)])
+  | Const _ -> (d_string "%a" d_exp arg,[])
+  | CastE(t,e) ->
+      let (str,arg) = d_mem_exp ~pr_val:pv e in
+      (d_string "(%a)(%s)" d_type t str,arg)
+  | UnOp(o,e,_) ->
+      let opStr = d_string "%a " d_unop o in
+      let (str,arg) = d_mem_exp ~pr_val:pv e in
+      (opStr ^"("^ str ^")",arg)
+  | BinOp(o,l,r,_) ->
+      let (lhsStr,lhsArg) = d_mem_exp ~pr_val:pv l in
+      let opStr = d_string " %a " d_binop o in
+      let (rhsStr,rhsArg) = d_mem_exp ~pr_val:pv r in
       ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
   | AddrOf(l)
   | StartOf(l) -> ("%p",[addr_of_lv l])
@@ -370,14 +396,15 @@ class dsnconcreteVisitorClass = object
   method vinst i = begin
     match i with
       Set(lv, e, l) ->
-        let orig = d_string "/* %a (%a) = %a; */\n"
-                            d_lval lv d_type (typeOfLval lv) d_exp e in
+        let orig_rhs_s, orig_a = d_simp_exp e in
+        let orig_s = (d_string "/* %a = " d_lval lv) ^ orig_rhs_s ^ "; */\n" in
+
 	let (lhsStr,lhsArg) = d_mem_lval lv in
 
         (* DSN Does anything go weird if we have function pointers *)
-	let (rhsStr,rhsArg) = d_mem_exp e in
-	let printStr = orig ^ indent () ^ lhsStr ^" = "^ rhsStr ^"; " in
-	let printArgs = lhsArg @ rhsArg in
+	let (rhsStr,rhsArg) = d_mem_exp ~pr_val:true e in
+	let printStr = orig_s ^ indent () ^ lhsStr ^" = "^ rhsStr ^"; " in
+	let printArgs = orig_a @ lhsArg @ rhsArg in
 	let print_asgn = mkPrint printStr printArgs in
 
         (* Let's print the actual value assigned too. *)
@@ -429,7 +456,7 @@ class dsnconcreteVisitorClass = object
           decrIndent ();
           match a.skind with
           | If(e, then_b, else_b, loc) when else_b.bstmts = [] ->
-              let eStr, eArg = d_mem_exp e in
+              let eStr, eArg = d_mem_exp ~pr_val:true e in
               let fStr = "if("^ eStr ^"){\n" in
               then_b.bstmts <- compactStmts (
 		[mkStmtOneInstr (mkPrint fStr eArg)]
