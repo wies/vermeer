@@ -82,7 +82,7 @@ type clause = {formula : term;
  *)
 type problemType = SMTOnly | Interpolation
 type smtResult = Sat | Unsat of term list 
-type forwardProp = FinalMatch(clause,clause list) | NotKLeft(clause,clause list)
+type forwardProp = FinalMatch of clause * clause list | NotKLeft of clause * clause list
 
 type program = {clauses : clause list;
 		allVars : VarSet.t
