@@ -103,7 +103,16 @@ class dsnVisitorClass = object
   end
 end
 
-  (* assume that there is only one function at this point *)
+class updateToInt = object
+  inherit nopCilVisitor
+
+  method vexpr = function
+    | _ -> DoChildren    
+  
+end
+
+
+(* assume that there is only one function at this point *)
   (* otherwise things get messy *)
 let dsnVisitor = new dsnVisitorClass
 
