@@ -36,9 +36,9 @@ sub push_no_dup {
 # in the form of, e.g,. '/*|int |*/'.
 open INFILE, "<", $infilename or die $!;
 while (<INFILE>) {
-    while (m!(_dsn_mem_(0x[0-9a-fA-F]+|\(nil\)))/\*\|([^|]*)\|\*/!g) {
-        my $type = $3;
-        my $addr = $2 eq "(nil)" ? "0x0" : $2;
+    while (m!_dsn_mem_(0x[0-9a-fA-F]+|\(nil\))/\*\|([^|]*)\|!g) {
+        my $type = $2;
+        my $addr = $1 eq "(nil)" ? "0x0" : $1;
         push_no_dup(\%mem_vars, $addr, $type)
     }
 }
@@ -115,8 +115,12 @@ open INFILE, "<", $infilename or die $!;
 my $last_seen = "";
 while (<INFILE>) {
     s/^extern int optind.*/int optind = 1;\n/;
+
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     s/ = \(nil\);/ = 0;/;
+    s!/\* Assigned: \(nil\) \*/!/\* Assigned: 0 \*/!;
+    s!\|val: \(nil\)\|\*/!\|val: 0\|\*/!;
+    
     print ($last_seen = $_);
     if (/^int main\(int argc/) {
         for my $addr (keys %mem_vars) {
@@ -126,7 +130,7 @@ while (<INFILE>) {
 }
 
 if ($last_seen ne "} // main") {
-    print "  // Looks like the concretized trace ran into a crash.\n";
+    print "\n  // Looks like the concretized trace ran into a crash.\n";
     print "  // Adding an assert and a closing bracket for main.\n";
     print "  assert(0);\n";
     print "} // main";

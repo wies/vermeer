@@ -17,6 +17,7 @@ class dsnVisitorClass = object
     | TFloat _ -> E.s (E.bug "Float not supported.")
     | _ -> DoChildren
 
+  (* Account for pointer arithmetic and remove type casts. *)
   method vexpr e = match e with
     | BinOp(op, e1, e2, t) -> begin match op with
       | PlusPI | MinusPI ->
@@ -44,7 +45,7 @@ end
 let dsnVisitor = new dsnVisitorClass
 
 let dsnsll (f: file) : unit =
-  (* Drop typedefs, structs and unions (forward decl or def), and enums. *)
+  (* Drop typedefs, declarations, structs, unions, and enums. *)
   let pred = function
     | GType _ | GVarDecl _
     | GCompTag _ | GCompTagDecl _ | GEnumTag _ | GEnumTagDecl _ -> false

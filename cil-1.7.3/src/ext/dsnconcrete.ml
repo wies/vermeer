@@ -55,7 +55,7 @@ let log_fn = makeGlobalVar log_fn_name
                (TFun(voidType, Some [("format", charPtrType, [])], true, []))
 
 let mkPrintNoLoc ?noindent (fmt: string) (args: exp list) : instr =
-  let spaces = match noindent with None -> indent () | _ -> "" in
+  let spaces = if noindent = None then indent () else "" in
   Call(None, Lval(var log_fn), (mkString (spaces ^ fmt)) :: args, !currentLoc)
 
 let mkPrint (fmt: string) (args: exp list) : instr =
@@ -78,7 +78,6 @@ let rec lossless_val (lv: lval) : logStatement =
   match unrollType (typeOfLval lv) with
   | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *)
   | TPtr _ -> ("%p", [e])
-  (* TODO: I don't think so, but should we care about IULong, etc? *)
   | TEnum _ -> ("%d", [e])
   | TInt(ik, _) -> (match ik with
     | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> ("%d", [e])
@@ -194,15 +193,18 @@ let addr_of_lv (lh,lo) : exp =
 
 
 
-let d_mem_lval (lv : lval) : logStatement =
+let d_mem_lval ?pr_val (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
     let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
-    ((memPrefix ^"_%p/*|"^ typ_str ^"|*/"), [mkAddrOrStartOf lv])
+    let val_s, val_a = if pr_val = None then "", []
+      else let s, a = lossless_val lv in "|val: "^ s, a in
+    ((memPrefix ^"_%p/*|"^ typ_str ^"|*/"),
+     [mkAddrOrStartOf lv] @ val_a)
   else (d_string "%a" d_lval lv,[])
 
-let rec d_mem_exp (arg :exp) : logStatement =
+let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   match arg with
-  | Lval lv -> d_mem_lval lv
+  | Lval lv -> d_mem_lval ~pr_val:(pr_val <> None) lv
   | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
   | Const _ -> (d_string "%a" d_exp arg,[])
   | CastE(t,e) ->
@@ -368,17 +370,17 @@ class dsnconcreteVisitorClass = object
   method vinst i = begin
     match i with
       Set(lv, e, l) ->
-	let typStr = "/* "^ (d_string "%a" d_type (typeOfLval lv)) ^" */ " in
+        let orig = d_string "/* %a (%a) = %a; */\n"
+                            d_lval lv d_type (typeOfLval lv) d_exp e in
 	let (lhsStr,lhsArg) = d_mem_lval lv in
-(* assume that we only have reduced expressions at this point!  Should maybe put an assert
-of that here? *)
-(* DSN Does anything go weird if we have function pointers *)
+
+        (* DSN Does anything go weird if we have function pointers *)
 	let (rhsStr,rhsArg) = d_mem_exp e in
-	let printStr = typStr ^ lhsStr ^" = "^ rhsStr ^"; " in
+	let printStr = orig ^ indent () ^ lhsStr ^" = "^ rhsStr ^"; " in
 	let printArgs = lhsArg @ rhsArg in
 	let print_asgn = mkPrint printStr printArgs in
 
-        (* Let's print the actual value too. *)
+        (* Let's print the actual value assigned too. *)
         let val_s, val_a = lossless_val lv in
         let print_val = mkPrintNoLoc ~noindent:true
                         ("/* Assigned: "^ val_s ^" */\n") val_a in
