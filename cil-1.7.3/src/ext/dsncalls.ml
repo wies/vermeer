@@ -265,6 +265,7 @@ and d_xScope_exp  (scopeExp : exp)  =
   let default_print arg = (d_string "%a" d_exp arg,[]) in
   let rec dExp (arg :exp) : logStatement =
     match arg with 
+        (* TODO Bug: e.g., \031 in OCaml string is base 10. *)
       | Const(CStr(s)) -> ("\"%s\"",[mkString (String.escaped s)])
       | Const(c) -> (d_string "%a" d_exp arg,[]) (*for other constants, do the standard thing *)
       | Lval(l) -> 
