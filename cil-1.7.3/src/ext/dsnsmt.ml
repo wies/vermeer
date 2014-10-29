@@ -16,7 +16,6 @@ module H = Hashtbl
 
 open String
 open Printf
-open Unix
 open Map
 open Set
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
@@ -82,7 +81,7 @@ type clause = {formula : term;
  *)
 type problemType = SMTOnly | Interpolation
 type smtResult = Sat | Unsat of term list 
-type forwardProp = FinalMatch of clause * clause list | NotKLeft of clause * clause list
+type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
 type program = {clauses : clause list;
 		allVars : VarSet.t
@@ -119,23 +118,31 @@ let currentIfContext : ifContext ref = ref emptyIfContext
 let flowSensitiveEncoding = true
 
 (************************* utils *************************)
+let time f x =
+  let start = Unix.gettimeofday ()
+  in let res = f x
+     in let stop = Unix.gettimeofday ()
+	in let () = Printf.printf "Execution time: %fs\n%!" (stop -. start)
+	   in
+	   flush stdout; res
+
 let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
 
 let rec sublist b e l = 
   match l with
-    [] -> failwith "sublist"
-  | h :: t -> 
-     let tail = if e=0 then [] else sublist (b-1) (e-1) t in
-     if b>0 then tail else h :: tail
+      [] -> failwith "sublist"
+    | h :: t -> 
+      let tail = if e=0 then [] else sublist (b-1) (e-1) t in
+      if b>0 then tail else h :: tail
 
 (* returns the list split in two.  The left hand side is reversed *)
 let split_off_n_reversed n l = 
   let rec helper n l leftAcc = 
     if n <= 0 then Some(leftAcc,l)
     else 
-    match l with 
-      |	[] -> None
-      | x::xs -> helper (n-1) xs (x::leftAcc) 
+      match l with 
+	|	[] -> None
+	| x::xs -> helper (n-1) xs (x::leftAcc) 
   in
   helper n l [] 
 
@@ -319,7 +326,7 @@ let rec remap_formula ssaMap form =
 	| Some (newVar) -> SMTVar(newVar)
 	| None -> raise (CantMap v)
 
-  
+	  
 
 (* I guess we should remap the if context too.  Does this make sense? 
  * Also, there is a bug where we ended up with two clauses with the same interpolation
@@ -421,15 +428,17 @@ let assertion_name (c : clause) :string =
     | Constant -> "CON_" ^ (string_of_int c.idx)
     | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
 
-let make_ifContext_formula ic = 
-  match ic with 
-    | [] -> SMTTrue
-    | [x] -> x
-    | _ -> SMTRelation("and",ic)
+
 
 let make_assertion_string c =
+  let make_ifContext_formula ic = 
+    match ic with 
+      | [] -> SMTTrue
+      | [x] -> x
+      | _ -> SMTRelation("and",ic)
+  in
   let form = 
-    if flowSensitiveEncoding then
+    if flowSensitiveEncoding && c.ifContext <> [] then
       SMTRelation("=>", 
 		  [make_ifContext_formula c.ifContext; 
 		   c.formula])
@@ -441,15 +450,8 @@ let make_assertion_string c =
     
 
 (* DSN TODO list_fold *)
-let get_all_vars clauses = 
-  let rec get_all_vars_rec clauses  accum =
-    match clauses with 
-      | [] -> accum
-      | x::xs -> 
-	let accum =  VarSet.union x.vars accum in
-	get_all_vars_rec xs accum
-  in
-  get_all_vars_rec clauses emptyVarSet
+let get_all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
+
 
 let make_var_decl vars =
   let f v = 
@@ -470,13 +472,20 @@ let make_smt_file prog cmds =
   let p_strings = List.map make_assertion_string prog.clauses in 
   [smtOpts] @ decls @ p_strings @ cmds @ [smtExit]
 
-let print_formula_list fl = List.iter 
-  (fun f -> Printf.printf "%s\n" (string_of_formula f)) fl    
+let print_formulas x = 
+  List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
+  flush stdout
+let print_clauses x = 
+  List.iter (fun f -> Printf.printf "%s\n" (string_of_clause f)) x; 
+  flush stdout
+let print_cprogram x = 
+  List.iter (fun f -> Printf.printf "%s\n" (string_of_cprogram f)) x; 
+  flush stdout
 
 (******************** File creation ********************)
 
 let make_all_interpolants program =
-   List.fold_left (fun accum elem -> accum ^ " " ^ (assertion_name elem)) "" program
+  List.fold_left (fun accum elem -> accum ^ " " ^ (assertion_name elem)) "" program
     
 
 let make_interpolate_between before after = 
@@ -599,8 +608,8 @@ let rec strip_parens str =
 
 
 let rec extract_term (str) : term list = 
-(* returns the first sexp as a string,
- * and the remainder as another string *)
+  (* returns the first sexp as a string,
+   * and the remainder as another string *)
   let extract_first_sexp str = 
     let str = trim str in
     let len = length str in
@@ -609,7 +618,7 @@ let rec extract_term (str) : term list =
     else if (str.[0] = '(') then
       let endIdx = matchParensRec str 1 1 in 
       let lhs = sub str 0 (endIdx +1) in 
-    (* +1 avoid the closing paren *)
+      (* +1 avoid the closing paren *)
       let rhs = sub str (endIdx + 1) (len - endIdx - 1) in
       (trim lhs, trim rhs)
     else 
@@ -728,97 +737,62 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
   in
   let i1form = ssa_free_interpolant i1 in
   let i2form = ssa_free_interpolant i2 in
-  let equiv = SMTRelation("distinct",[i1form; i2form]) in
-  let cls = make_clause equiv emptySSAMap emptyIfContext EqTest in
-  let prog = make_program [cls] in
-  match (do_smt "equiv" prog [smtCheckSat] SMTOnly) with
-    | Sat -> false
-    | Unsat _ -> true
+  if i1form = i2form then true 
+  else 
+    let equiv = SMTRelation("distinct",[i1form; i2form]) in
+    let cls = make_clause equiv emptySSAMap emptyIfContext EqTest in
+    let prog = make_program [cls] in
+    match (do_smt "equiv" prog [smtCheckSat] SMTOnly) with
+      | Sat -> false
+      | Unsat _ -> true
 
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
-let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
-  let probType = SMTOnly in
-  let not_inter = negate_clause inter in
-  let before_p = make_program (not_inter :: before) in
-  let before_cmds = [smtCheckSat] in
-  match do_smt "before" before_p before_cmds probType with
-    | Sat -> false
-    | Unsat(_) -> 
-      let after_p = make_program (inter :: after) in
-      let after_cmds = [smtCheckSat] in
-      match do_smt "after" after_p after_cmds probType with
-	| Sat -> false
-	| Unsat(_) -> true 
 
-(* there are a number of algorithms.  Try em all! 
- * this is the signiture for the propegate 
- * it takes the current state, and a suffix
- * which it splits into removed,reduced such that
- * (current state ^ removed) => interpolant
- * interpolant ^ reduced is unsat
- * it then returns reduced.  We also need to return the interpolant,
- * because it has been recast into the right ssa variables
- * 
- * let rec propegate_interpolant_forward 
- *    (currentState :clause) (interpolant :clause) (suffix :clause list) 
- *     : (clause, clause list)
- *)
-
-(* this version is simple: it just propegates forward from the left until no longer valid
- * interpolant 
- *)
-let rec propegate_interpolant_forward_right currentState interpolant suffix =
-  match suffix with
-    | left :: right ->
-      let interpolantPrime = remap_clause left.ssaIdxs interpolant in
-      if is_valid_interpolant [currentState;left] right interpolantPrime then
-	propegate_interpolant_forward_right interpolantPrime interpolantPrime right
-      else 
-	interpolant,suffix
-    | _ -> interpolant,suffix  (* nothing left to reduce *) 
-
-let rec propegate_interpolant_forward_k k currentState interpolant suffix  =
+let try_interpolant_forward_k k currentState interpolant suffix  =
+  let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
+    let probType = SMTOnly in
+    let not_inter = negate_clause inter in
+    let before_p = make_program (not_inter :: before) in
+    let before_cmds = [smtCheckSat] in
+    match do_smt "before" before_p before_cmds probType with
+      | Sat -> false
+      | Unsat(_) -> 
+	let after_p = make_program (inter :: after) in
+	let after_cmds = [smtCheckSat] in
+	match do_smt "after" after_p after_cmds probType with
+	  | Sat -> false
+	  | Unsat(_) -> true 
+  in
   match split_off_n_reversed k suffix with
     | Some(leftRev,right) ->
       let lastLeft = List.hd leftRev in
       let interpolant = remap_clause lastLeft.ssaIdxs interpolant in
       if is_valid_interpolant (currentState::leftRev) right interpolant then
-	propegate_interpolant_forward_k k interpolant interpolant right
+	InterpolantWorks(interpolant,right)
       else 
-	FinalMatch(interpolant,suffix)
-    | None -> NotKLeft(interpolant,suffix)
+	InterpolantFails
+    | None -> NotKLeft
+      
+let rec propegate_interpolant_forward_linear k currentState interpolant suffix = 
+  match try_interpolant_forward_k k currentState interpolant suffix with 
+    | InterpolantWorks (interpolant,suffix) ->
+      propegate_interpolant_forward_linear k interpolant interpolant suffix 
+    | InterpolantFails -> 
+      if k <= 1 then interpolant,suffix 
+      else propegate_interpolant_forward_linear 1 currentState interpolant suffix
+    | NotKLeft -> propegate_interpolant_forward_linear 1 currentState interpolant suffix
 
-(* When we are done, the elements of the left suffix are subsumed by the interpolant
- * and the elements of the right suffix are what comes after the interpolant
- * 
-
- * keep the leftSuffix in reversed order
- * the last two elements of the leftSuffix are the currentState
- * and the first update after that 
- *)
-let rec find_farthest_point_interpolant_valid 
-    (currentState :clause) (interpolant :clause) 
-    (leftSuffix : clause list) (rightSuffix :clause list) =
-  match leftSuffix with
-    | [] -> raise (Failure "should be at least one thing here")
-    | [_] ->  (interpolant,rightSuffix)
-    | _ -> 
-      let x = match last leftSuffix with 
-	| Some(c) -> c
-	| None -> raise (Failure "should have more here!") in
-      let leftSuffix = all_but_last leftSuffix in
-      let rightSuffix = x :: rightSuffix in
-      let before = currentState :: leftSuffix in
-      let after  = rightSuffix in
-      let ssa = match (last before) with
-	| Some(x) -> x.ssaIdxs
-	| None -> raise (Failure "is_valid_interpolant before should have elements") in
-      let interpolant = remap_clause ssa interpolant in 
-      if (is_valid_interpolant before after interpolant) then
-	interpolant,rightSuffix
-      else
-	find_farthest_point_interpolant_valid 
-	  currentState interpolant leftSuffix rightSuffix
+let propegate_interpolant_binarysearch currentState interpolant suffix =
+  let rec helper k currentState interpolant suffix = 
+    if k = 0 then interpolant,suffix 
+    else match try_interpolant_forward_k k currentState interpolant suffix with 
+      | InterpolantWorks (interpolant,suffix) ->
+	helper (k/2) interpolant interpolant suffix 
+      | InterpolantFails -> 
+	helper (k/2) interpolant interpolant suffix 
+      | NotKLeft -> failwith "there really should be k left now"
+  in
+  helper (List.length suffix) currentState interpolant suffix
 
 
 (* Given two lists
@@ -828,7 +802,7 @@ let rec find_farthest_point_interpolant_valid
  * if I1 and I2 are identical, then S1 is unnecessary.
  *)
 let rec propegate_forward_cheap  (interpolants :term list) 
-   (clauses : clause list) : (term list * clause list)  =
+    (clauses : clause list) : (term list * clause list)  =
   match interpolants,clauses  with 
     | i1::i2::is,c1::c2::cs -> 
       if are_interpolants_equiv i1 i2 then begin
@@ -849,7 +823,7 @@ let rec reduce_trace_cheap currentState unreducedClauses = match unreducedClause
     match do_smt "getAllInterpolants" p smt_cmds Interpolation with
       | Unsat (inters) -> 
 	Printf.printf "the formulas are \n";
-	print_formula_list inters;
+	print_formulas inters;
 	(* we keep the first statement, so now we have interpolants that are precondictions *)
 	let newi,newcl = propegate_forward_cheap inters unreducedClauses in
 	let newState = make_clause (List.hd newi) emptySSAMap emptyIfContext Interpolant in
@@ -869,31 +843,32 @@ let rec reduce_trace_cheap currentState unreducedClauses = match unreducedClause
  * map that as far as possible
  * repeat
  *)
-let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
-  match unreducedSuffix with
-    | [] -> reducedPrefix
-    | [x] -> reducedPrefix @ [x]
-    | x :: xs ->
-      let clist = currentState :: unreducedSuffix in
-      let p = make_program clist in
-      let before = [currentState;x] in
-      let after = xs in
-      let smt_cmds = [smtCheckSat ; make_interpolate_between before after] in
-      let probType = Interpolation in
-      match do_smt "traceReduction" p smt_cmds probType with 
-	| Unsat [interpolantTerm] -> 
-	  let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
-	  let newCurrentState, unreducedSuffix = 
-	    (*find_farthest_point_interpolant_valid *)
-	    propegate_interpolant_forward_k 1
-	      currentState interpolant unreducedSuffix in
-	  reduce_trace_imp 
-	    (reducedPrefix @ [currentState; x])
-	    newCurrentState
-	    unreducedSuffix
-	| Unsat _ -> raise (Failure "Problem getting interpolant")
-	| Sat -> raise (Failure "was sat")
-
+let reduce_trace propAlgorithm trace = 
+  let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
+    match unreducedSuffix with
+      | [] -> reducedPrefix
+      | [x] -> reducedPrefix @ [x]
+      | x :: xs ->
+	let clist = currentState :: unreducedSuffix in
+	let p = make_program clist in
+	let before = [currentState;x] in
+	let after = xs in
+	let smt_cmds = [smtCheckSat ; make_interpolate_between before after] in
+	let probType = Interpolation in
+	match do_smt "traceReduction" p smt_cmds probType with 
+	  | Unsat [interpolantTerm] -> 
+	    let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
+	    let newCurrentState, unreducedSuffix = 
+	      (*find_farthest_point_interpolant_valid *)
+	      propAlgorithm currentState interpolant unreducedSuffix in
+	    reduce_trace_imp 
+	      (reducedPrefix @ [currentState; x])
+	      newCurrentState
+	      unreducedSuffix
+	  | Unsat _ -> raise (Failure "Problem getting interpolant")
+	  | Sat -> raise (Failure "was sat")
+  in
+  time (reduce_trace_imp [] (make_true_clause ())) trace
 
 (*********************************C to smt converstion *************************************)
 let rec formula_from_lval l = 
@@ -1002,19 +977,28 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in 
+
+  printf "****orig****\n";
+  print_to_file "all" (make_smt_file (make_program clauses) [smtCheckSat; smtExit]);
+  print_clauses clauses;
+  
+  let reduced2 = reduce_trace (propegate_interpolant_forward_linear 2) clauses in
+  printf "****reduced2****\n";
+  print_clauses reduced2;
+
+  let reduced3 = reduce_trace (propegate_interpolant_binarysearch) clauses in
+  printf "****reduced2****\n";
+  print_clauses reduced3;
+  ()
+
+
+(* printf "****program****\n"; *)
+(* print_cprogram reduced *)
+
 (*
-  let _ = printf "****orig****\n" in
-  let _ = print_to_file "all" (make_smt_file (make_program clauses) [smtCheckSat; smtExit]) in
-  let _ = List.map (fun x-> printf "%s\n" (string_of_clause x)) clauses in
-  let reduced = reduce_trace_imp [] (make_true_clause ()) clauses in
-  printf "****reduced****\n";
-  List.iter (fun x-> printf "%s\n" (string_of_clause x)) reduced;
-  printf "****program****\n";
-  List.iter (fun x-> printf "%s\n" (string_of_cprogram x)) reduced; 
-*)
   printf "****the interpolants****\n";
   reduce_trace_cheap (make_true_clause ()) clauses 
-
+*)
     
 
 let feature : featureDescr = 
