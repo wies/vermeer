@@ -76,6 +76,8 @@ type clause = {formula : term;
 	       ifContext : term list
 	      }
 
+type trace = clause list
+type annotatedTrace = (term * clause) list
 (* we take the left hand side of the interpolation problem 
  * this lets us have the info we need for remapping vars etc
  *)
@@ -481,6 +483,12 @@ let print_clauses x =
 let print_cprogram x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_cprogram f)) x; 
   flush stdout
+let print_annotated_trace x = 
+  List.iter (fun (t,c) -> Printf.printf "%s\n\t%s\n" (string_of_formula t)
+    (string_of_clause c)) x; 
+  flush stdout
+
+
 
 (******************** File creation ********************)
 
@@ -603,9 +611,6 @@ let rec strip_parens str =
     strip_parens toStrip
   else 
     str
-
-
-
 
 let rec extract_term (str) : term list = 
   (* returns the first sexp as a string,
@@ -795,43 +800,53 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
   helper (List.length suffix) currentState interpolant suffix
 
 
-(* Given two lists
- * [I1; I2; I3 ...]
- * [S1; S2; S3 ...]
- * such that I1 is the precondition for S1. (ie the program goes I1 S1 I2 S2 ...
- * if I1 and I2 are identical, then S1 is unnecessary.
- *)
-let rec propegate_forward_cheap  (interpolants :term list) 
-    (clauses : clause list) : (term list * clause list)  =
-  match interpolants,clauses  with 
-    | i1::i2::is,c1::c2::cs -> 
-      if are_interpolants_equiv i1 i2 then begin
-	(* if we match, we can throw away the next statement, and continue *)
-	propegate_forward_cheap (i2::is) (c2::cs) end
-      else 
-	(* if we didn't match, we need to hold on to the old startc *)
-	interpolants, clauses
-    | _ -> raise (Failure "expected more stuff on the list")
 
-let rec reduce_trace_cheap currentState unreducedClauses = match unreducedClauses with 
-  | [] -> () 
-  | c::cs -> 
-    let allClauses = currentState :: unreducedClauses in
-    let smt_cmds = [smtCheckSat;"(get-interpolants " ^ make_all_interpolants allClauses ^ ")"] in
-    let p = make_program allClauses in
-    Printf.printf "The program is\n%s" (string_of_prog p);
-    match do_smt "getAllInterpolants" p smt_cmds Interpolation with
-      | Unsat (inters) -> 
-	Printf.printf "the formulas are \n";
-	print_formulas inters;
-	(* we keep the first statement, so now we have interpolants that are precondictions *)
-	let newi,newcl = propegate_forward_cheap inters unreducedClauses in
-	let newState = make_clause (List.hd newi) emptySSAMap emptyIfContext Interpolant in
-	Printf.printf "afterwards the new state is %s\n" (string_of_clause newState);
-	reduce_trace_cheap newState newcl
-      | Sat -> 
-	raise (Failure "was sat")
-	  
+
+let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
+  (* Given two lists
+   * [I1; I2; I3 ...]
+   * [S1; S2; S3 ...]
+   * such that I1 is the precondition for S1. (ie the program goes I1 S1 I2 S2 ...
+   * if I1 and I2 are identical, then S1 is unnecessary.
+   *)
+  let rec propegate_forward_cheap  (interpolants :term list) 
+      (clauses : clause list) : (term list * clause list)  =
+    match interpolants,clauses with 
+      | [],[] | [_],[_] -> interpolants,clauses
+      | i1::i2::is,c1::c2::cs -> 
+	if are_interpolants_equiv i1 i2 then begin
+	  (* if we match, we can throw away the next statement, and continue *)
+	  propegate_forward_cheap (i2::is) (c2::cs) end
+	else 
+	  (* if we didn't match, we need to hold on to the old startc *)
+	  interpolants, clauses
+      | _ -> failwith "lists should be the same length!"
+  in
+  (* DSN TODO PERHAPS USE List zip *)
+  let rec propegate_cheap_driver 
+      (interpolants :term list) (clauses : clause list) (accum : annotatedTrace) = 
+    match propegate_forward_cheap interpolants clauses with
+      | [],[] -> accum
+      | i::is,c::cs -> 
+	let accum = (i,c)::accum in
+	propegate_cheap_driver is cs accum
+      | _ -> failwith "Lists must be the same length in propegate_cheap_driver"
+  (* the interpolant list will be missing the program precondition
+   * we add an extra true clause at the begining of the program
+   * so that the postcondition of that statement is the pre-condition of the 
+   * first real statement *)
+  in
+  let currentState = make_true_clause () in
+  let allClauses = currentState :: unreducedClauses in
+  let smt_cmds = [smtCheckSat;"(get-interpolants " ^ make_all_interpolants allClauses ^ ")"] in
+  let p = make_program allClauses in
+  match do_smt "getAllInterpolants" p smt_cmds Interpolation with
+    | Unsat (inters) -> 
+      let r = propegate_cheap_driver inters unreducedClauses [] in
+      List.rev r
+    | Sat -> failwith "was sat"
+
+
 (* reduced is the prefix of the trace *)
 (* We will work as follows:
  * assume that the reducedPrefix is maximally reduced
@@ -842,12 +857,13 @@ let rec reduce_trace_cheap currentState unreducedClauses = match unreducedClause
  * x and prefix.
  * map that as far as possible
  * repeat
+ * keep the reduced prefix in reverse order to prevent unneccessary list conjunctions
  *)
-let reduce_trace propAlgorithm trace = 
-  let rec reduce_trace_imp reducedPrefix currentState unreducedSuffix =
+let reduce_trace_expensive propAlgorithm trace = 
+  let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
     match unreducedSuffix with
-      | [] -> reducedPrefix
-      | [x] -> reducedPrefix @ [x]
+      | [] -> reducedPrefixRev
+      | [x] -> x:: reducedPrefixRev
       | x :: xs ->
 	let clist = currentState :: unreducedSuffix in
 	let p = make_program clist in
@@ -859,16 +875,22 @@ let reduce_trace propAlgorithm trace =
 	  | Unsat [interpolantTerm] -> 
 	    let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
 	    let newCurrentState, unreducedSuffix = 
-	      (*find_farthest_point_interpolant_valid *)
+		(*find_farthest_point_interpolant_valid *)
 	      propAlgorithm currentState interpolant unreducedSuffix in
 	    reduce_trace_imp 
-	      (reducedPrefix @ [currentState; x])
+	      (x::currentState::reducedPrefixRev)
 	      newCurrentState
 	      unreducedSuffix
 	  | Unsat _ -> raise (Failure "Problem getting interpolant")
 	  | Sat -> raise (Failure "was sat")
   in
-  time (reduce_trace_imp [] (make_true_clause ())) trace
+  List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
+
+let cheap_then_expensive propAlgorithm trace = 
+  let cheap = reduce_trace_cheap trace in
+  let forms,clauses = List.split cheap in
+  let expensive = reduce_trace_expensive propAlgorithm clauses in
+  expensive
 
 (*********************************C to smt converstion *************************************)
 let rec formula_from_lval l = 
@@ -982,13 +1004,18 @@ let dsnsmt (f: file) : unit =
   print_to_file "all" (make_smt_file (make_program clauses) [smtCheckSat; smtExit]);
   print_clauses clauses;
   
-  let reduced2 = reduce_trace (propegate_interpolant_forward_linear 2) clauses in
-  printf "****reduced2****\n";
-  print_clauses reduced2;
+  (* printf "****reduced2****\n"; *)
+  (* let reduced2 = reduce_trace (propegate_interpolant_forward_linear 1) clauses in *)
+  (* print_clauses reduced2; *)
 
-  let reduced3 = reduce_trace (propegate_interpolant_binarysearch) clauses in
-  printf "****reduced2****\n";
-  print_clauses reduced3;
+  printf "****reduced cheap****\n";
+  let reduced3 = time reduce_trace_cheap  clauses in
+  print_annotated_trace reduced3;
+
+  printf "****reduced both****\n";
+  let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in
+  print_clauses reduced4;
+
   ()
 
 
