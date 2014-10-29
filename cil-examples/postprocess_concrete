@@ -38,11 +38,11 @@ sub push_no_dup {
 # in the form of, e.g,. '/*|int |*/' or '*|int |val: 9|*/'.
 open INFILE, "<", $infilename or die $!;
 while (<INFILE>) {
-    while (m!_dsn_mem_(0x[0-9a-fA-F]+|\(nil\))/\*\|([^|]*)\|(|val: ([^|]*)\|)\*/(| = )!g) {
+    while (m!_dsn_mem_(0x[0-9a-fA-F]+|\(nil\))/\*\|([^|]*)(\|val: ([^|]*)|)\|\*/( = |)!g) {
         my $type = $2;
         my $addr = $1 eq "(nil)" ? "0x0" : $1;
         my $val = $4;
-        my $is_asgn = defined $5;
+        my $is_asgn = $5 eq " = ";
         push_no_dup(\%mem_vars, $addr, $type);
 
         # Check if the memory location being accessed is initialized.
@@ -138,12 +138,14 @@ while (<INFILE>) {
         for my $addr (keys %mem_vars) {
             my $init = exists($mem_vars_init{$addr}) ?
                           " = $mem_vars_init{$addr}" : "";
+            $init =~ s/\(nil\)/0/;
             print "  @{$mem_vars{$addr}}[0] _dsn_mem_$addr$init;\n";
         }
     }
 }
 
-if ($last_seen ne "} // main\n") {
+chomp $last_seen;
+if ($last_seen ne "} // main") {
     print "\n  // Looks like the concretized trace ran into a crash.\n";
     print "  // Adding an assert and a closing bracket for main.\n";
     print "  assert(0);\n";

@@ -203,24 +203,50 @@ let d_mem_lval ?pr_val (lv : lval) : logStatement =
      [mkAddrOrStartOf lv] @ val_a)
   else (d_string "%a" d_lval lv,[])
 
+let to_c_string ocaml_str =
+  let len = String.length ocaml_str in
+  let rec trans i acc =
+    if i = len then acc
+    else let char_str = Printf.sprintf "\\%o" (int_of_char ocaml_str.[i]) in
+         trans (i+1) (acc ^ char_str) in
+  "\""^ (trans 0 "") ^ "\""
+
 let rec d_simp_exp arg : logStatement =
   match arg with
-  | Const(CStr s) -> ("\"%s\"",[mkString (String.escaped s)])
+  | Const(CStr s) -> to_c_string s, []
+    (* Bug: e.g., \031 in OCaml string is base 10.
+    "\"%s\"", [mkString (String.escaped s)]*)
+  | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
   | Const _ | Lval _ -> (d_string "%a" d_exp arg,[])
   | CastE(t,e) ->
       let (str,arg) = d_simp_exp e in
-      (d_string "(%a)(%s)" d_type t str,arg)
+      (d_string "(%a)(%s)" d_type t str, arg)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_simp_exp e in
-      (opStr ^"("^ str ^")",arg)
+      (opStr ^"("^ str ^")", arg)
   | BinOp(o,l,r,_) ->
       let (lhsStr,lhsArg) = d_simp_exp l in
       let opStr = d_string " %a " d_binop o in
       let (rhsStr,rhsArg) = d_simp_exp r in
-      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
+      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
   | AddrOf(l)
-  | StartOf(l) -> ("%p",[addr_of_lv l])
+  | StartOf(l) -> ("%p", [addr_of_lv l])
+
+  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
+  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
+  | Question _ -> E.s (E.bug "Question exp not expected.")
+  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
+
+let rec has_str_lit = function
+  | Const(CStr _) | Const(CWStr _) -> true
+  | Const _ -> false
+  | CastE(_, e) -> has_str_lit e
+  | UnOp(_, e, _) -> has_str_lit e
+  | BinOp(_, l, r,_) -> has_str_lit l || has_str_lit r
+
+  | Lval lv | AddrOf lv | StartOf lv -> (match lv with
+    | (Var _, _) -> false | (Mem e, _) -> has_str_lit e)
 
   | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
   | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
@@ -231,22 +257,25 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   let pv = pr_val <> None in
   match arg with
   | Lval lv -> d_mem_lval ~pr_val:pv lv
-  | Const(CStr s) -> ("\"%s\"",[mkString (String.escaped s)])
-  | Const _ -> (d_string "%a" d_exp arg,[])
+  | Const(CStr s) -> to_c_string s, []
+    (* TODO Bug: e.g., \031 in OCaml string is base 10.
+    "\"%s\"", [mkString (String.escaped s)] *)
+  | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
+  | Const _ -> (d_string "%a" d_exp arg, [])
   | CastE(t,e) ->
       let (str,arg) = d_mem_exp ~pr_val:pv e in
-      (d_string "(%a)(%s)" d_type t str,arg)
+      (d_string "(%a)(%s)" d_type t str, arg)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_mem_exp ~pr_val:pv e in
-      (opStr ^"("^ str ^")",arg)
+      (opStr ^"("^ str ^")", arg)
   | BinOp(o,l,r,_) ->
       let (lhsStr,lhsArg) = d_mem_exp ~pr_val:pv l in
       let opStr = d_string " %a " d_binop o in
       let (rhsStr,rhsArg) = d_mem_exp ~pr_val:pv r in
-      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")" ,lhsArg @ rhsArg)
+      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
   | AddrOf(l)
-  | StartOf(l) -> ("%p",[addr_of_lv l])
+  | StartOf(l) -> ("%p", [addr_of_lv l])
 
   | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
   | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
@@ -388,6 +417,23 @@ let rec mkActualArg (al : exp list) : logStatement =
       let (restStr,restArgs) = mkActualArg xs in
       (thisStr ^", "^ restStr, thisArg @ restArgs)
 
+
+let mk_print_orig (* For printing debugging info. *) = function
+  | Set(lv, e, _) ->
+    let orig_rhs_s, orig_a = d_simp_exp e in
+    let orig_s = (d_string "/* %a = " d_lval lv) ^ orig_rhs_s ^ "; */\n" in
+    mkPrint orig_s orig_a
+  | _ -> E.s (E.bug "Invalid usage.")
+
+(* Is this a string literal assignment? If yes, we need to assign an actual
+   address directly. Don't worry though; memory variables affected by this
+   entire string will be covered by 'postprocess_concrete.' *)
+let is_str_lit_asgn = function
+  | CastE(_, Const(CStr s)) | Const(CStr s) -> true
+  | e -> if has_str_lit e then (* Checking if there can be other forms. *)
+           E.s (E.bug "Unexpected assignemnt involving string literals.");
+         false
+
 class dsnconcreteVisitorClass = object
   inherit nopCilVisitor
 
@@ -396,23 +442,31 @@ class dsnconcreteVisitorClass = object
   method vinst i = begin
     match i with
       Set(lv, e, l) ->
-        let orig_rhs_s, orig_a = d_simp_exp e in
-        let orig_s = (d_string "/* %a = " d_lval lv) ^ orig_rhs_s ^ "; */\n" in
-
-	let (lhsStr,lhsArg) = d_mem_lval lv in
-
         (* DSN Does anything go weird if we have function pointers *)
-	let (rhsStr,rhsArg) = d_mem_exp ~pr_val:true e in
-	let printStr = orig_s ^ indent () ^ lhsStr ^" = "^ rhsStr ^"; " in
-	let printArgs = orig_a @ lhsArg @ rhsArg in
-	let print_asgn = mkPrint printStr printArgs in
+	let (lhsStr,lhsArg) = d_mem_lval lv in
+        let (rhsStr,rhsArg) = d_mem_exp ~pr_val:true e in
 
-        (* Let's print the actual value assigned too. *)
+        (* Delay printing the right-hand side until after execution if we need
+           to assign the result directly instead of using the RHS exp. *)
+        let special_cases =
+          (rhsStr = "stdin" or rhsStr = "stdout" or rhsStr = "stderr") in
+        let actual_val = (is_str_lit_asgn e) or special_cases in
+
+        let pr_s, pr_a = if actual_val
+                         then (lhsStr ^" = "              , lhsArg)
+                         else (lhsStr ^" = "^ rhsStr ^"; ", lhsArg @ rhsArg) in
+        let print_asgn = mkPrintNoLoc pr_s pr_a in
+
+        (* For debugging, print the actual value assigned too. *)
         let val_s, val_a = lossless_val lv in
-        let print_val = mkPrintNoLoc ~noindent:true
-                        ("/* Assigned: "^ val_s ^" */\n") val_a in
+        let pr_s, pr_a = "/* Assigned: "^ val_s ^" */\n", val_a in
+        (* Assign an actual value assigned if needed. *)
+        let pr_s', pr_a' = if not actual_val then pr_s, pr_a
+          else val_s ^"; "^ pr_s, val_a @ val_a in
+        let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s' pr_a' in
 
-	let newInstrs =  [print_asgn; i; print_val] in
+        let print_orig = mk_print_orig i in (* For printing debugging info. *)
+	let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
 	ChangeTo newInstrs
 
     (* The only calls that can occur in a reduced format are to functions

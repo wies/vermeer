@@ -3,6 +3,8 @@
 
 void *handler(int dont_care) { return 0; }
 
+int arr_init[] = { 0, 3, 4, 5, 6, 7, 1, 9 };
+
 int main(int argc, char** argv) {
     typedef int MY_INT;
     struct my_struct {
@@ -27,6 +29,10 @@ int main(int argc, char** argv) {
 
     char* p = 0;
     //*p = 10;
+
+    p = "abcdef";
+    char my_char = (*p+4);
+    int boolean = !"abcdef";
     
     local_record[0].snd_field = 1111;
     int *ptr = &(local_record[0].snd_field);
@@ -37,7 +43,7 @@ int main(int argc, char** argv) {
     //int val1 = *arr_ptr;
     int val2 = local_record[1].fst_field[1];
     int *last_ptr = &(local_record[1].fst_field[1]);
-    printf("%d\n", *last_ptr);
+    printf("%d %p\n", *last_ptr, arr_init);
 
     int x = 9999999, y = 99;
     x++; y++;
@@ -45,6 +51,6 @@ int main(int argc, char** argv) {
     p1++; p1--;
     int **p2 = &p1;
     x++;
-    printf("%d %d %d\n", *p1, *((*(p2-1+1))-1+1), *ptr);
+    //printf("%d %d %d %d\n", *p1, *((*(p2-1+1))-1+1), *ptr, arr_init[4]);
     return 0;
 }

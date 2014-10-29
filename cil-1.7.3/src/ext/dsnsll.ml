@@ -4,6 +4,15 @@
  * This conversion is not perfect. For example, overflow may happen.
  *)
 
+(* TODO We could add fine-grained support for memory-region initialization
+   (e.g., array, struct initialization). Currently, they are simply removed
+   in this pass (safe to do so, since such variables are not referenced
+   directly), and the initialization is handled in the postprocess_concrete
+   process. They way postprocess_concrete works is that whenever an
+   uninitialized memory (_dsn_mem_0x...) variables are first accessed, the
+   script extracts the run-time value of the variable and adds an intialization
+   in the memory variable declaration. *)
+
 open Cil
 module E = Errormsg
 
@@ -45,10 +54,13 @@ end
 let dsnVisitor = new dsnVisitorClass
 
 let dsnsll (f: file) : unit =
-  (* Drop typedefs, declarations, structs, unions, and enums. *)
+  (* First, drop typedefs, declarations, arrays, structs, unions, and enums. *)
   let pred = function
     | GType _ | GVarDecl _
     | GCompTag _ | GCompTagDecl _ | GEnumTag _ | GEnumTagDecl _ -> false
+    (* Arrays and structs are never referenced directly; remove them too. *)
+    | GVar(vi, _, _) -> (match vi.vtype with
+      | TArray _ | TComp _ -> false | _ -> true)
     | _ -> true in
   f.globals <- List.filter pred f.globals;
   let doGlobal g = ignore (visitCilGlobal dsnVisitor g) in
