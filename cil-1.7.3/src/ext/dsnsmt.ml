@@ -96,8 +96,6 @@ exception CantMap of smtvar
 
 (******************** Defs *************************)
 let smtDir = "./smt/"
-let outfile = smtDir ^ "outfile.smt2"
-let infile = smtDir ^ "infile.smt2"
 
 let smtOpts = 
   "(set-option :print-success false)
@@ -105,7 +103,6 @@ let smtOpts =
 (set-logic QF_LIA)\n"
 
 let smtCheckSat = "(check-sat)\n"
-let smtExit = "(exit)\n"
 
 let smtZero = SMTConstant(0L)
 let emptyIfContext = []
@@ -472,7 +469,7 @@ let make_program clauses =
 let make_smt_file prog cmds = 
   let decls = make_var_decl prog.allVars in
   let p_strings = List.map make_assertion_string prog.clauses in 
-  [smtOpts] @ decls @ p_strings @ cmds @ [smtExit]
+  [smtOpts] @ decls @ p_strings @ cmds 
 
 let print_formulas x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
@@ -513,7 +510,7 @@ let make_interpolate_between before after =
 let print_to_file filename lines = 
   let oc = open_out filename in    (* create or truncate file, return channel *)
   let printf_oc = Printf.fprintf oc "%s" in
-  let _  = List.map printf_oc lines in
+  List.iter printf_oc lines;
   close_out oc                (* flush and close the channel *)
     
 
@@ -683,25 +680,28 @@ let begins_with str header =
   else
     false
 
+
+
+let rec parse_smtresult lines pt = 
+  match lines with
+    | []-> raise (Failure "bad smt result file")
+    |  l::ls -> 
+      if begins_with l "INFO" then 
+	parse_smtresult ls pt (*skip *)
+      else if begins_with l "unsat" then 
+	match pt with
+	  | SMTOnly -> Unsat([])
+	  | Interpolation -> 
+	    let terms = extract_term (List.hd ls) in
+	    Unsat(terms)
+      else if begins_with l "sat" then
+	Sat
+      else 
+	failwith ("unmatched line:\n" ^ l ^ "\n")
+
+
 (* should I perhaps pass in the ssabefore *)
 let read_smtresult filename pt = 
-  let rec parse_smtresult lines pt = 
-    match lines with
-      | []-> raise (Failure "bad smt result file")
-      |  l::ls -> 
-	if begins_with l "INFO" then 
-	  parse_smtresult ls pt (*skip *)
-	else if begins_with l "unsat" then 
-	  match pt with
-	    | SMTOnly -> Unsat([])
-	    | Interpolation -> 
-	      let terms = extract_term (List.hd ls) in
-	      Unsat(terms)
-	else if begins_with l "sat" then
-	  Sat
-	else 
-	  raise (Failure ("unmatched line:\n" ^ l ^ "\n in " ^filename))
-  in
   let input_lines = 
     let lines = ref [] in
     let chan = open_in filename in
@@ -716,9 +716,127 @@ let read_smtresult filename pt =
   parse_smtresult input_lines pt
     
 (****************************** Interpolation ******************************)
+(* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
+ * really just port what I'm doing over to that.  But for now, I'll just take
+ * the min necessary
+ * https://subversive.cims.nyu.edu/thw/prototypes/grasshopper/src/smtlib/smtLibSolver.ml
+ *)
+
+type solver_kind = Process of string * string list
+
+type solver_info = 
+    { version: int;
+      subversion: int;
+      has_set_theory: bool;
+      smt_options: (string * bool) list;
+      kind: solver_kind; 
+    }
+
+let smtinterpol_2_1 = 
+  { 
+    version = 2; 
+    subversion = 1;
+    has_set_theory = false;
+    smt_options = ["print-success",false; "produce-proofs",true];
+    kind = Process("java",["-jar";"/home/dsn/sw/smtinterpol/smtinterpol.jar";"-q"]);
+  }
+
+type solver = 
+    { name : string;
+      info : solver_info
+    }
+
+type solver_state = 
+    { out_chan: out_channel;
+      in_chan: in_channel;
+      pid: int;
+      log_out: out_channel option;
+    }
+
+let flush_solver solver = 
+  flush solver.out_chan;
+  match solver.log_out with 
+    | Some logc -> flush logc
+    | None -> ()
+
+let write_line_to_solver solver line = 
+  Printf.fprintf solver.out_chan "%s" line;
+  match solver.log_out with 
+    | Some logc -> Printf.fprintf logc "%s" line
+    | None -> ()
+
+let write_to_solver solver lines = 
+  List.iter (write_line_to_solver solver) lines
+
+let set_option solver (opt_name,opt_value) =
+  let optStr = Printf.sprintf "(set-option :%s %b)\n" opt_name opt_value in
+  write_line_to_solver solver optStr
+
+let set_logic solver logic =
+  write_line_to_solver solver ("(set-logic " ^ logic ^ ")\n")
+
+let reset_solver solver = 
+  write_line_to_solver solver "(reset)\n"
+
+let rec read_from_solver (solver) (pt) : smtResult =
+  let l  = input_line solver.in_chan in
+  if begins_with l "INFO" then 
+    read_from_solver solver pt (*skip *)
+  else if begins_with l "unsat" then 
+    match pt with
+      | SMTOnly -> Unsat([])
+      | Interpolation -> 
+	let next_line = input_line solver.in_chan in
+	let terms = extract_term (next_line) in
+	Unsat(terms)
+  else if begins_with l "sat" then
+    Sat
+  else 
+    failwith ("unmatched line:\n" ^ l ^ "\n")
+
+let start_with_solver session_name solver do_log = 
+  let log_out = 
+    if do_log then begin
+      safe_mkdir smtDir 0o777;
+      let log_file_name = smtDir ^ "/" ^ session_name ^ ".smt2" in
+      Some(open_out log_file_name)
+    end 
+    else None
+  in
+  let state = match solver.info.kind with
+    | Process (cmnd, args) ->
+      let aargs = Array.of_list (cmnd :: args) in
+      let in_read, in_write = Unix.pipe () in
+      let out_read, out_write = Unix.pipe () in
+      let pid = Unix.create_process cmnd aargs out_read in_write in_write in 
+      { in_chan = Unix.in_channel_of_descr in_read;
+        out_chan = Unix.out_channel_of_descr out_write;
+        pid = pid;
+	log_out = log_out;
+      } in
+  List.iter (set_option state) solver.info.smt_options;
+  state
+
+
+let singleSolver = start_with_solver "single_solver" 
+  {name = "single_solver"; info=smtinterpol_2_1} true
+
+let do_smt2 prog smtCmds pt =
+  let solver = singleSolver in
+  reset_solver solver;
+  set_logic solver "QF_LIA";
+  (*write the declerations *)
+  let decls = make_var_decl prog.allVars in
+  write_to_solver solver decls;
+  (* write the program clauses *)
+  List.iter (fun x -> write_line_to_solver solver (make_assertion_string x)) prog.clauses;
+  (* write the commands *)
+  write_to_solver solver smtCmds;
+  flush_solver solver;
+  read_from_solver solver pt
+
 let do_smt basename prog smtCmds pt =
-  let solver_string = "java -jar /home/dsn/sw/smtinterpol/smtinterpol.jar" in
-  let smtDir = "./smt" in
+  let solver_string = "java -jar /home/dsn/sw/smtinterpol/smtinterpol.jar -q " in
   let _ = safe_mkdir smtDir 0o777 in
   let basename = smtDir ^ "/" ^ basename in
   let inFilename = basename ^ ".smt2"  in
@@ -747,7 +865,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     let equiv = SMTRelation("distinct",[i1form; i2form]) in
     let cls = make_clause equiv emptySSAMap emptyIfContext EqTest in
     let prog = make_program [cls] in
-    match (do_smt "equiv" prog [smtCheckSat] SMTOnly) with
+    match (do_smt2 (*"equiv"*) prog [smtCheckSat] SMTOnly) with
       | Sat -> false
       | Unsat _ -> true
 
@@ -875,7 +993,7 @@ let reduce_trace_expensive propAlgorithm trace =
 	  | Unsat [interpolantTerm] -> 
 	    let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
 	    let newCurrentState, unreducedSuffix = 
-		(*find_farthest_point_interpolant_valid *)
+	      (*find_farthest_point_interpolant_valid *)
 	      propAlgorithm currentState interpolant unreducedSuffix in
 	    reduce_trace_imp 
 	      (x::currentState::reducedPrefixRev)
@@ -1001,7 +1119,7 @@ let dsnsmt (f: file) : unit =
   let clauses = make_true_clause () :: clauses in 
 
   printf "****orig****\n";
-  print_to_file "all" (make_smt_file (make_program clauses) [smtCheckSat; smtExit]);
+  print_to_file "all" (make_smt_file (make_program clauses) [smtCheckSat]);
   print_clauses clauses;
   
   (* printf "****reduced2****\n"; *)
