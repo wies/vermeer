@@ -4,5 +4,5 @@ then echo "needs an argument";
     exit 1
 fi
 
-../cil-1.7.3/bin/cilly --dodsnsll --save-temps "$1.postconcrete.c" -lm
+../cil-1.7.3/bin/cilly -c --dodsnsll --save-temps "$1.postconcrete.c" -lm
 mv "$1.postconcrete.cil.c" "$1.sll.c"

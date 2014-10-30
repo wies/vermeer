@@ -96,12 +96,6 @@ exception CantMap of smtvar
 
 (******************** Defs *************************)
 let smtDir = "./smt/"
-
-let smtOpts = 
-  "(set-option :print-success false)
-(set-option :produce-proofs true)
-(set-logic QF_LIA)\n"
-
 let smtCheckSat = "(check-sat)\n"
 
 let smtZero = SMTConstant(0L)
@@ -388,26 +382,13 @@ and debug_formula f =
 
 (* could make tail rec if I cared *)
 let debug_SSAMap m = 
-  let rec debug_SSAMap_rec bindings = 
-    match bindings with
-      | [] -> ""
-      | (k,v)::bs -> 
-	"\t(" ^ string_of_int k
-	^ ", " ^ debug_var v
-	^ ")\n"
-	^ debug_SSAMap_rec bs
-  in
-  debug_SSAMap_rec (VarSSAMap.bindings m)
+  let string_of_binding (k,v) = "\t(" ^ string_of_int k ^ ", " ^ debug_var v ^ ")\n" 
+  in List.fold_left (fun a e -> (string_of_binding e) ^ a) "" (VarSSAMap.bindings m)
 
 let debug_vars vars = 
-  let rec debug_vars_rec vars = 
-    match vars with
-      | [] -> ""
-      | v::vs -> "\t" ^ debug_var v ^ "\n" ^ debug_vars_rec vs
-  in
-  debug_vars_rec (VarSet.elements vars)
+  List.fold_left (fun a e -> "\t" ^ debug_var e ^ "\n" ^ a) "" (VarSet.elements vars)
     
-let rec debug_clause c = 
+let  debug_clause c = 
   "\nidx: " ^ (string_of_int(c.idx))
   ^"\n\tsexp: " ^ string_of_formula c.formula
   (* ^ "\n\tformula:\n" ^ (debug_formula c.formula)  *)
@@ -426,8 +407,6 @@ let assertion_name (c : clause) :string =
     | Interpolant -> "IP_" ^ (string_of_int c.idx)
     | Constant -> "CON_" ^ (string_of_int c.idx)
     | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
-
-
 
 let make_assertion_string c =
   let make_ifContext_formula ic = 
@@ -451,7 +430,6 @@ let make_assertion_string c =
 (* DSN TODO list_fold *)
 let get_all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
 
-
 let make_var_decl vars =
   let f v = 
     let ts = string_of_vartype (get_var_type v) in
@@ -465,11 +443,6 @@ let make_program clauses =
   {clauses = clauses;
    allVars = vars;
   }
-
-let make_smt_file prog cmds = 
-  let decls = make_var_decl prog.allVars in
-  let p_strings = List.map make_assertion_string prog.clauses in 
-  [smtOpts] @ decls @ p_strings @ cmds 
 
 let print_formulas x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
@@ -485,13 +458,10 @@ let print_annotated_trace x =
     (string_of_clause c)) x; 
   flush stdout
 
-
-
 (******************** File creation ********************)
 
 let make_all_interpolants program =
   List.fold_left (fun accum elem -> accum ^ " " ^ (assertion_name elem)) "" program
-    
 
 let make_interpolate_between before after = 
   let string_of_partition part = 
@@ -680,41 +650,6 @@ let begins_with str header =
   else
     false
 
-
-
-let rec parse_smtresult lines pt = 
-  match lines with
-    | []-> raise (Failure "bad smt result file")
-    |  l::ls -> 
-      if begins_with l "INFO" then 
-	parse_smtresult ls pt (*skip *)
-      else if begins_with l "unsat" then 
-	match pt with
-	  | SMTOnly -> Unsat([])
-	  | Interpolation -> 
-	    let terms = extract_term (List.hd ls) in
-	    Unsat(terms)
-      else if begins_with l "sat" then
-	Sat
-      else 
-	failwith ("unmatched line:\n" ^ l ^ "\n")
-
-
-(* should I perhaps pass in the ssabefore *)
-let read_smtresult filename pt = 
-  let input_lines = 
-    let lines = ref [] in
-    let chan = open_in filename in
-    try
-      while true; do
-	lines := input_line chan :: !lines
-      done; []
-    with End_of_file ->
-      close_in chan;
-      List.rev !lines
-  in
-  parse_smtresult input_lines pt
-    
 (****************************** Interpolation ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
  * really just port what I'm doing over to that.  But for now, I'll just take
@@ -821,7 +756,7 @@ let start_with_solver session_name solver do_log =
 let singleSolver = start_with_solver "single_solver" 
   {name = "single_solver"; info=smtinterpol_2_1} true
 
-let do_smt2 prog smtCmds pt =
+let do_smt prog smtCmds pt =
   let solver = singleSolver in
   reset_solver solver;
   set_logic solver "QF_LIA";
@@ -834,22 +769,6 @@ let do_smt2 prog smtCmds pt =
   write_to_solver solver smtCmds;
   flush_solver solver;
   read_from_solver solver pt
-
-let do_smt basename prog smtCmds pt =
-  let solver_string = "java -jar /home/dsn/sw/smtinterpol/smtinterpol.jar -q " in
-  let _ = safe_mkdir smtDir 0o777 in
-  let basename = smtDir ^ "/" ^ basename in
-  let inFilename = basename ^ ".smt2"  in
-  let resultFilename = basename ^ "_out.smt2"  in
-  let logFilename = "log.txt" in
-  let args = 
-    " " ^ inFilename  
-    ^ " > " ^ resultFilename
-    ^ " 2> " ^ logFilename in
-  let smtFile = make_smt_file prog smtCmds in
-  print_to_file inFilename smtFile;
-  ignore (Sys.command (solver_string ^ args));
-  read_smtresult resultFilename pt
 
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
   (* interpolants have no need for ssa variables.  So we can just drop them *)
@@ -865,7 +784,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     let equiv = SMTRelation("distinct",[i1form; i2form]) in
     let cls = make_clause equiv emptySSAMap emptyIfContext EqTest in
     let prog = make_program [cls] in
-    match (do_smt2 (*"equiv"*) prog [smtCheckSat] SMTOnly) with
+    match (do_smt prog [smtCheckSat] SMTOnly) with
       | Sat -> false
       | Unsat _ -> true
 
@@ -877,12 +796,12 @@ let try_interpolant_forward_k k currentState interpolant suffix  =
     let not_inter = negate_clause inter in
     let before_p = make_program (not_inter :: before) in
     let before_cmds = [smtCheckSat] in
-    match do_smt "before" before_p before_cmds probType with
+    match do_smt before_p before_cmds probType with
       | Sat -> false
       | Unsat(_) -> 
 	let after_p = make_program (inter :: after) in
 	let after_cmds = [smtCheckSat] in
-	match do_smt "after" after_p after_cmds probType with
+	match do_smt after_p after_cmds probType with
 	  | Sat -> false
 	  | Unsat(_) -> true 
   in
@@ -958,7 +877,7 @@ let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
   let allClauses = currentState :: unreducedClauses in
   let smt_cmds = [smtCheckSat;"(get-interpolants " ^ make_all_interpolants allClauses ^ ")"] in
   let p = make_program allClauses in
-  match do_smt "getAllInterpolants" p smt_cmds Interpolation with
+  match do_smt p smt_cmds Interpolation with
     | Unsat (inters) -> 
       let r = propegate_cheap_driver inters unreducedClauses [] in
       List.rev r
@@ -989,7 +908,7 @@ let reduce_trace_expensive propAlgorithm trace =
 	let after = xs in
 	let smt_cmds = [smtCheckSat ; make_interpolate_between before after] in
 	let probType = Interpolation in
-	match do_smt "traceReduction" p smt_cmds probType with 
+	match do_smt p smt_cmds probType with 
 	  | Unsat [interpolantTerm] -> 
 	    let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
 	    let newCurrentState, unreducedSuffix = 
@@ -1119,31 +1038,19 @@ let dsnsmt (f: file) : unit =
   let clauses = make_true_clause () :: clauses in 
 
   printf "****orig****\n";
-  print_to_file "all" (make_smt_file (make_program clauses) [smtCheckSat]);
   print_clauses clauses;
   
-  (* printf "****reduced2****\n"; *)
-  (* let reduced2 = reduce_trace (propegate_interpolant_forward_linear 1) clauses in *)
-  (* print_clauses reduced2; *)
+  printf "****reduced both****\n";
+  let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in
+  print_clauses reduced4;
 
   printf "****reduced cheap****\n";
   let reduced3 = time reduce_trace_cheap  clauses in
   print_annotated_trace reduced3;
 
-  printf "****reduced both****\n";
-  let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in
-  print_clauses reduced4;
 
   ()
 
-
-(* printf "****program****\n"; *)
-(* print_cprogram reduced *)
-
-(*
-  printf "****the interpolants****\n";
-  reduce_trace_cheap (make_true_clause ()) clauses 
-*)
     
 
 let feature : featureDescr = 
