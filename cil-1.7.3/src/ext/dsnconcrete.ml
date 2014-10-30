@@ -7,6 +7,18 @@
      *(char * )&x = 0;
 *)
 
+(* The type conversion to signed long long is not perfect. For example,
+   overflow may happen. *)
+
+(* TODO We could add fine-grained support for memory-region initialization
+   (e.g., array, struct initialization). Currently, they are simply removed
+   in this pass (safe to do so, since such variables are not referenced
+   directly), and the initialization is handled in the postprocess_concrete
+   process. They way postprocess_concrete works is that whenever an
+   uninitialized memory (_dsn_mem_0x...) variables are first accessed, the
+   script extracts the run-time value of the variable and adds an intialization
+   in the memory variable declaration. *)
+
 open Pretty
 open Cil
 open Trace
@@ -18,7 +30,7 @@ module SS = Set.Make(String)
  * bitfield in GCC. *)
 
 let memPrefix = "_dsn_mem"
-let wrapper_postfix = "_dsn_wrapper"
+let wrapper_fn_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
 
 let preset_wrappers = ["read";
@@ -26,7 +38,7 @@ let preset_wrappers = ["read";
                        "sprintf";
                        "getoptlong"]
 
-let wrapper_set = List.fold_right SS.add preset_wrappers SS.empty
+let wrapper_fn_set = List.fold_right SS.add preset_wrappers SS.empty
 
 let printIndent = true
 let indentSpaces = 2
@@ -78,12 +90,13 @@ let rec lossless_val ?ptr_for_comp (lv: lval) : logStatement =
   let typ = if ptr_for_comp = None then unrollType (typeOfLval lv)
                                    else voidPtrType in
   match typ with
-  | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *)
+  | TFloat _ -> E.s (E.bug "TFloat not supported.")
+  (* | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *) *)
   | TPtr _ -> ("%p", [e])
   | TEnum _ -> ("%d", [e])
-  | TInt(ik, _) -> (match ik with
+  | TInt(ik, _) -> begin match ik with
     | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> ("%d", [e])
-    | IUChar | IUInt | IUShort | IULong | IULongLong -> ("%u", [e]))
+    | IUChar | IUInt | IUShort | IULong | IULongLong -> ("%u", [e]) end
 
 (*
   | TComp (ci, _) ->
@@ -170,6 +183,8 @@ let rec is_bitfield lo = match lo with
  *)
 let addr_of_lv (lh,lo) : exp =
   if is_bitfield lo then begin
+    E.s (E.bug "Stopping here for debugging.")
+(*
     (* we figure out what the address would be without the final bitfield
      * access, and then we add in the offset of the bitfield from the
      * beginning of its enclosing comp *)
@@ -189,10 +204,9 @@ let addr_of_lv (lh,lo) : exp =
     let bytes_offset = bits_offset / 8 in
     let lvPtr = mkCast ~e:(mkAddrOf (new_lv)) ~newt:(charPtrType) in
     (BinOp(PlusPI, lvPtr, (integer bytes_offset), ulongType))
+*)
   end else (*mkAddrOrStartOf (lh,lo)*)
            (AddrOf (lh,lo))
-
-
 
 let d_mem_lval ?pr_val (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
@@ -211,27 +225,18 @@ let to_c_string ocaml_str =
          trans (i+1) (acc ^ char_str) in
   "\""^ (trans 0 "") ^ "\""
 
-let rec d_simp_exp arg : logStatement =
-  match arg with
-  | Const(CStr s) -> to_c_string s, []
-    (* Bug: e.g., \031 in OCaml string is base 10.
-    "\"%s\"", [mkString (String.escaped s)]*)
-  | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
-  | Const _ | Lval _ -> (d_string "%a" d_exp arg,[])
-  | CastE(t,e) ->
-      let (str,arg) = d_simp_exp e in
-      (d_string "(%a)(%s)" d_type t str, arg)
-  | UnOp(o,e,_) ->
-      let opStr = d_string "%a " d_unop o in
-      let (str,arg) = d_simp_exp e in
-      (opStr ^"("^ str ^")", arg)
-  | BinOp(o,l,r,_) ->
-      let (lhsStr,lhsArg) = d_simp_exp l in
-      let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = d_simp_exp r in
-      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
-  | AddrOf(l)
-  | StartOf(l) -> ("%p", [addr_of_lv l])
+let rec strip_cast exp =
+  let strip_cast_lv lv = begin match lv with
+    | (Var _, _) -> lv
+    | (Mem e, o) -> (Mem (strip_cast e), o) end in
+  match exp with
+  | Const _ -> exp
+  | CastE(_, e) -> strip_cast e
+  | UnOp(op, e, t) -> UnOp(op, strip_cast e, t)
+  | BinOp(op, e1, e2, t) -> BinOp(op, strip_cast e1, strip_cast e2, t)
+  | Lval lv -> Lval (strip_cast_lv lv)
+  | AddrOf lv -> AddrOf (strip_cast_lv lv)
+  | StartOf lv -> StartOf (strip_cast_lv lv)
 
   | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
   | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
@@ -245,8 +250,33 @@ let rec has_str_lit = function
   | UnOp(_, e, _) -> has_str_lit e
   | BinOp(_, l, r,_) -> has_str_lit l || has_str_lit r
 
-  | Lval lv | AddrOf lv | StartOf lv -> (match lv with
-    | (Var _, _) -> false | (Mem e, _) -> has_str_lit e)
+  | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
+    | (Var _, _) -> false | (Mem e, _) -> has_str_lit e end
+
+  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
+  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
+  | Question _ -> E.s (E.bug "Question exp not expected.")
+  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
+
+let rec d_orig_exp arg : logStatement =
+  match arg with
+  | Const(CStr s) -> to_c_string s, []
+  | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
+  | Const _ | Lval _ -> (d_string "%a" d_exp arg,[])
+  | CastE(t,e) ->
+      let (str,arg) = d_orig_exp e in
+      (d_string "(%a)(%s)" d_type t str, arg)
+  | UnOp(o,e,_) ->
+      let opStr = d_string "%a " d_unop o in
+      let (str,arg) = d_orig_exp e in
+      (opStr ^"("^ str ^")", arg)
+  | BinOp(o,l,r,_) ->
+      let (lhsStr,lhsArg) = d_orig_exp l in
+      let opStr = d_string " %a " d_binop o in
+      let (rhsStr,rhsArg) = d_orig_exp r in
+      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
+  | AddrOf(l)
+  | StartOf(l) -> ("%p", [addr_of_lv l])
 
   | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
   | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
@@ -262,18 +292,32 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
     "\"%s\"", [mkString (String.escaped s)] *)
   | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
   | Const _ -> (d_string "%a" d_exp arg, [])
+  | CastE(_, e) -> d_mem_exp ~pr_val:pv e
+(*
   | CastE(t,e) ->
       let (str,arg) = d_mem_exp ~pr_val:pv e in
       (d_string "(%a)(%s)" d_type t str, arg)
+*)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_mem_exp ~pr_val:pv e in
       (opStr ^"("^ str ^")", arg)
-  | BinOp(o,l,r,_) ->
-      let (lhsStr,lhsArg) = d_mem_exp ~pr_val:pv l in
-      let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = d_mem_exp ~pr_val:pv r in
-      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
+
+  | BinOp(op, e1, e2, t) -> begin match op with
+    | IndexPI -> E.s (E.bug "IndexPI not expected.")
+    | MinusPP -> E.s (E.bug "Let's see if MinusPP can appear.")
+    | PlusPI | MinusPI ->
+      let ut = unrollType t in
+      (match ut with TPtr _ -> () | _ -> E.s (E.bug "Internal bug."));
+      let sz_ptr = (bitsSizeOf ut) / 8 in
+      let e1' = BinOp(Mult, e1, integer sz_ptr, t) in
+      let op' = if op = PlusPI then PlusA else MinusA in
+      d_mem_exp ~pr_val:pv (BinOp(op', e1', e2, t))
+    | _ -> let e1_s, e1_a = d_mem_exp ~pr_val:pv e1 in
+           let op_s = d_string " %a " d_binop op in
+           let e2_s, e2_a = d_mem_exp ~pr_val:pv e2 in
+           ("("^ e1_s ^")"^ op_s ^"("^ e2_s ^")", e1_a @ e2_a) end
+
   | AddrOf(l)
   | StartOf(l) -> ("%p", [addr_of_lv l])
 
@@ -371,6 +415,7 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
            ((typeStr,[]),
             ("",[]))
 
+(*
 let d_decl (v : varinfo) : logStatement =
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in
   ((lhsStr ^ " %s" ^ rhsStr),
@@ -380,11 +425,14 @@ let mkVarDecl (v : varinfo) : instr =
   let (str,args) = d_decl v in
   mkPrintNoLoc (str ^ ";\n") args
 
-let rec declareAllVars (slocals : varinfo list) : instr list =
+let declareAllVars (slocals : varinfo list) : instr list =
   List.map mkVarDecl slocals
+*)
 
 let declareAllVarsStmt (slocals : varinfo list) : stmt =
-  mkStmt (Instr (declareAllVars slocals))
+  let pr_decl vi = mkPrintNoLoc ("long long "^ vi.vname ^";\n") [] in
+  let instr_lst = List.map pr_decl slocals in
+  mkStmt (Instr instr_lst)
 
 (* DSN perhaps there should be a common make print assgt function *)
 
@@ -420,7 +468,7 @@ let rec mkActualArg (al : exp list) : logStatement =
 
 let mk_print_orig (* For printing debugging info. *) = function
   | Set(lv, e, _) ->
-    let orig_rhs_s, orig_a = d_simp_exp e in
+    let orig_rhs_s, orig_a = d_orig_exp e in
     let orig_s = (d_string "/* %a = " d_lval lv) ^ orig_rhs_s ^ "; */\n" in
     mkPrint orig_s orig_a
   | _ -> E.s (E.bug "Invalid usage.")
@@ -443,29 +491,29 @@ class dsnconcreteVisitorClass = object
     match i with
       Set(lv, e, l) ->
         (* DSN Does anything go weird if we have function pointers *)
-	let (lhsStr,lhsArg) = d_mem_lval lv in
-        let (rhsStr,rhsArg) = d_mem_exp ~pr_val:true e in
+	let (lhs_s,lhs_a) = d_mem_lval lv in
+        let (rhs_s,rhs_a) = d_mem_exp ~pr_val:true e in
 
         (* Delay printing the right-hand side until after execution if we need
            to assign the result directly instead of using the RHS exp. *)
         let special_cases =
-          (rhsStr = "stdin" or rhsStr = "stdout" or rhsStr = "stderr") in
+          (rhs_s = "stdin" or rhs_s = "stdout" or rhs_s = "stderr") in
         let actual_val = (is_str_lit_asgn e) or special_cases in
 
-        let pr_s, pr_a = if actual_val
-                         then (lhsStr ^" = "              , lhsArg)
-                         else (lhsStr ^" = "^ rhsStr ^"; ", lhsArg @ rhsArg) in
-        let print_asgn = mkPrintNoLoc pr_s pr_a in
+        let pr_s1, pr_a1 = if actual_val
+                           then (lhs_s ^" = "             , lhs_a)
+                           else (lhs_s ^" = "^ rhs_s ^"; ", lhs_a @ rhs_a) in
 
         (* For debugging, print the actual value assigned too. *)
         let val_s, val_a = lossless_val lv in
-        let pr_s, pr_a = "/* Assigned: "^ val_s ^" */\n", val_a in
-        (* Assign an actual value assigned if needed. *)
-        let pr_s', pr_a' = if not actual_val then pr_s, pr_a
-          else val_s ^"; "^ pr_s, val_a @ val_a in
-        let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s' pr_a' in
+        let pr_s2 = "/* Assigned: "^ val_s ^" */\n" in
+        (* Make it assign an actual value directly if needed. *)
+        let pr_s2, pr_a2 = if actual_val then val_s ^"; "^ pr_s2, val_a @ val_a
+                                         else              pr_s2, val_a in
 
-        let print_orig = mk_print_orig i in (* For printing debugging info. *)
+        let print_orig      = mk_print_orig i in (* For debugging info. *)
+        let print_asgn      = mkPrintNoLoc                pr_s1 pr_a1 in
+        let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s2 pr_a2 in
 	let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
 	ChangeTo newInstrs
 
@@ -542,35 +590,55 @@ end
 
 let dsnconcreteVisitor = new dsnconcreteVisitorClass
 
-let globalDeclFn =
-  let fdec = emptyFunction "__globalDeclFn" in
-  let typ = TFun(voidType, Some[], false, []) in
-  let _  = setFunctionType fdec typ  in
-  fdec
-
 let dsnconcrete (f: file) : unit =
 
+  let globalDeclFn =
+    let fdec = emptyFunction "__globalDeclFn" in
+    let _ = setFunctionType fdec (TFun(voidType, Some[], false, [])) in
+    fdec in
+
   let doGlobal (g: global) =
-    (* Some helper functions. *)
+
     let isFunc (v: varinfo) = match v.vtype with TFun _ -> true | _ -> false in
-    let declareFn (g: global) =
-      let arg = mkString (d_string "%a" d_global g) in
+
+    let declareFn g =
+      let var = match g with
+        | GVarDecl(vi, _) -> vi.vname
+        | GVar(vi, ii, _) -> begin match ii.init with
+          | None -> vi.vname
+          | Some (CompoundInit _) -> E.s (E.bug "Internal bug.")
+          | Some (SingleInit e) ->
+            vi.vname ^" = "^ (d_string "%a" d_exp (strip_cast e)) end
+        | _ -> E.s (E.bug "Internal bug.") in
+      let str = "long long "^ var ^";\n" in
       globalDeclFn.sbody <-
         mkBlock (compactStmts [mkStmt (Block globalDeclFn.sbody);
-                               mkStmtOneInstr (mkPrintNoLoc "%s" [arg])]) in
+                               mkStmtOneInstr (mkPrintNoLoc str [])]) in
 
     match g with
-    | GVarDecl (v, _) | GVar (v, _, _) when isFunc v ->
+    | GVarDecl(vi, _) | GVar(vi, _, _) when isFunc vi ->
         (* If this surviving function requires a wrapper, change its name to
            point to the wrapper. Otherwise, don't bother printing anything. *)
-        if SS.exists (fun x -> x = v.vname) wrapper_set
-        then v.vname <- v.vname ^ wrapper_postfix
-    | GVarDecl _ | GVar _ | GType _ | GCompTag _ | GEnumTag _ -> declareFn g
+        if SS.exists (fun x -> x = vi.vname) wrapper_fn_set
+        then vi.vname <- vi.vname ^ wrapper_fn_postfix
+
+    | GVarDecl(vi, _) when vi.vname = "optind"
+                        || vi.vname = "optarg" -> declareFn g
+    | GVar(vi, ii, _) -> begin match unrollType vi.vtype with
+      (* Ignore arrays and structs since they are referenced indirectly.
+         Initialization will be covered by 'postprocess_concrete.' *)
+      | TArray _ | TComp _ -> ()
+      (* TODO some init values, e.g., string literals or 'stdin', should have
+         taken an actual value assigned. However, it is complicated because
+         static and global variables do not really observe the sequential
+         init order. *)
+      | _ -> declareFn g end
+    (* | GVarDecl _ | GType _ | GCompTag _ | GEnumTag _ *)
 
     | GFun (fdec, _) when fdec.svar.vname = "main" ->
         incrIndent ();
         let allVarDeclaresStmt = declareAllVarsStmt fdec.slocals in
-        ignore (visitCilFunction dsnconcreteVisitor fdec);
+        let _ = visitCilFunction dsnconcreteVisitor fdec in
         decrIndent ();
 
         (* We want to inject a function call right after the start of main

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <signal.h>
 
-void *handler(int dont_care) { return 0; }
+void handler(int dont_care) { }
 
 int arr_init[] = { 0, 3, 4, 5, 6, 7, 1, 9 };
 
@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     char** argv2 = argv;
     char*** argv_ptr = &argv;
 
-    void* vp = (void*) signal(SIGXCPU, &handler);
+    void (*vp)(int) = signal(SIGXCPU, &handler);
 
     int size_of_str = sizeof("abcd");
     int size_of_ull = sizeof(unsigned long long);
@@ -30,11 +30,12 @@ int main(int argc, char** argv) {
     char* p = 0;
     //*p = 10;
 
-    p = "abcdef";
-    char my_char = (*p+4);
+    //p = "abcdef";
+    //char my_char = (*p+4);
     int boolean = !"abcdef";
     
     local_record[0].snd_field = 1111;
+    local_record[1].fst_field[1] = 1111;
     int *ptr = &(local_record[0].snd_field);
     struct my_struct *my_struct_ptr = local_record;
     //struct my_struct struct_copy = *(my_struct_ptr + 1);

@@ -32,7 +32,8 @@ class dsnVisitorClass = object
       | PlusPI | MinusPI ->
         let sz_ptr = (bitsSizeOf (unrollTypeDeep t)) / 8 in
         let e1' = BinOp(Mult, e1, integer sz_ptr, t) in
-        ChangeTo (BinOp(op, e1', e2, t))
+        let op' = if op = PlusPI then PlusA else MinusA in
+        ChangeTo (BinOp(op', e1', e2, t))
       | IndexPI -> E.s (E.bug "IndexPI not expected.")
       | MinusPP -> E.s (E.bug "Let's see if MinusPP is expected.")
       | _ -> DoChildren end
@@ -59,7 +60,7 @@ let dsnsll (f: file) : unit =
     | GType _ | GVarDecl _
     | GCompTag _ | GCompTagDecl _ | GEnumTag _ | GEnumTagDecl _ -> false
     (* Arrays and structs are never referenced directly; remove them too. *)
-    | GVar(vi, _, _) -> (match vi.vtype with
+    | GVar(vi, _, _) -> (match unrollTypeDeep vi.vtype with
       | TArray _ | TComp _ -> false | _ -> true)
     | _ -> true in
   f.globals <- List.filter pred f.globals;
