@@ -606,15 +606,13 @@ let rec extract_term (str) : term list =
 	else if headStr = "false" then SMTFalse :: tailExp
 	else raise (Failure "neither true nor false???")
 
-
-
 let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
     : clause = 
   match extract_term sexp with 
     | [t] -> make_clause t ssaBefore ic ct
     | _ -> raise (Failure ("should only get one term from the sexp: " ^ sexp))
 
-let begins_with str header = 
+let begins_with str header =
   let ls = length str in
   let lh = length header in
   if ls >= lh then
