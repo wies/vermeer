@@ -3,26 +3,18 @@
  * handle conditions from if statements - DONE?
  * handle operators that differ between c and smt eg && vs and
  * remap interpolants when returning them
- * fix the "ands" and extra () in the interpolation split
  *)
 
-open Pretty
 open Cil
-open Trace
-module E = Errormsg
-module H = Hashtbl
 
 (* issue if interpolant tries to go past where something is used *)
 
 open String
 open Printf
-open Map
-open Set
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
- * there is a lot of stuff where I use @ instead of :: then reverse
  *)
 
 (*******************************TYPES *************************************)
@@ -147,8 +139,8 @@ let rec last = function
 let rec all_but_last lst = 
   List.rev  (List.tl (List.rev lst))
 
-let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
-  let f (d: doc) : string = 
+let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a = 
+  let f (d: Pretty.doc) : string = 
     Pretty.sprint 800 d
   in
   Pretty.gprintf f fmt 
@@ -162,12 +154,10 @@ let safe_mkdir name mask =
 
 
 (* So we need to figure out the type of each variable *)
-
 let get_var_type (var : smtvar) : smtVarType = 
-  if IntMap.mem var.vidx !typeMap then
-    IntMap.find var.vidx !typeMap
-  else 
-    SMTUnknown
+  try IntMap.find var.vidx !typeMap 
+  with Not_found -> SMTUnknown
+
 
 (* this function does two things: It determines the type of the 
  * expression.  It also updates the mapping with any newly discovered
@@ -264,15 +254,13 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
     | v :: vs -> 
       let vidx = v.vidx in
       let ssaMap = 
-	if VarSSAMap.mem vidx ssaMap
-	then
-	  let vOld = VarSSAMap.find vidx ssaMap in
-	  if vOld.ssaIdx < v.ssaIdx then
-	    VarSSAMap.add vidx v ssaMap
-	  else
-	    ssaMap
-	else 
-	  VarSSAMap.add vidx v ssaMap in
+	try let vOld = VarSSAMap.find vidx ssaMap in
+	    if vOld.ssaIdx < v.ssaIdx then
+	      VarSSAMap.add vidx v ssaMap
+	    else
+	      ssaMap
+	with Not_found -> VarSSAMap.add vidx v ssaMap
+      in
       make_ssa_map vs ssaMap
 
 let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
@@ -324,6 +312,7 @@ let rec remap_formula ssaMap form =
 (* I guess we should remap the if context too.  Does this make sense? 
  * Also, there is a bug where we ended up with two clauses with the same interpolation
  * id.  Make a new clause with a new id
+ * possibly just assert that the if context is empty
  *)
 let remap_clause ssaMap cls = 
   make_clause 
@@ -499,7 +488,6 @@ let trim str =
   else 
     str
 
-(* does this handle not correctly ?? *)
 let getFirstArgType str = 
   let str = trim str in
   match str.[0] with
@@ -521,24 +509,18 @@ let getFirstArgType str =
 	  -> SexpVar
       end
 
-let split_on_underscore str = 
-  if not ( contains str '_') then raise (Failure "split on underscore missing underscore");
-  let idx = rindex str '_' in
-  let len = (length str) - idx - 1 in 
-  (*-1 because we ignore the _ *)
-  let lhs = sub str 0 idx in    
-  let rhs  = sub str (idx + 1) len in
-  (lhs,rhs)
+let split_on_underscore str = Str.split (Str.regexp "[_]+") str
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
-  let (lhs,ssa_str) = split_on_underscore str in
-  let (lhs,vidx_str) = split_on_underscore lhs in
-  {fullname = str; 
-   vidx = (int_of_string vidx_str);
-   ssaIdx =  (int_of_string ssa_str);
-   owner = -1
-  }
+  match split_on_underscore str with
+    | [prefix;vidxStr;ssaIdxStr] -> 
+      {fullname = str; 
+       vidx = (int_of_string vidxStr);
+       ssaIdx =  (int_of_string ssaIdxStr);
+       owner = -1
+      }
+    | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
     
 let rec matchParensRec str i level = 
   if level = 0 then 
