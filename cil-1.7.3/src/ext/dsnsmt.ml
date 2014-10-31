@@ -27,6 +27,7 @@ open Set
 
 (*******************************TYPES *************************************)
 
+
 module Int = struct                       
   type t = int                                              
   let compare x y = if x < y then -1 else if x > y then 1 else 0 end ;;  
@@ -84,14 +85,9 @@ type annotatedTrace = (term * clause) list
  * this lets us have the info we need for remapping vars etc
  *)
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
-type unsatResult = GotInterpolant of term list | GotUnsatCore of string list | GotNothing
+type unsatResult = GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing
 type smtResult = Sat | Unsat of unsatResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
-
-type program = {clauses : clause list;
-		allVars : VarSet.t
-	       }
-
 type ifContext = term list
 
 exception CantMap of smtvar
@@ -364,7 +360,6 @@ let string_of_cprogram c =
     | EqTest -> raise (Failure "shouldn't have equality tests in the final program")
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
-let string_of_prog p = string_of_cl p.clauses
 
 let debug_var v = 
   "{name: " ^ v.fullname 
@@ -430,24 +425,9 @@ let make_assertion_string c =
   ^ " :named " ^ assertion_name c
   ^ "))\n"
     
-
-(* DSN TODO list_fold *)
-let get_all_vars clauses = 
-  List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
-
-let make_var_decl vars =
-  let f v = 
-    let ts = string_of_vartype (get_var_type v) in
-    "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
-  in
-  List.map f (VarSet.elements vars)
-
-(* DSN TODO replace this with analyzing the program once *)
-let make_program clauses = 
-  let vars = get_all_vars clauses in
-  {clauses = clauses;
-   allVars = vars;
-  }
+let make_var_decl v =
+  let ts = string_of_vartype (get_var_type v) in
+  "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
 
 let print_formulas x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
@@ -732,7 +712,8 @@ let rec read_from_solver (solver) (pt) : smtResult =
       | GetUnsatCore -> 
 	let next_line = input_line solver.in_chan in
 	let coreList = extract_unsat_core (next_line) in
-	Unsat(GotUnsatCore coreList)
+	let coreSet = List.fold_left (fun a e -> StringSet.add e a) StringSet.empty coreList in
+	Unsat(GotUnsatCore coreSet)
       | GetInterpolation _ -> 
 	let next_line = input_line solver.in_chan in
 	let terms = extract_term (next_line) in
@@ -742,6 +723,7 @@ let rec read_from_solver (solver) (pt) : smtResult =
   else 
     failwith ("unmatched line:\n" ^ l ^ "\n")
 
+(* Given a description of a solver, start the solver and create pipes to it *)
 let start_with_solver session_name solver do_log = 
   let log_out = 
     if do_log then begin
@@ -765,11 +747,21 @@ let start_with_solver session_name solver do_log =
   List.iter (set_option state) solver.info.smt_options;
   state
 
-
 let singleSolver = start_with_solver "single_solver" 
   {name = "single_solver"; info=smtinterpol_2_1} true
 
-let do_smt prog  pt =
+(* given a set of clauses, do what is necessary to turn it into smt queries *)
+let do_smt clauses pt =
+  let solver = singleSolver in
+
+  reset_solver solver;
+  set_logic solver "QF_LIA";
+  (*write the declerations *)
+  let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
+  VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
+  (* write the program clauses *)
+  List.iter (fun x -> write_line_to_solver solver (make_assertion_string x)) clauses;
+  (* write the commands *)
   let cmds = match pt with
     | CheckSat -> 
       [smtCheckSat]
@@ -778,15 +770,6 @@ let do_smt prog  pt =
     | GetUnsatCore -> 
       [smtCheckSat; smtGetUnsatCore]
   in
-  let solver = singleSolver in
-  reset_solver solver;
-  set_logic solver "QF_LIA";
-  (*write the declerations *)
-  let decls = make_var_decl prog.allVars in
-  write_to_solver solver decls;
-  (* write the program clauses *)
-  List.iter (fun x -> write_line_to_solver solver (make_assertion_string x)) prog.clauses;
-  (* write the commands *)
   write_to_solver solver cmds;
   flush_solver solver;
   read_from_solver solver pt
@@ -804,8 +787,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
   else 
     let equiv = SMTRelation("distinct",[i1form; i2form]) in
     let cls = make_clause equiv emptySSAMap emptyIfContext EqTest in
-    let prog = make_program [cls] in
-    match (do_smt prog CheckSat) with
+    match (do_smt [cls] CheckSat) with
       | Sat -> false
       | Unsat _ -> true
 
@@ -814,12 +796,10 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
 let try_interpolant_forward_k k currentState interpolant suffix  =
   let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
     let not_inter = negate_clause inter in
-    let before_p = make_program (not_inter :: before) in
-    match do_smt before_p CheckSat  with
+    match do_smt (not_inter :: before) CheckSat  with
       | Sat -> false
       | Unsat(_) -> 
-	let after_p = make_program (inter :: after) in
-	match do_smt after_p CheckSat with
+	match do_smt (inter :: after) CheckSat with
 	  | Sat -> false
 	  | Unsat(_) -> true 
   in
@@ -854,20 +834,23 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
   in
   helper (List.length suffix) currentState interpolant suffix
 
-
 (* this may subsume the reduce_trace_cheap! *)
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
-  let p = make_program unreducedClauses in
-  match do_smt p GetUnsatCore with
+  match do_smt unreducedClauses GetUnsatCore with
     | Unsat (GotUnsatCore core) ->
-      let coreSet = List.fold_left (fun a e -> StringSet.add e a) StringSet.empty core 
-      in List.filter (fun c -> StringSet.mem (assertion_name c) coreSet) unreducedClauses 
+      List.filter (fun c -> StringSet.mem (assertion_name c) core) unreducedClauses 
     | _-> failwith "unable to get core"
       
-
-
-let make_cheap_annotated_trace clauses = ()
-
+(* all this does is find the precondition for each statement.  No reductions *)
+let make_cheap_annotated_trace (clauses : trace) : annotatedTrace = 
+  let partition =  make_all_interpolants clauses in
+  match do_smt clauses (GetInterpolation partition) with
+    | Unsat (GotInterpolant inters) -> 
+      (* the interpolant list will be missing the program precondition
+       * so we start with an extra interpolant "true" *)
+      let zipped = List.combine (SMTTrue::inters) clauses in
+      zipped
+    | _ -> failwith "make_cheap_annotated_trace failed"
 
 let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
   (* Given an annotated list [I1,S1; I2,S2, etc) 
@@ -892,17 +875,8 @@ let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
 	let revAccum = x::revAccum in
 	propegate_cheap_driver xs revAccum
   in
-  let partition =  make_all_interpolants unreducedClauses in
-  let p = make_program unreducedClauses in
-  match do_smt p (GetInterpolation partition) with
-    | Unsat (GotInterpolant inters) -> 
-      (* the interpolant list will be missing the program precondition
-       * so we start with an extra interpolant "true" *)
-      let zipped = List.combine (SMTTrue::inters) unreducedClauses in
-      propegate_cheap_driver zipped [] 
-    | Sat -> failwith "was sat"
-    | _ -> failwith "not expecting anything other than interpolants or sat"
-
+  let unreducedTrace = make_cheap_annotated_trace unreducedClauses in
+  propegate_cheap_driver unreducedTrace [] 
 
 (* reduced is the prefix of the trace *)
 (* We will work as follows:
@@ -923,11 +897,10 @@ let reduce_trace_expensive propAlgorithm trace =
       | [x] -> x:: reducedPrefixRev
       | x :: xs ->
 	let clist = currentState :: unreducedSuffix in
-	let p = make_program clist in
 	let before = [currentState;x] in
 	let after = xs in
 	let partition = make_interpolate_between before after in
-	match do_smt p (GetInterpolation partition)  with 
+	match do_smt clist (GetInterpolation partition)  with 
 	  | Unsat (GotInterpolant [interpolantTerm]) -> 
 	    let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
 	    let newCurrentState, unreducedSuffix = 
@@ -937,8 +910,8 @@ let reduce_trace_expensive propAlgorithm trace =
 	      (x::currentState::reducedPrefixRev)
 	      newCurrentState
 	      unreducedSuffix
-	  | Sat -> raise (Failure "was sat")
-	  | _ -> raise (Failure "Problem getting interpolant")
+	  | Sat -> failwith "was sat"
+	  | _ -> failwith "Problem getting interpolant"
   in
   List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
 
@@ -952,7 +925,7 @@ let cheap_then_expensive propAlgorithm trace =
 let rec formula_from_lval l = 
   match l with 
     | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
-    | _ -> raise (Failure "should only have lvals of type var")
+    | _ -> failwith "should only have lvals of type var"
 
 (*DSN TODO check if there are any differences in cilly vs smt opstrings *)
 let smtOpFromBinop op = 
@@ -964,9 +937,8 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-    | _ -> raise (Failure 
-		    ("unexpected operator in smtopfrombinop |" 
-		     ^ (d_string "%a" d_binop op ) ^ "|"))
+    | _ -> failwith ("unexpected operator in smtopfrombinop |" 
+		     ^ (d_string "%a" d_binop op ) ^ "|")
 
 let rec formula_from_exp e = 
   match e with 
@@ -983,7 +955,7 @@ let rec formula_from_exp e =
       let eForm2 = formula_from_exp e2 in
       SMTRelation(opArg,[eForm1;eForm2])
     | CastE(t,e) -> formula_from_exp e
-    | _ -> raise (Failure ("not handelling this yet" ^ (d_string "%a" d_exp e)))
+    | _ -> failwith ("not handelling this yet" ^ (d_string "%a" d_exp e))
 
 let get_ssa_before () = 
   match !revProgram with
