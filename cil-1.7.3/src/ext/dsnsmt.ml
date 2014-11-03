@@ -15,7 +15,7 @@ open Printf
 
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
- *)
+*)
 
 (*******************************TYPES *************************************)
 
@@ -230,6 +230,12 @@ let analyze_var_type (topForm : term) =
 	    let _ = second_if_matching t1 (analyze_type_list t1 l) in
 	    second_if_matching typ SMTBool
 	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
+	    let _ = analyze_type_list SMTInt l in
+	    second_if_matching typ SMTInt
+	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
+	    (*all these uninterpreted functions have type (Int Int) -> Int*)
+	    if (List.length l <> 2) then 
+	      failwith (s ^ "has " ^ string_of_int (List.length l) ^ "args");
 	    let _ = analyze_type_list SMTInt l in
 	    second_if_matching typ SMTInt
 	  | _ -> raise (Failure ("unexpected operator in analyze type |" ^ s ^ "|"))
@@ -521,7 +527,7 @@ let smtVarFromString str =
        owner = -1
       }
     | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
-    
+      
 let rec matchParensRec str i level = 
   if level = 0 then 
     i - 1 
@@ -621,6 +627,73 @@ let begins_with str header =
   else
     false
 
+
+
+(*********************************C to smt converstion *************************************)
+let rec formula_from_lval l = 
+  match l with 
+    | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
+    | _ -> failwith "should only have lvals of type var"
+
+(* IF YOU MODIFY this, you MUST modify smtUninterpreted and analyze_type *)
+
+      
+(*DSN TODO check if there are any differences in cilly vs smt opstrings *)
+let smtOpFromBinop op = 
+  match op with
+    | PlusA | MinusA | Mult | Lt | Gt | Le | Ge ->  d_string "%a" d_binop op 
+    | Div -> "div"
+    | Mod -> "mod"
+    | Eq -> "="
+    | Ne -> "distinct"
+    | LAnd -> "and"
+    | LOr -> "or"
+    | BAnd -> "band" 
+    | BXor -> "bxor"
+    | BOr -> "bor"
+    | Shiftlt -> "shiftlt"
+    | Shiftrt -> "shiftrt"
+    | _ -> failwith ("unexpected operator in smtopfrombinop |" 
+		     ^ (d_string "%a" d_binop op ) ^ "|")
+let smtUninterpreted = 
+  ["band";
+   "bxor";
+   "bor";
+   "shiftlt";
+   "shiftrt";]
+
+
+let rec formula_from_exp e = 
+  match e with 
+    | Const(CInt64(c,_,_)) -> SMTConstant(c)
+    | Const(_) -> raise (Failure "Constants should only be of type int")
+    | Lval(l) -> formula_from_lval l 
+    | UnOp(o,e1,t) -> 
+      let opArg = d_string "%a" d_unop o in
+      let eForm = formula_from_exp e1 in
+      SMTRelation(opArg,[eForm])
+    | BinOp(o,e1,e2,t) ->
+      let opArg = smtOpFromBinop o in
+      let eForm1 = formula_from_exp e1 in
+      let eForm2 = formula_from_exp e2 in
+      SMTRelation(opArg,[eForm1;eForm2])
+    | CastE(t,e) -> formula_from_exp e
+    | _ -> failwith ("not handelling this yet" ^ (d_string "%a" d_exp e))
+
+let get_ssa_before () = 
+  match !revProgram with
+    | [] -> emptySSAMap
+    | x::xs -> x.ssaIdxs
+
+let make_bool f = 
+  match analyze_var_type f with
+    | SMTBool -> f
+    | SMTInt -> SMTRelation("distinct",[f;smtZero])
+    | SMTUnknown -> raise (Failure ("assertion is neither bool not int: " ^ 
+				       (debug_formula f) ^
+				       (debug_typemap())))
+
+
 (****************************** Interpolation ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
  * really just port what I'm doing over to that.  But for now, I'll just take
@@ -679,6 +752,12 @@ let set_option solver (opt_name,opt_value) =
   write_line_to_solver solver optStr
 
 let set_logic solver logic = write_line_to_solver solver ("(set-logic " ^ logic ^ ")\n")
+let declare_uninterpreted_ops solver ops = 
+  List.iter 
+    (fun x -> write_line_to_solver solver ("(declare-fun " ^ x ^ " (Int Int) Int)\n"))
+    ops
+let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unknown () Int)\n"
+  
 let reset_solver solver = write_line_to_solver solver "(reset)\n"
 let exit_solver solver = write_line_to_solver solver "(exit)\n"; flush_solver solver
 
@@ -735,7 +814,11 @@ let do_smt clauses pt =
   let solver = singleSolver in
 
   reset_solver solver;
-  set_logic solver "QF_LIA";
+  set_logic solver "QF_UFLIA";
+  declare_uninterpreted_ops solver smtUninterpreted;
+  (* on occation, there are variables that are never used in a way where their type matters
+   * assume they're ints *)
+  declare_unknown_sort solver;
   (*write the declerations *)
   let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
@@ -901,57 +984,9 @@ let cheap_then_expensive propAlgorithm trace =
   let expensive = reduce_trace_expensive propAlgorithm clauses in
   expensive
 
-(*********************************C to smt converstion *************************************)
-let rec formula_from_lval l = 
-  match l with 
-    | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
-    | _ -> failwith "should only have lvals of type var"
+    
 
-(*DSN TODO check if there are any differences in cilly vs smt opstrings *)
-let smtOpFromBinop op = 
-  match op with
-    | PlusA | MinusA | Mult | Lt | Gt | Le | Ge ->  d_string "%a" d_binop op 
-    | Div -> "div"
-    | Mod -> "mod"
-    | Eq -> "="
-    | Ne -> "distinct"
-    | LAnd -> "and"
-    | LOr -> "or"
-    | _ -> failwith ("unexpected operator in smtopfrombinop |" 
-		     ^ (d_string "%a" d_binop op ) ^ "|")
-
-let rec formula_from_exp e = 
-  match e with 
-    | Const(CInt64(c,_,_)) -> SMTConstant(c)
-    | Const(_) -> raise (Failure "Constants should only be of type int")
-    | Lval(l) -> formula_from_lval l 
-    | UnOp(o,e1,t) -> 
-      let opArg = d_string "%a" d_unop o in
-      let eForm = formula_from_exp e1 in
-      SMTRelation(opArg,[eForm])
-    | BinOp(o,e1,e2,t) ->
-      let opArg = smtOpFromBinop o in
-      let eForm1 = formula_from_exp e1 in
-      let eForm2 = formula_from_exp e2 in
-      SMTRelation(opArg,[eForm1;eForm2])
-    | CastE(t,e) -> formula_from_exp e
-    | _ -> failwith ("not handelling this yet" ^ (d_string "%a" d_exp e))
-
-let get_ssa_before () = 
-  match !revProgram with
-    | [] -> emptySSAMap
-    | x::xs -> x.ssaIdxs
-
-let make_bool f = 
-  match analyze_var_type f with
-    | SMTBool -> f
-    | SMTInt -> SMTRelation("distinct",[f;smtZero])
-    | SMTUnknown -> raise (Failure ("assertion is neither bool not int: " ^ 
-				       (debug_formula f) ^
-				       (debug_typemap())))
-      
-
-      
+    
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
@@ -1011,17 +1046,17 @@ let dsnsmt (f: file) : unit =
   printf "****orig****\n";
   print_clauses clauses;
 
-  printf "****reduced cheap****\n";
-  let reduced3 = time reduce_trace_cheap  clauses in
-  print_annotated_trace reduced3;
+  (* printf "****reduced cheap****\n"; *)
+  (* let reduced3 = time reduce_trace_cheap  clauses in *)
+  (* print_annotated_trace reduced3; *)
 
-  printf "****unsat core****\n";
-  let uc = time reduce_trace_unsatcore clauses in
-  print_clauses uc;
+  (* printf "****unsat core****\n"; *)
+  (* let uc = time reduce_trace_unsatcore clauses in *)
+  (* print_clauses uc; *)
   
   printf "****reduced both****\n";
   let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in
-  print_clauses reduced4;
+  print_cprogram reduced4;
 
 
 
