@@ -13,12 +13,13 @@ open String
 open Printf
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
+let uninterpretedBitOperators = false
+
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
 *)
 
 (*******************************TYPES *************************************)
-
 
 module Int = struct                       
   type t = int                                              
@@ -182,7 +183,7 @@ let analyze_var_type (topForm : term) =
       | _ -> false
   in
   let second_if_matching t1 t2 = 
-    if types_match t1 t2 then t2 else raise (Failure "mismatching types")
+    if types_match t1 t2 then t2 else failwith "mismatching types"
   in
   let update_type (var : smtvar) newType = 
     let currentType = get_var_type var  in
@@ -205,7 +206,7 @@ let analyze_var_type (topForm : term) =
 	let updatedTyp = analyze_type typ x in
 	if types_match typ updatedTyp then 
 	  analyze_type_list updatedTyp xs
-	else raise (Failure "types don't match")
+	else failwith "types don't match"
   and analyze_type typ f = 
     match f with 
       | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
@@ -238,6 +239,7 @@ let analyze_var_type (topForm : term) =
 	    let _ = analyze_type_list SMTInt l in
 	    second_if_matching typ SMTInt
 	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
+	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
 	    (*all these uninterpreted functions have type (Int Int) -> Int*)
 	    if (List.length l <> 2) then 
 	      failwith (s ^ "has " ^ string_of_int (List.length l) ^ "args");
@@ -527,8 +529,11 @@ let getFirstArgType str =
       -> SexpRel
     | _ 
       -> begin match str with 
-	|  "and" | "distinct" | "or" | "not" | "xor" 
+	|  "and" | "distinct" | "or" | "not" | "xor" | "ite"
 	  -> SexpRel
+	| "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" 
+	  -> if not uninterpretedBitOperators then failwith "not supporting bit operators";
+	    SexpRel
 	| "false" | "true" 
 	  -> SexpBoolConst
 	| _
@@ -656,9 +661,6 @@ let rec formula_from_lval l =
     | _ -> failwith "should only have lvals of type var"
 
 (* IF YOU MODIFY this, you MUST modify smtUninterpreted and analyze_type *)
-
-      
-(*DSN TODO check if there are any differences in cilly vs smt opstrings *)
 let smtOpFromBinop op = 
   match op with
     | PlusA | MinusA | Mult | Lt | Gt | Le | Ge ->  d_string "%a" d_binop op 
@@ -668,13 +670,25 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-    | BAnd -> "band" 
-    | BXor -> "bxor"
-    | BOr -> "bor"
-    | Shiftlt -> "shiftlt"
-    | Shiftrt -> "shiftrt"
+  (* Uninterpreted operators *)
+    | BAnd ->  
+      if not uninterpretedBitOperators then failwith "not supporting bit operators";
+      "band" 
+    | BXor -> 
+      if not uninterpretedBitOperators then failwith "not supporting bit operators";
+      "bxor"
+    | BOr ->        
+      if not uninterpretedBitOperators then failwith "not supporting bit operators";
+      "bor"
+    | Shiftlt -> 
+      if not uninterpretedBitOperators then failwith "not supporting bit operators";
+      "shiftlt"
+    | Shiftrt -> 
+      if not uninterpretedBitOperators then failwith "not supporting bit operators";
+      "shiftrt"
     | _ -> failwith ("unexpected operator in smtopfrombinop |" 
 		     ^ (d_string "%a" d_binop op ) ^ "|")
+
 let smtUninterpreted = 
   ["band";
    "bxor";
@@ -713,11 +727,13 @@ let make_bool f =
     | SMTUnknown -> failwith ("assertion is neither bool not int: " ^ 
 				 (debug_formula f) ^
 				 (debug_typemap()))
-
 let make_int f = 
   match analyze_var_type f with
     | SMTBool -> SMTRelation("ite",[f;smtOne;smtZero])
-    | _ -> failwith "not implemented"
+    | SMTInt -> f
+    | _ ->  failwith ("assertion is neither bool not int: " ^ 
+				 (debug_formula f) ^
+				 (debug_typemap()))
 
 (****************************** Interpolation ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
@@ -778,6 +794,7 @@ let set_option solver (opt_name,opt_value) =
 
 let set_logic solver logic = write_line_to_solver solver ("(set-logic " ^ logic ^ ")\n")
 let declare_uninterpreted_ops solver ops = 
+  if not uninterpretedBitOperators then failwith "not supporting bit operators";
   List.iter 
     (fun x -> write_line_to_solver solver ("(declare-fun " ^ x ^ " (Int Int) Int)\n"))
     ops
@@ -840,9 +857,9 @@ let do_smt clauses pt =
 
   reset_solver solver;
   set_logic solver "QF_LIA";
-  (*declare_uninterpreted_ops solver smtUninterpreted;
+  if uninterpretedBitOperators then declare_uninterpreted_ops solver smtUninterpreted;
   (* on occation, there are variables that are never used in a way where their type matters
-    * assume they're ints *)*)
+   * assume they're ints *)
   declare_unknown_sort solver;
   (*write the declerations *)
   let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in

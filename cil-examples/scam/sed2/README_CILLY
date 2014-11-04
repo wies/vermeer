@@ -1,2 +1,2 @@
-so, we need to comment out a few lines that have function pointers
+so, we need to comment out a few lines that have function pointers in the linear pass
 also, function reference on line 1754

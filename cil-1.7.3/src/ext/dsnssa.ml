@@ -125,12 +125,12 @@ let dsn (f: file) : unit =
       ignore (visitCilFunction dsnVisitor fdec)
     | _ -> ()
   in
-  Printf.printf "\n\n\n\n\n\ngot here\n\n\n\n\n\n";
   Stats.time "dsn" (iterGlobals f) doGlobal;
-  Printf.printf "\n\n\n\n\n\ngot to this\n\n\n\n\n\n";
   let assocList = Hashtbl.fold (fun k v a -> (k,v) :: a) reverseMap [] in
   let sortedList = List.sort (fun (k1,_) (k2,_) -> compare k1 k2) assocList in
-  List.iter (fun (k, v) -> Printf.printf "%d -> %s\n" k v) sortedList
+  let topLevelComment = List.fold_left 
+    (fun a (k,v) ->  a ^ (Printf.sprintf "// %d -> %s\n" k v)) "" sortedList in
+  f.globals <- GText(topLevelComment)::f.globals
     
 
 let feature : featureDescr = 
