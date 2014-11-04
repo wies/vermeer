@@ -450,7 +450,7 @@ let isDefinedFn e =
 (* DSN need a better name here *)
 let mk_print_orig (* For printing debugging info. *) = function
   | Set(lv, e, _) ->
-    mkPrint (d_string "/* %a = %a; */\n" d_lval lv d_exp e) []
+    mkPrintNoLoc (d_string "\n// %a = %a;\n" d_lval lv d_exp e) []
   | Call(lv_o, e, al, _) ->
     let rec arg_lst = function [] -> ""
       | [x] -> (d_string "%a" d_exp x)
@@ -458,7 +458,7 @@ let mk_print_orig (* For printing debugging info. *) = function
     let fn_name = d_string "%a" d_exp e in
     let lhs = match lv_o with None -> "(no return or ignored)"
                             | Some lv -> d_string "%a =" d_lval lv in
-    mkPrint ("/* Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^"); */\n") []
+    mkPrintNoLoc ("\n// Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^");\n") []
   | _ -> E.s (E.bug "Invalid usage.")
 
 (* Is this a string literal assignment? If yes, we need to assign an actual
@@ -500,10 +500,10 @@ class dsnconcreteVisitorClass = object
         let pr_s2 = pr_s2 ^";"^ (if if_s <> "" then " }" else "") in
 
         (* For debugging, print the actual value assigned too. *)
-        let pr_s2, pr_a2 = pr_s2 ^" /* Assigned: "^ val_s ^" */\n",
+        let pr_s2, pr_a2 = pr_s2 ^" // Assigned: "^ val_s ^"\n",
                            pr_a2 @ val_a in
 
-        let print_asgn      = mkPrintNoLoc                pr_s1 pr_a1 in
+        let print_asgn      = mkPrint                     pr_s1 pr_a1 in
         let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s2 pr_a2 in
 	let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
 	ChangeTo newInstrs
@@ -520,7 +520,7 @@ class dsnconcreteVisitorClass = object
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
               let val_s, val_a = lossless_val_lv lv in
-              [mkPrintNoLoc (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
+              [mkPrint (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
               (* Support for struct-copying returns disabled. Take a look at
                  'loosless_val' function.
               (* Declaring a tmp variable is a trick to use an initialization
