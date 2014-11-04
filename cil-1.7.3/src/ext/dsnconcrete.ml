@@ -249,7 +249,7 @@ let rec unsupported_op_cond exp =
   let cond_e e = match e with Const _ -> ("", []) | _ ->
     let val_s, val_a = lossless_val e in
     (d_string "%a == " d_exp e) ^ val_s, val_a in
-  let add_cond (s1, a1) (s2, a2) =
+  let join_conds (s1, a1) (s2, a2) =
     let conj = if s1 = "" or s2 = "" then "" else " && " in
     if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2 in
   match exp with
@@ -257,13 +257,13 @@ let rec unsupported_op_cond exp =
   | CastE(_, e) -> unsupported_op_cond e
   | UnOp(BNot, e, _) -> let s1, a1 = cond_e e in
                         let s2, a2 = unsupported_op_cond e in
-                        add_cond (s1, a1) (s2, a2)
+                        join_conds (s1, a1) (s2, a2)
   | UnOp _ -> "", []
   | BinOp(op, e1, e2, _) -> begin match op with
     | Shiftlt | Shiftrt | BAnd | BXor | BOr ->
       let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
       let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
-      List.fold_left add_cond ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
+      List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
     | _ -> "", [] end
   | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
     | (Var _, _) -> "", []
