@@ -31,9 +31,9 @@ class dsnVisitorClass = object
     | BinOp(op, e1, e2, t) -> begin match op with
       | PlusPI | MinusPI ->
         let sz_ptr = (bitsSizeOf (unrollTypeDeep t)) / 8 in
-        let e1' = BinOp(Mult, e1, integer sz_ptr, t) in
+        let e2' = BinOp(Mult, e2, integer sz_ptr, t) in
         let op' = if op = PlusPI then PlusA else MinusA in
-        ChangeTo (BinOp(op', e1', e2, t))
+        ChangeTo (BinOp(op', e1, e2', t))
       | IndexPI -> E.s (E.bug "IndexPI not expected.")
       | MinusPP -> E.s (E.bug "Let's see if MinusPP is expected.")
       | _ -> DoChildren end

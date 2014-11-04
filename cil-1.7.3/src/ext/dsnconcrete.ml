@@ -36,7 +36,7 @@ let log_fn_name = "dsn_log"
 let preset_wrappers = ["read";
                        "memset"; "strcpy"; "strncpy";
                        "sprintf";
-                       "getoptlong"]
+                       "getopt_long"]
 
 let wrapper_fn_set = List.fold_right SS.add preset_wrappers SS.empty
 
@@ -236,9 +236,9 @@ let rec strip_cast exp =
   | CastE(_, e) -> strip_cast e
   | UnOp(op, e, t) -> UnOp(op, strip_cast e, t)
   | BinOp(op, e1, e2, t) -> BinOp(op, strip_cast e1, strip_cast e2, t)
-  | Lval lv -> Lval (strip_cast_lv lv)
-  | AddrOf lv -> AddrOf (strip_cast_lv lv)
-  | StartOf lv -> StartOf (strip_cast_lv lv)
+  | Lval lv -> Lval(strip_cast_lv lv)
+  | AddrOf lv -> AddrOf(strip_cast_lv lv)
+  | StartOf lv -> StartOf(strip_cast_lv lv)
   | _ -> E.s (E.bug "Not expected.")
 
 (* If an expression contains unsupported operations (e.g., bit shifting), get
@@ -303,9 +303,9 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
       let ut = unrollType t in
       (match ut with TPtr _ -> () | _ -> E.s (E.bug "Internal bug."));
       let sz_ptr = (bitsSizeOf ut) / 8 in
-      let e1' = BinOp(Mult, e1, integer sz_ptr, t) in
+      let e2' = BinOp(Mult, e2, integer sz_ptr, t) in
       let op' = if op = PlusPI then PlusA else MinusA in
-      d_mem_exp ~pr_val:pv (BinOp(op', e1', e2, t))
+      d_mem_exp ~pr_val:pv (BinOp(op', e1, e2', t))
     | _ -> let e1_s, e1_a = d_mem_exp ~pr_val:pv e1 in
            let op_s = d_string " %a " d_binop op in
            let e2_s, e2_a = d_mem_exp ~pr_val:pv e2 in
@@ -591,6 +591,10 @@ let dsnconcrete (f: file) : unit =
           | None -> vi.vname
           | Some (CompoundInit _) -> E.s (E.bug "Internal bug.")
           | Some (SingleInit e) ->
+            (* TODO certain init values, e.g., 'stdin', should have taken
+               an actual value assigned. However, it is complicated because
+               static and global variables do not really observe the sequential
+               init order. *)
             vi.vname ^" = "^ (d_string "%a" d_exp (strip_cast e)) end
         | _ -> E.s (E.bug "Internal bug.") in
       let str = "long long "^ var ^";\n" in
@@ -608,14 +612,18 @@ let dsnconcrete (f: file) : unit =
     | GVarDecl(vi, _) when vi.vname = "optind"
                         || vi.vname = "optarg" -> declareFn g
     | GVar(vi, ii, _) -> begin match unrollType vi.vtype with
-      (* Ignore arrays and structs since they are referenced indirectly.
-         Initialization will be covered by 'postprocess_concrete.' *)
-      | TArray _ | TComp _ -> ()
-      (* TODO some init values, e.g., string literals or 'stdin', should have
-         taken an actual value assigned. However, it is complicated because
-         static and global variables do not really observe the sequential
-         init order. *)
-      | _ -> declareFn g end
+      (* For global arrays, structs and unions, force to assume that the address
+         of the variable has been taken so that any elements or fields are
+         accessed indirectly. We can then simply remove their declarations. 
+         Initialization part will be covered by 'postprocess_concrete.' *)
+      | TArray _ | TComp _ -> vi.vaddrof <- true
+      | _ -> begin match ii.init with
+        | Some (SingleInit e) -> begin match typeOf e with
+          (* Same trick for string literal initialization. *)
+          | TPtr(TInt(IChar, _), _) -> vi.vaddrof <- true
+          | _ -> declareFn g end
+        | _ -> declareFn g end
+      end
     (* | GVarDecl _ | GType _ | GCompTag _ | GEnumTag _ *)
 
     | GFun (fdec, _) when fdec.svar.vname = "main" ->
