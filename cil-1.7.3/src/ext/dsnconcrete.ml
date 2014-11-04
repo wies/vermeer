@@ -281,28 +281,6 @@ let rec has_str_lit = function
     | (Var _, _) -> false | (Mem e, _) -> has_str_lit e end
   | _ -> E.s (E.bug "Not expected.")
 
-(* This function is for printing debugging information only. *)
-let rec d_orig_exp arg : logStatement =
-  match arg with
-  | Const(CStr s) -> to_c_string s, []
-  | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
-  | Const _ | Lval _ -> (d_string "%a" d_exp arg,[])
-  | CastE(t,e) ->
-      let (str,arg) = d_orig_exp e in
-      (d_string "(%a)(%s)" d_type t str, arg)
-  | UnOp(o,e,_) ->
-      let opStr = d_string "%a " d_unop o in
-      let (str,arg) = d_orig_exp e in
-      (opStr ^"("^ str ^")", arg)
-  | BinOp(o,l,r,_) ->
-      let (lhsStr,lhsArg) = d_orig_exp l in
-      let opStr = d_string " %a " d_binop o in
-      let (rhsStr,rhsArg) = d_orig_exp r in
-      ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
-  | AddrOf(l)
-  | StartOf(l) -> ("%p", [addr_of_lv l])
-  | _ -> E.s (E.bug "Not expected.")
-
 let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   let pv = pr_val <> None in
   match arg with
@@ -471,21 +449,17 @@ let isDefinedFn e =
 *)
 
 (* DSN need a better name here *)
-let rec mkActualArg (al : exp list) : logStatement =
-  match al with
-  | [] -> ("",[])
-  | x::[] -> d_mem_exp x
-  | x::xs ->
-      let (thisStr,thisArg) = d_mem_exp x in
-      let (restStr,restArgs) = mkActualArg xs in
-      (thisStr ^", "^ restStr, thisArg @ restArgs)
-
-
 let mk_print_orig (* For printing debugging info. *) = function
   | Set(lv, e, _) ->
-    let orig_rhs_s, orig_a = d_orig_exp e in
-    let orig_s = (d_string "/* %a = " d_lval lv) ^ orig_rhs_s ^ "; */\n" in
-    mkPrint orig_s orig_a
+    mkPrint (d_string "/* %a = %a; */\n" d_lval lv d_exp e) []
+  | Call(lv_o, e, al, _) ->
+    let rec arg_lst = function [] -> ""
+      | [x] -> (d_string "%a" d_exp x)
+      | x::xs -> (d_string "%a, " d_exp x) ^ arg_lst xs in
+    let fn_name = d_string "%a" d_exp e in
+    let lhs = match lv_o with None -> "(no return or ignored)"
+                            | Some lv -> d_string "%a =" d_lval lv in
+    mkPrint ("/* Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^"); */\n") []
   | _ -> E.s (E.bug "Invalid usage.")
 
 (* Is this a string literal assignment? If yes, we need to assign an actual
@@ -504,6 +478,7 @@ class dsnconcreteVisitorClass = object
   val mutable return_seen = false
 
   method vinst i = begin
+    let print_orig = mk_print_orig i in (* For debugging info. *)
     match i with
       Set(lv, e, l) ->
         (* DSN Does anything go weird if we have function pointers *)
@@ -529,7 +504,6 @@ class dsnconcreteVisitorClass = object
         let pr_s2, pr_a2 = pr_s2 ^" /* Assigned: "^ val_s ^" */\n",
                            pr_a2 @ val_a in
 
-        let print_orig      = mk_print_orig i in (* For debugging info. *)
         let print_asgn      = mkPrintNoLoc                pr_s1 pr_a1 in
         let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s2 pr_a2 in
 	let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
@@ -540,15 +514,6 @@ class dsnconcreteVisitorClass = object
     | Call(lo,e,al,l) ->
         let lhs_s, lhs_a = match lo with None -> "", []
                                        | Some(lv) -> d_mem_lval lv in
-
-        (* Let's record the call in a comment too. *)
-        let fn_name = d_string "%a" d_exp e in
-	let (argsStr, argsArgs) = mkActualArg al in
-        let lhs_cs =
-          if lhs_s = "" then "(no return or ignored) " else lhs_s ^ " = " in
-	let cmnt_str = "/* Call: "^ lhs_cs ^ fn_name ^"("^ argsStr ^") */\n" in
-	let cmnt_args = lhs_a @ argsArgs in
-        let cmntPrintCall = mkPrint cmnt_str cmnt_args in
 
 	let printCalls = match lo with
 	  | None -> [] (* No assignment; nothing to print. *)
@@ -565,7 +530,7 @@ class dsnconcreteVisitorClass = object
               [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
-	ChangeTo (i :: cmntPrintCall :: printCalls)
+	ChangeTo (i :: print_orig :: printCalls)
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
