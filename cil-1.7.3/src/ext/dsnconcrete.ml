@@ -35,6 +35,7 @@ let log_fn_name = "dsn_log"
 
 let preset_wrappers = ["read";
                        "memset"; "strcpy"; "strncpy";
+                       "bcopy";
                        "sprintf";
                        "getopt_long"]
 
@@ -286,8 +287,6 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   match arg with
   | Lval lv -> d_mem_lval ~pr_val:pv lv
   | Const(CStr s) -> to_c_string s, []
-    (* TODO Bug: e.g., \031 in OCaml string is base 10.
-    "\"%s\"", [mkString (String.escaped s)] *)
   | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
   | Const _ -> (d_string "%a" d_exp arg, [])
   | CastE(_, e) -> d_mem_exp ~pr_val:pv e

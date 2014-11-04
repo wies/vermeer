@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <getopt.h>
 
@@ -67,11 +68,25 @@ void *memset_dsn_wrapper(void *s, int c, size_t n)
   uch *p = (uch *)s;
   uch *end = p + n;
   for (; p < end; p++)
-    dsn_log("/* [memset] */ _dsn_mem_%p/*|unknown_%d:unsigned char |*/ = %d;\n",
+    dsn_log("/* [memset] */ _dsn_mem_%p/*|unknown_%d:unsigned char |*/ = %u;\n",
             p, unknown_index, c);
   unknown_index++;
 
   return result;
+}
+
+void bcopy_dsn_wrapper(const void *src, void *dest, size_t n)
+{
+  bcopy(src, dest, n);
+
+  size_t i;
+  uch *p = (uch *)dest;
+  uch *end = p + n;
+  dsn_log("/* [bcopy] Warning: assuming unsigned char. */\n");
+  for (; p < end; p++)
+    dsn_log("/* [bcopy] */ _dsn_mem_%p/*|unknown %d:unsigned char |*/ = %u;\n",
+            p, unknown_index, *p);
+  unknown_index++;
 }
 
 char *strcpy_dsn_wrapper(char *dest, const char *src)
