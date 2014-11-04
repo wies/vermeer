@@ -91,6 +91,7 @@ let smtCheckSat = "(check-sat)\n"
 let smtGetUnsatCore = "(get-unsat-core)\n"
 
 let smtZero = SMTConstant(0L)
+let smtOne = SMTConstant(1L)
 let emptyIfContext = []
 
 (******************** Globals *************************)
@@ -135,6 +136,10 @@ let rec last = function
   | [] -> None
   | [x] -> Some x
   | _ :: t -> last t;;
+
+let rec compress = function
+  | a :: (b :: _ as t) -> if a = b then compress t else a :: compress t
+  | smaller -> smaller
 
 let rec all_but_last lst = 
   List.rev  (List.tl (List.rev lst))
@@ -189,9 +194,9 @@ let analyze_var_type (topForm : term) =
       | _ when (currentType = newType)-> 
 	newType
       | _ -> 
-	raise (Failure ("mismatching types " ^ var.fullname ^ " " ^ 
-			   (string_of_vartype currentType) ^ " " ^
-			   (string_of_vartype newType)))
+	failwith ("mismatching types " ^ var.fullname ^ " " ^ 
+		     (string_of_vartype currentType) ^ " " ^
+		     (string_of_vartype newType))
   in
   let rec analyze_type_list typ tl  = 
     match tl with 
@@ -423,6 +428,10 @@ let make_assertion_string c =
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in
   "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
+let print_linenum c = 
+  match c.typ with 
+    | ProgramStmt (i) -> d_string "%a" d_loc (get_instrLoc i)
+    | _ -> ""
 
 let print_formulas x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
@@ -437,6 +446,17 @@ let print_annotated_trace x =
   List.iter (fun (t,c) -> Printf.printf "%s\n\t%s\n" (string_of_formula t)
     (string_of_clause c)) x; 
   flush stdout
+let print_trace_linenums x = List.iter (fun c -> Printf.printf "%s\n" (print_linenum c)) x;
+  flush stdout
+let print_annotatedtrace_linenums x = List.iter (fun (_,c) -> Printf.printf "%s\n" (print_linenum c)) x;
+  flush stdout
+
+let print_reduced_linenums x = 
+  let nums = List.map print_linenum x in
+  let reduced = compress nums in
+  List.iter (Printf.printf "%s\n") reduced
+
+
 
 (******************** File creation ********************)
 
@@ -666,7 +686,8 @@ let smtUninterpreted =
 let rec formula_from_exp e = 
   match e with 
     | Const(CInt64(c,_,_)) -> SMTConstant(c)
-    | Const(_) -> raise (Failure "Constants should only be of type int")
+    | Const(CChr(c)) -> SMTConstant(Int64.of_int (int_of_char c))
+    | Const(_) -> failwith ("Constants should only be of type int: " ^ (d_string "%a" d_exp e))
     | Lval(l) -> formula_from_lval l 
     | UnOp(o,e1,t) -> 
       let opArg = d_string "%a" d_unop o in
@@ -689,10 +710,14 @@ let make_bool f =
   match analyze_var_type f with
     | SMTBool -> f
     | SMTInt -> SMTRelation("distinct",[f;smtZero])
-    | SMTUnknown -> raise (Failure ("assertion is neither bool not int: " ^ 
-				       (debug_formula f) ^
-				       (debug_typemap())))
+    | SMTUnknown -> failwith ("assertion is neither bool not int: " ^ 
+				 (debug_formula f) ^
+				 (debug_typemap()))
 
+let make_int f = 
+  match analyze_var_type f with
+    | SMTBool -> SMTRelation("ite",[f;smtOne;smtZero])
+    | _ -> failwith "not implemented"
 
 (****************************** Interpolation ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
@@ -814,10 +839,10 @@ let do_smt clauses pt =
   let solver = singleSolver in
 
   reset_solver solver;
-  set_logic solver "QF_UFLIA";
-  declare_uninterpreted_ops solver smtUninterpreted;
+  set_logic solver "QF_LIA";
+  (*declare_uninterpreted_ops solver smtUninterpreted;
   (* on occation, there are variables that are never used in a way where their type matters
-   * assume they're ints *)
+    * assume they're ints *)*)
   declare_unknown_sort solver;
   (*write the declerations *)
   let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
@@ -978,14 +1003,10 @@ let reduce_trace_expensive propAlgorithm trace =
   in
   List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
 
-let cheap_then_expensive propAlgorithm trace = 
-  let cheap = reduce_trace_cheap trace in
-  let forms,clauses = List.split cheap in
-  let expensive = reduce_trace_expensive propAlgorithm clauses in
+let unsat_then_expensive propAlgorithm trace = 
+  let cheap = reduce_trace_unsatcore trace in
+  let expensive = reduce_trace_expensive propAlgorithm cheap in
   expensive
-
-    
-
     
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
@@ -1043,8 +1064,8 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in 
 
-  printf "****orig****\n";
-  print_clauses clauses;
+  (* printf "****orig****\n"; *)
+  (* print_clauses clauses; *)
 
   (* printf "****reduced cheap****\n"; *)
   (* let reduced3 = time reduce_trace_cheap  clauses in *)
@@ -1054,9 +1075,22 @@ let dsnsmt (f: file) : unit =
   (* let uc = time reduce_trace_unsatcore clauses in *)
   (* print_clauses uc; *)
   
-  printf "****reduced both****\n";
-  let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in
-  print_cprogram reduced4;
+  printf "*****unsatcore ******\n";
+  let us_reduced = reduce_trace_unsatcore clauses in
+  print_clauses us_reduced;
+  print_trace_linenums us_reduced;
+  Printf.printf "*reduced!!!*\n";
+  print_reduced_linenums us_reduced;
+
+  printf "*****annotated ******\n";
+  let at = make_cheap_annotated_trace us_reduced in
+  print_annotated_trace at;
+  print_annotatedtrace_linenums at;
+  
+
+  (* printf "****reduced both****\n"; *)
+  (* let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in *)
+  (* print_cprogram reduced4; *)
 
 
 
