@@ -85,10 +85,9 @@ let stmtFromStmtList (stmts : stmt list) : stmt =
 (* Structs will generate a string in the intiailization form, which can only
    be used in variable initialization. However, the support for struct is
    currently dropped. *)
-let rec lossless_val ?ptr_for_comp (lv: lval) : logStatement =
-  let e = Lval(lv) in
-  let typ = if ptr_for_comp = None then unrollType (typeOfLval lv)
-                                   else voidPtrType in
+let rec lossless_val ?ptr_for_comp:(ptr_for_comp=false) (e: exp) =
+  let typ = if ptr_for_comp then voidPtrType
+                            else unrollType (typeOf e) in
   match typ with
   | TFloat _ -> E.s (E.bug "TFloat not supported.")
   (* | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *) *)
@@ -119,6 +118,9 @@ let rec lossless_val ?ptr_for_comp (lv: lval) : logStatement =
   | TVoid _ | TFun _ | TBuiltin_va_list _ ->
       E.s (E.bug "lossless_val: bug; can never be this type.")
 
+let lossless_val_lv ?ptr_for_comp:(ptr_for_comp=false) (lv: lval) =
+  lossless_val ~ptr_for_comp:ptr_for_comp (Lval lv)
+  
 (*
 let isGlobalVarLval (l : lval) =
   let (host,off) = l in
@@ -212,7 +214,7 @@ let d_mem_lval ?pr_val (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
     let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
     let val_s, val_a = if pr_val = None then "", []
-      else let s, a = lossless_val ~ptr_for_comp:true lv in "|val: "^ s, a in
+      else let s, a = lossless_val_lv ~ptr_for_comp:true lv in "|val: "^ s, a in
     ((memPrefix ^"_%p/*|"^ typ_str ^ val_s ^"|*/"),
      [mkAddrOrStartOf lv] @ val_a)
   else (d_string "%a" d_lval lv,[])
@@ -237,27 +239,49 @@ let rec strip_cast exp =
   | Lval lv -> Lval (strip_cast_lv lv)
   | AddrOf lv -> AddrOf (strip_cast_lv lv)
   | StartOf lv -> StartOf (strip_cast_lv lv)
+  | _ -> E.s (E.bug "Not expected.")
 
-  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
-  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
-  | Question _ -> E.s (E.bug "Question exp not expected.")
-  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
+(* If an expression contains unsupported operations (e.g., bit shifting), get
+   a logStatement to be used in the if-stmt condition for generating
+   an implication. For example, we get "b = 10 && c = 30" for "a = b & c"
+   when the actual values for b and c are 10 and 30 respectively. *)
+let rec unsupported_op_cond exp =
+  let cond_e e = match e with Const _ -> ("", []) | _ ->
+    let val_s, val_a = lossless_val e in
+    (d_string "%a == " d_exp e) ^ val_s, val_a in
+  let add_cond (s1, a1) (s2, a2) =
+    let conj = if s1 = "" or s2 = "" then "" else " && " in
+    if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2 in
+  match exp with
+  | Const _ -> "", []
+  | CastE(_, e) -> unsupported_op_cond e
+  | UnOp(BNot, e, _) -> let s1, a1 = cond_e e in
+                        let s2, a2 = unsupported_op_cond e in
+                        add_cond (s1, a1) (s2, a2)
+  | UnOp _ -> "", []
+  | BinOp(op, e1, e2, _) -> begin match op with
+    | Shiftlt | Shiftrt | BAnd | BXor | BOr ->
+      let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
+      let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
+      List.fold_left add_cond ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
+    | _ -> "", [] end
+  | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
+    | (Var _, _) -> "", []
+    | (Mem e, _) -> unsupported_op_cond e end
+  | _ -> E.s (E.bug "Not expected.")
 
+(* This function is for debugging only. *)
 let rec has_str_lit = function
   | Const(CStr _) | Const(CWStr _) -> true
   | Const _ -> false
   | CastE(_, e) -> has_str_lit e
   | UnOp(_, e, _) -> has_str_lit e
   | BinOp(_, l, r,_) -> has_str_lit l || has_str_lit r
-
   | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
     | (Var _, _) -> false | (Mem e, _) -> has_str_lit e end
+  | _ -> E.s (E.bug "Not expected.")
 
-  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
-  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
-  | Question _ -> E.s (E.bug "Question exp not expected.")
-  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
-
+(* This function is for printing debugging information only. *)
 let rec d_orig_exp arg : logStatement =
   match arg with
   | Const(CStr s) -> to_c_string s, []
@@ -277,11 +301,7 @@ let rec d_orig_exp arg : logStatement =
       ("("^ lhsStr ^")"^ opStr ^"("^ rhsStr ^")", lhsArg @ rhsArg)
   | AddrOf(l)
   | StartOf(l) -> ("%p", [addr_of_lv l])
-
-  | AlignOf _ | AlignOfE _ -> E.s (E.bug "__alignof__() not expected.")
-  | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
-  | Question _ -> E.s (E.bug "Question exp not expected.")
-  | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
+  | _ -> E.s (E.bug "Not expected.")
 
 let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   let pv = pr_val <> None in
@@ -293,11 +313,6 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
   | Const _ -> (d_string "%a" d_exp arg, [])
   | CastE(_, e) -> d_mem_exp ~pr_val:pv e
-(*
-  | CastE(t,e) ->
-      let (str,arg) = d_mem_exp ~pr_val:pv e in
-      (d_string "(%a)(%s)" d_type t str, arg)
-*)
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
       let (str,arg) = d_mem_exp ~pr_val:pv e in
@@ -474,8 +489,9 @@ let mk_print_orig (* For printing debugging info. *) = function
   | _ -> E.s (E.bug "Invalid usage.")
 
 (* Is this a string literal assignment? If yes, we need to assign an actual
-   address directly. Don't worry though; memory variables affected by this
-   entire string will be covered by 'postprocess_concrete.' *)
+   address directly. Don't worry about not making each individual character
+   assignment though; memory variables affected by this entire string will be
+   covered by 'postprocess_concrete.' *)
 let is_str_lit_asgn = function
   | CastE(_, Const(CStr s)) | Const(CStr s) -> true
   | e -> if has_str_lit e then (* Checking if there can be other forms. *)
@@ -494,22 +510,24 @@ class dsnconcreteVisitorClass = object
 	let (lhs_s,lhs_a) = d_mem_lval lv in
         let (rhs_s,rhs_a) = d_mem_exp ~pr_val:true e in
 
-        (* Delay printing the right-hand side until after execution if we need
-           to assign the result directly instead of using the RHS exp. *)
+        let if_s, if_a = unsupported_op_cond e in
+        let pr_s1, pr_a1 = if if_s = "" then "", []
+                                        else "if("^ if_s ^ "){ ", if_a in
+        let pr_s1, pr_a1 = pr_s1 ^ lhs_s ^" = ", pr_a1 @ lhs_a in
+
+        let val_s, val_a = lossless_val_lv lv in
         let special_cases =
           (rhs_s = "stdin" or rhs_s = "stdout" or rhs_s = "stderr") in
-        let actual_val = (is_str_lit_asgn e) or special_cases in
+        let actual_val = (is_str_lit_asgn e) or (if_s <> "") or special_cases in
 
-        let pr_s1, pr_a1 = if actual_val
-                           then (lhs_s ^" = "             , lhs_a)
-                           else (lhs_s ^" = "^ rhs_s ^"; ", lhs_a @ rhs_a) in
+        (* Make it assign an actual value directly if needed. *)
+        let pr_s2, pr_a2 = if actual_val then val_s, val_a
+                                         else rhs_s, rhs_a in
+        let pr_s2 = pr_s2 ^";"^ (if if_s <> "" then " }" else "") in
 
         (* For debugging, print the actual value assigned too. *)
-        let val_s, val_a = lossless_val lv in
-        let pr_s2 = "/* Assigned: "^ val_s ^" */\n" in
-        (* Make it assign an actual value directly if needed. *)
-        let pr_s2, pr_a2 = if actual_val then val_s ^"; "^ pr_s2, val_a @ val_a
-                                         else              pr_s2, val_a in
+        let pr_s2, pr_a2 = pr_s2 ^" /* Assigned: "^ val_s ^" */\n",
+                           pr_a2 @ val_a in
 
         let print_orig      = mk_print_orig i in (* For debugging info. *)
         let print_asgn      = mkPrintNoLoc                pr_s1 pr_a1 in
@@ -537,7 +555,7 @@ class dsnconcreteVisitorClass = object
 	  | Some(lv) ->
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
-              let val_s, val_a = lossless_val lv in
+              let val_s, val_a = lossless_val_lv lv in
               [mkPrintNoLoc (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
               (* Support for struct-copying returns disabled. Take a look at
                  'loosless_val' function.

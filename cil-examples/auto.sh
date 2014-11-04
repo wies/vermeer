@@ -19,5 +19,5 @@ if [ "$EXIT" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ COMPILATION ]]"
-gcc $1.postconcrete.c
+gcc $1_dir/$1.postconcrete.c
 if [ "$?" -eq "0" ]; then echo "OK"; else echo "ERROR"; fi
