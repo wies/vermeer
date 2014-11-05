@@ -25,9 +25,50 @@ open Trace
 module E = Errormsg
 module SS = Set.Make(String)
 
-(* DSN - from logwrites.ml *)
+(******************************************************************************)
+(* Start of code section taken from logwrites.ml.                             *)
+(******************************************************************************)
+
 (* David Park at Stanford points out that you cannot take the address of a
  * bitfield in GCC. *)
+
+(* Returns true if the given lvalue offset ends in a bitfield access. *)
+let rec is_bitfield lo = match lo with
+  | NoOffset -> false
+  | Field(fi,NoOffset) -> not (fi.fbitfield = None)
+  | Field(_,lo) -> is_bitfield lo
+  | Index(_,lo) -> is_bitfield lo
+
+(* Return an expression that evaluates to the address of the given lvalue.
+ * For most lvalues, this is merely AddrOf(lv). However, for bitfields
+ * we do some offset gymnastics.
+ *)
+let addr_of_lv (lh,lo) : exp =
+  if is_bitfield lo then begin
+    (* we figure out what the address would be without the final bitfield
+     * access, and then we add in the offset of the bitfield from the
+     * beginning of its enclosing comp *)
+    let rec split_offset_and_bitfield lo = match lo with
+      | NoOffset -> failwith "logwrites: impossible"
+      | Field(fi,NoOffset) -> (NoOffset,fi)
+      | Field(e,lo) ->  let a,b = split_offset_and_bitfield lo in
+                        ((Field(e,a)),b)
+      | Index(e,lo) ->  let a,b = split_offset_and_bitfield lo in
+                        ((Index(e,a)),b)
+    in
+    let new_lv_offset, bf = split_offset_and_bitfield lo in
+    let new_lv = (lh, new_lv_offset) in
+    let enclosing_type = TComp(bf.fcomp, []) in
+    let bits_offset, bits_width =
+      bitsOffset enclosing_type (Field(bf,NoOffset)) in
+    let bytes_offset = bits_offset / 8 in
+    let lvPtr = mkCast ~e:(mkAddrOf (new_lv)) ~newt:(charPtrType) in
+    (BinOp(PlusPI, lvPtr, (integer bytes_offset), ulongType))
+  end else (AddrOf (lh,lo))
+
+(******************************************************************************)
+(* End of code section taken from logwrites.ml.                               *)
+(******************************************************************************)
 
 let memPrefix = "_dsn_mem"
 let wrapper_fn_postfix = "_dsn_wrapper"
@@ -113,7 +154,7 @@ let rec lossless_val ?ptr_for_comp:(ptr_for_comp=false) (e: exp) =
       else (* TODO: for a union, need to identify a biggest-size field. *)
         E.s (E.bug "Union not yet supported.")
 *)
-  | TComp _ -> E.s (E.bug "Struct-copying is not supported.")
+  | TComp _ -> E.s (E.bug "Struct-copying is not supported. (%a)" d_exp e)
   | TArray _ -> E.s (E.bug "Looks like this yields a compiler error.")
   | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
   | TVoid _ | TFun _ | TBuiltin_va_list _ ->
@@ -173,51 +214,14 @@ let needsMemModel (e: exp) =
   | Lval(l) -> mkAddrOrStartOf l
   | _ -> raise (Failure "expected an Lval here")*)
 
-(* Returns true if the given lvalue offset ends in a bitfield access. *)
-let rec is_bitfield lo = match lo with
-  | NoOffset -> false
-  | Field(fi,NoOffset) -> not (fi.fbitfield = None)
-  | Field(_,lo) -> is_bitfield lo
-  | Index(_,lo) -> is_bitfield lo
-
-(* Return an expression that evaluates to the address of the given lvalue.
- * For most lvalues, this is merely AddrOf(lv). However, for bitfields
- * we do some offset gymnastics.
- *)
-let addr_of_lv (lh,lo) : exp =
-  if is_bitfield lo then begin
-    E.s (E.bug "Stopping here for debugging.")
-(*
-    (* we figure out what the address would be without the final bitfield
-     * access, and then we add in the offset of the bitfield from the
-     * beginning of its enclosing comp *)
-    let rec split_offset_and_bitfield lo = match lo with
-      | NoOffset -> failwith "logwrites: impossible"
-      | Field(fi,NoOffset) -> (NoOffset,fi)
-      | Field(e,lo) ->  let a,b = split_offset_and_bitfield lo in
-                        ((Field(e,a)),b)
-      | Index(e,lo) ->  let a,b = split_offset_and_bitfield lo in
-                        ((Index(e,a)),b)
-    in
-    let new_lv_offset, bf = split_offset_and_bitfield lo in
-    let new_lv = (lh, new_lv_offset) in
-    let enclosing_type = TComp(bf.fcomp, []) in
-    let bits_offset, bits_width =
-      bitsOffset enclosing_type (Field(bf,NoOffset)) in
-    let bytes_offset = bits_offset / 8 in
-    let lvPtr = mkCast ~e:(mkAddrOf (new_lv)) ~newt:(charPtrType) in
-    (BinOp(PlusPI, lvPtr, (integer bytes_offset), ulongType))
-*)
-  end else (*mkAddrOrStartOf (lh,lo)*)
-           (AddrOf (lh,lo))
-
 let d_mem_lval ?pr_val (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
     let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
     let val_s, val_a = if pr_val = None then "", []
       else let s, a = lossless_val_lv ~ptr_for_comp:true lv in "|val: "^ s, a in
     ((memPrefix ^"_%p/*|"^ typ_str ^ val_s ^"|*/"),
-     [mkAddrOrStartOf lv] @ val_a)
+     [addr_of_lv lv] @ val_a)
+     (*[mkAddrOrStartOf lv] @ val_a)*)
   else (d_string "%a" d_lval lv,[])
 
 let to_c_string ocaml_str =
@@ -248,7 +252,7 @@ let rec strip_cast exp =
    when the actual values for b and c are 10 and 30 respectively. *)
 let rec unsupported_op_cond exp =
   let cond_e e = match e with Const _ -> ("", []) | _ ->
-    let val_s, val_a = lossless_val e in
+    let val_s, val_a = lossless_val ~ptr_for_comp:true e in
     (d_string "%a == " d_exp e) ^ val_s, val_a in
   let join_conds (s1, a1) (s2, a2) =
     let conj = if s1 = "" or s2 = "" then "" else " && " in
@@ -297,7 +301,6 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
 
   | BinOp(op, e1, e2, t) -> begin match op with
     | IndexPI -> E.s (E.bug "IndexPI not expected.")
-    | MinusPP -> E.s (E.bug "Let's see if MinusPP can appear.")
     | PlusPI | MinusPI ->
       let ut = unrollType t in
       (match ut with TPtr _ -> () | _ -> E.s (E.bug "Internal bug."));
@@ -305,6 +308,12 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
       let e2' = BinOp(Mult, e2, integer sz_ptr, t) in
       let op' = if op = PlusPI then PlusA else MinusA in
       d_mem_exp ~pr_val:pv (BinOp(op', e1, e2', t))
+    | MinusPP ->
+      let ut = unrollType (typeOf e1) in
+      (match ut with TPtr _ -> () | _ -> E.s (E.bug "Internal bug."));
+      let sz_ptr = (bitsSizeOf ut) / 8 in
+      let diff_e = BinOp(Div, BinOp(MinusA, e1, e2, t), integer sz_ptr, t) in
+      d_mem_exp ~pr_val:pv diff_e
     | _ -> let e1_s, e1_a = d_mem_exp ~pr_val:pv e1 in
            let op_s = d_string " %a " d_binop op in
            let e2_s, e2_a = d_mem_exp ~pr_val:pv e2 in
@@ -478,6 +487,7 @@ class dsnconcreteVisitorClass = object
 
   method vinst i = begin
     let print_orig = mk_print_orig i in (* For debugging info. *)
+    (*print_string (d_string "\n%a" d_instr i);*)
     match i with
       Set(lv, e, l) ->
         (* DSN Does anything go weird if we have function pointers *)
@@ -529,7 +539,7 @@ class dsnconcreteVisitorClass = object
               [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
-	ChangeTo (i :: print_orig :: printCalls)
+	ChangeTo (print_orig :: i :: printCalls)
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin

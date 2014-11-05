@@ -157,8 +157,8 @@ int getopt_long_dsn_wrapper(int argc, char * const argv[],
   const struct option *p = longopts;
   while (! (p->name == 0 && p->has_arg == 0 && p->flag == 0 && p->val == 0)){
     if (p->flag != 0)
-      dsn_log("/* [getopt_long] */ "
-              "Error: non-zero flag pointer in longopts not yet supported.\n");
+      dsn_log("/* [getopt_long] Error: non-zero flag pointer in longopts"
+                              " not yet supported. */\n");
     p++;
   }
 

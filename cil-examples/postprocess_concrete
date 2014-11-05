@@ -6,6 +6,8 @@
 #   a) A function call returning a null value, e.g.,
 #      int* p = null_returning_function();
 #   b) In a memory variable name as in _dsn_mem_(nil).
+#   c) In the condition part of an if statement generated due to unsupported
+#      operators in SMT (e.g., bit shifting).
 # 2. Adds declarations for _dsm_mem variables.
 # 3. Adds a missing closing bracket in the case of a crash.
 # 4. Initializes optind to 1 if the said extern variable presents.
@@ -49,6 +51,7 @@ my $last_seen = "";
 while (<INFILE>) {
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     s/ = \(nil\);/ = 0;/;
+    s/ == \(nil\)/ == 0/;
     s!/\* Assigned: \(nil\) \*/!/\* Assigned: 0 \*/!;
     s!\|val: \(nil\)\|\*/!\|val: 0\|\*/!;
 
