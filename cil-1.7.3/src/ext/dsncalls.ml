@@ -170,7 +170,8 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
       in
       ((lhsStr,lhsArgs),
        ("[" ^ e_str ^ "]" ^ rhsStr,rhsArgs))
-    | TPtr (TFun(retT,argsTLst,isVarArgs,_),_) -> 
+    | TPtr (TFun(retT,argsTLst,isVarArgs,_),_)
+    | TPtr (TPtr(TFun(retT,argsTLst,isVarArgs,_),_),_) -> 
       (* DSN things might go crazy if we have return / take fn pointers.  Not worrying about that for now *)
       let retStr = d_string "%a" d_type retT in
       let (argsStr,argsArgs) = match argsTLst with 
@@ -248,7 +249,7 @@ and d_xScope_lval (scopeExp : exp) (hst,off as arg : lval) : logStatement =
 	(varStr ^ offsetStr, varArg :: offsetArgs)
       | Mem(e) -> 
 	let str,arg = d_xScope_exp scopeExp e in
-	"*" ^ str ^ offsetStr, arg @ offsetArgs
+	"(*" ^ str ^ ")" ^ offsetStr, arg @ offsetArgs
 
 (* print an expression *)
 (* DSN TODO - do I need to worry about special characters like %? *)
