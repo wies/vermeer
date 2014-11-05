@@ -44,17 +44,18 @@ let get_ssa_var v =
     | Some(newVar,varId,idx) -> newVar
     | None -> new_ssa_var v
 
-let rec update_rhs_exp = function
-  | Const _ | SizeOf _ | SizeOfStr _ | AlignOf _ as e -> e
-  | Lval(l) -> Lval(update_rhs_lval l)
-  | SizeOfE(e) -> SizeOfE(update_rhs_exp e)
-  | AlignOfE(e) -> AlignOfE(update_rhs_exp e)
-  | UnOp(o,e,t) -> UnOp(o,update_rhs_exp e, t)
-  | BinOp(b,e1,e2,t) -> BinOp(b,update_rhs_exp e1, update_rhs_exp e2, t)
-  | CastE(t,e) -> CastE(t,update_rhs_exp e)
-  | AddrOf(l) -> AddrOf(update_rhs_lval l)
-  | StartOf(l) -> StartOf(update_rhs_lval l)
-  | _ -> raise (Failure "unexpected exp type")
+let rec update_rhs_exp e = 
+  match constFold true e with
+    | Const _ | SizeOf _ | SizeOfStr _ | AlignOf _ as e -> e
+    | Lval(l) -> Lval(update_rhs_lval l)
+    | SizeOfE(e) -> SizeOfE(update_rhs_exp e)
+    | AlignOfE(e) -> AlignOfE(update_rhs_exp e)
+    | UnOp(o,e,t) -> UnOp(o,update_rhs_exp e, t)
+    | BinOp(b,e1,e2,t) -> BinOp(b,update_rhs_exp e1, update_rhs_exp e2, t)
+    | CastE(t,e) -> CastE(t,update_rhs_exp e)
+    | AddrOf(l) -> AddrOf(update_rhs_lval l)
+    | StartOf(l) -> StartOf(update_rhs_lval l)
+    | _ -> raise (Failure "unexpected exp type")
 and update_rhs_lval  = function  
   | Var v, NoOffset -> Var (get_ssa_var v), NoOffset
   | _ -> raise (Failure "shouldn't be any mem after concrete transformation")
@@ -72,7 +73,7 @@ class dsnVisitorClass = object
   method vinst i = begin
     match i with
       | Set(lhs,rhs,loc) -> 
-	  (* need to do right before left because the map updates after left *)  
+	(* need to do right before left because the map updates after left *)  
 	let updated_rhs = update_rhs_exp rhs in
 	let updated_lhs = update_lhs_lval lhs in
 	ChangeTo [Set(updated_lhs,updated_rhs,loc)]
@@ -85,7 +86,7 @@ class dsnVisitorClass = object
   end
   method vstmt (s : stmt) = begin
     let replace_skind sk : stmt = 
-	(* we don't need to replace the CFG stuff *)
+      (* we don't need to replace the CFG stuff *)
       let nstmt = mkStmt sk in
       nstmt.labels <- s.labels;
       nstmt in
@@ -108,12 +109,12 @@ class updateToInt = object
 
   method vexpr = function
     | _ -> DoChildren    
-  
+      
 end
 
 
 (* assume that there is only one function at this point *)
-  (* otherwise things get messy *)
+(* otherwise things get messy *)
 let dsnVisitor = new dsnVisitorClass
 
 let dsn (f: file) : unit =  
