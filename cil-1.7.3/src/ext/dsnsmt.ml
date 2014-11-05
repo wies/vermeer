@@ -56,13 +56,16 @@ let emptyStringSet = StringSet.empty
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
 	    | SMTVar of smtvar 
+	    | SMTLetVar of string
+	    | SMTLetBinding of term * term 
+	    | SMTLet of term list * term
 	    | SMTTrue | SMTFalse
 
 
 (* TODO record the program location in the programStmt *)
 type clauseType = ProgramStmt of Cil.instr | Interpolant | Constant | EqTest
 
-type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst
+type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLet
 
 type clause = {formula : term; 
 	       idx : int; 
@@ -209,6 +212,9 @@ let analyze_var_type (topForm : term) =
 	else failwith "types don't match"
   and analyze_type typ f = 
     match f with 
+      | SMTLetBinding _ ->  failwith "shouldn't be parsing this!"
+      | SMTLet _ -> failwith "shouldn't be parsing this!"
+      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
       | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
       | SMTConstant(_) -> second_if_matching typ SMTInt
       | SMTVar(v) -> update_type v typ
@@ -245,7 +251,9 @@ let analyze_var_type (topForm : term) =
 	      failwith (s ^ "has " ^ string_of_int (List.length l) ^ "args");
 	    let _ = analyze_type_list SMTInt l in
 	    second_if_matching typ SMTInt
-	  | _ -> raise (Failure ("unexpected operator in analyze type |" ^ s ^ "|"))
+	  | "let" ->
+	    failwith "shouldn't need to parse lets!"
+	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
       end
   in
   analyze_type SMTUnknown topForm
@@ -258,9 +266,11 @@ let rec get_vars formulaList set =
       let set = get_vars xs set in
       match x with
 	| SMTRelation(s,l) -> get_vars l set
-	| SMTConstant(_) | SMTFalse | SMTTrue -> set
+	| SMTLet(b,t) -> get_vars b (get_vars [t] set)
+	| SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ -> set
 	| SMTVar(v) -> VarSet.add v set 
-	  
+	| SMTLetBinding(v,e) -> get_vars [e] set
+
 let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
   match vars with 
     | [] -> ssaMap
@@ -281,7 +291,10 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
   incr count;
   let v  = get_vars [f] emptyVarSet in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
-  let _ = analyze_var_type f in (* update the typemap to include this clause *)
+  let _ = match ct with
+    | ProgramStmt _ ->  ignore (analyze_var_type f)
+    | _ -> () 
+  in
   let c  = {formula = f; idx = !count; vars = v; ssaIdxs = ssa; typ = ct; ifContext = ic} in
   c
 
@@ -308,19 +321,22 @@ let get_current_var oldVar ssaMap =
   try Some (VarSSAMap.find oldVar.vidx ssaMap)
   with Not_found -> None
 
-let rec remap_formula ssaMap form =
-  match form with
+let remap_formula ssaMap form =
+  let rec aux = function 
+    | SMTLetBinding(v,e) -> SMTLetBinding(v,aux e)
+    | SMTLet(b,t) -> 
+      SMTLet(List.map aux b, aux t)
     | SMTRelation(s,tl) ->
-      let lst = List.map (remap_formula ssaMap) tl in
-      SMTRelation(s,lst)
-    | SMTConstant(_) | SMTFalse | SMTTrue -> form
+      SMTRelation(s,List.map aux tl)
+    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ as form -> form
     | SMTVar(v) ->
       let newVarOpt = get_current_var v ssaMap in
       match newVarOpt with
 	| Some (newVar) -> SMTVar(newVar)
 	| None -> raise (CantMap v)
-
-	  
+  in
+  aux form
+    
 
 (* I guess we should remap the if context too.  Does this make sense? 
  * Also, there is a bug where we ended up with two clauses with the same interpolation
@@ -337,17 +353,23 @@ let remap_clause ssaMap cls =
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
 
-let rec string_of_args a = 
-  match a with
-    | [] -> ""
-    | arg :: args -> (string_of_formula arg) ^ " " ^ (string_of_args args)
+(* DSN TODO replace with list_fold *)
 
-and string_of_formula f = 
+let rec string_of_formula f = 
+  let rec string_of_args a = 
+    match a with
+      | [] -> ""
+      | arg :: args -> (string_of_formula arg) ^ " " ^ (string_of_args args)
+  in
   match f with
+    | SMTLet(b,t) ->
+      "(let (" ^ string_of_args b ^ ") " ^ string_of_formula t ^ ")" 
+    | SMTLetBinding(v,b) -> "(" ^ string_of_formula v ^ " " ^ string_of_formula b ^ ")"
     | SMTRelation(rel, args) -> 
       "(" ^ rel ^ " " ^(string_of_args args) ^ ")"
     | SMTConstant(i) -> Int64.to_string i
     | SMTVar(v) -> string_of_var v
+    | SMTLetVar(v) -> v
     | SMTFalse -> "false"
     | SMTTrue -> "true"
 let string_of_term = string_of_formula
@@ -362,6 +384,7 @@ let string_of_cprogram c =
     | EqTest -> raise (Failure "shouldn't have equality tests in the final program")
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
+let string_of_formlist fl = List.fold_left (fun a e -> a ^ string_of_formula e ^ "\n") "" fl
 
 let debug_var v = 
   "{name: " ^ v.fullname 
@@ -375,11 +398,15 @@ let rec debug_args a =
     | arg :: args -> (debug_formula arg) ^ " " ^ (debug_args args)
 and debug_formula f = 
   match f with
+    | SMTLet(b,t) ->
+      "(let ((" ^ debug_args b ^ " " ^ debug_formula t ^ ")) " 
     | SMTRelation(rel, args) -> 
       "\t(" ^ "Rel: " ^ rel ^ " args: " ^(debug_args args) ^ ")"
     | SMTConstant(i) -> Int64.to_string i
     | SMTVar(v) -> debug_var v
+    | SMTLetVar(v) -> v
     | SMTFalse | SMTTrue -> string_of_formula f
+    | SMTLetBinding (v,e) -> debug_formula v ^ " " ^ debug_formula e
 
 (* could make tail rec if I cared *)
 let debug_SSAMap m = 
@@ -529,23 +556,27 @@ let getFirstArgType str =
       -> SexpRel
     | _ 
       -> begin match str with 
-	|  "and" | "distinct" | "or" | "not" | "xor" | "ite"
+	|  "and" | "distinct" | "or" | "not" | "xor" | "ite" 
 	  -> SexpRel
+	| "let" 
+	  -> SexpLet
 	| "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" 
 	  -> if not uninterpretedBitOperators then failwith "not supporting bit operators";
 	    SexpRel
 	| "false" | "true" 
 	  -> SexpBoolConst
-	| _
+	| _ 
 	  -> SexpVar
       end
 
 let split_on_underscore str = Str.split (Str.regexp "[_]+") str
+let is_cse_var str = Str.string_match (Str.regexp ".cse[0-9]+") str 0
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
   match split_on_underscore str with
     | [prefix;vidxStr;ssaIdxStr] -> 
+      if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
       {fullname = str; 
        vidx = (int_of_string vidxStr);
        ssaIdx =  (int_of_string ssaIdxStr);
@@ -583,7 +614,7 @@ let rec extract_unsat_core (str) : string list =
   let str = strip_parens str in
   Str.split (Str.regexp "[ \t]+") str
 
-let rec extract_term (str) : term list = 
+let rec extract_term (str) isLetExp : term list = 
   (* returns the first sexp as a string,
    * and the remainder as another string *)
   let extract_first_sexp str = 
@@ -606,40 +637,62 @@ let rec extract_term (str) : term list =
 	let rhs = sub str (endIdx + 1) (length str - endIdx - 1) in
 	(trim lhs, trim rhs)
   in
-  let str = trim str in
-  let str = strip_parens str in
+  let str = strip_parens (trim str) in
   if length str = 0 then 
     []
   else
     let headStr, tailStr = extract_first_sexp str in
-    let tailExp = extract_term tailStr in
     match getFirstArgType headStr with
       | Sexp -> 
-	let headExpLst = extract_term headStr in
-	if (List.length headExpLst) = 1 then
+	let headExpLst = extract_term headStr false in
+	let tailExp = extract_term tailStr false in
+	if isLetExp then begin
+	  (* could test if there are mod two things. Probably not worth it *)
 	  headExpLst @ tailExp
-	else
-	  raise (Failure ("headExpList had unexpected length: " ^ string_of_int(List.length headExpLst)))
+	end else begin
+	  if (List.length headExpLst) <> 1 then
+	    failwith ("headExpList had unexpected length: " 
+		      ^ string_of_int(List.length headExpLst)
+		      ^ "headStr: " ^  headStr ^ "\ntaiilStr: " ^ tailStr
+		      ^ string_of_formlist headExpLst);
+	  headExpLst @ tailExp
+	end
+      | SexpLet -> 
+	begin
+	  let tailExp = extract_term tailStr true in
+	  let rec bindings lst acc = match lst with
+	    | [] -> failwith "no expression"
+	    | [x] -> acc,x
+	    | x::y::rest -> bindings rest (SMTLetBinding(x,y)::acc)
+	  in
+	  let b,t = bindings tailExp [] in
+	  [SMTLet(b,t)]
+	end
       | SexpIntConst -> 
+	let tailExp = extract_term tailStr false in
 	let c = Int64.of_string headStr in
 	let term = SMTConstant(c) in
 	term :: tailExp
       | SexpVar ->
-	let v = smtVarFromString headStr in
-	let term = SMTVar(v) in
+	let tailExp = extract_term tailStr false in
+	let term = if is_cse_var headStr 
+	  then SMTLetVar(headStr)
+	  else SMTVar(smtVarFromString headStr) 
+	in
 	term :: tailExp
       | SexpRel -> 
+	let tailExp = extract_term tailStr false in
 	let rel = headStr in
-	let term = SMTRelation(rel,tailExp) in
-	[term]
+	[SMTRelation(rel,tailExp)]
       | SexpBoolConst -> 
+	let tailExp = extract_term tailStr false in
 	if headStr = "true" then SMTTrue :: tailExp
 	else if headStr = "false" then SMTFalse :: tailExp
-	else raise (Failure "neither true nor false???")
+	else failwith "neither true nor false???"
 
 let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
     : clause = 
-  match extract_term sexp with 
+  match extract_term sexp false with 
     | [t] -> make_clause t ssaBefore ic ct
     | _ -> raise (Failure ("should only get one term from the sexp: " ^ sexp))
 
@@ -670,7 +723,7 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-  (* Uninterpreted operators *)
+    (* Uninterpreted operators *)
     | BAnd ->  
       if not uninterpretedBitOperators then failwith "not supporting bit operators";
       "band" 
@@ -732,8 +785,8 @@ let make_int f =
     | SMTBool -> SMTRelation("ite",[f;smtOne;smtZero])
     | SMTInt -> f
     | _ ->  failwith ("assertion is neither bool not int: " ^ 
-				 (debug_formula f) ^
-				 (debug_typemap()))
+			 (debug_formula f) ^
+			 (debug_typemap()))
 
 (****************************** Interpolation ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
@@ -817,7 +870,7 @@ let rec read_from_solver (solver) (pt) : smtResult =
 	Unsat(GotUnsatCore coreSet)
       | GetInterpolation _ -> 
 	let next_line = input_line solver.in_chan in
-	let terms = extract_term (next_line) in
+	let terms = extract_term (next_line) false in
 	Unsat(GotInterpolant terms)
   else if begins_with l "sat" then
     Sat
@@ -882,9 +935,11 @@ let do_smt clauses pt =
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
   (* interpolants have no need for ssa variables.  So we can just drop them *)
   let rec ssa_free_interpolant form = match form with
-    | SMTRelation(s,tl) ->SMTRelation(s,List.map ssa_free_interpolant tl)
-    | SMTConstant(_) | SMTFalse | SMTTrue -> form
+    | SMTLetBinding(v,e) -> SMTLetBinding(v,ssa_free_interpolant e)
+    | SMTRelation(s,tl) -> SMTRelation(s,List.map ssa_free_interpolant tl)
+    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar(_)-> form
     | SMTVar(v) -> SMTVar {fullname=v.fullname;vidx=v.vidx;owner=v.owner;ssaIdx=0}
+    | SMTLet(b,t) -> SMTLet(List.map ssa_free_interpolant b,ssa_free_interpolant t)
   in
   let i1form = ssa_free_interpolant i1 in
   let i2form = ssa_free_interpolant i2 in
@@ -1109,9 +1164,10 @@ let dsnsmt (f: file) : unit =
   (* let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in *)
   (* print_cprogram reduced4; *)
 
-
-
-
+  (* let s = "((let ((.cse0 (+ (\* 8 x_1403_0) x_1380_0))) (and (<= .cse0 0) (<= 0 .cse0))))" in *)
+  (* let t = extract_term s false in *)
+  (* print_endline s; *)
+  (* List.iter (fun x -> print_endline (string_of_term x)) t; *)
   exit_solver singleSolver
 
     
