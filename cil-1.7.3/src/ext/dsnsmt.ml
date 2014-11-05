@@ -145,8 +145,12 @@ let rec compress = function
   | a :: (b :: _ as t) -> if a = b then compress t else a :: compress t
   | smaller -> smaller
 
-let rec all_but_last lst = 
+let all_but_last lst = 
   List.rev  (List.tl (List.rev lst))
+
+let split_last l = 
+  let r = List.rev l in
+  (List.rev (List.tl r), List.hd r)
 
 let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a = 
   let f (d: Pretty.doc) : string = 
@@ -646,26 +650,17 @@ let rec extract_term (str) isLetExp : term list =
       | Sexp -> 
 	let headExpLst = extract_term headStr false in
 	let tailExp = extract_term tailStr false in
-	if isLetExp then begin
-	  (* could test if there are mod two things. Probably not worth it *)
-	  headExpLst @ tailExp
-	end else begin
-	  if (List.length headExpLst) <> 1 then
-	    failwith ("headExpList had unexpected length: " 
-		      ^ string_of_int(List.length headExpLst)
-		      ^ "headStr: " ^  headStr ^ "\ntaiilStr: " ^ tailStr
-		      ^ string_of_formlist headExpLst);
-	  headExpLst @ tailExp
-	end
+	let rec foldHeadLst l = 
+	  match l with
+	    | (SMTLetVar(_) as v)::t::rest ->
+	      SMTLetBinding(v,t)::(foldHeadLst rest)
+	    | _ -> l
+	in
+	(foldHeadLst headExpLst) @ tailExp 
       | SexpLet -> 
 	begin
 	  let tailExp = extract_term tailStr true in
-	  let rec bindings lst acc = match lst with
-	    | [] -> failwith "no expression"
-	    | [x] -> acc,x
-	    | x::y::rest -> bindings rest (SMTLetBinding(x,y)::acc)
-	  in
-	  let b,t = bindings tailExp [] in
+	  let b,t = split_last tailExp in
 	  [SMTLet(b,t)]
 	end
       | SexpIntConst -> 
