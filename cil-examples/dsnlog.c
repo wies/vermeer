@@ -62,8 +62,12 @@ void *realloc_dsn_wrapper(void *ptr, size_t size)
   void *old_ptr = ptr;
   void *result = realloc(ptr, size);
 
-  if (old_ptr != 0 && size != 0 && old_ptr != result)
-    assert("Unimplemented: realloc() moved memory region." && 0);
+  if (old_ptr != 0 && size != 0 && old_ptr != result){
+    dsn_log("/* [realloc] Error: memory region relocated. */\n");
+    //assert("Unimplemented: realloc() relocated memory region." && 0);
+  }
+
+  return result;
 }
 
 void *memset_dsn_wrapper(void *s, int c, size_t n)
