@@ -2083,11 +2083,13 @@ copy(src, dst)
   int i;
 
   for (i = 0; i < src->nelem; ++i)
-#if 0
+#ifndef CO_FIX
     dst->elems[i] = src->elems[i];
 #else
-    dst->elems[i].index = src->elems[i].index;
-    dst->elems[i].constraint = src->elems[i].constraint;
+    {
+      dst->elems[i].index = src->elems[i].index;
+      dst->elems[i].constraint = src->elems[i].constraint;
+    }
 #endif
   dst->nelem = src->nelem;
 }
@@ -2138,7 +2140,7 @@ merge(s1, s2, m)
   m->nelem = 0;
   while (i < s1->nelem && j < s2->nelem)
     if (s1->elems[i].index > s2->elems[j].index)
-#if 0
+#ifndef CO_FIX
       m->elems[m->nelem++] = s1->elems[i++];
 #else
       {
@@ -2148,7 +2150,7 @@ merge(s1, s2, m)
       }
 #endif
     else if (s1->elems[i].index < s2->elems[j].index)
-#if 0
+#ifndef CO_FIX
       m->elems[m->nelem++] = s2->elems[j++];
 #else
       {
@@ -2159,7 +2161,7 @@ merge(s1, s2, m)
 #endif
     else
       {
-#if 0
+#ifndef CO_FIX
 	m->elems[m->nelem] = s1->elems[i++];
 #else
         m->elems[m->nelem].index = s1->elems[i].index;
@@ -2168,7 +2170,7 @@ merge(s1, s2, m)
 #endif
 	m->elems[m->nelem++].constraint |= s2->elems[j++].constraint;
       }
-#if 0
+#ifndef CO_FIX
   while (i < s1->nelem)
     m->elems[m->nelem++] = s1->elems[i++];
   while (j < s2->nelem)
@@ -2509,11 +2511,13 @@ dfaanalyze(d, searchflag)
 	  {
 	    pos = lastpos + nlastpos[-2];
 	    for (j = nlastpos[-1] - 1; j >= 0; --j)
-#if 0
+#ifndef CO_FIX
 	      pos[j] = lastpos[j];
 #else
-	      pos[j].index = lastpos[j].index;
-	      pos[j].constraint = lastpos[j].constraint;
+              {
+	        pos[j].index = lastpos[j].index;
+	        pos[j].constraint = lastpos[j].constraint;
+              }
 #endif
 	    lastpos += nlastpos[-2];
 	    nlastpos[-2] = nlastpos[-1];
@@ -3534,12 +3538,12 @@ struct dfa *dfa;
   if (musts == NULL)
     return;
   mp = musts;
-#if 0
+#ifndef CO_FIX
   for (i = 0; i <= dfa->tindex; ++i)
     mp[i] = must0;
 #else
   for (i = 0; i <= dfa->tindex; ++i)
-    mp[i].in = mp[i].left = mp[i].right = mp[i].is = 0;
+      mp[i].in = 0, mp[i].left = mp[i].right = 0, mp[i].is = 0;
 #endif
   for (i = 0; i <= dfa->tindex; ++i)
     {

@@ -14,7 +14,7 @@ default:
 build:        
 	@echo 
 	@echo Building regular executable ...
-	@cc -DFAULTY_F_DG_4 -I. -o  grep grep.c 
+	@cc -DCO_FIX -DFAULTY_F_DG_4 -I. -o  grep grep.c 
 	@echo done
 #build-st:        
 #	@echo 

@@ -52,7 +52,7 @@ while (<INFILE>) {
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
     s/ = \(nil\);/ = 0;/;
     s/ == \(nil\)/ == 0/;
-    s!/\* Assigned: \(nil\) \*/!/\* Assigned: 0 \*/!;
+    s!// Assigned: \(nil\) \*/!// Assigned: 0/!;
     s!\|val: \(nil\)\|\*/!\|val: 0\|\*/!;
 
     s/extern long long optind.*/long long optind = 1;/;

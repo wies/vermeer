@@ -70,11 +70,15 @@ let addr_of_lv (lh,lo) : exp =
 (* End of code section taken from logwrites.ml.                               *)
 (******************************************************************************)
 
+(* we have a format string, and a list of expressions for the printf*)
+type logStatement = string * exp list
+
 let memPrefix = "_dsn_mem"
 let wrapper_fn_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
 
 let preset_wrappers = ["read";
+                       "realloc";
                        "memset"; "strcpy"; "strncpy";
                        "bcopy";
                        "sprintf";
@@ -90,10 +94,6 @@ let decrIndent () = if !spaces <= 0 then E.s (E.bug "Negative indentation?");
                    spaces := !spaces - indentSpaces
 let indent () =
   let rec f i = if i=0 then "" else f (i-1) ^ " " in f !spaces
-
-
-(* we have a format string, and a list of expressions for the printf*)
-type logStatement = string * exp list
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   let f (d: doc) : string = Pretty.sprint 800 d in
@@ -131,14 +131,13 @@ let rec lossless_val ?ptr_for_comp:(ptr_for_comp=false) (e: exp) =
   let typ = if ptr_for_comp then voidPtrType
                             else unrollType (typeOf e) in
   match typ with
-  | TFloat _ -> E.s (E.bug "TFloat not supported.")
+  | TFloat _ -> E.s (E.unimp "TFloat not supported.")
   (* | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *) *)
   | TPtr _ -> ("%p", [e])
   | TEnum _ -> ("%d", [e])
   | TInt(ik, _) -> begin match ik with
     | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> ("%d", [e])
     | IUChar | IUInt | IUShort | IULong | IULongLong -> ("%u", [e]) end
-
 (*
   | TComp (ci, _) ->
       let lhost, offset = lv in
@@ -152,9 +151,9 @@ let rec lossless_val ?ptr_for_comp:(ptr_for_comp=false) (e: exp) =
                      iter_fields (str ^ s ^", ", args @ a) fs in
         iter_fields ("{ ", []) ci.cfields
       else (* TODO: for a union, need to identify a biggest-size field. *)
-        E.s (E.bug "Union not yet supported.")
+        E.s (E.unimp "Union not yet supported.")
 *)
-  | TComp _ -> E.s (E.bug "Struct-copying is not supported. (%a)" d_exp e)
+  | TComp _ -> E.s (E.unimp "Struct-copying is not supported. (%a)" d_exp e)
   | TArray _ -> E.s (E.bug "Looks like this yields a compiler error.")
   | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
   | TVoid _ | TFun _ | TBuiltin_va_list _ ->
@@ -183,37 +182,21 @@ let rec isLocalVarLval (l : lval) =
 and isLocalVarExp (e: exp) = match e with
 | Lval(l) -> isLocalVarLval(l)
 | _ -> false
-*)
-
-let needsMemModelVarinfo (v : varinfo) = v.vaddrof
-
-let needsMemModelLval (l : lval) =
-  match l with
-    | (Var(vinfo), off) ->  needsMemModelVarinfo vinfo
-    | _ -> true
-
 
 (* DSN to finish *)
 (* what happens if it is a pointer *)
 let needsMemModel (e: exp) =
   match e with
-  | Lval(l) -> needsMemModelLval(l)
+  | Lval l -> needsMemModelLval l
   | _ -> false
+*)
+
+let needsMemModelLval (l : lval) = match l with
+  | (Var v, _) -> v.vaddrof
+  | _ -> true
 
 (* Either create a reference to the stack variable
- * or the mem_0x1234 if that is needed
- *)
-
-(*DSN is it ok to use NoOffset here *)
-(*let mkAddressVarinfo (v : varinfo) : exp =
-  let lv = (Var(v),NoOffset) in
-  mkAddrOrStartOf lv*)
-
-(*let mkAddress (e : exp) : exp =
-  match e with
-  | Lval(l) -> mkAddrOrStartOf l
-  | _ -> raise (Failure "expected an Lval here")*)
-
+ * or the mem_0x1234 if that is needed. *)
 let d_mem_lval ?pr_val (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
     let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
@@ -221,7 +204,6 @@ let d_mem_lval ?pr_val (lv : lval) : logStatement =
       else let s, a = lossless_val_lv ~ptr_for_comp:true lv in "|val: "^ s, a in
     ((memPrefix ^"_%p/*|"^ typ_str ^ val_s ^"|*/"),
      [addr_of_lv lv] @ val_a)
-     (*[mkAddrOrStartOf lv] @ val_a)*)
   else (d_string "%a" d_lval lv,[])
 
 let to_c_string ocaml_str =
@@ -244,7 +226,7 @@ let rec strip_cast exp =
   | Lval lv -> Lval(strip_cast_lv lv)
   | AddrOf lv -> AddrOf(strip_cast_lv lv)
   | StartOf lv -> StartOf(strip_cast_lv lv)
-  | _ -> E.s (E.bug "Not expected.")
+  | _ -> E.s (E.bug "Not expected. (strip_cast)")
 
 (* If an expression contains unsupported operations (e.g., bit shifting), get
    a logStatement to be used in the if-stmt condition for generating
@@ -291,7 +273,7 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
   match arg with
   | Lval lv -> d_mem_lval ~pr_val:pv lv
   | Const(CStr s) -> to_c_string s, []
-  | Const(CWStr s) -> E.s (E.bug "CWStr not supported.")
+  | Const(CWStr s) -> E.s (E.unimp "CWStr not supported.")
   | Const _ -> (d_string "%a" d_exp arg, [])
   | CastE(_, e) -> d_mem_exp ~pr_val:pv e
   | UnOp(o,e,_) ->
@@ -303,14 +285,14 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
     | IndexPI -> E.s (E.bug "IndexPI not expected.")
     | PlusPI | MinusPI ->
       let ut = unrollType t in
-      (match ut with TPtr _ -> () | _ -> E.s (E.bug "Internal bug."));
+      (match ut with TPtr _ -> () | _ -> E.s (E.bug "Pointer type expected."));
       let sz_ptr = (bitsSizeOf ut) / 8 in
       let e2' = BinOp(Mult, e2, integer sz_ptr, t) in
       let op' = if op = PlusPI then PlusA else MinusA in
       d_mem_exp ~pr_val:pv (BinOp(op', e1, e2', t))
     | MinusPP ->
       let ut = unrollType (typeOf e1) in
-      (match ut with TPtr _ -> () | _ -> E.s (E.bug "Internal bug."));
+      (match ut with TPtr _ -> () | _ -> E.s (E.bug "Pointer type expected."));
       let sz_ptr = (bitsSizeOf ut) / 8 in
       let diff_e = BinOp(Div, BinOp(MinusA, e1, e2, t), integer sz_ptr, t) in
       d_mem_exp ~pr_val:pv diff_e
@@ -378,6 +360,7 @@ let mkVarDecl (v : varinfo) : instr =
       ]
 *)
 
+(*
 (* needed only for declaring unnamed args, e.g. function pointers *)
 let rec d_unnamedArgsList lst  = match lst with
   | (s,t,a) :: [] ->
@@ -410,13 +393,12 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
         | Some(l) -> d_unnamedArgsList l
         | None -> ("",[])
       in
-      ((retStr ^ "(*" ,[]),
+      ((retStr ^ "( *" ,[]),
        (")(" ^ argsStr ^")",argsArgs))
     | _ -> let typeStr = d_string "%a" d_type tTop in
            ((typeStr,[]),
             ("",[]))
 
-(*
 let d_decl (v : varinfo) : logStatement =
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in
   ((lhsStr ^ " %s" ^ rhsStr),
@@ -598,14 +580,14 @@ let dsnconcrete (f: file) : unit =
         | GVarDecl(vi, _) -> vi.vname
         | GVar(vi, ii, _) -> begin match ii.init with
           | None -> vi.vname
-          | Some (CompoundInit _) -> E.s (E.bug "Internal bug.")
+          | Some (CompoundInit _) -> E.s (E.bug "Internal bug. (CompountInit)")
           | Some (SingleInit e) ->
             (* TODO certain init values, e.g., 'stdin', should have taken
                an actual value assigned. However, it is complicated because
                static and global variables do not really observe the sequential
                init order. *)
             vi.vname ^" = "^ (d_string "%a" d_exp (strip_cast e)) end
-        | _ -> E.s (E.bug "Internal bug.") in
+        | _ -> E.s (E.bug "Internal bug. (declareFn)") in
       let str = "long long "^ var ^";\n" in
       globalDeclFn.sbody <-
         mkBlock (compactStmts [mkStmt (Block globalDeclFn.sbody);

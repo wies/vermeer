@@ -2,10 +2,11 @@
 //https://stackoverflow.com/questions/1719784/c-programming-forward-variable-argument-list
 #include <stdarg.h>
 #include <stdio.h>
-#include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <strings.h>
-#include <unistd.h>
+#include <assert.h>
 #include <getopt.h>
 
 typedef unsigned char uch;
@@ -54,6 +55,15 @@ void main_argc_argv_dsn_printer(int *p_argc, char ***p_argv)
               argv[i]+j, argv[i][j], argv[i][j]);
   }
   dsn_log("    //////////////////////////////////////////////////////////\n\n");
+}
+
+void *realloc_dsn_wrapper(void *ptr, size_t size)
+{
+  void *old_ptr = ptr;
+  void *result = realloc(ptr, size);
+
+  if (old_ptr != 0 && size != 0 && old_ptr != result)
+    assert("Unimplemented: realloc() moved memory region." && 0);
 }
 
 void *memset_dsn_wrapper(void *s, int c, size_t n)
