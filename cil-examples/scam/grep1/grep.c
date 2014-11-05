@@ -2083,7 +2083,12 @@ copy(src, dst)
   int i;
 
   for (i = 0; i < src->nelem; ++i)
+#if 0
     dst->elems[i] = src->elems[i];
+#else
+    dst->elems[i].index = src->elems[i].index;
+    dst->elems[i].constraint = src->elems[i].constraint;
+#endif
   dst->nelem = src->nelem;
 }
 
@@ -2133,18 +2138,55 @@ merge(s1, s2, m)
   m->nelem = 0;
   while (i < s1->nelem && j < s2->nelem)
     if (s1->elems[i].index > s2->elems[j].index)
+#if 0
       m->elems[m->nelem++] = s1->elems[i++];
+#else
+      {
+        m->elems[m->nelem].index = s1->elems[i].index;
+        m->elems[m->nelem].constraint = s1->elems[i].constraint;
+        m->nelem++, i++;
+      }
+#endif
     else if (s1->elems[i].index < s2->elems[j].index)
+#if 0
       m->elems[m->nelem++] = s2->elems[j++];
+#else
+      {
+        m->elems[m->nelem].index = s1->elems[j].index;
+        m->elems[m->nelem].constraint = s1->elems[j].constraint;
+        m->nelem++, j++;
+      }
+#endif
     else
       {
+#if 0
 	m->elems[m->nelem] = s1->elems[i++];
+#else
+        m->elems[m->nelem].index = s1->elems[i].index;
+        m->elems[m->nelem].constraint = s1->elems[i].constraint;
+        i++;
+#endif
 	m->elems[m->nelem++].constraint |= s2->elems[j++].constraint;
       }
+#if 0
   while (i < s1->nelem)
     m->elems[m->nelem++] = s1->elems[i++];
   while (j < s2->nelem)
     m->elems[m->nelem++] = s2->elems[j++];
+#else
+  while (i < s1->nelem)
+    {
+      m->elems[m->nelem].index = s1->elems[i].index;
+      m->elems[m->nelem].constraint = s1->elems[i].constraint;
+      m->nelem++, i++;
+    }
+  while (j < s2->nelem)
+    {
+      m->elems[m->nelem].index = s2->elems[j].index;
+      m->elems[m->nelem].constraint = s2->elems[j].constraint;
+      m->nelem++, j++;
+    }
+#endif
 }
 
 /* Delete a position from a set. */
@@ -2467,7 +2509,12 @@ dfaanalyze(d, searchflag)
 	  {
 	    pos = lastpos + nlastpos[-2];
 	    for (j = nlastpos[-1] - 1; j >= 0; --j)
+#if 0
 	      pos[j] = lastpos[j];
+#else
+	      pos[j].index = lastpos[j].index;
+	      pos[j].constraint = lastpos[j].constraint;
+#endif
 	    lastpos += nlastpos[-2];
 	    nlastpos[-2] = nlastpos[-1];
 	  }
@@ -3012,11 +3059,13 @@ dfaexec(d, begin, end, newline, count, backref)
 	s = t[*p++];
       #else
       while ((t = trans[s]) != 0) { /* hand-optimized loop */
+        p += 345;
 	s1 = t[*++p];
         if ((t = trans[s1]) == 0) {
            tmp = s ; s = s1 ; s1 = tmp ; /* swap */
            break;
         }
+        p += 345;
 	s = t[*++p];
       #endif
       }
@@ -3485,8 +3534,13 @@ struct dfa *dfa;
   if (musts == NULL)
     return;
   mp = musts;
+#if 0
   for (i = 0; i <= dfa->tindex; ++i)
     mp[i] = must0;
+#else
+  for (i = 0; i <= dfa->tindex; ++i)
+    mp[i].in = mp[i].left = mp[i].right = mp[i].is = 0;
+#endif
   for (i = 0; i <= dfa->tindex; ++i)
     {
       mp[i].in = (char **) malloc(sizeof *mp[i].in);
