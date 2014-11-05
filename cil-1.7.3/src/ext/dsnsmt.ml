@@ -294,6 +294,7 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
     : clause = 
   incr count;
   let v  = get_vars [f] emptyVarSet in
+  let v = get_vars ic v in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
   let _ = match ct with
     | ProgramStmt _ ->  ignore (analyze_var_type f)
@@ -484,9 +485,13 @@ let print_trace_linenums x = List.iter (fun c -> Printf.printf "%s\n" (print_lin
 let print_annotatedtrace_linenums x = List.iter (fun (_,c) -> Printf.printf "%s\n" (print_linenum c)) x;
   flush stdout
 
-let print_reduced_linenums x = 
+let reduced_linenums x = 
   let nums = List.map print_linenum x in
-  let reduced = compress nums in
+  let nums = List.filter (fun x -> x <> "") nums in
+  compress nums
+
+let print_reduced_linenums x = 
+  let reduced = reduced_linenums x in
   List.iter (Printf.printf "%s\n") reduced
 
 
@@ -618,7 +623,7 @@ let rec extract_unsat_core (str) : string list =
   let str = strip_parens str in
   Str.split (Str.regexp "[ \t]+") str
 
-let rec extract_term (str) isLetExp : term list = 
+let rec extract_term (str)  : term list = 
   (* returns the first sexp as a string,
    * and the remainder as another string *)
   let extract_first_sexp str = 
@@ -648,46 +653,48 @@ let rec extract_term (str) isLetExp : term list =
     let headStr, tailStr = extract_first_sexp str in
     match getFirstArgType headStr with
       | Sexp -> 
-	let headExpLst = extract_term headStr false in
-	let tailExp = extract_term tailStr false in
+	let headExpLst = extract_term headStr in
+	let tailExp = extract_term tailStr in
 	let rec foldHeadLst l = 
 	  match l with
-	    | (SMTLetVar(_) as v)::t::rest ->
+	    | (SMTLetVar _ as v)::t::rest ->
 	      SMTLetBinding(v,t)::(foldHeadLst rest)
-	    | _ -> l
+	    | x::rest -> 
+	      x::foldHeadLst rest
+	    | [] -> []
 	in
 	(foldHeadLst headExpLst) @ tailExp 
       | SexpLet -> 
 	begin
-	  let tailExp = extract_term tailStr true in
+	  let tailExp = extract_term tailStr in
 	  let b,t = split_last tailExp in
 	  [SMTLet(b,t)]
 	end
       | SexpIntConst -> 
-	let tailExp = extract_term tailStr false in
+	let tailExp = extract_term tailStr in
 	let c = Int64.of_string headStr in
 	let term = SMTConstant(c) in
 	term :: tailExp
       | SexpVar ->
-	let tailExp = extract_term tailStr false in
+	let tailExp = extract_term tailStr in
 	let term = if is_cse_var headStr 
 	  then SMTLetVar(headStr)
 	  else SMTVar(smtVarFromString headStr) 
 	in
 	term :: tailExp
       | SexpRel -> 
-	let tailExp = extract_term tailStr false in
+	let tailExp = extract_term tailStr in
 	let rel = headStr in
 	[SMTRelation(rel,tailExp)]
       | SexpBoolConst -> 
-	let tailExp = extract_term tailStr false in
+	let tailExp = extract_term tailStr in
 	if headStr = "true" then SMTTrue :: tailExp
 	else if headStr = "false" then SMTFalse :: tailExp
 	else failwith "neither true nor false???"
 
 let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
     : clause = 
-  match extract_term sexp false with 
+  match extract_term sexp with 
     | [t] -> make_clause t ssaBefore ic ct
     | _ -> raise (Failure ("should only get one term from the sexp: " ^ sexp))
 
@@ -865,7 +872,7 @@ let rec read_from_solver (solver) (pt) : smtResult =
 	Unsat(GotUnsatCore coreSet)
       | GetInterpolation _ -> 
 	let next_line = input_line solver.in_chan in
-	let terms = extract_term (next_line) false in
+	let terms = extract_term (next_line) in
 	Unsat(GotInterpolant terms)
   else if begins_with l "sat" then
     Sat
@@ -1071,8 +1078,11 @@ let reduce_trace_expensive propAlgorithm trace =
   List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
 
 let unsat_then_expensive propAlgorithm trace = 
+  Printf.printf "started with %d lines\n" (List.length (reduced_linenums trace));
   let cheap = reduce_trace_unsatcore trace in
+  Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap));
   let expensive = reduce_trace_expensive propAlgorithm cheap in
+  Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums expensive));
   expensive
     
 class dsnsmtVisitorClass = object
@@ -1128,8 +1138,19 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
+
+
+  (* let s = "((let ((.cse0 (<= 0 x_774_0)) (.cse1 (<= x_774_0 0))) (and (<= 0 x_265_0) (<= x_265_0 0) .cse0 .cse1 (<= 0 x_264_0) (<= x_264_0 0) (ite (<= (+ x_773_0 1) 0) (<= 0 x_773_0) (<= x_773_0 0)) (<= 0 (+ x_262_0 (- 4))) (<= x_262_0 4) (ite (<= (+ x_774_0 1) 0) .cse0 (or .cse1 .cse1)) (<= 0 (+ x_263_0 (- 32))) (<= x_263_0 32) (<= 0 x_2_0) (<= x_2_0 0))))" *)
+  (* in *)
+  (* let t = extract_term s in *)
+  (* print_formulas t; *)
+
+
   (* add a true assertion at the begining of the program *)
-  let clauses = make_true_clause () :: clauses in 
+  let clauses = make_true_clause () :: clauses in
+  let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in
+  (*print_clauses reduced;*)
+  
 
   (* printf "****orig****\n"; *)
   (* print_clauses clauses; *)
@@ -1142,22 +1163,19 @@ let dsnsmt (f: file) : unit =
   (* let uc = time reduce_trace_unsatcore clauses in *)
   (* print_clauses uc; *)
   
-  printf "*****unsatcore ******\n";
-  let us_reduced = reduce_trace_unsatcore clauses in
-  print_clauses us_reduced;
-  print_trace_linenums us_reduced;
-  Printf.printf "*reduced!!!*\n";
-  print_reduced_linenums us_reduced;
+  (* printf "*****unsatcore ******\n"; *)
+  (* let us_reduced = reduce_trace_unsatcore clauses in *)
+  (* print_clauses us_reduced; *)
+  (* print_trace_linenums us_reduced; *)
+  (* Printf.printf "*reduced!!!*\n"; *)
+  (* print_reduced_linenums us_reduced; *)
 
-  printf "*****annotated ******\n";
-  let at = make_cheap_annotated_trace us_reduced in
-  print_annotated_trace at;
-  print_annotatedtrace_linenums at;
+  (* printf "*****annotated ******\n"; *)
+  (* let at = make_cheap_annotated_trace us_reduced in *)
+  (* print_annotated_trace at; *)
+  (* print_annotatedtrace_linenums at; *)
   
 
-  (* printf "****reduced both****\n"; *)
-  (* let reduced4 = time (cheap_then_expensive (propegate_interpolant_forward_linear 1)) clauses in *)
-  (* print_cprogram reduced4; *)
 
   (* let s = "((let ((.cse0 (+ (\* 8 x_1403_0) x_1380_0))) (and (<= .cse0 0) (<= 0 .cse0))))" in *)
   (* let t = extract_term s false in *)
