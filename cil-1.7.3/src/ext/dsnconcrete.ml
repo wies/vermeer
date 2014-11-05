@@ -108,8 +108,8 @@ let argc_argv_handler =
 let log_fn = makeGlobalVar log_fn_name
                (TFun(voidType, Some [("format", charPtrType, [])], true, []))
 
-let mkPrintNoLoc ?noindent (fmt: string) (args: exp list) : instr =
-  let spaces = if noindent = None then indent () else "" in
+let mkPrintNoLoc ?(noindent=false) (fmt: string) (args: exp list) : instr =
+  let spaces = if noindent then "" else indent () in
   Call(None, Lval(var log_fn), (mkString (spaces ^ fmt)) :: args, !currentLoc)
 
 let mkPrint (fmt: string) (args: exp list) : instr =
@@ -127,7 +127,7 @@ let stmtFromStmtList (stmts : stmt list) : stmt =
 (* Structs will generate a string in the intiailization form, which can only
    be used in variable initialization. However, the support for struct is
    currently dropped. *)
-let rec lossless_val ?ptr_for_comp:(ptr_for_comp=false) (e: exp) =
+let rec lossless_val ?(ptr_for_comp=false) (e: exp) =
   let typ = if ptr_for_comp then voidPtrType
                             else unrollType (typeOf e) in
   match typ with
@@ -159,8 +159,8 @@ let rec lossless_val ?ptr_for_comp:(ptr_for_comp=false) (e: exp) =
   | TVoid _ | TFun _ | TBuiltin_va_list _ ->
       E.s (E.bug "lossless_val: bug; can never be this type.")
 
-let lossless_val_lv ?ptr_for_comp:(ptr_for_comp=false) (lv: lval) =
-  lossless_val ~ptr_for_comp:ptr_for_comp (Lval lv)
+let lossless_val_lv ?(ptr_for_comp=false) (lv: lval) =
+  lossless_val ~ptr_for_comp (Lval lv)
   
 (*
 let isGlobalVarLval (l : lval) =
@@ -197,10 +197,10 @@ let needsMemModelLval (l : lval) = match l with
 
 (* Either create a reference to the stack variable
  * or the mem_0x1234 if that is needed. *)
-let d_mem_lval ?pr_val (lv : lval) : logStatement =
+let d_mem_lval ?(pr_val=false) (lv : lval) : logStatement =
   if (needsMemModelLval lv) then
     let typ_str = d_string "%a" d_type (unrollTypeDeep (typeOfLval lv)) in
-    let val_s, val_a = if pr_val = None then "", []
+    let val_s, val_a = if not pr_val then "", []
       else let s, a = lossless_val_lv ~ptr_for_comp:true lv in "|val: "^ s, a in
     ((memPrefix ^"_%p/*|"^ typ_str ^ val_s ^"|*/"),
      [addr_of_lv lv] @ val_a)
@@ -268,17 +268,16 @@ let rec has_str_lit = function
     | (Var _, _) -> false | (Mem e, _) -> has_str_lit e end
   | _ -> E.s (E.bug "Not expected.")
 
-let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
-  let pv = pr_val <> None in
+let rec d_mem_exp ?(pr_val=false) (arg :exp) : logStatement =
   match arg with
-  | Lval lv -> d_mem_lval ~pr_val:pv lv
+  | Lval lv -> d_mem_lval ~pr_val lv
   | Const(CStr s) -> to_c_string s, []
   | Const(CWStr s) -> E.s (E.unimp "CWStr not supported.")
   | Const _ -> (d_string "%a" d_exp arg, [])
-  | CastE(_, e) -> d_mem_exp ~pr_val:pv e
+  | CastE(_, e) -> d_mem_exp ~pr_val e
   | UnOp(o,e,_) ->
       let opStr = d_string "%a " d_unop o in
-      let (str,arg) = d_mem_exp ~pr_val:pv e in
+      let (str,arg) = d_mem_exp ~pr_val e in
       (opStr ^"("^ str ^")", arg)
 
   | BinOp(op, e1, e2, t) -> begin match op with
@@ -289,16 +288,16 @@ let rec d_mem_exp ?pr_val (arg :exp) : logStatement =
       let sz_ptr = (bitsSizeOf ut) / 8 in
       let e2' = BinOp(Mult, e2, integer sz_ptr, t) in
       let op' = if op = PlusPI then PlusA else MinusA in
-      d_mem_exp ~pr_val:pv (BinOp(op', e1, e2', t))
+      d_mem_exp ~pr_val (BinOp(op', e1, e2', t))
     | MinusPP ->
       let ut = unrollType (typeOf e1) in
       (match ut with TPtr _ -> () | _ -> E.s (E.bug "Pointer type expected."));
       let sz_ptr = (bitsSizeOf ut) / 8 in
       let diff_e = BinOp(Div, BinOp(MinusA, e1, e2, t), integer sz_ptr, t) in
-      d_mem_exp ~pr_val:pv diff_e
-    | _ -> let e1_s, e1_a = d_mem_exp ~pr_val:pv e1 in
+      d_mem_exp ~pr_val diff_e
+    | _ -> let e1_s, e1_a = d_mem_exp ~pr_val e1 in
            let op_s = d_string " %a " d_binop op in
-           let e2_s, e2_a = d_mem_exp ~pr_val:pv e2 in
+           let e2_s, e2_a = d_mem_exp ~pr_val e2 in
            ("("^ e1_s ^")"^ op_s ^"("^ e2_s ^")", e1_a @ e2_a) end
 
   | AddrOf(l)
