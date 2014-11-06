@@ -11,9 +11,12 @@ mv dsn_logfile.txt "$1.linear.c"
 
 ../../postprocess_linear "$1.linear.c" > "$1.postlinear.broken.c"
 
-# Manual editing after postprocess_linear.
-grep -v ':alpha:' "$1.postlinear.broken.c"                                    \
-  | grep -hv '^static struct .* prednames\[13\]'                              \
-  | sed -e 's/, & [EFG]compile/, 12345/g'                                     \
-        -e 's/, & \(EG\|F\)execute/, 54321/g'                                    \
-  > "$1.postlinear.c"
+echo From Chanseok:
+echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+echo !! Automated editing of postlinear.c to make it compilable !!
+echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+grep -v ':alpha:' "$1.postlinear.broken.c"       \
+  | grep -hv '^static struct .* prednames\[13\]' \
+  | sed -e 's/, & [EFG]compile/, 12345/g'        \
+        -e 's/, & \(EG\|F\)execute/, 54321/g'    > "$1.postlinear.c"
