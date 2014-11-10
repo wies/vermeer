@@ -63,7 +63,7 @@ typedef int bool;
 #define VERSION __VERSION__
 #define VERSION_MAJOR __GNUC__
 #define VERSION_MINOR __GNUC_MINOR__
-#define UNDERSCORE_NAME "false"
+#define UNDERSCORE_NAME "true"
 #endif
 
 #ifdef _MSVC

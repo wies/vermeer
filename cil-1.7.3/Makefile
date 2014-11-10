@@ -289,7 +289,7 @@ test:
 
 ########################################################################
 
-INSTALL = /usr/bin/install -c
+INSTALL = /opt/local/bin/ginstall -c
 INSTALL_DATA = ${INSTALL} -m 644
 
 exec_prefix = ${prefix}
