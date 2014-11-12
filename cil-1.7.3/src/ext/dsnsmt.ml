@@ -107,6 +107,10 @@ let typeMap : varTypeMap ref  = ref emptyTypeMap
 let currentIfContext : ifContext ref = ref emptyIfContext
 let flowSensitiveEncoding = true
 
+let get_var_type (var : smtvar) : smtVarType = 
+  try IntMap.find var.vidx !typeMap 
+  with Not_found -> SMTUnknown
+
 (************************* utils *************************)
 let time f x =
   let start = Unix.gettimeofday ()
@@ -161,204 +165,16 @@ let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a =
 let safe_mkdir name mask = 
   if not (Sys.file_exists name) then Unix.mkdir name mask
 
-(****************************** Clauses ******************************)
-(* two possibilities: either maintain a mapping at each point
- * or remap as we go starting from one end *)
+(******************** Print Functions *************************)
+let string_of_var v = v.fullname
 
-
-(* So we need to figure out the type of each variable *)
-let get_var_type (var : smtvar) : smtVarType = 
-  try IntMap.find var.vidx !typeMap 
-  with Not_found -> SMTUnknown
-
-
-(* this function does two things: It determines the type of the 
- * expression.  It also updates the mapping with any newly discovered
- * var -> type mappings
- *)
+(* DSN TODO replace with list_fold *)
 
 let string_of_vartype typ = 
   match typ with
     |SMTInt -> "Int"
     |SMTBool -> "Bool"
     |SMTUnknown -> "Unknown"
-
-let analyze_var_type (topForm : term) =
-  let types_match t1 t2 =
-    match t1,t2 with
-      | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
-      | _ -> false
-  in
-  let second_if_matching t1 t2 = 
-    if types_match t1 t2 then t2 else failwith "mismatching types"
-  in
-  let update_type (var : smtvar) newType = 
-    let currentType = get_var_type var  in
-    match (currentType,newType) with 
-      | (_, SMTUnknown) -> currentType
-      | (SMTUnknown,_) -> 
-	typeMap := TypeMap.add var.vidx newType !typeMap;
-	newType
-      | _ when (currentType = newType)-> 
-	newType
-      | _ -> 
-	failwith ("mismatching types " ^ var.fullname ^ " " ^ 
-		     (string_of_vartype currentType) ^ " " ^
-		     (string_of_vartype newType))
-  in
-  let rec analyze_type_list typ tl  = 
-    match tl with 
-      | [] -> typ
-      | x::xs -> 
-	let updatedTyp = analyze_type typ x in
-	if types_match typ updatedTyp then 
-	  analyze_type_list updatedTyp xs
-	else failwith "types don't match"
-  and analyze_type typ f = 
-    match f with 
-      | SMTLetBinding _ ->  failwith "shouldn't be parsing this!"
-      | SMTLet _ -> failwith "shouldn't be parsing this!"
-      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-      | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
-      | SMTConstant(_) -> second_if_matching typ SMTInt
-      | SMTVar(v) -> update_type v typ
-      | SMTRelation(s,l) -> begin
-	match s with 
-	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
-	    let _  = analyze_type_list SMTInt l in (*first update the children*)
-	    second_if_matching typ SMTBool
-	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
-	    let _ = analyze_type_list SMTBool l in
-	    second_if_matching typ SMTBool
-	  | "ite" -> 
-	    (* we analyze the list twice.  Once to find out what kind it is
-	     * the second time to propegate that result to everything in it 
-	     * The type of an ite is the type of its list
-	     *)
-	    let t1 = analyze_type_list SMTUnknown l in
-	    let t2 = second_if_matching t1 (analyze_type_list t1 l) in
-	    second_if_matching typ t2
-	  | "=" | "distinct" ->
-	    (* we analyze the list twice.  Once to find out what kind it is
-	     * the second time to propegate that result to everything in it 
-	     *)
-	    let t1 = analyze_type_list SMTUnknown l in
-	    let _ = second_if_matching t1 (analyze_type_list t1 l) in
-	    second_if_matching typ SMTBool
-	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
-	    let _ = analyze_type_list SMTInt l in
-	    second_if_matching typ SMTInt
-	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-	    (*all these uninterpreted functions have type (Int Int) -> Int*)
-	    if (List.length l <> 2) then 
-	      failwith (s ^ "has " ^ string_of_int (List.length l) ^ "args");
-	    let _ = analyze_type_list SMTInt l in
-	    second_if_matching typ SMTInt
-	  | "let" ->
-	    failwith "shouldn't need to parse lets!"
-	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
-      end
-  in
-  analyze_type SMTUnknown topForm
-
-(* not tail recursive *)
-let rec get_vars formulaList set = 
-  match formulaList with 
-    | [] -> set
-    | x::xs ->
-      let set = get_vars xs set in
-      match x with
-	| SMTRelation(s,l) -> get_vars l set
-	| SMTLet(b,t) -> get_vars b (get_vars [t] set)
-	| SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ -> set
-	| SMTVar(v) -> VarSet.add v set 
-	| SMTLetBinding(v,e) -> get_vars [e] set
-
-let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
-  match vars with 
-    | [] -> ssaMap
-    | v :: vs -> 
-      let vidx = v.vidx in
-      let ssaMap = 
-	try let vOld = VarSSAMap.find vidx ssaMap in
-	    if vOld.ssaIdx < v.ssaIdx then
-	      VarSSAMap.add vidx v ssaMap
-	    else
-	      ssaMap
-	with Not_found -> VarSSAMap.add vidx v ssaMap
-      in
-      make_ssa_map vs ssaMap
-
-let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
-    : clause = 
-  incr count;
-  let v  = get_vars [f] emptyVarSet in
-  let v = get_vars ic v in
-  let ssa  = make_ssa_map (VarSet.elements v) ssa in
-  let _ = match ct with
-    | ProgramStmt _ ->  ignore (analyze_var_type f)
-    | _ -> () 
-  in
-  let c  = {formula = f; idx = !count; vars = v; ssaIdxs = ssa; typ = ct; ifContext = ic} in
-  c
-
-let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant
-let make_false_clause () =  make_clause SMTFalse emptySSAMap emptyIfContext Constant
-
-let negate_clause cls = 
-  {formula = SMTRelation("not",[cls.formula]);
-   idx = cls.idx;
-   vars = cls.vars;
-   ssaIdxs = cls.ssaIdxs;
-   typ = cls.typ;
-   ifContext = cls.ifContext
-  }
-
-(****************************** Remapping ******************************)
-(* TODO need to decide what to do if there is no mapping i.e. we've gone 
- * before the first def.  Options include 
- * throw an exception
- * let it be havoced i.e. have a blank 0 mapping for all vars
- *)
-
-let get_current_var oldVar ssaMap = 
-  try Some (VarSSAMap.find oldVar.vidx ssaMap)
-  with Not_found -> None
-
-let remap_formula ssaMap form =
-  let rec aux = function 
-    | SMTLetBinding(v,e) -> SMTLetBinding(v,aux e)
-    | SMTLet(b,t) -> 
-      SMTLet(List.map aux b, aux t)
-    | SMTRelation(s,tl) ->
-      SMTRelation(s,List.map aux tl)
-    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ as form -> form
-    | SMTVar(v) ->
-      let newVarOpt = get_current_var v ssaMap in
-      match newVarOpt with
-	| Some (newVar) -> SMTVar(newVar)
-	| None -> raise (CantMap v)
-  in
-  aux form
-    
-
-(* I guess we should remap the if context too.  Does this make sense? 
- * Also, there is a bug where we ended up with two clauses with the same interpolation
- * id.  Make a new clause with a new id
- * possibly just assert that the if context is empty
- *)
-let remap_clause ssaMap cls = 
-  make_clause 
-    (remap_formula ssaMap cls.formula) 
-    ssaMap 
-    (List.map (remap_formula ssaMap) cls.ifContext)
-    cls.typ    
-
-(******************** Print Functions *************************)
-let string_of_var v = v.fullname
-
-(* DSN TODO replace with list_fold *)
 
 let rec string_of_formula f = 
   let rec string_of_args a = 
@@ -372,7 +188,9 @@ let rec string_of_formula f =
     | SMTLetBinding(v,b) -> "(" ^ string_of_formula v ^ " " ^ string_of_formula b ^ ")"
     | SMTRelation(rel, args) -> 
       "(" ^ rel ^ " " ^(string_of_args args) ^ ")"
-    | SMTConstant(i) -> Int64.to_string i
+    | SMTConstant(i) -> 
+      if i < Int64.zero then "(- " ^ Int64.to_string (Int64.abs i) ^ ")"
+      else Int64.to_string i
     | SMTVar(v) -> string_of_var v
     | SMTLetVar(v) -> v
     | SMTFalse -> "false"
@@ -493,6 +311,341 @@ let reduced_linenums x =
 let print_reduced_linenums x = 
   let reduced = reduced_linenums x in
   List.iter (Printf.printf "%s\n") reduced
+
+
+(****************************** Clauses ******************************)
+(* two possibilities: either maintain a mapping at each point
+ * or remap as we go starting from one end *)
+
+
+(* So we need to figure out the type of each variable *)
+
+
+
+(* this function does two things: It determines the type of the 
+ * expression.  It also updates the mapping with any newly discovered
+ * var -> type mappings
+ *)
+
+
+
+let type_check_and_cast_to_bool topForm = 
+  let updatedVar = ref false in
+  let types_match t1 t2 =
+    match t1,t2 with
+      | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
+      | _ -> false
+  in
+  let second_if_matching t1 t2 = 
+    if types_match t1 t2 then t2 else failwith "mismatching types"
+  in
+  let update_type (var : smtvar) newType = 
+    let currentType = get_var_type var  in
+    match (currentType,newType) with 
+      | SMTUnknown,SMTBool | SMTUnknown,SMTInt ->  
+	typeMap := TypeMap.add var.vidx newType !typeMap;
+	updatedVar := true
+      | _ -> ()
+  in
+  let rec analyze_type f = 
+    match f with 
+      | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
+      | SMTLet _ -> failwith "shouldn't be parsing this!"
+      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
+      | SMTFalse | SMTTrue -> SMTBool
+      | SMTConstant(_) -> SMTInt
+      | SMTVar(v) -> get_var_type v
+      | SMTRelation(s,l) -> begin
+	match s with 
+	  | "ite" -> begin
+	    match l with 
+	      |	[i;t;e] -> 
+		if not (types_match (analyze_type i) SMTBool) then failwith "not bool!";
+		analyze_type_lst [t;e] 
+	      | _ -> failwith "bad ite"
+	  end 
+	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
+	    SMTBool
+	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
+	    SMTBool
+	  | "=" | "distinct" ->
+	    SMTBool
+	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
+	    SMTInt
+	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
+	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
+	    SMTInt
+	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
+      end
+  and analyze_type_lst l = List.fold_left 
+    (fun a x -> second_if_matching a (analyze_type x)) SMTUnknown l
+  in
+  let rec assign_vartypes desired f =
+    match f with
+      | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
+      | SMTLet _ -> failwith "shouldn't be parsing this!"
+      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
+      | SMTFalse | SMTTrue | SMTConstant _ -> ()
+      | SMTVar(v) -> update_type v desired
+      | SMTRelation(s,l) -> begin
+	match s with 
+	  | "ite" -> begin
+	    match l with 
+	      |	[i;t;e] -> 
+		assign_vartypes SMTBool i;
+		let tl = analyze_type_lst [t;e] in
+		List.iter (assign_vartypes tl) [t;e]
+	      | _ -> failwith "bad ite"
+	  end 
+	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
+	    List.iter (assign_vartypes SMTInt) l
+	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
+	    List.iter (assign_vartypes SMTBool) l
+	  | "=" | "distinct" ->
+	    let tl = analyze_type_lst l in
+	    List.iter (assign_vartypes tl) l
+	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
+	    List.iter (assign_vartypes SMTInt) l
+	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
+	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
+	    List.iter (assign_vartypes SMTInt) l
+	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
+      end
+  in
+  let make_cast desired f = 
+    let unknown_to_int t = match t with 
+      | SMTUnknown -> SMTInt
+      | _ -> t
+    in
+    (* treating unknown as int *)
+    match unknown_to_int (analyze_type f), unknown_to_int desired  with
+      | SMTBool, SMTInt ->
+	SMTRelation("ite",[f;smtOne;smtZero])
+      | SMTInt, SMTBool -> 
+	SMTRelation("distinct",[f;smtZero])
+      | SMTBool,SMTBool | SMTInt,SMTInt -> f
+      | _ -> failwith "wtf in make cast"
+  in
+  let rec rec_casts desired f = 
+    match f with
+      | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
+      | SMTLet _ -> failwith "shouldn't be parsing this!"
+      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
+      | SMTFalse | SMTTrue | SMTConstant _ -> f
+      | SMTVar(v) -> make_cast desired f
+      | SMTRelation(s,l) -> begin
+	match s with 
+	  | "ite" -> begin
+	    match l with 
+	      |	[i;t;e] -> 
+		let i = rec_casts SMTBool i in
+		let tl = analyze_type_lst [t;e] in
+		let t = rec_casts tl t in
+		let e = rec_casts tl e in
+		make_cast desired (SMTRelation(s,[i;t;e]))
+	      | _ -> failwith "bad ite"
+	  end 
+	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
+	    let l = List.map (rec_casts SMTInt) l in
+	    make_cast desired (SMTRelation(s,l))
+	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
+	    let l = List.map (rec_casts SMTBool) l in
+	    make_cast desired (SMTRelation(s,l))
+	  | "=" | "distinct" ->
+	    let tl = analyze_type_lst l in
+	    let l = List.map (rec_casts tl) l in
+	    make_cast desired (SMTRelation(s,l))
+	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
+	    let l = List.map (rec_casts SMTInt) l in
+	    make_cast desired (SMTRelation(s,l))
+	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
+	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
+	    let l = List.map (rec_casts SMTInt) l in
+	    make_cast desired (SMTRelation(s,l))
+	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
+      end
+  in
+  let rec findfixpt top = 
+    updatedVar := false;
+    assign_vartypes SMTBool top;
+    if !updatedVar then findfixpt top else ()
+  in
+  findfixpt topForm;
+  rec_casts SMTBool topForm
+    
+    
+let analyze_var_type (topForm : term) =
+  let types_match t1 t2 =
+    match t1,t2 with
+      | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
+      | _ -> false
+  in
+  let second_if_matching t1 t2 = 
+    if types_match t1 t2 then t2 else failwith "mismatching types"
+  in
+  let update_type (var : smtvar) newType = 
+    let currentType = get_var_type var  in
+    match (currentType,newType) with 
+      | (_, SMTUnknown) -> currentType
+      | (SMTUnknown,_) -> 
+	typeMap := TypeMap.add var.vidx newType !typeMap;
+	newType
+      | _ when (currentType = newType)-> 
+	newType
+      | _ -> 
+	failwith ("mismatching types " ^ var.fullname ^ " " ^ 
+		     (string_of_vartype currentType) ^ " " ^
+		     (string_of_vartype newType))
+  in
+  let rec analyze_type_list typ tl  = 
+    match tl with 
+      | [] -> typ
+      | x::xs -> 
+	let updatedTyp = analyze_type typ x in
+	if types_match typ updatedTyp then 
+	  analyze_type_list updatedTyp xs
+	else failwith "types don't match"
+  and analyze_type typ f = 
+    match f with 
+      | SMTLetBinding _ ->  failwith "shouldn't be parsing this!"
+      | SMTLet _ -> failwith "shouldn't be parsing this!"
+      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
+      | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
+      | SMTConstant(_) -> second_if_matching typ SMTInt
+      | SMTVar(v) -> update_type v typ
+      | SMTRelation(s,l) -> begin
+	match s with 
+	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
+	    let _  = analyze_type_list SMTInt l in (*first update the children*)
+	    second_if_matching typ SMTBool
+	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
+	    let _ = analyze_type_list SMTBool l in
+	    second_if_matching typ SMTBool
+	  | "ite" -> 
+	    (* we analyze the list twice.  Once to find out what kind it is
+	     * the second time to propegate that result to everything in it 
+	     * The type of an ite is the type of its list
+	     *)
+	    let t1 = analyze_type_list SMTUnknown l in
+	    let t2 = second_if_matching t1 (analyze_type_list t1 l) in
+	    second_if_matching typ t2
+	  | "=" | "distinct" ->
+	    (* we analyze the list twice.  Once to find out what kind it is
+	     * the second time to propegate that result to everything in it 
+	     *)
+	    let t1 = analyze_type_list SMTUnknown l in
+	    let _ = second_if_matching t1 (analyze_type_list t1 l) in
+	    second_if_matching typ SMTBool
+	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
+	    let _ = analyze_type_list SMTInt l in
+	    second_if_matching typ SMTInt
+	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
+	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
+	    (*all these uninterpreted functions have type (Int Int) -> Int*)
+	    if (List.length l <> 2) then 
+	      failwith (s ^ "has " ^ string_of_int (List.length l) ^ "args");
+	    let _ = analyze_type_list SMTInt l in
+	    second_if_matching typ SMTInt
+	  | "let" ->
+	    failwith "shouldn't need to parse lets!"
+	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
+      end
+  in
+  analyze_type SMTUnknown topForm
+
+(* not tail recursive *)
+let rec get_vars formulaList set = 
+  match formulaList with 
+    | [] -> set
+    | x::xs ->
+      let set = get_vars xs set in
+      match x with
+	| SMTRelation(s,l) -> get_vars l set
+	| SMTLet(b,t) -> get_vars b (get_vars [t] set)
+	| SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ -> set
+	| SMTVar(v) -> VarSet.add v set 
+	| SMTLetBinding(v,e) -> get_vars [e] set
+
+let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
+  match vars with 
+    | [] -> ssaMap
+    | v :: vs -> 
+      let vidx = v.vidx in
+      let ssaMap = 
+	try let vOld = VarSSAMap.find vidx ssaMap in
+	    if vOld.ssaIdx < v.ssaIdx then
+	      VarSSAMap.add vidx v ssaMap
+	    else
+	      ssaMap
+	with Not_found -> VarSSAMap.add vidx v ssaMap
+      in
+      make_ssa_map vs ssaMap
+
+let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
+    : clause = 
+  incr count;
+  let v  = get_vars [f] emptyVarSet in
+  let v = get_vars ic v in
+  let ssa  = make_ssa_map (VarSet.elements v) ssa in
+  let f = match ct with
+    | ProgramStmt _ ->  type_check_and_cast_to_bool f
+    | _ -> f
+  in
+  let c  = {formula = f; idx = !count; vars = v; ssaIdxs = ssa; typ = ct; ifContext = ic} in
+  c
+
+let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant
+let make_false_clause () =  make_clause SMTFalse emptySSAMap emptyIfContext Constant
+
+let negate_clause cls = 
+  {formula = SMTRelation("not",[cls.formula]);
+   idx = cls.idx;
+   vars = cls.vars;
+   ssaIdxs = cls.ssaIdxs;
+   typ = cls.typ;
+   ifContext = cls.ifContext
+  }
+
+(****************************** Remapping ******************************)
+(* TODO need to decide what to do if there is no mapping i.e. we've gone 
+ * before the first def.  Options include 
+ * throw an exception
+ * let it be havoced i.e. have a blank 0 mapping for all vars
+ *)
+
+let get_current_var oldVar ssaMap = 
+  try Some (VarSSAMap.find oldVar.vidx ssaMap)
+  with Not_found -> None
+
+let remap_formula ssaMap form =
+  let rec aux = function 
+    | SMTLetBinding(v,e) -> SMTLetBinding(v,aux e)
+    | SMTLet(b,t) -> 
+      SMTLet(List.map aux b, aux t)
+    | SMTRelation(s,tl) ->
+      SMTRelation(s,List.map aux tl)
+    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ as form -> form
+    | SMTVar(v) ->
+      let newVarOpt = get_current_var v ssaMap in
+      match newVarOpt with
+	| Some (newVar) -> SMTVar(newVar)
+	| None -> raise (CantMap v)
+  in
+  aux form
+    
+
+(* I guess we should remap the if context too.  Does this make sense? 
+ * Also, there is a bug where we ended up with two clauses with the same interpolation
+ * id.  Make a new clause with a new id
+ * possibly just assert that the if context is empty
+ *)
+let remap_clause ssaMap cls = 
+  make_clause 
+    (remap_formula ssaMap cls.formula) 
+    ssaMap 
+    (List.map (remap_formula ssaMap) cls.ifContext)
+    cls.typ    
+
 
 
 
@@ -896,8 +1049,8 @@ let start_with_solver session_name solver do_log =
       let out_read, out_write = Unix.pipe () in
       let pid = Unix.create_process cmnd aargs out_read in_write in_write in 
       { in_chan = Unix.in_channel_of_descr in_read;
-        out_chan = Unix.out_channel_of_descr out_write;
-        pid = pid;
+	out_chan = Unix.out_channel_of_descr out_write;
+	pid = pid;
 	log_out = log_out;
       } in
   List.iter (set_option state) solver.info.smt_options;

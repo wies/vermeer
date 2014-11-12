@@ -128,10 +128,10 @@ let dsn (f: file) : unit =
   in
   Stats.time "dsn" (iterGlobals f) doGlobal;
   let assocList = Hashtbl.fold (fun k v a -> (k,v) :: a) reverseMap [] in
-  let sortedList = List.sort (fun (k1,_) (k2,_) -> compare k1 k2) assocList in
-  (* should this be reversed *)
+  (* sort in reversed order since we're putting it on a list back to front *)
+  let sortedList = List.sort (fun (k1,_) (k2,_) -> compare k2 k1) assocList in
   let newGlobals = List.fold_left
-      (fun a (k,v) -> GText(Printf.sprintf "// %d -> %s\n" k v) :: a) f.globals sortedList in
+      (fun a (k,v) -> GText(Printf.sprintf "// %d -> %s" k v) :: a) f.globals sortedList in
   f.globals <- newGlobals
 					 
 
