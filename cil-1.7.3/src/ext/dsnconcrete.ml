@@ -590,7 +590,7 @@ let dsnconcrete (f: file) : unit =
       let str = "long long "^ var ^";\n" in
       globalDeclFn.sbody <-
         mkBlock (compactStmts [mkStmt (Block globalDeclFn.sbody);
-                               mkStmtOneInstr (mkPrintNoLoc str [])]) in
+                               mkStmtOneInstr (mkPrint str [])]) in
 
     match g with
     | GVarDecl(vi, _) | GVar(vi, _, _) when isFunc vi ->
