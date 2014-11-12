@@ -136,7 +136,7 @@ let split_off_n_reversed n l =
     if n <= 0 then Some(leftAcc,l)
     else 
       match l with 
-	|	[] -> None
+	| [] -> None
 	| x::xs -> helper (n-1) xs (x::leftAcc) 
   in
   helper n l [] 
@@ -146,6 +146,7 @@ let rec last = function
   | [x] -> Some x
   | _ :: t -> last t;;
 
+(* could be made tailrec *)
 let rec compress = function
   | a :: (b :: _ as t) -> if a = b then compress t else a :: compress t
   | smaller -> smaller
@@ -205,7 +206,7 @@ let string_of_cprogram c =
   match c.typ with 
     | ProgramStmt i -> d_string "%a" d_instr i
     | Interpolant | Constant -> "//" ^ string_of_formula c.formula
-    | EqTest -> raise (Failure "shouldn't have equality tests in the final program")
+    | EqTest -> failwith "shouldn't have equality tests in the final program"
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
 let string_of_formlist fl = List.fold_left (fun a e -> a ^ string_of_formula e ^ "\n") "" fl
@@ -580,7 +581,7 @@ let make_all_interpolants program =
 let make_interpolate_between before after = 
   let string_of_partition part = 
     match part with 
-      | [] -> raise (Failure "should be a partition")
+      | [] -> failwith "should be a partition"
       | [x] -> assertion_name x
       | _ -> 
 	let names = List.fold_left 
@@ -703,8 +704,7 @@ let rec extract_term (str)  : term list =
   let extract_first_sexp str = 
     let str = trim str in
     let len = length str in
-    if len = 0 then
-      raise (Failure "nothing here") 
+    if len = 0 then failwith "nothing here"
     else if (str.[0] = '(') then
       let endIdx = matchParensRec str 1 1 in 
       let lhs = sub str 0 (endIdx +1) in 
@@ -770,7 +770,7 @@ let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct :
     : clause = 
   match extract_term sexp with 
     | [t] -> make_clause t ssaBefore ic ct
-    | _ -> raise (Failure ("should only get one term from the sexp: " ^ sexp))
+    | _ -> failwith ("should only get one term from the sexp: " ^ sexp)
 
 let begins_with str header =
   let ls = length str in
