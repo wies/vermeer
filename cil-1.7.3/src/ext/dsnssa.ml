@@ -11,7 +11,8 @@ module H = Hashtbl
 
 let indexMap = Hashtbl.create 1000
 let reverseMap = Hashtbl.create 1000
-let currentFunc = ref None
+let mainFunc = ref None
+let initInstrs = ref []
 let varIdCtr = ref 0
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
@@ -20,9 +21,9 @@ let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
 
 let find_safe h k = try Some (Hashtbl.find h k) with Not_found -> None
 let find_var k = find_safe indexMap k.vname  
-let getFd () = match !currentFunc with
+let getFd () = match !mainFunc with
 | Some fd -> fd
-| None -> raise (Failure "no fundec at this point")
+| None -> failwith "no fundec at this point"
 
 let new_ssa_var v = 
   let varId,idx = 
@@ -55,20 +56,24 @@ let rec update_rhs_exp e =
   | CastE(t,e) -> CastE(t,update_rhs_exp e)
   | AddrOf(l) -> AddrOf(update_rhs_lval l)
   | StartOf(l) -> StartOf(update_rhs_lval l)
-  | _ -> raise (Failure "unexpected exp type")
+  | _ -> failwith "unexpected exp type"
 and update_rhs_lval  = function  
   | Var v, NoOffset -> Var (get_ssa_var v), NoOffset
-  | _ -> raise (Failure "shouldn't be any mem after concrete transformation")
+  | _ -> failwith "shouldn't be any mem after concrete transformation"
 
 let rec update_lhs_lval = function 
   | Var v, NoOffset -> Var (new_ssa_var v), NoOffset
-  | _ -> raise (Failure "LHS shouldn't be any mem or offsets after concrete transformation")
+  | _ -> failwith "LHS shouldn't be any mem or offsets after concrete transformation"
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
       
   method vfunc f = 
-    ChangeDoChildrenPost (f,Rmciltmps.eliminate_temps)
+    let doPost x = 
+      x.sbody.bstmts <- compactStmts(mkStmt (Instr(!initInstrs))::x.sbody.bstmts);
+      Rmciltmps.eliminate_temps x
+    in
+    ChangeDoChildrenPost (f,doPost)
 
   method vinst i = begin
     match i with
@@ -80,9 +85,9 @@ class dsnVisitorClass = object
     | Call(lo,e,al,l) ->
 	let fname = d_string "%a" d_exp e in
 	if fname <> "assert" then 
-	  raise (Failure "shouldn't have non-assert calls in a concrete trace");
+	  failwith "shouldn't have non-assert calls in a concrete trace";
 	ChangeTo [Call(lo,e,List.map update_rhs_exp al,l)]
-    | _ -> raise (Failure "was not expecting call or asm at this point")
+    | _ -> failwith "was not expecting call or asm at this point"
   end
   method vstmt (s : stmt) = begin
     let replace_skind sk : stmt = 
@@ -100,7 +105,7 @@ class dsnVisitorClass = object
     | Return _ | Instr _ | Block _ -> DoChildren
     | Goto _ | Break _ | Continue _ | TryFinally _ | TryExcept _ 
     | Switch _ | Loop _ | ComputedGoto _
-      -> raise (Failure "did not expect to see these in the trace at this point")
+      -> failwith "did not expect to see these in the trace at this point"
   end
 end
 
@@ -118,15 +123,34 @@ end
 let dsnVisitor = new dsnVisitorClass
 
 let dsn (f: file) : unit =  
-  let doGlobal = function
+  let findMain = function
     | GFun(fdec,loc) -> 
-	if (fdec.svar.vname <> "main") then 
-	  raise (Failure "main should be the only function");
-	currentFunc := Some fdec;
-	ignore (visitCilFunction dsnVisitor fdec)
+      if (fdec.svar.vname <> "main") then failwith "main should be the only function";
+      mainFunc := Some fdec;
     | _ -> ()
+  in 
+  iterGlobals f findMain;
+  let globalVarToLocal a g = match g with
+    | GVar (v,init,loc) -> 
+      let rhs = match init.init with
+	| None -> zero
+	| Some(SingleInit(e)) -> update_rhs_exp e
+	| Some(CompoundInit _) -> failwith "not handeling compound init"
+      in
+      let lhs = Var (new_ssa_var v), NoOffset in
+      Set(lhs,rhs,loc)::a    
+    | _ -> a
   in
-  Stats.time "dsn" (iterGlobals f) doGlobal;
+  initInstrs := List.rev (foldGlobals f globalVarToLocal []);
+  let _ = match !mainFunc with
+    | Some (main) ->  ignore (visitCilFunction dsnVisitor main)
+    | None -> failwith "could not find main!"
+  in
+  f.globals <- List.filter 
+      (function
+	| GFun _ | GText _ -> true 
+	| _ -> false
+      ) f.globals;
   let assocList = Hashtbl.fold (fun k v a -> (k,v) :: a) reverseMap [] in
   (* sort in reversed order since we're putting it on a list back to front *)
   let sortedList = List.sort (fun (k1,_) (k2,_) -> compare k2 k1) assocList in

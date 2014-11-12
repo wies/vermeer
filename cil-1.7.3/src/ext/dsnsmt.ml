@@ -3,6 +3,7 @@
  * handle conditions from if statements - DONE?
  * handle operators that differ between c and smt eg && vs and
  * remap interpolants when returning them
+ * fix the way that I cast if context
  *)
 
 open Cil
@@ -472,86 +473,6 @@ let type_check_and_cast_to_bool topForm =
   in
   findfixpt topForm;
   rec_casts SMTBool topForm
-    
-    
-let analyze_var_type (topForm : term) =
-  let types_match t1 t2 =
-    match t1,t2 with
-      | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
-      | _ -> false
-  in
-  let second_if_matching t1 t2 = 
-    if types_match t1 t2 then t2 else failwith "mismatching types"
-  in
-  let update_type (var : smtvar) newType = 
-    let currentType = get_var_type var  in
-    match (currentType,newType) with 
-      | (_, SMTUnknown) -> currentType
-      | (SMTUnknown,_) -> 
-	typeMap := TypeMap.add var.vidx newType !typeMap;
-	newType
-      | _ when (currentType = newType)-> 
-	newType
-      | _ -> 
-	failwith ("mismatching types " ^ var.fullname ^ " " ^ 
-		     (string_of_vartype currentType) ^ " " ^
-		     (string_of_vartype newType))
-  in
-  let rec analyze_type_list typ tl  = 
-    match tl with 
-      | [] -> typ
-      | x::xs -> 
-	let updatedTyp = analyze_type typ x in
-	if types_match typ updatedTyp then 
-	  analyze_type_list updatedTyp xs
-	else failwith "types don't match"
-  and analyze_type typ f = 
-    match f with 
-      | SMTLetBinding _ ->  failwith "shouldn't be parsing this!"
-      | SMTLet _ -> failwith "shouldn't be parsing this!"
-      | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-      | SMTFalse | SMTTrue -> second_if_matching typ SMTBool
-      | SMTConstant(_) -> second_if_matching typ SMTInt
-      | SMTVar(v) -> update_type v typ
-      | SMTRelation(s,l) -> begin
-	match s with 
-	  | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
-	    let _  = analyze_type_list SMTInt l in (*first update the children*)
-	    second_if_matching typ SMTBool
-	  | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
-	    let _ = analyze_type_list SMTBool l in
-	    second_if_matching typ SMTBool
-	  | "ite" -> 
-	    (* we analyze the list twice.  Once to find out what kind it is
-	     * the second time to propegate that result to everything in it 
-	     * The type of an ite is the type of its list
-	     *)
-	    let t1 = analyze_type_list SMTUnknown l in
-	    let t2 = second_if_matching t1 (analyze_type_list t1 l) in
-	    second_if_matching typ t2
-	  | "=" | "distinct" ->
-	    (* we analyze the list twice.  Once to find out what kind it is
-	     * the second time to propegate that result to everything in it 
-	     *)
-	    let t1 = analyze_type_list SMTUnknown l in
-	    let _ = second_if_matching t1 (analyze_type_list t1 l) in
-	    second_if_matching typ SMTBool
-	  | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
-	    let _ = analyze_type_list SMTInt l in
-	    second_if_matching typ SMTInt
-	  | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-	    (*all these uninterpreted functions have type (Int Int) -> Int*)
-	    if (List.length l <> 2) then 
-	      failwith (s ^ "has " ^ string_of_int (List.length l) ^ "args");
-	    let _ = analyze_type_list SMTInt l in
-	    second_if_matching typ SMTInt
-	  | "let" ->
-	    failwith "shouldn't need to parse lets!"
-	  | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
-      end
-  in
-  analyze_type SMTUnknown topForm
 
 (* not tail recursive *)
 let rec get_vars formulaList set = 
@@ -928,20 +849,6 @@ let get_ssa_before () =
     | [] -> emptySSAMap
     | x::xs -> x.ssaIdxs
 
-let make_bool f = 
-  match analyze_var_type f with
-    | SMTBool -> f
-    | SMTInt -> SMTRelation("distinct",[f;smtZero])
-    | SMTUnknown -> failwith ("assertion is neither bool not int: " ^ 
-				 (debug_formula f) ^
-				 (debug_typemap()))
-let make_int f = 
-  match analyze_var_type f with
-    | SMTBool -> SMTRelation("ite",[f;smtOne;smtZero])
-    | SMTInt -> f
-    | _ ->  failwith ("assertion is neither bool not int: " ^ 
-			 (debug_formula f) ^
-			 (debug_typemap()))
 
 (****************************** Interpolation ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
@@ -1253,12 +1160,11 @@ class dsnsmtVisitorClass = object
 	DoChildren
       | Call(lo,e,al,l) ->
 	let fname = d_string "%a" d_exp e in
-	if fname <> "assert" then raise (Failure "shouldn't have calls in a concrete trace");
+	if fname <> "assert" then failwith "shouldn't have calls in a concrete trace";
 	let form = match al with 
 	  | [x] -> formula_from_exp x
-	  | _ ->  raise (Failure "assert should have exactly one element") 
+	  | _ -> failwith "assert should have exactly one element"
 	in
-	let form = make_bool form in 
 	let ssaBefore = get_ssa_before() in
 	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) in
 	revProgram := cls :: !revProgram;
@@ -1268,8 +1174,8 @@ class dsnsmtVisitorClass = object
   method vstmt (s : stmt) = begin
     match s.skind with
       | If(i,t,e,l) ->
-	if e.bstmts <> [] then raise (Failure "else block not handeled");
-	let cond = make_bool (formula_from_exp i) in
+	if e.bstmts <> [] then failwith "else block not handeled";
+	let cond = type_check_and_cast_to_bool (formula_from_exp i) in
 	currentIfContext := cond :: !currentIfContext;
 	ChangeDoChildrenPost (s,
 			      fun x -> 
