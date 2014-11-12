@@ -305,10 +305,15 @@ let print_trace_linenums x = List.iter (fun c -> Printf.printf "%s\n" (print_lin
 let print_annotatedtrace_linenums x = List.iter (fun (_,c) -> Printf.printf "%s\n" (print_linenum c)) x;
   flush stdout
 
+(* could make tailrec by using revmap *)
 let reduced_linenums x = 
   let nums = List.map print_linenum x in
   let nums = List.filter (fun x -> x <> "") nums in
   compress nums
+
+let reduced_linenums_at x = 
+  let interpolants,trace = List.split x in
+  reduced_linenums trace
 
 let print_reduced_linenums x = 
   let reduced = reduced_linenums x in
@@ -694,7 +699,7 @@ let rec strip_parens str =
   else 
     str
 
-let rec extract_unsat_core (str) : string list = 
+let extract_unsat_core (str) : string list = 
   let str = strip_parens str in
   Str.split (Str.regexp "[ \t]+") str
 
@@ -784,7 +789,7 @@ let begins_with str header =
 
 
 (*********************************C to smt converstion *************************************)
-let rec formula_from_lval l = 
+let formula_from_lval l = 
   match l with 
     | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
     | _ -> failwith "should only have lvals of type var"
@@ -1116,7 +1121,7 @@ let reduce_trace_expensive propAlgorithm trace =
   let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
     match unreducedSuffix with
       | [] -> reducedPrefixRev
-      | [x] -> x:: reducedPrefixRev
+      | [x] -> (currentState.formula,x)::reducedPrefixRev
       | x :: xs ->
 	let clist = currentState :: unreducedSuffix in
 	let before = [currentState;x] in
@@ -1124,12 +1129,13 @@ let reduce_trace_expensive propAlgorithm trace =
 	let partition = make_interpolate_between before after in
 	match do_smt clist (GetInterpolation partition)  with 
 	  | Unsat (GotInterpolant [interpolantTerm]) -> 
-	    let interpolant = make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
+	    let interpolant = 
+	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
+	    (*find_farthest_point_interpolant_valid *)
 	    let newCurrentState, unreducedSuffix = 
-	      (*find_farthest_point_interpolant_valid *)
 	      propAlgorithm currentState interpolant unreducedSuffix in
 	    reduce_trace_imp 
-	      (x::currentState::reducedPrefixRev)
+	      ((currentState.formula,x)::reducedPrefixRev)
 	      newCurrentState
 	      unreducedSuffix
 	  | Sat -> failwith "was sat"
@@ -1142,7 +1148,7 @@ let unsat_then_expensive propAlgorithm trace =
   let cheap = reduce_trace_unsatcore trace in
   Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap));
   let expensive = reduce_trace_expensive propAlgorithm cheap in
-  Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums expensive));
+  Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive));
   expensive
     
 class dsnsmtVisitorClass = object
@@ -1208,7 +1214,7 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in
-  (*print_clauses reduced;*)
+  print_annotated_trace reduced;
   
 
   (* printf "****orig****\n"; *)
@@ -1234,12 +1240,6 @@ let dsnsmt (f: file) : unit =
   (* print_annotated_trace at; *)
   (* print_annotatedtrace_linenums at; *)
   
-
-
-  (* let s = "((let ((.cse0 (+ (\* 8 x_1403_0) x_1380_0))) (and (<= .cse0 0) (<= 0 .cse0))))" in *)
-  (* let t = extract_term s false in *)
-  (* print_endline s; *)
-  (* List.iter (fun x -> print_endline (string_of_term x)) t; *)
   exit_solver singleSolver
 
     
