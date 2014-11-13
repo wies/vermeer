@@ -36,7 +36,7 @@ and mark_used exp =
   | Question _ | AddrOfLabel _ -> E.s (E.bug "Exp %a Not expected." d_exp exp)
 
 (* Mark variables used if they have ever appeared on the RHS of an asgn,
-   or in a condition of an if stmt. *)
+   or in a condition of an if-stmt. *)
 class dsnMarkVisitorClass = object
   inherit nopCilVisitor
 
@@ -61,7 +61,7 @@ class dsnMarkVisitorClass = object
         | Instr is ->
           let rev_is = List.rev is in
           if not (mark_last_asgn_is rev_is) then mark_last_asgn stmts
-        | If _ -> E.s (E.bug "I don't think it can reach an if stmt.")
+        | If _ -> E.s (E.bug "I don't think it can reach an if-stmt.")
         | Block _ -> E.s (E.bug "I don't think it can reach a block.")
         | Goto _ | ComputedGoto _ | Break _ | Continue _ | Switch _
         | Loop _ | TryFinally _ | TryExcept _ ->
@@ -106,13 +106,13 @@ let is_used = function
   | GVarDecl(vi, _) | GVar(vi, _, _) -> is_used_vi vi
   | _ -> true
 
-(* Remove local variables of main. Remove empty if stmts too. *)
+(* Remove local variables of main. Remove empty if-stmts too. *)
 let rm_locals_empty_ifs = function
   | GFun(fdec, _) ->
     (* First, local variables. *)
     fdec.slocals <- List.filter is_used_vi fdec.slocals;
 
-    (* Next, empty if stmts. *)
+    (* Next, empty if-stmts. *)
     let old_sz = List.length fdec.sbody.bstmts in
     let rec empty_stmts = function
       | [] -> true
@@ -124,6 +124,7 @@ let rm_locals_empty_ifs = function
       | If(_, then_b, _, _) when empty_stmts then_b.bstmts -> false
       | _ -> true in
     fdec.sbody.bstmts <- List.filter non_empty_if fdec.sbody.bstmts;
+
     if old_sz <> List.length fdec.sbody.bstmts then begin
       removed := true;
       fdec.sbody.bstmts <- compactStmts fdec.sbody.bstmts
