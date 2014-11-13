@@ -124,7 +124,10 @@ let rm_locals_empty_ifs = function
       | If(_, then_b, _, _) when empty_stmts then_b.bstmts -> false
       | _ -> true in
     fdec.sbody.bstmts <- List.filter non_empty_if fdec.sbody.bstmts;
-    if old_sz <> List.length fdec.sbody.bstmts then removed := true
+    if old_sz <> List.length fdec.sbody.bstmts then begin
+      removed := true;
+      fdec.sbody.bstmts <- compactStmts fdec.sbody.bstmts
+    end
 
   | _ -> ()
 
