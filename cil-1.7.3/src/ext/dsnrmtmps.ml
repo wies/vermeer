@@ -6,11 +6,10 @@ open Trace
 module E = Errormsg
 module H = Hashtbl
 
-module IntOrder =
-  struct
-    type t = int
-    let compare = Pervasives.compare
-  end
+module IntOrder = struct
+  type t = int
+  let compare = Pervasives.compare
+end
 
 module IntSet = Set.Make (IntOrder)
 
@@ -135,12 +134,13 @@ let rm_locals_empty_ifs = function
   | _ -> ()
 
 let dsn (f: file) : unit =
+  let dsnMarkVisitor = new dsnMarkVisitorClass in
+  let dsnAsgnRmVisitor = new dsnAsgnRmVisitorClass in
+  let mark g = ignore (visitCilGlobal dsnMarkVisitor g) in
+  let rm_asgns g = ignore (visitCilGlobal dsnAsgnRmVisitor g) in
+
   let rec one_cycle f i =
     E.log "[dsnrmtmps] Cycle #%d:\n" i;
-    let dsnMarkVisitor = new dsnMarkVisitorClass in
-    let dsnAsgnRmVisitor = new dsnAsgnRmVisitorClass in
-    let mark g = ignore (visitCilGlobal dsnMarkVisitor g) in
-    let rm_asgns g = ignore (visitCilGlobal dsnAsgnRmVisitor g) in
     Stats.time "dsn" iterGlobals f mark;
     Stats.time "dsn" iterGlobals f rm_asgns;
     Stats.time "dsn" iterGlobals f rm_locals_empty_ifs;
