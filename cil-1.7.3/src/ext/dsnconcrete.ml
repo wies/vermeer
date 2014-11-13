@@ -161,7 +161,7 @@ let rec lossless_val ?(ptr_for_comp=false) (e: exp) =
 
 let lossless_val_lv ?(ptr_for_comp=false) (lv: lval) =
   lossless_val ~ptr_for_comp (Lval lv)
-  
+
 (*
 let isGlobalVarLval (l : lval) =
   let (host,off) = l in
@@ -604,7 +604,7 @@ let dsnconcrete (f: file) : unit =
     | GVar(vi, ii, _) -> begin match unrollType vi.vtype with
       (* For global arrays, structs and unions, force to assume that the address
          of the variable has been taken so that any elements or fields are
-         accessed indirectly. We can then simply remove their declarations. 
+         accessed indirectly. We can then simply remove their declarations.
          Initialization part will be covered by 'postprocess_concrete.' *)
       | TArray _ | TComp _ -> vi.vaddrof <- true
       | _ -> begin match ii.init with

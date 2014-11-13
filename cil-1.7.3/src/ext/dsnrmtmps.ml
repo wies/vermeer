@@ -6,15 +6,15 @@ open Trace
 module E = Errormsg
 module H = Hashtbl
 
-module IntOrder =  
-  struct 
-    type t = int 
-    let compare i1 i2 =  
-      if i1 = i2 then 0 else 
-      if i1 < i2 then -1 else 1 
-  end 
-   
-module IntSet = Set.Make (IntOrder) 
+module IntOrder =
+  struct
+    type t = int
+    let compare i1 i2 =
+      if i1 = i2 then 0 else
+      if i1 < i2 then -1 else 1
+  end
+
+module IntSet = Set.Make (IntOrder)
 
 let used = ref IntSet.empty
 
@@ -89,7 +89,7 @@ end
 (* With the used variable information, remove irrelevant asgns. *)
 class dsnAsgnRmVisitorClass = object
   inherit nopCilVisitor
-      
+
   method vinst i = begin match i with
     | Set((Var vi, _), _, _) ->
       if IntSet.mem vi.vid !used then DoChildren else ChangeTo []
@@ -110,7 +110,7 @@ let rm_locals = function
   | GFun(fdec, _) -> fdec.slocals <- List.filter is_used_vi fdec.slocals
   | _ -> ()
 
-let dsn (f: file) : unit =  
+let dsn (f: file) : unit =
   let dsnMarkVisitor = new dsnMarkVisitorClass in
   let dsnAsgnRmVisitor = new dsnAsgnRmVisitorClass in
   let mark g = ignore (visitCilGlobal dsnMarkVisitor g) in
@@ -120,23 +120,23 @@ let dsn (f: file) : unit =
   Stats.time "dsn" iterGlobals f rm_locals;
   f.globals <- List.filter is_used f.globals
 
-let feature : featureDescr = 
+let feature : featureDescr =
   { fd_name = "dsnrmtmps";
     fd_enabled = Cilutil.dsnRmTmps;
     fd_description = "Remove temporary variables.";
     fd_extraopt = [];
     fd_doit = dsn;
     fd_post_check = true;
-  } 
+  }
 
 (*
    *
-   * Copyright (c) 2001-2002, 
+   * Copyright (c) 2001-2002,
    *  George C. Necula    <necula@cs.berkeley.edu>
    *  Scott McPeak        <smcpeak@cs.berkeley.edu>
    *  Wes Weimer          <weimer@cs.berkeley.edu>
    * All rights reserved.
-   * 
+   *
    * Redistribution and use in source and binary forms, with or without
    * modification, are permitted provided that the following conditions are
    * met:
