@@ -9,14 +9,13 @@ module H = Hashtbl
 module IntOrder =
   struct
     type t = int
-    let compare i1 i2 =
-      if i1 = i2 then 0 else
-      if i1 < i2 then -1 else 1
+    let compare = Pervasives.compare
   end
 
 module IntSet = Set.Make (IntOrder)
 
 let used = ref IntSet.empty
+let removed = ref false
 
 let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
   let f (d: doc) : string = Pretty.sprint 800 d in
@@ -48,8 +47,10 @@ class dsnMarkVisitorClass = object
     let rec mark_last_asgn_is = function
       | [] -> false
       | ((Set(lv, _, _)) as i)::_ ->
-        E.log "\n[dsnrmtmps] Marking \"%a\" in\n\n%a\n\n" d_lval lv d_instr i;
+        E.log "[dsnrmtmps] Marking \"%a\" in\n%a\n\n" d_lval lv d_instr i;
         mark_used_lv lv; true
+        (* The only call possible here is 'assert', whose exp will be marked
+           in 'vinst', so ignore it. *)
       | (Call _)::is -> mark_last_asgn_is is
       | (Asm _)::_ -> E.s (E.bug "Asm not expected.") in
     (* Same functionality, but with a stmt list. *)
@@ -60,8 +61,8 @@ class dsnMarkVisitorClass = object
         | Instr is ->
           let rev_is = List.rev is in
           if not (mark_last_asgn_is rev_is) then mark_last_asgn stmts
-        | If _ -> E.s (E.unimp "If stmt not implemented.")
-        | Block _ -> E.s (E.bug "Block not expected.")
+        | If _ -> E.s (E.bug "I don't think it can reach an if stmt.")
+        | Block _ -> E.s (E.bug "I don't think it can reach a block.")
         | Goto _ | ComputedGoto _ | Break _ | Continue _ | Switch _
         | Loop _ | TryFinally _ | TryExcept _ ->
           E.s (E.bug "Unexpected stmtkind.")
@@ -90,13 +91,13 @@ end
 class dsnAsgnRmVisitorClass = object
   inherit nopCilVisitor
 
-  method vinst i = begin match i with
+  method vinst = function
     | Set((Var vi, _), _, _) ->
-      if IntSet.mem vi.vid !used then DoChildren else ChangeTo []
+      if IntSet.mem vi.vid !used then DoChildren
+                                 else (removed := true; ChangeTo [])
     | Set _ -> E.s (E.bug "LHS lval should always be a variable.")
     | Call(_, _, _, _) -> DoChildren
     | _ -> E.s (E.bug "was not expecting call or asm at this point")
-  end
 end
 
 let is_used_vi vi = IntSet.mem vi.vid !used
@@ -105,20 +106,45 @@ let is_used = function
   | GVarDecl(vi, _) | GVar(vi, _, _) -> is_used_vi vi
   | _ -> true
 
-(* Remove local variables of main. *)
-let rm_locals = function
-  | GFun(fdec, _) -> fdec.slocals <- List.filter is_used_vi fdec.slocals
+(* Remove local variables of main. Remove empty if stmts too. *)
+let rm_locals_empty_ifs = function
+  | GFun(fdec, _) ->
+    (* First, local variables. *)
+    fdec.slocals <- List.filter is_used_vi fdec.slocals;
+
+    (* Next, empty if stmts. *)
+    let old_sz = List.length fdec.sbody.bstmts in
+    let rec empty_stmts = function
+      | [] -> true
+      | s::stmts -> match s.skind with
+        | Instr is -> is = []
+        | Block b | If(_, b, _, _) -> empty_stmts b.bstmts
+        | _ -> E.s (E.bug "Not expected.") in
+    let non_empty_if s = match s.skind with
+      | If(_, then_b, _, _) when empty_stmts then_b.bstmts -> false
+      | _ -> true in
+    fdec.sbody.bstmts <- List.filter non_empty_if fdec.sbody.bstmts;
+    if old_sz <> List.length fdec.sbody.bstmts then removed := true
+
   | _ -> ()
 
 let dsn (f: file) : unit =
-  let dsnMarkVisitor = new dsnMarkVisitorClass in
-  let dsnAsgnRmVisitor = new dsnAsgnRmVisitorClass in
-  let mark g = ignore (visitCilGlobal dsnMarkVisitor g) in
-  let rm_asgns g = ignore (visitCilGlobal dsnAsgnRmVisitor g) in
-  Stats.time "dsn" iterGlobals f mark;
-  Stats.time "dsn" iterGlobals f rm_asgns;
-  Stats.time "dsn" iterGlobals f rm_locals;
-  f.globals <- List.filter is_used f.globals
+  let rec one_cycle f i =
+    E.log "[dsnrmtmps] Cycle #%d:\n" i;
+    let dsnMarkVisitor = new dsnMarkVisitorClass in
+    let dsnAsgnRmVisitor = new dsnAsgnRmVisitorClass in
+    let mark g = ignore (visitCilGlobal dsnMarkVisitor g) in
+    let rm_asgns g = ignore (visitCilGlobal dsnAsgnRmVisitor g) in
+    Stats.time "dsn" iterGlobals f mark;
+    Stats.time "dsn" iterGlobals f rm_asgns;
+    Stats.time "dsn" iterGlobals f rm_locals_empty_ifs;
+    f.globals <- List.filter is_used f.globals;
+    if !removed then begin (* Repeating until a fixpoint. *)
+      removed := false;
+      used := IntSet.empty;
+      one_cycle f (i+1)
+    end in
+  one_cycle f 1
 
 let feature : featureDescr =
   { fd_name = "dsnrmtmps";
