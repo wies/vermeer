@@ -71,7 +71,8 @@ class dsnVisitorClass = object
   method vfunc f = 
     let doPost x = 
       x.sbody.bstmts <- compactStmts(mkStmt (Instr(!initInstrs))::x.sbody.bstmts);
-      Rmciltmps.eliminate_temps x
+      (*Rmciltmps.eliminate_temps x*)
+      x
     in
     ChangeDoChildrenPost (f,doPost)
 

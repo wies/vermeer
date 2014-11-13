@@ -42,6 +42,7 @@ let strictChecking= ref false   (* If doCheck is true and warnings are found,
 let dsnSsa = ref false (* whether to convert the input to ssa form *)
 let dsnSmt = ref false (* Whether to output to SMT *)
 let dsnConcrete = ref false (*Whether to log a concrete memory model *)
+let dsnRmTmps = ref false (*Whether to remove temporary variables *)
 let dsnCalls = ref false (*try making this happy*)
 let logCalls = ref false (* Whether to produce a log with all the function 
                           * calls made *)

@@ -2,7 +2,7 @@
 
 # What it does:
 #
-# 1. Substitutes 0 for (nil). There are two cases where (nil) is printed.
+# 1. Substitutes 0 for (nil). There are a few cases where (nil) is printed.
 #   a) A function call returning a null value, e.g.,
 #      int* p = null_returning_function();
 #   b) In a memory variable name as in _dsn_mem_(nil).
@@ -50,10 +50,10 @@ open INFILE, "<", $infilename or die $!;
 my $last_seen = "";
 while (<INFILE>) {
     s/_dsn_mem_\(nil\)/_dsn_mem_0x0/g;
-    s/ = \(nil\);/ = 0;/;
-    s/ == \(nil\)/ == 0/;
+    s/ = \(nil\);/ = 0;/g;
+    s/ == \(nil\)/ == 0/g;
     s!// Assigned: \(nil\)!// Assigned: 0!;
-    s!\|val: \(nil\)\|\*/!\|val: 0\|\*/!;
+    s!\|val: \(nil\)\|\*/!\|val: 0\|\*/!g;
 
     s/extern long long optind.*/long long optind = 1;/;
     # optarg is usually initialized to 0 (though undocumented).

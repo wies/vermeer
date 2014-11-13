@@ -10,6 +10,6 @@ if [ ! -e $CIL_TMP_DIR ]; then
     exit 1
 fi
 
-
-../cil-1.7.3/bin/cilly -c --dodsnssa --save-temps=$CIL_TMP_DIR "$CIL_TMP_DIR/$1.postconcrete.c" -lm
-mv "$CIL_TMP_DIR/$1.postconcrete.cil.c" "$CIL_TMP_DIR/$1.ssa.c"
+cd $1_dir
+../../cil-1.7.3/bin/cilly -c --dodsnssa --save-temps "$1.postconcrete.notmps.c" -lm
+mv "$1.postconcrete.notmps.cil.c" "$1.ssa.c"

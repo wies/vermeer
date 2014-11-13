@@ -540,7 +540,7 @@ class dsnconcreteVisitorClass = object
               a
           | _ -> E.s (E.bug "If statement corrupted.") in
         incrIndent ();
-        ChangeDoChildrenPost (s, postfn)
+        ChangeDoChildrenPost(s, postfn)
     | If _ -> E.s (E.bug "If statement with an else branch.")
 
     (* The only return we expect to see is the last return in 'main'. We add

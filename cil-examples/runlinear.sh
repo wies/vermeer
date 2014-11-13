@@ -14,10 +14,11 @@ if [ ! -e $CIL_TMP_DIR ]; then
     mkdir $CIL_TMP_DIR
 fi
 
-../cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --no-convert-direct-calls --domakeCFG --dodsnlinear --save-temps=$CIL_TMP_DIR "$1.c" dsnlog.o extern_debug_funs.o -lm
+cd $1_dir
+../../cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --no-convert-direct-calls --domakeCFG --dodsnlinear --save-temps "../$1.c" ../dsnlog.o ../extern_debug_funs.o -lm
 
 if [ "$?" -ne "0" -o ! -x ./a.out ]; then exit 1; fi
 ./a.out 
-mv dsn_logfile.txt "$CIL_TMP_DIR/$1.linear.c"
+mv dsn_logfile.txt "$1.linear.c"
 
-./postprocess_linear "$CIL_TMP_DIR/$1.linear.c" > "$CIL_TMP_DIR/$1.postlinear.c"
+../postprocess_linear "$1.linear.c" > "$1.postlinear.c"
