@@ -82,6 +82,7 @@ class dsnMarkVisitorClass = object
       DoChildren
     | _ -> E.s (E.bug "was not expecting call or asm at this point")
 
+  (* Mark variables appearing in an if-stmt condition. *)
   method vstmt s = match s.skind with
     | If(e, _, _, _) -> mark_used e; DoChildren
     | _ -> DoChildren
@@ -117,8 +118,9 @@ let rm_locals_empty_ifs = function
     let rec empty_stmts = function
       | [] -> true
       | s::stmts -> match s.skind with
-        | Instr is -> is = []
-        | Block b | If(_, b, _, _) -> empty_stmts b.bstmts
+        | Instr is -> (is = []) && (empty_stmts stmts)
+        | Block b | If(_, b, _, _) ->
+          (empty_stmts b.bstmts) && (empty_stmts stmts)
         | _ -> E.s (E.bug "Not expected.") in
     let non_empty_if s = match s.skind with
       | If(_, then_b, _, _) when empty_stmts then_b.bstmts -> false
