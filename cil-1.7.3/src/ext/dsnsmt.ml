@@ -11,7 +11,6 @@ open Cil
 (* issue if interpolant tries to go past where something is used *)
 
 open String
-open Printf
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
 let uninterpretedBitOperators = false
