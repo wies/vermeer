@@ -313,10 +313,10 @@ let d_addr_exp (arg : exp ) : logStatement =
   if (needsMemModel arg) then
     match arg with
     | Lval(host,off) ->
-	begin match host with
-	| Var(vinfo) ->  (d_string "(%a == %%p)" d_exp (mkAddress arg), [mkAddress arg])
-	| Mem(e) -> (d_string "(%a == %%p)" d_exp (arg), [mkAddress arg])
-	end
+        begin match host with
+        | Var(vinfo) ->  (d_string "(%a == %%p)" d_exp (mkAddress arg), [mkAddress arg])
+        | Mem(e) -> (d_string "(%a == %%p)" d_exp (arg), [mkAddress arg])
+        end
     | _ -> raise (Failure "not possible")
   else raise (Failure "trying to print an unneeded address expression")
 *)
@@ -347,15 +347,15 @@ let mkVarDecl (v : varinfo) : instr =
   if(needsMemModelVarinfo v) then
     mkPrintNoLoc "//%s %s%s %p;\n"
       [ mkString lhsStr;
-	mkString v.vname;
-	mkString rhsStr;
-	mkAddressVarinfo v
+        mkString v.vname;
+        mkString rhsStr;
+        mkAddressVarinfo v
       ]
   else
     mkPrintNoLoc "%s %s%s;\n"
       [ mkString lhsStr;
-	mkString v.vname;
-	mkString rhsStr
+        mkString v.vname;
+        mkString rhsStr
       ]
 *)
 
@@ -472,7 +472,7 @@ class dsnconcreteVisitorClass = object
     match i with
       Set(lv, e, l) ->
         (* DSN Does anything go weird if we have function pointers *)
-	let (lhs_s,lhs_a) = d_mem_lval lv in
+        let (lhs_s,lhs_a) = d_mem_lval lv in
         let (rhs_s,rhs_a) = d_mem_exp ~pr_val:true e in
 
         let if_s, if_a = unsupported_op_cond e in
@@ -496,8 +496,8 @@ class dsnconcreteVisitorClass = object
 
         let print_asgn      = mkPrint                     pr_s1 pr_a1 in
         let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s2 pr_a2 in
-	let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
-	ChangeTo newInstrs
+        let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
+        ChangeTo newInstrs
 
     (* The only calls that can occur in a reduced format are to functions
        where we do not have the implementation. *)
@@ -505,9 +505,9 @@ class dsnconcreteVisitorClass = object
         let lhs_s, lhs_a = match lo with None -> "", []
                                        | Some(lv) -> d_mem_lval lv in
 
-	let printCalls = match lo with
-	  | None -> [] (* No assignment; nothing to print. *)
-	  | Some(lv) ->
+        let printCalls = match lo with
+          | None -> [] (* No assignment; nothing to print. *)
+          | Some(lv) ->
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
               let val_s, val_a = lossless_val_lv lv in
@@ -520,7 +520,7 @@ class dsnconcreteVisitorClass = object
               [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
-	ChangeTo (print_orig :: i :: printCalls)
+        ChangeTo (print_orig :: i :: printCalls)
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
@@ -534,8 +534,8 @@ class dsnconcreteVisitorClass = object
               let eStr, eArg = d_mem_exp ~pr_val:true e in
               let fStr = "if("^ eStr ^"){\n" in
               then_b.bstmts <- compactStmts (
-		[mkStmtOneInstr (mkPrint fStr eArg)]
-		@ then_b.bstmts
+                [mkStmtOneInstr (mkPrint fStr eArg)]
+                @ then_b.bstmts
                 @ [mkStmtOneInstr (mkPrintNoLoc "}\n" [])]);
               a
           | _ -> E.s (E.bug "If statement corrupted.") in
@@ -634,7 +634,7 @@ let dsnconcrete (f: file) : unit =
 
         let stmt = mkStmt (Instr
           [Call(None, Lval(var globalDeclFn.svar), [], locUnknown);
-	   mkPrint ("int main(int argc, char** argv){" ^
+           mkPrint ("int main(int argc, char** argv){" ^
                     "/* Parameters should not be used. */\n") [];
            argc_argv_handler_call]) in
         fdec.sbody <- mkBlock
