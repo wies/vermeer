@@ -296,9 +296,9 @@ let print_clauses x =
 let print_cprogram x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_cprogram f)) x; 
   flush stdout
-let print_annotated_trace x = 
-  List.iter (fun (t,c) -> Printf.printf "%s\n\t%s\n" (string_of_formula t)
-    (string_of_clause c)) x; 
+let print_annotated_trace ?(stream = stdout) x = 
+  List.iter (fun (t,c) -> Printf.fprintf stream "\n%s\n%s\n" (string_of_formula t)
+    (string_of_cprogram c)) x; 
   flush stdout
 let print_trace_linenums x = List.iter (fun c -> Printf.printf "%s\n" (print_linenum c)) x;
   flush stdout
@@ -1214,7 +1214,8 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in
-  print_annotated_trace reduced;
+  let oc = open_out "smtresult.txt" in
+  print_annotated_trace ~stream:oc reduced;
   
 
   (* printf "****orig****\n"; *)

@@ -1,0 +1,32 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+
+my ($ssafile, $smtresult, @bad) = @ARGV;
+die "Too many arguments " if @bad;
+die "missing ssaname " unless $ssafile;
+die "missing smtresult " unless $smtresult;
+
+my %ssaVars = ();
+
+#first record the ssa vars into a dictionary
+open SSAFILE, "<", $ssafile or die $!;
+while (<SSAFILE>) {
+    if (m!// (\d+) -> (\w+)!)
+    {
+	$ssaVars{$1} = $2;
+    }
+}
+close SSAFILE;
+
+# now read in the smt result
+# and substitute the ssa vars for the real vars
+
+open SMTFILE, "<", $smtresult or die $!;
+while (<SMTFILE>) {
+    s/x_(\d+)_\d+/$ssaVars{$1}/ge;
+    #also remove any added indices that I had put on?
+    s/(\w+)__\d+/$1/ge;
+    print $_;
+}
