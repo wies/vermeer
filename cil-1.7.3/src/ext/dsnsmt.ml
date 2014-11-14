@@ -67,13 +67,15 @@ type term = | SMTRelation of string * term list
 type clauseType = ProgramStmt of Cil.instr | Interpolant | Constant | EqTest
 
 type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLet
+type ifContextElem = {iformula : term; istmt : stmt}
+type ifContextList = ifContextElem list
 
 type clause = {formula : term; 
 	       idx : int; 
 	       vars : VarSet.t; 
 	       ssaIdxs : varSSAMap;
 	       typ : clauseType;
-	       ifContext : term list
+	       ifContext : ifContextList
 	      }
 
 type trace = clause list
@@ -85,7 +87,6 @@ type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
 type unsatResult = GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing
 type smtResult = Sat | Unsat of unsatResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
-type ifContext = term list
 
 exception CantMap of smtvar
 
@@ -105,7 +106,7 @@ let currentFunc: string ref = ref ""
 (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
 let revProgram : clause list ref = ref [] 
 let typeMap : varTypeMap ref  = ref emptyTypeMap
-let currentIfContext : ifContext ref = ref emptyIfContext
+let currentIfContext : ifContextList ref = ref emptyIfContext
 let flowSensitiveEncoding = true
 
 let get_var_type (var : smtvar) : smtVarType = 
@@ -202,9 +203,18 @@ let string_of_term = string_of_formula
 let string_of_clause c = 
   string_of_formula c.formula
 
+let string_of_ifcontext ic = 
+  let rec aux ic acc = 
+    match ic with 
+      | [] -> acc
+      | [x] ->  "if (" ^ acc ^  string_of_formula x.iformula ^ ")\n"
+      | x::xs -> aux xs (acc ^ string_of_formula x.iformula ^ " && ") 
+  in
+  aux ic ""
+
 let string_of_cprogram c =
   match c.typ with 
-    | ProgramStmt i -> d_string "%a" d_instr i
+    | ProgramStmt i -> d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
     | Interpolant | Constant -> "//" ^ string_of_formula c.formula
     | EqTest -> failwith "shouldn't have equality tests in the final program"
 
@@ -265,8 +275,8 @@ let make_assertion_string c =
   let make_ifContext_formula ic = 
     match ic with 
       | [] -> SMTTrue
-      | [x] -> x
-      | _ -> SMTRelation("and",ic)
+      | [x] -> x.iformula
+      | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
   in
   let form = 
     if flowSensitiveEncoding && c.ifContext <> [] then
@@ -493,6 +503,9 @@ let rec get_vars formulaList set =
 	| SMTVar(v) -> VarSet.add v set 
 	| SMTLetBinding(v,e) -> get_vars [e] set
 
+let get_vars_ic icList set = 
+  List.fold_left (fun a e -> get_vars [e.iformula] a) set icList
+
 let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
   match vars with 
     | [] -> ssaMap
@@ -508,11 +521,11 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
       in
       make_ssa_map vs ssaMap
 
-let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
+let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)  (ct: clauseType)
     : clause = 
   incr count;
   let v  = get_vars [f] emptyVarSet in
-  let v = get_vars ic v in
+  let v = get_vars_ic ic v in
   let ssa  = make_ssa_map (VarSet.elements v) ssa in
   let f = match ct with
     | ProgramStmt _ ->  type_check_and_cast_to_bool f
@@ -523,15 +536,8 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContext)  (ct: clauseType)
 
 let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant
 let make_false_clause () =  make_clause SMTFalse emptySSAMap emptyIfContext Constant
+let negate_clause cls = {cls with formula = SMTRelation("not",[cls.formula])}
 
-let negate_clause cls = 
-  {formula = SMTRelation("not",[cls.formula]);
-   idx = cls.idx;
-   vars = cls.vars;
-   ssaIdxs = cls.ssaIdxs;
-   typ = cls.typ;
-   ifContext = cls.ifContext
-  }
 
 (****************************** Remapping ******************************)
 (* TODO need to decide what to do if there is no mapping i.e. we've gone 
@@ -570,7 +576,7 @@ let remap_clause ssaMap cls =
   make_clause 
     (remap_formula ssaMap cls.formula) 
     ssaMap 
-    (List.map (remap_formula ssaMap) cls.ifContext)
+    (List.map (fun x -> {x with iformula = remap_formula ssaMap x.iformula}) cls.ifContext)
     cls.typ    
 
 
@@ -771,7 +777,7 @@ let rec extract_term (str)  : term list =
 	else if headStr = "false" then SMTFalse :: tailExp
 	else failwith "neither true nor false???"
 
-let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContext)(ct : clauseType) 
+let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContextList)(ct : clauseType) 
     : clause = 
   match extract_term sexp with 
     | [t] -> make_clause t ssaBefore ic ct
@@ -1005,7 +1011,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     | SMTLetBinding(v,e) -> SMTLetBinding(v,ssa_free_interpolant e)
     | SMTRelation(s,tl) -> SMTRelation(s,List.map ssa_free_interpolant tl)
     | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar(_)-> form
-    | SMTVar(v) -> SMTVar {fullname=v.fullname;vidx=v.vidx;owner=v.owner;ssaIdx=0}
+    | SMTVar(v) -> SMTVar {v with ssaIdx=0}
     | SMTLet(b,t) -> SMTLet(List.map ssa_free_interpolant b,ssa_free_interpolant t)
   in
   let i1form = ssa_free_interpolant i1 in
@@ -1166,7 +1172,8 @@ class dsnsmtVisitorClass = object
 	DoChildren
       | Call(lo,e,al,l) ->
 	let fname = d_string "%a" d_exp e in
-	if fname <> "assert" then failwith "shouldn't have calls in a concrete trace";
+	if fname <> "assert" && fname <> "assume" then 
+	  failwith "shouldn't have calls in a concrete trace";
 	let form = match al with 
 	  | [x] -> formula_from_exp x
 	  | _ -> failwith "assert should have exactly one element"
@@ -1182,7 +1189,7 @@ class dsnsmtVisitorClass = object
       | If(i,t,e,l) ->
 	if e.bstmts <> [] then failwith "else block not handeled";
 	let cond = type_check_and_cast_to_bool (formula_from_exp i) in
-	currentIfContext := cond :: !currentIfContext;
+	currentIfContext := {iformula = cond; istmt = s} :: !currentIfContext;
 	ChangeDoChildrenPost (s,
 			      fun x -> 
 				currentIfContext := List.tl !currentIfContext;
