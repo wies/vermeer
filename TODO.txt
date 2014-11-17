@@ -1,13 +1,18 @@
 * CODE
 * calculate the relevant lines and print them out
 * adding function name to the varisble names
-* 
+* do the window!
 
 * EXAMPLES
 * get more examples
+
   
 * PAPER
 
+
 * VIDEO
 
-* 
+* make a repository on github? or anon svn access?
+* Change copyrights on the files we worked on
+* figure out licence?
+

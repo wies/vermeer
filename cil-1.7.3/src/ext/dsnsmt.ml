@@ -252,7 +252,7 @@ let print_clauses x =
 let print_cprogram x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_cprogram f)) x; 
   flush stdout
-let print_annotated_trace ?(stream = stdout) x = 
+let print_annotated_trace  ?(stream = stdout) x = 
   List.iter (fun (t,c) -> Printf.fprintf stream "\n%s\n%s\n" (string_of_formula t)
     (string_of_cprogram c)) x; 
   flush stream
@@ -394,8 +394,7 @@ let type_check_and_cast_to_bool topForm =
       | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
       | SMTLet _ -> failwith "shouldn't be parsing this!"
       | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-      | SMTFalse | SMTTrue | SMTConstant _ -> f
-      | SMTVar(v) -> make_cast desired f
+      | SMTFalse | SMTTrue | SMTConstant _ | SMTVar _ -> make_cast desired f
       | SMTRelation(s,l) -> begin
 	match s with 
 	  | "ite" -> begin
@@ -931,7 +930,7 @@ let singleSolver = start_with_solver "single_solver"
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
 let do_smt clauses pt =
-  print_endline "doing smt";
+  (* print_endline "doing smt"; *)
   let solver = singleSolver in
   reset_solver solver;
   set_logic solver "QF_LIA";
@@ -1107,9 +1106,11 @@ let reduce_trace_expensive propAlgorithm trace =
   List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
 
 let unsat_then_cheap trace =
-  Printf.printf "started with %d lines\n" (List.length (reduced_linenums trace));
+  print_endline 
+    ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^ " lines");
   let reduced = reduce_trace_unsatcore trace in
-  Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums reduced));
+  print_endline 
+    ("cheap left " ^ string_of_int (List.length (reduced_linenums reduced)) ^ " lines");
   make_cheap_annotated_trace reduced
 
 let unsat_then_expensive propAlgorithm trace = 
@@ -1176,8 +1177,8 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   (*let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in*)
-  let reduced = unsat_then_cheap clauses in
-  let oc = open_out "smtresult.txt" in
+   let reduced = unsat_then_cheap clauses in 
+  let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
   
 
