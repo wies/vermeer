@@ -1,0 +1,13 @@
+* CODE
+* calculate the relevant lines and print them out
+* adding function name to the varisble names
+* 
+
+* EXAMPLES
+* get more examples
+  
+* PAPER
+
+* VIDEO
+
+* 
