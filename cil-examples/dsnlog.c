@@ -139,11 +139,48 @@ ssize_t read_dsn_wrapper(int fildes, void *buf, size_t nbyte)
 
   dsn_log("/* [read] Read %d bytes. */\n", result);
   dsn_log("/* [read] Warning: byte-granularity */\n");
+#if 0
   uch *p = (uch *)buf;
   uch *end = p + result;
   for (; p < end; p++)
     dsn_log("/* [read] */ _dsn_mem_%p/*|unknown_%d:unsigned char |*/ = %d;\n",
             p, unknown_index, *p);
+#else
+  char *p = (uch *)buf;
+  char *end = p + result;
+  for (; p < end; p++)
+    dsn_log("/* [read] */ _dsn_mem_%p/*|unknown_%d:char |*/ = %d;\n",
+            p, unknown_index, *p);
+#endif
+  unknown_index++;
+
+  return result;
+}
+
+size_t fread_dsn_wrapper(void *ptr, size_t size, size_t nmemb, FILE *stream)
+{
+  size_t result = fread(ptr, size, nmemb, stream);
+
+  if (size != 1){
+    dsn_log("/* [fread] Error: size requested is not 1. */");
+    assert("Unimplemented: fread(): size requested is not 1." && 0);
+  }
+  dsn_log("/* [fread] Read %d bytes. */\n", result);
+  dsn_log("/* [read] Warning: byte-granularity */\n");
+
+#if 0
+  uch *p = (uch *)buf;
+  uch *end = p + result;
+  for (; p < end; p++)
+    dsn_log("/* [fread] */ _dsn_mem_%p/*|unknown_%d:unsigned char |*/ = %d;\n",
+            p, unknown_index, *p);
+#else
+  char *p = (uch *)ptr;
+  char *end = p + result;
+  for (; p < end; p++)
+    dsn_log("/* [fread] */ _dsn_mem_%p/*|unknown_%d:char |*/ = %d;\n",
+            p, unknown_index, *p);
+#endif
   unknown_index++;
 
   return result;
