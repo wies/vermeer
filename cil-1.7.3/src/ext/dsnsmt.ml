@@ -84,8 +84,9 @@ type annotatedTrace = (term * clause) list
  * this lets us have the info we need for remapping vars etc
  *)
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
-type unsatResult = GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing
-type smtResult = Sat | Unsat of unsatResult
+type unsatResult = 
+    GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
+type smtResult = Sat | Unsat of unsatResult | Timeout
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
 exception CantMap of smtvar
@@ -863,6 +864,9 @@ let set_option solver (opt_name,opt_value) =
   let optStr = Printf.sprintf "(set-option :%s %b)\n" opt_name opt_value in
   write_line_to_solver solver optStr
 
+let set_timeout solver timeout = 
+  write_line_to_solver solver ("(set-option :timeout " ^ string_of_int timeout ^ ")\n")
+
 let set_logic solver logic = write_line_to_solver solver ("(set-logic " ^ logic ^ ")\n")
 let declare_uninterpreted_ops solver ops = 
   if not uninterpretedBitOperators then failwith "not supporting bit operators";
@@ -892,6 +896,8 @@ let rec read_from_solver (solver) (pt) : smtResult =
 	Unsat(GotInterpolant terms)
   else if begins_with l "sat" then
     Sat
+  else if begins_with l "unknown" then
+    Timeout
   else 
     failwith ("unmatched line:\n" ^ l ^ "\n")
 
@@ -917,6 +923,7 @@ let start_with_solver session_name solver do_log =
 	log_out = log_out;
       } in
   List.iter (set_option state) solver.info.smt_options;
+  set_timeout state 10000;
   state
 
 let singleSolver = start_with_solver "single_solver" 
@@ -924,8 +931,8 @@ let singleSolver = start_with_solver "single_solver"
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
 let do_smt clauses pt =
+  print_endline "doing smt";
   let solver = singleSolver in
-
   reset_solver solver;
   set_logic solver "QF_LIA";
   if uninterpretedBitOperators then declare_uninterpreted_ops solver smtUninterpreted;
@@ -968,27 +975,31 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     match (do_smt [cls] CheckSat) with
       | Sat -> false
       | Unsat _ -> true
+      | Timeout -> false (* conservative on timeout *)
 
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
-
 let try_interpolant_forward_k k currentState interpolant suffix  =
   let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
     let not_inter = negate_clause inter in
     match do_smt (not_inter :: before) CheckSat  with
+      | Timeout -> false
       | Sat -> false
       | Unsat(_) -> 
 	match do_smt (inter :: after) CheckSat with
 	  | Sat -> false
 	  | Unsat(_) -> true 
+	  | Timeout -> false
   in
   match split_off_n_reversed k suffix with
     | Some(leftRev,right) ->
       let lastLeft = List.hd leftRev in
       let interpolant = remap_clause lastLeft.ssaIdxs interpolant in
-      if is_valid_interpolant (currentState::leftRev) right interpolant then
+      if is_valid_interpolant (currentState::leftRev) right interpolant then begin
+	print_endline "Reduced a line!!!";
 	InterpolantWorks(interpolant,right)
-      else 
+      end else begin
 	InterpolantFails
+      end
     | None -> NotKLeft
       
 let rec propegate_interpolant_forward_linear k currentState interpolant suffix = 
@@ -1162,20 +1173,12 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
-
-
-  (* let s = "((let ((.cse0 (<= 0 x_774_0)) (.cse1 (<= x_774_0 0))) (and (<= 0 x_265_0) (<= x_265_0 0) .cse0 .cse1 (<= 0 x_264_0) (<= x_264_0 0) (ite (<= (+ x_773_0 1) 0) (<= 0 x_773_0) (<= x_773_0 0)) (<= 0 (+ x_262_0 (- 4))) (<= x_262_0 4) (ite (<= (+ x_774_0 1) 0) .cse0 (or .cse1 .cse1)) (<= 0 (+ x_263_0 (- 32))) (<= x_263_0 32) (<= 0 x_2_0) (<= x_2_0 0))))" *)
-  (* in *)
-  (* let t = extract_term s in *)
-  (* print_formulas t; *)
-
-
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   (*let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in*)
   let reduced = unsat_then_cheap clauses in
   let oc = open_out "smtresult.txt" in
-  (*print_annotated_trace ~stream:oc reduced;*)
+  print_annotated_trace ~stream:oc reduced;
   
 
   (* printf "****orig****\n"; *)
