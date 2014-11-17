@@ -86,12 +86,10 @@ let preset_wrappers = ["fread"; "sprintf";
 
 let wrapper_fn_set = List.fold_right SS.add preset_wrappers SS.empty
 
-let printIndent = true
-let indentSpaces = 2
 let spaces = ref 0
-let incrIndent () = spaces := !spaces + indentSpaces
+let incrIndent () = spaces := !spaces + 2
 let decrIndent () = if !spaces <= 0 then E.s (E.bug "Negative indentation?");
-                   spaces := !spaces - indentSpaces
+                   spaces := !spaces - 2
 let indent () =
   let rec f i = if i=0 then "" else f (i-1) ^ " " in f !spaces
 
@@ -630,7 +628,7 @@ let dsnconcrete (f: file) : unit =
 
         let stmt = mkStmt (Instr
           [Call(None, Lval(var globalDeclFn.svar), [], locUnknown);
-           mkPrint ("int main(int argc, char** argv){" ^
+           mkPrint ("int main(int argc, char **argv){" ^
                     "/* Parameters should not be used. */\n") [];
            argc_argv_handler_call]) in
         fdec.sbody <- mkBlock

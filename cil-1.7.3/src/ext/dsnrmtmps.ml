@@ -3,6 +3,7 @@
 open Pretty
 open Cil
 open Trace
+open Dsnutils
 module E = Errormsg
 module H = Hashtbl
 
@@ -15,10 +16,6 @@ module IntSet = Set.Make (IntOrder)
 
 let used = ref IntSet.empty
 let removed = ref false
-
-let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
-  let f (d: doc) : string = Pretty.sprint 800 d in
-  Pretty.gprintf f fmt
 
 let rec mark_used_lv = function
   | (Var vi, _) -> used := IntSet.add vi.vid !used
@@ -155,7 +152,7 @@ let dsn (f: file) : unit =
 let feature : featureDescr =
   { fd_name = "dsnrmtmps";
     fd_enabled = Cilutil.dsnRmTmps;
-    fd_description = "Remove temporary variables.";
+    fd_description = "Remove unused variables.";
     fd_extraopt = [];
     fd_doit = dsn;
     fd_post_check = true;
