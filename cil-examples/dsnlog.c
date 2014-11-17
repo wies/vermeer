@@ -13,14 +13,30 @@ typedef unsigned char uch;
 
 static int unknown_index = 1;
 
-static FILE* pfile;
-
 int dsn_log(const char* format, ...)
 {
+  static FILE *pfile = 0;
   if(!pfile){
     pfile = fopen("dsn_logfile.txt","w");
     assert(pfile);
-    //Use line buffering. _IOFBF is anothe option
+    //Use line buffering. _IOFBF is another option
+    setvbuf(pfile,NULL,_IOLBF,0);
+  }
+
+  va_list arglist;
+  va_start(arglist,format);
+  int result = vfprintf(pfile,format,arglist);
+  va_end(arglist);
+  return result;
+}
+
+int dsn_log_var(const char* format, ...)
+{
+  static FILE *pfile = 0;
+  if(!pfile){
+    pfile = fopen("var_snapshots.txt","w");
+    assert(pfile);
+    //Use line buffering. _IOFBF is another option
     setvbuf(pfile,NULL,_IOLBF,0);
   }
 

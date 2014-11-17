@@ -11,5 +11,5 @@ if [ ! -e $CIL_TMP_DIR ]; then
 fi
 
 cd $1_dir
-../../cil-1.7.3/bin/cilly -c --dodsnssa --save-temps "$1.postconcrete.notmps.c" -lm
+../../cil-1.7.3/bin/cilly -c --dodsnssa --save-temps "$1.postconcrete.notmps.c"
 mv "$1.postconcrete.notmps.cil.c" "$1.ssa.c"
