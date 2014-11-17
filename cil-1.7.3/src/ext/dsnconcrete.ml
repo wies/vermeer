@@ -77,12 +77,11 @@ let memPrefix = "_dsn_mem"
 let wrapper_fn_postfix = "_dsn_wrapper"
 let log_fn_name = "dsn_log"
 
-let preset_wrappers = ["read";
+let preset_wrappers = ["fread"; "sprintf";
                        "realloc";
                        "memset"; "strcpy"; "strncpy";
                        "bcopy";
-                       "sprintf";
-                       "getopt_long"]
+                       "read"; "getopt_long"]
 
 let wrapper_fn_set = List.fold_right SS.add preset_wrappers SS.empty
 
