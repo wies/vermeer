@@ -127,6 +127,7 @@ let dsn (f: file) : unit =
   let findMain = function
     | GFun(fdec,loc) -> 
       if (fdec.svar.vname <> "main") then failwith "main should be the only function";
+      fdec.slocals <- []; (* Clear all local variables. *)
       mainFunc := Some fdec;
     | _ -> ()
   in 
