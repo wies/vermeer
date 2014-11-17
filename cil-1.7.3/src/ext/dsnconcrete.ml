@@ -22,6 +22,7 @@
 open Pretty
 open Cil
 open Trace
+open Dsnutils
 module E = Errormsg
 module SS = Set.Make(String)
 
@@ -93,10 +94,6 @@ let decrIndent () = if !spaces <= 0 then E.s (E.bug "Negative indentation?");
                    spaces := !spaces - indentSpaces
 let indent () =
   let rec f i = if i=0 then "" else f (i-1) ^ " " in f !spaces
-
-let d_string (fmt : ('a,unit,doc,string) format4) : 'a =
-  let f (d: doc) : string = Pretty.sprint 800 d in
-  Pretty.gprintf f fmt
 
 let argc_argv_handler =
   makeGlobalVar "main_argc_argv_dsn_printer"
