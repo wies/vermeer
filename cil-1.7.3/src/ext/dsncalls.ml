@@ -6,6 +6,7 @@
 open Pretty
 open Cil
 open Trace
+open Dsnutils
 module E = Errormsg
 module H = Hashtbl
 
@@ -54,10 +55,6 @@ let printFunctionName = ref "dsn_log"(*"printf"*)
 
 let addProto = ref false
 let counter = ref 0
-
-let d_string (fmt : ('a,unit,doc,string) format4) : 'a = 
-  let f (d: doc) : string = Pretty.sprint 800 d in
-  Pretty.gprintf f fmt 
 
 let d_tempArg (idx : int) : logStatement = 
   (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])

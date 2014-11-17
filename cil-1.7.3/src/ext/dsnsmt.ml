@@ -7,6 +7,7 @@
  *)
 
 open Cil
+open Dsnutils
 
 (* issue if interpolant tries to go past where something is used *)
 
@@ -111,61 +112,6 @@ let flowSensitiveEncoding = true
 let get_var_type (var : smtvar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
   with Not_found -> SMTUnknown
-
-(************************* utils *************************)
-let time f x =
-  let start = Unix.gettimeofday ()
-  in let res = f x
-     in let stop = Unix.gettimeofday ()
-	in let () = Printf.printf "Execution time: %fs\n%!" (stop -. start)
-	   in
-	   flush stdout; res
-
-let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
-
-let rec sublist b e l = 
-  match l with
-      [] -> failwith "sublist"
-    | h :: t -> 
-      let tail = if e=0 then [] else sublist (b-1) (e-1) t in
-      if b>0 then tail else h :: tail
-
-(* returns the list split in two.  The left hand side is reversed *)
-let split_off_n_reversed n l = 
-  let rec helper n l leftAcc = 
-    if n <= 0 then Some(leftAcc,l)
-    else 
-      match l with 
-	| [] -> None
-	| x::xs -> helper (n-1) xs (x::leftAcc) 
-  in
-  helper n l [] 
-
-let rec last = function
-  | [] -> None
-  | [x] -> Some x
-  | _ :: t -> last t;;
-
-(* could be made tailrec *)
-let rec compress = function
-  | a :: (b :: _ as t) -> if a = b then compress t else a :: compress t
-  | smaller -> smaller
-
-let all_but_last lst = 
-  List.rev  (List.tl (List.rev lst))
-
-let split_last l = 
-  let r = List.rev l in
-  (List.rev (List.tl r), List.hd r)
-
-let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a = 
-  let f (d: Pretty.doc) : string = 
-    Pretty.sprint 800 d
-  in
-  Pretty.gprintf f fmt 
-
-let safe_mkdir name mask = 
-  if not (Sys.file_exists name) then Unix.mkdir name mask
 
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
@@ -308,7 +254,7 @@ let print_cprogram x =
 let print_annotated_trace ?(stream = stdout) x = 
   List.iter (fun (t,c) -> Printf.fprintf stream "\n%s\n%s\n" (string_of_formula t)
     (string_of_cprogram c)) x; 
-  flush stdout
+  flush stream
 let print_trace_linenums x = List.iter (fun c -> Printf.printf "%s\n" (print_linenum c)) x;
   flush stdout
 let print_annotatedtrace_linenums x = List.iter (fun (_,c) -> Printf.printf "%s\n" (print_linenum c)) x;
@@ -1084,6 +1030,7 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
       zipped
     | _ -> failwith "make_cheap_annotated_trace failed"
 
+
 let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
   (* Given an annotated list [I1,S1; I2,S2, etc) 
    * such that I1 is the precondition for S1. (ie the program goes I1 S1 I2 S2 ...
@@ -1147,6 +1094,12 @@ let reduce_trace_expensive propAlgorithm trace =
 	  | _ -> failwith "Problem getting interpolant"
   in
   List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
+
+let unsat_then_cheap trace =
+  Printf.printf "started with %d lines\n" (List.length (reduced_linenums trace));
+  let reduced = reduce_trace_unsatcore trace in
+  Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums reduced));
+  make_cheap_annotated_trace reduced
 
 let unsat_then_expensive propAlgorithm trace = 
   Printf.printf "started with %d lines\n" (List.length (reduced_linenums trace));
@@ -1219,9 +1172,10 @@ let dsnsmt (f: file) : unit =
 
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
-  let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in
+  (*let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in*)
+  let reduced = unsat_then_cheap clauses in
   let oc = open_out "smtresult.txt" in
-  print_annotated_trace ~stream:oc reduced;
+  (*print_annotated_trace ~stream:oc reduced;*)
   
 
   (* printf "****orig****\n"; *)
