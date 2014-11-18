@@ -57,11 +57,11 @@ void main_argc_argv_dsn_printer(int *p_argc, char ***p_argv)
   dsn_log("    // Setting up argc and argv.                            //\n");
   dsn_log("    //////////////////////////////////////////////////////////\n");
   dsn_log("    // argc = %d\n", argc);
-  dsn_log("    long long argc__1 = %d;\n", argc);
+  dsn_log("    long long main__1__argc = %d;\n", argc);
   dsn_log("    _dsn_mem_%p/*|int |*/ = %d;\n", p_argc, argc);
 
   dsn_log("    // argv = %p\n", argv);
-  dsn_log("    long long argv__1 = %p;\n", argv);
+  dsn_log("    long long main__1__argv = %p;\n", argv);
   dsn_log("    _dsn_mem_%p/*|char **|*/ = %p;\n", p_argv, argv);
   for (i = 0; i < *p_argc; i++){
     dsn_log("    // argv[%d] = \"%s\"\n", i, argv[i]);
