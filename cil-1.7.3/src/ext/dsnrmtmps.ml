@@ -36,7 +36,9 @@ and mark_used exp =
 class dsnMarkVisitorClass = object
   inherit nopCilVisitor
 
-  (* Pin the last asgn (in main) by marking its LHS used to preserve it. *)
+  (* Pin the last asgn in main() (if the last intr is not a call to 'assert'
+     by marking its LHS used to preserve it. *)
+  (* The only function being visited is main(). *)
   method vfunc fdec =
     (* Given a list of instrs in an reverse order, search for the last asgn
        and mark its LHS. If an asgn was found, return true. *)
@@ -45,9 +47,9 @@ class dsnMarkVisitorClass = object
       | ((Set(lv, _, _)) as i)::_ ->
         E.log "[dsnrmtmps] Marking \"%a\" in\n%a\n\n" d_lval lv d_instr i;
         mark_used_lv lv; true
-        (* The only call possible here is 'assert', whose exp will be marked
-           in 'vinst', so ignore it. *)
-      | (Call _)::is -> mark_last_asgn_is is
+        (* The only call possible is 'assert', whose exp will also be marked
+           in 'vinst', so let's ignore it and stop here. *)
+      | (Call _)::is -> true
       | (Asm _)::_ -> E.s (E.bug "Asm not expected.") in
     (* Same functionality, but with a stmt list. *)
     let rec mark_last_asgn = function
@@ -70,11 +72,10 @@ class dsnMarkVisitorClass = object
   (* Mark variables appearing on the RHS of an asgn used. *)
   method vinst = function
     | Set(_, e, _) -> mark_used e; DoChildren
-    | Call(_, e, _, _) ->
+    | Call(_, e, args, _) ->
       let fname = d_string "%a" d_exp e in
-      if fname <> "assert" then
-        E.s (E.bug "shouldn't have non-assert calls in a concrete trace");
-      mark_used e;
+      if fname <> "assert" then E.s (E.bug "Function not expected: %a" d_exp e);
+      List.iter mark_used args;
       DoChildren
     | _ -> E.s (E.bug "was not expecting call or asm at this point")
 
