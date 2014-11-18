@@ -1,1 +1,1 @@
-  assert(__cil_tmp99__4___0 == 9);
+  assert(solver_propagate__4____cil_tmp99___0 == 9);
