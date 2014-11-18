@@ -1176,8 +1176,8 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
-  (*let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in*)
-   let reduced = unsat_then_cheap clauses in 
+  let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in
+  (*let reduced = unsat_then_cheap clauses in *)
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
   

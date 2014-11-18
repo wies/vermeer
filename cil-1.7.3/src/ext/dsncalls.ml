@@ -14,6 +14,7 @@ module H = Hashtbl
 (* David Park at Stanford points out that you cannot take the address of a
  * bitfield in GCC. *)
 
+let currentFunc: string ref = ref ""
 let indentSpaces = 2
 
 (* this should really be a commandline argument *)
@@ -181,15 +182,17 @@ and d_logType (tTop: typ) : (logStatement * logStatement) =
 	   ((typeStr,[]),
 	    ("",[]))
 
-let d_fn_decl (v : varinfo) : logStatement = 
+let d_local_varname v scopeExp = (!currentFunc ^  "__%u" ^ "__" ^ v.vname,scopeExp) 
+
+let d_x_decl (v : varinfo) (scopeExp : exp) : logStatement = 
   let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
-  ((lhsStr ^ " %s__%d" ^ rhsStr),
-   (lhsArgs @ [ mkString v.vname; nextScopeExpr] @ rhsArgs))
-    
-let d_decl (v : varinfo) : logStatement = 
-  let ((lhsStr,lhsArgs),(rhsStr,rhsArgs)) = d_logType v.vtype in 
-  ((lhsStr ^ " %s__%d" ^ rhsStr),
-   (lhsArgs @ [ mkString v.vname; currentScopeExpr] @ rhsArgs))
+  let varStr,varArgs = d_local_varname v scopeExp in
+  ((lhsStr ^ varStr ^ rhsStr),
+   (lhsArgs @ [varArgs] @ rhsArgs))
+
+(* the declarations for a function args for main *)
+let d_fn_decl (v : varinfo) : logStatement = d_x_decl v nextScopeExpr
+let d_decl (v : varinfo) : logStatement = d_x_decl v currentScopeExpr
     
 let stmtFromStmtList (stmts : stmt list) : stmt =
   mkStmt(Block(mkBlock (compactStmts stmts)))
@@ -218,6 +221,7 @@ let declareAllFormalsStmt (sformals : varinfo list) : stmt =
   in
   stmtFromInstrList(declareAllFormalsHelper sformals 0)
     
+  
 let rec d_xScope_offset (scopeExp : exp) (o : offset) : logStatement = 
   match o with 
     | NoOffset -> "",[]
@@ -241,8 +245,7 @@ and d_xScope_lval (scopeExp : exp) (hst,off as arg : lval) : logStatement =
     let offsetStr,offsetArgs = d_xScope_offset scopeExp off in
     match hst with
       | Var(v) -> 
-	let varStr = v.vname ^ "__%u" in
-	let varArg = scopeExp in
+	let varStr,varArg =  d_local_varname v scopeExp in
 	(varStr ^ offsetStr, varArg :: offsetArgs)
       | Mem(e) -> 
 	let str,arg = d_xScope_exp scopeExp e in
@@ -464,7 +467,6 @@ let makeScopeOpen = [mkPrint ~locp:false "{\n" []; incrScope; incrIndent]
 let makeScopeClose = [decrIndent; decrScope; mkPrint ~locp:false "}\n" []]
 
 
-let currentFunc: string ref = ref ""
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
