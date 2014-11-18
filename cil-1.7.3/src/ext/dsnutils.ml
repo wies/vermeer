@@ -1,5 +1,7 @@
 (* various useful utils can go here *)
 
+open Cil
+
 (************************* utils *************************)
 let time f x =
   let start = Unix.gettimeofday ()
@@ -58,3 +60,19 @@ let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a =
   Pretty.gprintf f fmt 
 
 let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
+
+(********************* Printing ***********************************)
+let get_fn_name = function
+  | Call(lv_o, e, al, _) ->
+    d_string "%a" d_exp e
+  | _ -> failwith "not a call!"
+
+let is_assert_fn f = 
+  match get_fn_name f with
+    | "assert" | "dsn_assert" | "assume" -> true
+    | _ -> false
+ 
+let assert_is_assert f = 
+    match get_fn_name f with
+    | "assert" | "dsn_assert" | "assume" -> ()
+    | x -> failwith ("shouldn't have non-assert calls in a concrete trace: " ^ x)

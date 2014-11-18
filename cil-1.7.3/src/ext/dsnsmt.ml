@@ -1135,9 +1135,7 @@ class dsnsmtVisitorClass = object
 	revProgram := cls :: !revProgram;
 	DoChildren
       | Call(lo,e,al,l) ->
-	let fname = d_string "%a" d_exp e in
-	if fname <> "assert" && fname <> "assume" then 
-	  failwith "shouldn't have calls in a concrete trace";
+	assert_is_assert i;
 	let form = match al with 
 	  | [x] -> formula_from_exp x
 	  | _ -> failwith "assert should have exactly one element"

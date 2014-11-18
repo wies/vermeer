@@ -72,9 +72,8 @@ class dsnMarkVisitorClass = object
   (* Mark variables appearing on the RHS of an asgn used. *)
   method vinst = function
     | Set(_, e, _) -> mark_used e; DoChildren
-    | Call(_, e, args, _) ->
-      let fname = d_string "%a" d_exp e in
-      if fname <> "assert" then E.s (E.bug "Function not expected: %a" d_exp e);
+    | Call(_, e, args , _) as fnCall ->
+      assert_is_assert fnCall;
       List.iter mark_used args;
       DoChildren
     | _ -> E.s (E.bug "was not expecting call or asm at this point")

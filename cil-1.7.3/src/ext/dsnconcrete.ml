@@ -437,14 +437,19 @@ let isDefinedFn e =
 let mk_print_orig (* For printing debugging info. *) = function
   | Set(lv, e, _) ->
     mkPrintNoLoc (d_string "\n// %a = %a;\n" d_lval lv d_exp e) []
-  | Call(lv_o, e, al, _) ->
-    let rec arg_lst = function [] -> ""
+  | Call(lv_o, e, al, _) as fnCall ->
+    let rec arg_lst = function 
+      | [] -> ""
       | [x] -> (d_string "%a" d_exp x)
       | x::xs -> (d_string "%a, " d_exp x) ^ arg_lst xs in
-    let fn_name = d_string "%a" d_exp e in
-    let lhs = match lv_o with None -> "(no return or ignored)"
-                            | Some lv -> d_string "%a =" d_lval lv in
-    mkPrintNoLoc ("\n// Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^");\n") []
+    let fn_name =get_fn_name fnCall in
+    if (is_assert_fn fnCall) then
+      mkPrintNoLoc(fn_name ^"("^ (arg_lst al) ^");\n") []
+    else 
+      let lhs = match lv_o with 
+	| None -> "(no return or ignored)"
+        | Some lv -> d_string "%a =" d_lval lv in
+      mkPrintNoLoc ("\n// Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^");\n") []
   | _ -> E.s (E.bug "Invalid usage.")
 
 (* Is this a string literal assignment? If yes, we need to assign an actual

@@ -6,6 +6,7 @@
 open Pretty
 open Cil
 open Trace
+open Dsnutils
 module E = Errormsg
 module H = Hashtbl
 
@@ -84,9 +85,7 @@ class dsnVisitorClass = object
 	let updated_lhs = update_lhs_lval lhs in
 	ChangeTo [Set(updated_lhs,updated_rhs,loc)]
       | Call(lo,e,al,l) ->
-	let fname = d_string "%a" d_exp e in
-	if fname <> "assert" then 
-	  failwith "shouldn't have non-assert calls in a concrete trace";
+	assert_is_assert i;
 	ChangeTo [Call(lo,e,List.map update_rhs_exp al,l)]
       | _ -> failwith "was not expecting call or asm at this point"
   end
