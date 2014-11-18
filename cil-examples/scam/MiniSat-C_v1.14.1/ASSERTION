@@ -1,1 +1,1 @@
-  assert(__cil_tmp99__4___0 > 1024);
+  assert(__cil_tmp99__4___0 == 9);
