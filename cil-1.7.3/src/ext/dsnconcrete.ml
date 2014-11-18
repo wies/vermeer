@@ -471,7 +471,7 @@ class dsnconcreteVisitorClass = object
 
         let if_s, if_a = unsupported_op_cond e in
         let pr_s1, pr_a1 = if if_s = "" then "", []
-                                        else "if("^ if_s ^ "){ ", if_a in
+                                        else "if ("^ if_s ^ "){ ", if_a in
         let pr_s1, pr_a1 = pr_s1 ^ lhs_s ^" = ", pr_a1 @ lhs_a in
 
         let val_s, val_a = lossless_val_lv lv in
@@ -526,7 +526,7 @@ class dsnconcreteVisitorClass = object
           match a.skind with
           | If(e, then_b, else_b, loc) when else_b.bstmts = [] ->
               let eStr, eArg = d_mem_exp ~pr_val:true e in
-              let fStr = "if("^ eStr ^"){\n" in
+              let fStr = "if ("^ eStr ^"){\n" in
               then_b.bstmts <- compactStmts (
                 [mkStmtOneInstr (mkPrint fStr eArg)]
                 @ then_b.bstmts

@@ -8,7 +8,7 @@ module E = Errormsg
 module SS = Set.Make(String)
 
 let snaps_file = "var_snapshots.txt"
-let window_size = 2
+let window_size = 1000
 
 let log_fn_name = "dsn_log"
 let log_var_fn_name = "dsn_log_var"
