@@ -1,0 +1,92 @@
+
+true
+#line 24 "schedule2_nofloat.c"
+next_pid = 0LL;
+
+(<= 0 next_pid )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 1 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 2 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 3 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 4 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 5 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 6 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 7 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 8 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 9 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 10 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 11 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 12 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 13 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 14 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 15 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 16 ) ) )
+#line 115
+next_pid = next_pid + 1LL;
+
+(<= 0 (+ next_pid (- 17 ) ) )
+#line 115
+tmp__2_ = next_pid;
+
+(<= 0 (+ tmp__2_ (- 17 ) ) )
+#line 115
+pid__2_ = tmp__2_;
+
+(<= 0 (+ pid__2_ (- 17 ) ) )
+#line 120
+_dsn_mem_0xb64470 = pid__2_;
+
+(<= 0 (+ _dsn_mem_0xb64470 (- 17 ) ) )
+#line 192
+__cil_tmp5__4_ = _dsn_mem_0xb64470;
+
+(<= 0 (+ __cil_tmp5__4_ (- 17 ) ) )
+#line 193
+assert(__cil_tmp5__4_ == 10LL);
