@@ -8,4 +8,6 @@ fi
 ./a.out -f pattern000001 file000001
 mv dsn_logfile.txt "$1.linear.c"
 
-../../postprocess_linear "$1.linear.c" > "$1.postlinear.c"
+../../postprocess_linear "$1.linear.c" > "tmp"
+./fix_decls "tmp" > "$1.postlinear.c"
+rm tmp
