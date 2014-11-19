@@ -122,8 +122,9 @@ let stmtFromStmtList (stmts : stmt list) : stmt =
    be used in variable initialization. However, the support for struct is
    currently dropped. *)
 let rec lossless_val ?(ptr_for_comp=false) (e: exp) =
-  let typ = if ptr_for_comp then voidPtrType
-                            else unrollType (typeOf e) in
+  let typ = match unrollType (typeOf e) with
+    | (TComp _) as t -> if ptr_for_comp then voidPtrType else t
+    | t -> t in
   match typ with
   | TFloat _ -> E.s (E.unimp "TFloat not supported.")
   (* | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *) *)
@@ -491,6 +492,7 @@ class dsnconcreteVisitorClass = object
         let (lhs_s,lhs_a) = d_mem_lval lv in
         let (rhs_s,rhs_a) = d_mem_exp ~pr_val:true e in
 
+        (* TODO Code can be cleaned up; I'll do it later. *)
         let if_s, if_a = unsupported_op_cond e in
         let pr_s1, pr_a1 = if if_s = "" then "", []
                                         else "if ("^ if_s ^ "){ ", if_a in
@@ -520,8 +522,8 @@ class dsnconcreteVisitorClass = object
     | Call(lo,e,al,l) ->
         let lhs_s, lhs_a = match lo with None -> "", []
                                        | Some(lv) -> d_mem_lval lv in
-        let printCalls = match lo with
-          | None -> [] (* No assignment; nothing to print. *)
+        let print_asgn = match lo with
+          | None -> [i] (* No assignment; nothing to print. *)
           | Some(lv) ->
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
@@ -530,9 +532,6 @@ class dsnconcreteVisitorClass = object
 
               let if_s, if_a =
                 List.fold_left join_conds ("", []) (List.map cond_e al) in
-              let pr_s, pr_a = if if_s = "" then (pr_s ^"\n"), pr_a
-              else ("if ("^ if_s ^") { "^ pr_s ^ " }\n"), (if_a @ pr_a) in
-              [mkPrint pr_s pr_a]
 
               (* Support for struct-copying returns disabled. Take a look at
                  'loosless_val' function.
@@ -541,8 +540,15 @@ class dsnconcreteVisitorClass = object
               let typ_str = d_string "%a" d_type (typeOfLval lv) in
               [mkPrintNoLoc ("{ "^ typ_str ^" dsn_tmp_ret = "^ val_s ^";\n")
                             val_a;
-               mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *) in
-        ChangeTo (print_orig :: i :: printCalls)
+               mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *)
+
+              if if_s = "" then [mkPrint pr_s pr_a]
+              else let print_if = mkPrint ("if ("^ if_s ^ "){ ") if_a in
+                   let print_asgn = mkPrintNoLoc ~noindent:true
+                                                 (pr_s ^" }\n") pr_a in 
+                   [print_if; i; print_asgn] in
+
+        ChangeTo (print_orig :: print_asgn)
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
