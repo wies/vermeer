@@ -2,6 +2,12 @@
 * calculate the relevant lines and print them out
 * adding function name to the varisble names
 * do the window!
+  - Done with windows size. However, printing every variable for now.
+* Put implications for some library calls, e.g.,
+    const char *str = "789";
+    int i = atoi(str);
+  should produce
+    if (str == <address of "789">){ i = 789; }
 
 * EXAMPLES
 * get more examples
