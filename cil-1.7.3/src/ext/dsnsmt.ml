@@ -994,7 +994,6 @@ let try_interpolant_forward_k k currentState interpolant suffix  =
       let lastLeft = List.hd leftRev in
       let interpolant = remap_clause lastLeft.ssaIdxs interpolant in
       if is_valid_interpolant (currentState::leftRev) right interpolant then begin
-	print_endline "Reduced a line!!!";
 	InterpolantWorks(interpolant,right)
       end else begin
 	InterpolantFails
@@ -1114,11 +1113,16 @@ let unsat_then_cheap trace =
   make_cheap_annotated_trace reduced
 
 let unsat_then_expensive propAlgorithm trace = 
-  Printf.printf "started with %d lines\n" (List.length (reduced_linenums trace));
+  print_endline 
+    ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^  " lines");
   let cheap = reduce_trace_unsatcore trace in
-  Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap));
+  (* Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap)); *)
+  (* Printf.printf "cheap left %d clauses\n" (List.length (cheap)); *)
   let expensive = reduce_trace_expensive propAlgorithm cheap in
-  Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive));
+  (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
+  (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
+  print_endline 
+    ("finished with " ^ string_of_int(List.length(reduced_linenums_at expensive)) ^  " lines");
   expensive
     
 class dsnsmtVisitorClass = object
@@ -1178,31 +1182,6 @@ let dsnsmt (f: file) : unit =
   (*let reduced = unsat_then_cheap clauses in *)
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
-  
-
-  (* printf "****orig****\n"; *)
-  (* print_clauses clauses; *)
-
-  (* printf "****reduced cheap****\n"; *)
-  (* let reduced3 = time reduce_trace_cheap  clauses in *)
-  (* print_annotated_trace reduced3; *)
-
-  (* printf "****unsat core****\n"; *)
-  (* let uc = time reduce_trace_unsatcore clauses in *)
-  (* print_clauses uc; *)
-  
-  (* printf "*****unsatcore ******\n"; *)
-  (* let us_reduced = reduce_trace_unsatcore clauses in *)
-  (* print_clauses us_reduced; *)
-  (* print_trace_linenums us_reduced; *)
-  (* Printf.printf "*reduced!!!*\n"; *)
-  (* print_reduced_linenums us_reduced; *)
-
-  (* printf "*****annotated ******\n"; *)
-  (* let at = make_cheap_annotated_trace us_reduced in *)
-  (* print_annotated_trace at; *)
-  (* print_annotatedtrace_linenums at; *)
-  
   exit_solver singleSolver
 
     
