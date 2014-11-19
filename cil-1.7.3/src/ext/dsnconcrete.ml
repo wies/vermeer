@@ -130,9 +130,11 @@ let rec lossless_val ?(ptr_for_comp=false) (e: exp) =
   (* | TFloat _ -> ("%a", [e]) (* Hex representation is lossless. *) *)
   | TPtr _ -> ("%p", [e])
   | TEnum _ -> ("%d", [e])
-  | TInt(ik, _) -> begin match ik with
-    | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> ("%d", [e])
-    | IUChar | IUInt | IUShort | IULong | IULongLong -> ("%u", [e]) end
+  | TInt(ik, a) -> begin match ik with
+    | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> 
+      ("%lld", [mkCast e (TInt(ILongLong,a))])
+    | IUChar | IUInt | IUShort | IULong | IULongLong -> 
+      ("%lld", [mkCast e (TInt(IULongLong,a))]) end
 (*
   | TComp (ci, _) ->
       let lhost, offset = lv in
