@@ -436,7 +436,11 @@ let isDefinedFn e =
 (* DSN need a better name here *)
 let mk_print_orig (* For printing debugging info. *) = function
   | Set(lv, e, _) ->
-    mkPrintNoLoc (d_string "\n// %a = %a;\n" d_lval lv d_exp e) []
+    let rhs = match (strip_cast e) with
+      | Const(CStr s) -> to_c_string s
+      | Const(CWStr s) -> E.s (E.unimp "CWStr not supported.")
+      | _ -> d_string "%a" d_exp e in
+    mkPrintNoLoc (d_string "\n// %a = %s;\n" d_lval lv rhs) []
   | Call(lv_o, e, al, _) as fnCall ->
     let rec arg_lst = function 
       | [] -> ""
