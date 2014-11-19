@@ -222,17 +222,19 @@ let rec strip_cast exp =
   | StartOf lv -> StartOf(strip_cast_lv lv)
   | _ -> E.s (E.bug "Not expected. (strip_cast)")
 
+let cond_e e = match e with Const _ -> ("", []) | _ ->
+  let val_s, val_a = lossless_val ~ptr_for_comp:true e in
+  (d_string "%a == " d_exp e) ^ val_s, val_a
+
+let join_conds (s1, a1) (s2, a2) =
+  let conj = if s1 = "" or s2 = "" then "" else " && " in
+  if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2
+
 (* If an expression contains unsupported operations (e.g., bit shifting), get
    a logStatement to be used in the if-stmt condition for generating
    an implication. For example, we get "b = 10 && c = 30" for "a = b & c"
    when the actual values for b and c are 10 and 30 respectively. *)
 let rec unsupported_op_cond exp =
-  let cond_e e = match e with Const _ -> ("", []) | _ ->
-    let val_s, val_a = lossless_val ~ptr_for_comp:true e in
-    (d_string "%a == " d_exp e) ^ val_s, val_a in
-  let join_conds (s1, a1) (s2, a2) =
-    let conj = if s1 = "" or s2 = "" then "" else " && " in
-    if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2 in
   match exp with
   | Const _ -> "", []
   | CastE(_, e) -> unsupported_op_cond e
@@ -509,14 +511,20 @@ class dsnconcreteVisitorClass = object
     | Call(lo,e,al,l) ->
         let lhs_s, lhs_a = match lo with None -> "", []
                                        | Some(lv) -> d_mem_lval lv in
-
         let printCalls = match lo with
           | None -> [] (* No assignment; nothing to print. *)
           | Some(lv) ->
               (* Print the actual return value stored in the left-hand side
                  variable in a lossless representation. *)
               let val_s, val_a = lossless_val_lv lv in
-              [mkPrint (lhs_s ^" = "^ val_s ^";\n") (lhs_a @ val_a)]
+              let pr_s, pr_a = (lhs_s ^" = "^ val_s ^";"), (lhs_a @ val_a) in
+
+              let if_s, if_a =
+                List.fold_left join_conds ("", []) (List.map cond_e al) in
+              let pr_s, pr_a = if if_s = "" then (pr_s ^"\n"), pr_a
+              else ("if ("^ if_s ^") { "^ pr_s ^ " }\n"), (if_a @ pr_a) in
+              [mkPrint pr_s pr_a]
+
               (* Support for struct-copying returns disabled. Take a look at
                  'loosless_val' function.
               (* Declaring a tmp variable is a trick to use an initialization
