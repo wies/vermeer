@@ -17,6 +17,25 @@ module IntSet = Set.Make (IntOrder)
 let used = ref IntSet.empty
 let removed = ref false
 
+let count_body_lines fdec =
+  let rec f_stmt acc = function
+    | [] -> acc
+    | s::ss ->
+      let acc = (get_stmtLoc s.skind).line::acc in
+      let acc = match s.skind with
+        | If(_, t, e, _) -> f_stmt (f_stmt acc t.bstmts) e.bstmts
+        (*| Block b -> f_stmt acc b.bstmts*)
+        | Instr is -> f_instr acc is
+        | Return _ -> acc
+        | _ -> E.s (E.bug "Not exprected: %a" d_stmt s) in
+      f_stmt acc ss
+  and f_instr acc is =
+    List.fold_left (fun acc i -> (get_instrLoc i).line::acc) acc is in
+
+  let lst_lines = f_stmt [] fdec.sbody.bstmts in
+  let lst_lines = List.filter (fun i -> i != -1) lst_lines in
+  List.length (compress lst_lines)
+
 let rec mark_used_lv = function
   | (Var vi, _) -> used := IntSet.add vi.vid !used
   | (Mem e, _) -> mark_used e
@@ -72,7 +91,7 @@ class dsnMarkVisitorClass = object
   (* Mark variables appearing on the RHS of an asgn used. *)
   method vinst = function
     | Set(_, e, _) -> mark_used e; DoChildren
-    | Call(_, e, args , _) as fnCall ->
+    | Call(_, e, args, _) as fnCall ->
       assert_is_assert fnCall;
       List.iter mark_used args;
       DoChildren
@@ -130,7 +149,13 @@ let rm_locals_empty_ifs = function
 
   | _ -> ()
 
+let main_body_lines globals =
+  let f a g = match g with GFun(fdec, _) -> count_body_lines fdec | _ -> a in
+  List.fold_left f 0 globals
+
 let dsn (f: file) : unit =
+  let n1 = main_body_lines f.globals in
+
   let dsnMarkVisitor = new dsnMarkVisitorClass in
   let dsnAsgnRmVisitor = new dsnAsgnRmVisitorClass in
   let mark g = ignore (visitCilGlobal dsnMarkVisitor g) in
@@ -147,7 +172,11 @@ let dsn (f: file) : unit =
       used := IntSet.empty;
       one_cycle f (i+1)
     end in
-  one_cycle f 1
+  one_cycle f 1;
+
+  let n2 = main_body_lines f.globals in
+  print_endline ("No. lines in main (fdec.sbody.stmts): "^(string_of_int n1));
+  print_endline ("After reduction: "^(string_of_int n2))
 
 let feature : featureDescr =
   { fd_name = "dsnrmtmps";
