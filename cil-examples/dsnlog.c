@@ -13,6 +13,11 @@ typedef unsigned char uch;
 
 static int unknown_index = 1;
 
+int dsn_assert(int x)
+{
+  assert(x);
+}
+
 int dsn_log(const char* format, ...)
 {
   static FILE *pfile = 0;

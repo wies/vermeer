@@ -72,7 +72,7 @@ while (<INFILE>) {
 chomp $last_seen;
 if ($last_seen ne "} // main") {
     print "\n  // Looks like the concretized trace ran into a crash.\n";
-    print "  // Adding an assert and a closing bracket for main.\n";
-    print "  assert(0);\n";
+    #print "  // Adding an assert and a closing bracket for main.\n";
+    #print "  assert(0);\n";
     print "} // main";
 }
