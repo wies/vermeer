@@ -26,6 +26,8 @@ open Dsnutils
 module E = Errormsg
 module SS = Set.Make(String)
 
+let flowSensitive = false
+
 (******************************************************************************)
 (* Start of code section taken from logwrites.ml.                             *)
 (******************************************************************************)
@@ -131,10 +133,13 @@ let rec lossless_val ?(ptr_for_comp=false) (e: exp) =
   | TPtr _ -> ("%p", [e])
   | TEnum _ -> ("%d", [e])
   | TInt(ik, a) -> begin match ik with
-    | IChar | ISChar | IBool | IInt | IShort | ILong | ILongLong -> 
-      ("%lld", [mkCast e (TInt(ILongLong,a))])
-    | IUChar | IUInt | IUShort | IULong | IULongLong -> 
-      ("%lld", [mkCast e (TInt(IULongLong,a))]) end
+    | IChar | ISChar | IBool | IInt | IShort -> ("%d", [e])
+    | ILong ->  ("%ld", [e])
+    | ILongLong -> ("%lld", [e])
+    | IUChar | IUInt | IUShort -> "%u",[e]
+    | IULong -> "%lu", [e]
+    | IULongLong -> "%llu",[e]
+  end
 (*
   | TComp (ci, _) ->
       let lhost, offset = lv in
