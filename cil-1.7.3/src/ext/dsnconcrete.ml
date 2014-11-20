@@ -159,7 +159,7 @@ let rec lossless_val ?(ptr_for_comp=false) (e: exp) =
   | TArray _ -> E.s (E.bug "Looks like this yields a compiler error.")
   | TNamed _ -> E.s (E.bug "lossless_val: can't happen after unrollType.")
   | TVoid _ | TFun _ | TBuiltin_va_list _ ->
-      E.s (E.bug "lossless_val: bug; can never be this type.")
+      E.s (E.bug "lossless_val: bug; can never be of this type.")
 
 let lossless_val_lv ?(ptr_for_comp=false) (lv: lval) =
   lossless_val ~ptr_for_comp (Lval lv)
@@ -549,7 +549,7 @@ class dsnconcreteVisitorClass = object
                             val_a;
                mkPrintNoLoc ("  "^ lhs_s ^" = dsn_tmp_ret; }\n") lhs_a] *)
 
-              if if_s = "" then [mkPrint pr_s pr_a]
+              if if_s = "" then [i; mkPrint pr_s pr_a]
               else let print_if = mkPrint ("if ("^ if_s ^ "){ ") if_a in
                    let print_asgn = mkPrintNoLoc ~noindent:true
                                                  (pr_s ^" } else {dsn_assert(0);}\n") pr_a in 
