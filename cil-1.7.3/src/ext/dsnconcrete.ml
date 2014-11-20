@@ -230,52 +230,6 @@ let rec strip_cast exp =
   | StartOf lv -> StartOf(strip_cast_lv lv)
   | _ -> E.s (E.bug "Not expected. (strip_cast)")
 
-let cond_e e = match e with Const _ -> ("", []) | _ ->
-(*
-  let name = d_string "%a" d_exp e in
-  if name = "stdin" || name =
-*)
-  let val_s, val_a = lossless_val ~ptr_for_comp:true e in
-  (d_string "%a == " d_exp e) ^ val_s, val_a
-
-let join_conds (s1, a1) (s2, a2) =
-  let conj = if s1 = "" or s2 = "" then "" else " && " in
-  if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2
-
-(* If an expression contains unsupported operations (e.g., bit shifting), get
-   a logStatement to be used in the if-stmt condition for generating
-   an implication. For example, we get "b = 10 && c = 30" for "a = b & c"
-   when the actual values for b and c are 10 and 30 respectively. *)
-let rec unsupported_op_cond exp =
-  match exp with
-  | Const _ -> "", []
-  | CastE(_, e) -> unsupported_op_cond e
-  | UnOp(BNot, e, _) -> let s1, a1 = cond_e e in
-                        let s2, a2 = unsupported_op_cond e in
-                        join_conds (s1, a1) (s2, a2)
-  | UnOp _ -> "", []
-  | BinOp(op, e1, e2, _) -> 
-    begin match op with
-      | Shiftlt | Shiftrt | BAnd | BXor | BOr | Mod ->
-	let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
-	let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
-	List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
-      | Mult -> 
-	begin match e1,e2 with
-	  | _, Const _ | Const _ , _ -> 
-	    "", []
-	  | _ -> 
-	    let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
-	    let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
-	    List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
-	end
-      | _ -> "", [] 
-    end
-  | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
-      | (Var _, _) -> "", []
-      | (Mem e, _) -> unsupported_op_cond e end
-  | _ -> E.s (E.bug "Not expected.")
-
 (* This function is for debugging only. *)
 let rec has_str_lit = function
   | Const(CStr _) | Const(CWStr _) -> true
@@ -326,6 +280,54 @@ let rec d_mem_exp ?(pr_val=false) (arg :exp) : logStatement =
   | SizeOf _ | SizeOfE _ | SizeOfStr _ -> E.s (E.bug "sizeof() not expected.")
   | Question _ -> E.s (E.bug "Question exp not expected.")
   | AddrOfLabel _ -> E.s (E.bug "AddrOfLabel not expected.")
+
+let cond_e e = match e with
+  | Const _ -> ("", [])
+  | AddrOf _ -> E.log "cond_e: %a\n" d_exp e; ("", []) (* e.g., & some_var *)
+  | _ ->
+    let name = d_string "%a" d_exp e in
+    match name with
+    | "stdin" | "stdout" | "stderr" -> ("", [])
+    | _ -> let val_s, val_a = lossless_val ~ptr_for_comp:true e in
+           name ^" == "^ val_s, val_a
+
+let join_conds (s1, a1) (s2, a2) =
+  let conj = if s1 = "" or s2 = "" then "" else " && " in
+  if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2
+
+(* If an expression contains unsupported operations (e.g., bit shifting), get
+   a logStatement to be used in the if-stmt condition for generating
+   an implication. For example, we get "b = 10 && c = 30" for "a = b & c"
+   when the actual values for b and c are 10 and 30 respectively. *)
+let rec unsupported_op_cond exp =
+  match exp with
+  | Const _ -> "", []
+  | CastE(_, e) -> unsupported_op_cond e
+  | UnOp(BNot, e, _) -> let s1, a1 = cond_e e in
+                        let s2, a2 = unsupported_op_cond e in
+                        join_conds (s1, a1) (s2, a2)
+  | UnOp _ -> "", []
+  | BinOp(op, e1, e2, _) -> 
+    begin match op with
+      | Shiftlt | Shiftrt | BAnd | BXor | BOr | Mod ->
+	let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
+	let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
+	List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
+      | Mult -> 
+	begin match e1,e2 with
+	  | _, Const _ | Const _ , _ -> 
+	    "", []
+	  | _ -> 
+	    let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
+	    let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
+	    List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
+	end
+      | _ -> "", [] 
+    end
+  | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
+      | (Var _, _) -> "", []
+      | (Mem e, _) -> unsupported_op_cond e end
+  | _ -> E.s (E.bug "Not expected.")
 
 (*
 let d_addr_exp (arg : exp ) : logStatement =
@@ -510,8 +512,8 @@ class dsnconcreteVisitorClass = object
         let pr_s1, pr_a1 = pr_s1 ^ lhs_s ^" = ", pr_a1 @ lhs_a in
 
         let val_s, val_a = lossless_val_lv lv in
-        let special_cases =
-          (rhs_s = "stdin" or rhs_s = "stdout" or rhs_s = "stderr") in
+        let special_cases = match rhs_s with
+          "stdin" | "stdout" | "stderr" -> true | _ -> false in
         let actual_val = (is_str_lit_asgn e) or (if_s <> "") or special_cases in
 
         (* Make it assign an actual value directly if needed. *)
