@@ -1113,16 +1113,15 @@ let unsat_then_cheap trace =
   make_cheap_annotated_trace reduced
 
 let unsat_then_expensive propAlgorithm trace = 
-  print_endline 
-    ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^  " lines");
+  (*print_endline 
+    ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^  " lines");*)
   let cheap = reduce_trace_unsatcore trace in
   (* Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap)); *)
   (* Printf.printf "cheap left %d clauses\n" (List.length (cheap)); *)
   let expensive = reduce_trace_expensive propAlgorithm cheap in
   (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
   (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
-  print_endline 
-    ("finished with " ^ string_of_int(List.length(reduced_linenums_at expensive)) ^  " lines");
+    print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
 class dsnsmtVisitorClass = object

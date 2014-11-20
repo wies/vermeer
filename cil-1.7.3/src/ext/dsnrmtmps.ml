@@ -175,8 +175,11 @@ let dsn (f: file) : unit =
   one_cycle f 1;
 
   let n2 = main_body_lines f.globals in
+(*
   print_endline ("No. lines in main (fdec.sbody.stmts): "^(string_of_int n1));
   print_endline ("After reduction: "^(string_of_int n2))
+*)
+  print_endline ("\n***** Started with " ^ (string_of_int n1) ^ " loc *****\n\n")
 
 let feature : featureDescr =
   { fd_name = "dsnrmtmps";
