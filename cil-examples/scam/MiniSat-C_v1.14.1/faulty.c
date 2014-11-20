@@ -718,7 +718,7 @@ clause* solver_propagate(solver* s)
                     lits[0] = lits[1];
                     lits[1] = false_lit;
                 }
-                assert(lits[1] == false_lit);
+                dsn_assert(lits[1] == false_lit);
                 //printf("checking clause: "); printlits(lits, lits+clause_size(*i)); printf("\n");
 
                 // If 0th watch is true, then clause is already satisfied.

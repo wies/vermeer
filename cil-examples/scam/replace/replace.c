@@ -492,8 +492,8 @@ subline(lin, pat, sub)
 	while ((lin[i] != ENDSTR)) 
 	{
 	    m = amatch(lin, i, pat, 0);
-            //dsn_assert(i != 8 || m == -1);
-            dsn_assert(m == -1);
+            dsn_assert(i != 8 || m == -1);
+            //dsn_assert(m == -1);
 	    if ((m >= 0) && (lastm != m)) {
 		putsub(lin, i, m, sub);
 		lastm = m;
