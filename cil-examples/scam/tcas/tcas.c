@@ -6,7 +6,6 @@
  * */
 
 #include <stdio.h>
-#include <assert.h>
 
 #define OLEV       600		/* in feets/minute */
 #define MAXALTDIFF 600		/* max altitude difference in feet */

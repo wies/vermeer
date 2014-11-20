@@ -3,7 +3,6 @@
 extern void	exit();
 # include <stdio.h>
 # include <stdlib.h>
-# include <assert.h>
 
 void	Caseerror();
 
@@ -493,7 +492,8 @@ subline(lin, pat, sub)
 	while ((lin[i] != ENDSTR)) 
 	{
 	    m = amatch(lin, i, pat, 0);
-            assert(i != 8 || m == -1);
+            //dsn_assert(i != 8 || m == -1);
+            dsn_assert(m == -1);
 	    if ((m >= 0) && (lastm != m)) {
 		putsub(lin, i, m, sub);
 		lastm = m;
