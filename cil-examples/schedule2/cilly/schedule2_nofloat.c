@@ -189,6 +189,7 @@ finish() /* Get current job, print it, and zap it. */
     {
 	current_job = (struct process *)0;
 	reschedule(0);
+        dsn_assert(job->pid != 17);
 	fprintf(stdout, " %d", job->pid);
 	free(job);
 	return(FALSE);
