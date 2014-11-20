@@ -5,4 +5,4 @@ then echo "needs an argument";
 fi
 
 ../../../cil-1.7.3/bin/cilly -c --dodsnsmt "$1.ssa.c"
-../../remap_variables "$1.ssa.c" smtresult.txt
+../../remap_variables "$1.ssa.c" smtresult.txt > remapped.txt

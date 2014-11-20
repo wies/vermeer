@@ -170,7 +170,7 @@ char *argv[];
     Climb_Inhibit = atoi(argv[12]);
 
     int res = alt_sep_test();
-    assert(res == 0);
+    dsn_assert(res == 0);
     fprintf(stdout, "%d\n", res);
     exit(0);
 }
