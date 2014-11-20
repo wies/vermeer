@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ] 
+then echo "needs an argument";
+    exit 1
+fi
+
+./runrmtmps $1
+./runssa $1
+./runsmt $1
