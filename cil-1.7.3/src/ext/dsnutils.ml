@@ -63,16 +63,16 @@ let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
 
 (********************* Printing ***********************************)
 let get_fn_name = function
-  | Call(lv_o, e, al, _) ->
-    d_string "%a" d_exp e
+  | Call(lv_o, e, al, _) -> d_string "%a" d_exp e
   | _ -> failwith "not a call!"
 
-let is_assert_fn f = 
-  match get_fn_name f with
-    | "assert" | "dsn_assert" | "assume" -> true
-    | _ -> false
- 
+let is_assert_fnname = function
+  | "assert" | "dsn_assert" | "assume" -> true
+  | _ -> false
+    
+let is_assert_fn f = is_assert_fnname (get_fn_name f)
+  
 let assert_is_assert f = 
-    match get_fn_name f with
-    | "assert" | "dsn_assert" | "assume" -> ()
-    | x -> failwith ("shouldn't have non-assert calls in a concrete trace: " ^ x)
+  let fname = (get_fn_name f) in
+  if not (is_assert_fnname fname) then  
+    failwith ("shouldn't have non-assert calls in a concrete trace: " ^ fname)
