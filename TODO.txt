@@ -3,11 +3,8 @@
 * adding function name to the varisble names
 * do the window!
   - Done with windows size. However, printing every variable for now.
-* Put implications for some library calls, e.g.,
-    const char *str = "789";
-    int i = atoi(str);
-  should produce
-    if (str == <address of "789">){ i = 789; }
+
+* Still, compound assertion conditions do not work, e.g., dsn_assert(i != 8 || m == -1);
 
 * EXAMPLES
 * get more examples
