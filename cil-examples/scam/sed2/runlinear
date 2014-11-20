@@ -10,4 +10,4 @@ mv dsn_logfile.txt "$1.linear.c"
 
 ../../postprocess_linear "$1.linear.c" > "tmp"
 ./fix_decls "tmp" > "$1.postlinear.c"
-rm tmp
+#rm tmp

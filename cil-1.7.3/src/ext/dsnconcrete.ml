@@ -508,7 +508,7 @@ class dsnconcreteVisitorClass = object
         (* Make it assign an actual value directly if needed. *)
         let pr_s2, pr_a2 = if actual_val then val_s, val_a
                                          else rhs_s, rhs_a in
-        let pr_s2 = pr_s2 ^";"^ (if if_s <> "" then " }" else "") in
+        let pr_s2 = pr_s2 ^";"^ (if if_s <> "" then " } else {dsn_assert(0);}" else "") in
 
         (* For debugging, print the actual value assigned too. *)
         let pr_s2, pr_a2 = pr_s2 ^" // Assigned: "^ val_s ^"\n",
@@ -547,7 +547,7 @@ class dsnconcreteVisitorClass = object
               if if_s = "" then [mkPrint pr_s pr_a]
               else let print_if = mkPrint ("if ("^ if_s ^ "){ ") if_a in
                    let print_asgn = mkPrintNoLoc ~noindent:true
-                                                 (pr_s ^" }\n") pr_a in 
+                                                 (pr_s ^" } else {dsn_assert(0);}\n") pr_a in 
                    [print_if; i; print_asgn] in
 
         ChangeTo (print_orig :: print_asgn)

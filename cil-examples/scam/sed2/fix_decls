@@ -7,10 +7,13 @@ open INFILE, "<", $infilename or die $!;
 while (my $line = <INFILE>){
     if ($line =~ /static struct rx_hash_rules se_list_hash_rules   =/){
 	print "static struct rx_hash_rules se_list_hash_rules;\n";
+
     } elsif ($line =~ /static struct rx_hash_rules nfa_set_hash_rules   =/){
 	print "static struct rx_hash_rules nfa_set_hash_rules;\n";
+
     } elsif ($line =~ /static struct rx_cache default_cache   =/) {
 	print "static struct rx_cache default_cache;\n";
+
     } elsif ($line =~ /{{& supersetcmp, & super_hash_allocator/) {
 	# ignore that line
     } else {
