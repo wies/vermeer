@@ -850,6 +850,16 @@ let smtinterpol_2_1 =
     kind = Process("java",["-jar";jarfile;"-q"]);
   }
     
+let z3 = 
+  { 
+    version = 4; 
+    subversion = 3;
+    has_set_theory = false;
+    smt_options = smtOnlyOptions;
+    kind = Process("z3",[]);
+  }
+
+
 type solver = 
     { name : string;
       info : solver_info
@@ -946,13 +956,20 @@ let start_with_solver session_name solver do_log =
   set_timeout state 10000;
   state
 
-let singleSolver = start_with_solver "single_solver" 
-  {name = "single_solver"; info=smtinterpol_2_1} true
+let singleSolver = ref None
+
+let getSingleSolver () = match !singleSolver with
+  | Some x -> x
+  | None -> 
+    let s = start_with_solver "single_solver" 
+      {name = "single_solver"; info=smtinterpol_2_1} true in
+    singleSolver := Some s;
+    s
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
 let _do_smt clauses pt =
   (* print_endline "doing smt"; *)
-  let solver = singleSolver in
+  let solver = getSingleSolver() in
   reset_solver solver;
   let opts = match pt with 
     | CheckSat -> smtOnlyOptions
@@ -1253,7 +1270,7 @@ let dsnsmt (f: file) : unit =
   in
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
-  exit_solver singleSolver
+  exit_solver (getSingleSolver())
 
     
 
