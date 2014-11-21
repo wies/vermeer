@@ -824,14 +824,16 @@ type solver_info =
     }
 
 let smtinterpol_2_1 = 
+  let basedir = get_basedir () in
+  let jarfile = basedir ^ "/smtinterpol/smtinterpol.jar" in
   { 
     version = 2; 
     subversion = 1;
     has_set_theory = false;
     smt_options = ["print-success",false; "produce-proofs",true; "produce-unsat-cores", true];
-    kind = Process("java",["-jar";"/home/dsn/sw/smtinterpol/smtinterpol.jar";"-q"]);
+    kind = Process("java",["-jar";jarfile;"-q"]);
   }
-
+    
 type solver = 
     { name : string;
       info : solver_info
@@ -1119,9 +1121,9 @@ let unsat_then_expensive propAlgorithm trace =
   (* Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap)); *)
   (* Printf.printf "cheap left %d clauses\n" (List.length (cheap)); *)
   let expensive = reduce_trace_expensive propAlgorithm cheap in
-  (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
-  (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
-    print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
+    (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
+    (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
+  print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
 class dsnsmtVisitorClass = object

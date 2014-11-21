@@ -14,6 +14,11 @@ let time f x =
 let safe_mkdir name mask = 
   if not (Sys.file_exists name) then Unix.mkdir name mask
 
+let get_basedir () = 
+  try Unix.getenv "VERMEER_PATH" 
+  with Not_found -> failwith "VERMEER_PATH must be set to the base directory of the repository in your environment"
+
+
 (************************* list handeling *************************)
 
 let rec sublist b e l = 
