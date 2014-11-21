@@ -1052,7 +1052,7 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
   (* try to go forward one,  If we can't then don't bother to do a binary search *)
   match try_interpolant_forward_k 2 currentState interpolant suffix with 
     | InterpolantWorks (interpolant,suffix) ->
-      print_endline "worked";
+      debug_endline "worked";
       helper (List.length suffix) currentState interpolant suffix
     | InterpolantFails -> 
       propegate_interpolant_forward_linear 1 currentState interpolant suffix
@@ -1150,14 +1150,14 @@ let unsat_then_cheap trace =
   make_cheap_annotated_trace reduced
 
 let unsat_then_expensive propAlgorithm trace = 
-  (*print_endline 
-    ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^  " lines");*)
+  debug_endline 
+    ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^  " lines");
   let cheap = reduce_trace_unsatcore trace in
-  (* Printf.printf "cheap left %d lines\n" (List.length (reduced_linenums cheap)); *)
+  debug_endline ("cheap left " ^ string_of_int(List.length(reduced_linenums cheap)) ^ " lines");
   (* Printf.printf "cheap left %d clauses\n" (List.length (cheap)); *)
   let expensive = reduce_trace_expensive propAlgorithm cheap in
-    (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
-    (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
+  (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
+  (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
@@ -1228,13 +1228,18 @@ let feature : featureDescr =
   { fd_name = "dsnsmt";
     fd_enabled = Cilutil.dsnSmt;
     fd_description = "Converts linearized concrete c program to SMT";
-    fd_extraopt = [ ("--runsmtanalysistype", Arg.String 
-		     (fun x -> match x with 
-| "unsatcore" -> analysis := UNSATCORE
-| "linearsearch" -> analysis := LINEARSEARCH
-| "binarysearch" -> analysis := BINARYSEARCH
-| x -> failwith (x ^ " is not a valid analysis type")),
-		     " the analysis to use unsatcore linearsearch binarysearch")];
+    fd_extraopt = 
+      [ ("--runsmtanalysistype", 
+	 Arg.String 
+	   (fun x -> match x with 
+	     | "unsatcore" -> analysis := UNSATCORE
+	     | "linearsearch" -> analysis := LINEARSEARCH
+	     | "binarysearch" -> analysis := BINARYSEARCH
+	     | x -> failwith (x ^ " is not a valid analysis type")),
+	 " the analysis to use unsatcore linearsearch binarysearch");
+	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
+	 " turns on printing debug messages");
+      ];
     fd_doit = dsnsmt;
     fd_post_check = true
   } 

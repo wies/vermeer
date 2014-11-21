@@ -59,6 +59,17 @@ let rec compress = function
 
 (********************* Printing ***********************************)
 
+let errormsg = 0
+let warnmsg = 1
+let debugmsg = 2
+let debugLevel = ref errormsg
+
+let debug_level_endline dl l =  if !debugLevel >= dl then print_endline l
+let warn_endline l = debug_level_endline warnmsg l
+let debug_endline l =  debug_level_endline debugmsg l
+let errormsg_endline l =  debug_level_endline errormsg l
+
+
 let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a = 
   let f (d: Pretty.doc) : string = 
     Pretty.sprint 800 d
