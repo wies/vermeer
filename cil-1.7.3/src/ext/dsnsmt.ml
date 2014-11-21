@@ -828,6 +828,13 @@ type solver_info =
       kind: solver_kind; 
     }
 
+let unsatCoreOptions =  
+  ["print-success",false; "produce-proofs",true; "produce-unsat-cores", true]
+let interpolationOptions = 
+  ["print-success",false; "produce-proofs",true; "produce-unsat-cores", false]
+let smtOnlyOptions = 
+  ["print-success",false; "produce-proofs",false; "produce-unsat-cores", false]
+
 let smtinterpol_2_1 = 
   let basedir = get_basedir () in
   let jarfile = basedir ^ "/smtinterpol/smtinterpol.jar" in
@@ -835,7 +842,7 @@ let smtinterpol_2_1 =
     version = 2; 
     subversion = 1;
     has_set_theory = false;
-    smt_options = ["print-success",false; "produce-proofs",true; "produce-unsat-cores", true];
+    smt_options = smtOnlyOptions;
     kind = Process("java",["-jar";jarfile;"-q"]);
   }
     
@@ -866,9 +873,12 @@ let write_line_to_solver solver line =
 let write_to_solver solver lines = 
   List.iter (write_line_to_solver solver) lines
 
-let set_option solver (opt_name,opt_value) =
-  let optStr = Printf.sprintf "(set-option :%s %b)\n" opt_name opt_value in
-  write_line_to_solver solver optStr
+let set_solver_options solver opts = 
+  let set_option (opt_name,opt_value) =
+    let optStr = Printf.sprintf "(set-option :%s %b)\n" opt_name opt_value in
+    write_line_to_solver solver optStr
+  in
+  List.iter set_option opts
 
 let set_timeout solver timeout = 
   write_line_to_solver solver ("(set-option :timeout " ^ string_of_int timeout ^ ")\n")
@@ -928,7 +938,7 @@ let start_with_solver session_name solver do_log =
 	pid = pid;
 	log_out = log_out;
       } in
-  List.iter (set_option state) solver.info.smt_options;
+  set_solver_options state solver.info.smt_options;
   set_timeout state 10000;
   state
 
@@ -940,6 +950,12 @@ let _do_smt clauses pt =
   (* print_endline "doing smt"; *)
   let solver = singleSolver in
   reset_solver solver;
+  let opts = match pt with 
+    | CheckSat -> smtOnlyOptions
+    | GetUnsatCore -> unsatCoreOptions 
+    | GetInterpolation _-> interpolationOptions 
+  in 
+  set_solver_options solver opts;
   set_logic solver "QF_LIA";
   if uninterpretedBitOperators then declare_uninterpreted_ops solver smtUninterpreted;
   (* on occation, there are variables that are never used in a way where their type matters
