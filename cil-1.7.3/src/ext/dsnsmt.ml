@@ -850,13 +850,13 @@ let smtinterpol_2_1 =
     kind = Process("java",["-jar";jarfile;"-q"]);
   }
     
-let z3 = 
+let z3_4_3 = 
   { 
     version = 4; 
     subversion = 3;
     has_set_theory = false;
     smt_options = smtOnlyOptions;
-    kind = Process("z3",[]);
+    kind = Process("z3",["-smt2"; "-in"]);
   }
 
 
@@ -908,20 +908,25 @@ let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unkn
 let reset_solver solver = write_line_to_solver solver "(reset)\n"
 let exit_solver solver = write_line_to_solver solver "(exit)\n"; flush_solver solver
 
+let line_from_solver solver = 
+  let line = input_line solver.in_chan in
+  debug_endline line;
+  line
+
 let rec read_from_solver (solver) (pt) : smtResult =
-  let l  = input_line solver.in_chan in
+  let l  = line_from_solver solver in
   if begins_with l "INFO" then 
     read_from_solver solver pt (*skip *)
   else if begins_with l "unsat" then 
     match pt with
       | CheckSat -> Unsat(GotNothing)
       | GetUnsatCore -> 
-	let next_line = input_line solver.in_chan in
+	let next_line = line_from_solver solver in
 	let coreList = extract_unsat_core (next_line) in
 	let coreSet = List.fold_left (fun a e -> StringSet.add e a) StringSet.empty coreList in
 	Unsat(GotUnsatCore coreSet)
       | GetInterpolation _ -> 
-	let next_line = input_line solver.in_chan in
+	let next_line = line_from_solver solver in
 	let terms = extract_term (next_line) in
 	Unsat(GotInterpolant terms)
   else if begins_with l "sat" then
@@ -956,20 +961,32 @@ let start_with_solver session_name solver do_log =
   set_timeout state 10000;
   state
 
-let singleSolver = ref None
-
-let getSingleSolver () = match !singleSolver with
+let smtinterpolSolver = ref None
+let getSmtinterpol () = match !smtinterpolSolver with
   | Some x -> x
   | None -> 
-    let s = start_with_solver "single_solver" 
-      {name = "single_solver"; info=smtinterpol_2_1} true in
-    singleSolver := Some s;
+    let s = start_with_solver "smtinterpol_out" 
+      {name = "smtinterpol"; info=smtinterpol_2_1} true in
+    smtinterpolSolver := Some s;
     s
+
+let z3Solver = ref None
+let getZ3 () = match !z3Solver with
+  | Some x -> x
+  | None -> 
+    let s = start_with_solver "z3_out" 
+      {name = "z3"; info=z3_4_3} true in
+    z3Solver := Some s;
+    s
+
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
 let _do_smt clauses pt =
   (* print_endline "doing smt"; *)
-  let solver = getSingleSolver() in
+  let solver = match pt with
+    | CheckSat | GetUnsatCore -> getZ3 ()
+    | GetInterpolation _ -> getSmtinterpol()
+  in
   reset_solver solver;
   let opts = match pt with 
     | CheckSat -> smtOnlyOptions
@@ -1270,7 +1287,8 @@ let dsnsmt (f: file) : unit =
   in
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
-  exit_solver (getSingleSolver())
+  exit_solver (getZ3());
+  exit_solver (getSmtinterpol())
 
     
 
