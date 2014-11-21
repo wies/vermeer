@@ -18,7 +18,7 @@ let uninterpretedBitOperators = false
 
 let smtCallTime = ref []
 
-type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH
+type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW
 let analysis = ref UNSATCORE (*default *)
 
 (******************************** Optimizations ***************************)
@@ -727,7 +727,11 @@ let rec extract_term (str)  : term list =
 	else if headStr = "false" then SMTFalse :: tailExp
 	else failwith "neither true nor false???"
 
-let clause_from_sexp (sexp: string) (ssaBefore: varSSAMap) (ic : ifContextList)(ct : clauseType) 
+let clause_from_sexp 
+    (sexp: string) 
+    (ssaBefore: varSSAMap) 
+    (ic : ifContextList)
+    (ct : clauseType) 
     : clause = 
   match extract_term sexp with 
     | [t] -> make_clause t ssaBefore ic ct
@@ -1006,19 +1010,20 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
       | Unsat _ -> true
       | Timeout -> false (* conservative on timeout *)
 
+let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
+  let not_inter = negate_clause inter in
+  match do_smt (not_inter :: before) CheckSat  with
+    | Timeout -> false
+    | Sat -> false
+    | Unsat(_) -> 
+      match do_smt (inter :: after) CheckSat with
+	| Sat -> false
+	| Unsat(_) -> true 
+	| Timeout -> false
+
+
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
 let try_interpolant_forward_k k currentState interpolant suffix  =
-  let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
-    let not_inter = negate_clause inter in
-    match do_smt (not_inter :: before) CheckSat  with
-      | Timeout -> false
-      | Sat -> false
-      | Unsat(_) -> 
-	match do_smt (inter :: after) CheckSat with
-	  | Sat -> false
-	  | Unsat(_) -> true 
-	  | Timeout -> false
-  in
   match split_off_n_reversed k suffix with
     | Some(leftRev,right) ->
       let lastLeft = List.hd leftRev in
@@ -1103,6 +1108,22 @@ let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
   let unreducedTrace = make_cheap_annotated_trace unreducedClauses in
   propegate_cheap_driver unreducedTrace [] 
 
+let propegate_forward_window (input : annotatedTrace) : annotatedTrace =
+  let rec aux at accum = 
+    match at with
+      | (i1,s1)::(i2,s2)::(i3,s3)::rest -> 
+	let remapped = remap_formula s1.ssaIdxs i1 in
+	let interpolant = make_clause remapped s1.ssaIdxs [] Interpolant in
+	let c1 = make_clause i1 emptySSAMap   [] Interpolant  in
+	let c3 =  make_clause i3 emptySSAMap   [] Interpolant in
+	if is_valid_interpolant [c1;s1][s2;c3] interpolant then
+	  aux ((remapped,s2)::(i3,s3)::rest) accum
+	else 
+	  aux ((i2,s2)::(i3,s3)::rest) ((i1,s1)::accum)
+      | _ -> accum
+  in
+  List.rev (aux input [])
+  
 (* reduced is the prefix of the trace *)
 (* We will work as follows:
  * assume that the reducedPrefix is maximally reduced
@@ -1115,31 +1136,31 @@ let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
  * repeat
  * keep the reduced prefix in reverse order to prevent unneccessary list conjunctions
  *)
-let reduce_trace_expensive propAlgorithm trace = 
-  let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
-    match unreducedSuffix with
-      | [] -> reducedPrefixRev
-      | [x] -> (currentState.formula,x)::reducedPrefixRev
-      | x :: xs ->
-	let clist = currentState :: unreducedSuffix in
-	let before = [currentState;x] in
-	let after = xs in
-	let partition = make_interpolate_between before after in
-	match do_smt clist (GetInterpolation partition)  with 
-	  | Unsat (GotInterpolant [interpolantTerm]) -> 
-	    let interpolant = 
-	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
+  let reduce_trace_expensive propAlgorithm trace = 
+    let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
+      match unreducedSuffix with
+	| [] -> reducedPrefixRev
+	| [x] -> (currentState.formula,x)::reducedPrefixRev
+	| x :: xs ->
+	  let clist = currentState :: unreducedSuffix in
+	  let before = [currentState;x] in
+	  let after = xs in
+	  let partition = make_interpolate_between before after in
+	  match do_smt clist (GetInterpolation partition)  with 
+	    | Unsat (GotInterpolant [interpolantTerm]) -> 
+	      let interpolant = 
+		make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
 	    (*find_farthest_point_interpolant_valid *)
-	    let newCurrentState, unreducedSuffix = 
-	      propAlgorithm currentState interpolant unreducedSuffix in
-	    reduce_trace_imp 
-	      ((currentState.formula,x)::reducedPrefixRev)
-	      newCurrentState
-	      unreducedSuffix
-	  | Sat -> failwith "was sat"
-	  | _ -> failwith "Problem getting interpolant"
-  in
-  List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
+	      let newCurrentState, unreducedSuffix = 
+		propAlgorithm currentState interpolant unreducedSuffix in
+	      reduce_trace_imp 
+		((currentState.formula,x)::reducedPrefixRev)
+		newCurrentState
+		unreducedSuffix
+	    | Sat -> failwith "was sat"
+	    | _ -> failwith "Problem getting interpolant"
+    in
+    List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
 
 let unsat_then_cheap trace =
   print_endline 
@@ -1148,6 +1169,10 @@ let unsat_then_cheap trace =
   print_endline 
     ("cheap left " ^ string_of_int (List.length (reduced_linenums reduced)) ^ " lines");
   make_cheap_annotated_trace reduced
+
+let unsat_then_window trace = 
+  let cheap = unsat_then_cheap trace in
+  propegate_forward_window cheap
 
 let unsat_then_expensive propAlgorithm trace = 
   debug_endline 
@@ -1217,7 +1242,9 @@ let dsnsmt (f: file) : unit =
   let reduced = match !analysis with
     | UNSATCORE -> unsat_then_cheap clauses
     | LINEARSEARCH -> unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses 
-    | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses in
+    | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses 
+    | WINDOW -> unsat_then_window clauses
+  in
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
   exit_solver singleSolver
@@ -1235,6 +1262,7 @@ let feature : featureDescr =
 	     | "unsatcore" -> analysis := UNSATCORE
 	     | "linearsearch" -> analysis := LINEARSEARCH
 	     | "binarysearch" -> analysis := BINARYSEARCH
+	     | "window" -> analysis := WINDOW
 	     | x -> failwith (x ^ " is not a valid analysis type")),
 	 " the analysis to use unsatcore linearsearch binarysearch");
 	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
