@@ -7,9 +7,10 @@ let time f x =
   let start = Unix.gettimeofday ()
   in let res = f x
      in let stop = Unix.gettimeofday ()
-	in let () = Printf.printf "Execution time: %fs\n%!" (stop -. start)
-	   in
-	   flush stdout; res
+        in let duration = stop -. start
+	   in let () = Printf.printf "Execution time: %fs\n%!" duration
+	      in
+	      flush stdout; (res, duration)
 
 let safe_mkdir name mask = 
   if not (Sys.file_exists name) then Unix.mkdir name mask
