@@ -1049,7 +1049,14 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
 	helper (k/2) interpolant interpolant suffix 
       | NotKLeft -> failwith "there really should be k left now"
   in
-  helper (List.length suffix) currentState interpolant suffix
+  (* try to go forward one,  If we can't then don't bother to do a binary search *)
+  match try_interpolant_forward_k 2 currentState interpolant suffix with 
+    | InterpolantWorks (interpolant,suffix) ->
+      print_endline "worked";
+      helper (List.length suffix) currentState interpolant suffix
+    | InterpolantFails -> 
+      propegate_interpolant_forward_linear 1 currentState interpolant suffix
+    | NotKLeft -> failwith "not able to propegate"
 
 (* this may subsume the reduce_trace_cheap! *)
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
