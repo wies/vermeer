@@ -16,6 +16,11 @@ open String
 
 let uninterpretedBitOperators = false
 
+let smtCallTime = ref []
+
+type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH
+let analysis = ref UNSATCORE (*default *)
+
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
 *)
@@ -931,7 +936,7 @@ let singleSolver = start_with_solver "single_solver"
   {name = "single_solver"; info=smtinterpol_2_1} true
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
-let do_smt clauses pt =
+let _do_smt clauses pt =
   (* print_endline "doing smt"; *)
   let solver = singleSolver in
   reset_solver solver;
@@ -957,6 +962,13 @@ let do_smt clauses pt =
   write_to_solver solver cmds;
   flush_solver solver;
   read_from_solver solver pt
+
+let do_smt clauses pt =
+  let res, duration = Dsnutils.time (fun () -> _do_smt clauses pt) () in
+  smtCallTime := !smtCallTime @ [duration];
+  Printf.printf "No. calls=%d, Time_this=%.3f Time_total=%.3f\n"
+    (List.length !smtCallTime) duration (List.fold_left (+.) 0. !smtCallTime);
+  res
 
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
   (* interpolants have no need for ssa variables.  So we can just drop them *)
@@ -1179,8 +1191,10 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
-  let reduced = unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses in
-  (*let reduced = unsat_then_cheap clauses in *)
+  let reduced = match !analysis with
+    | UNSATCORE -> unsat_then_cheap clauses
+    | LINEARSEARCH -> unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses 
+    | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses in
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
   exit_solver singleSolver
@@ -1191,7 +1205,13 @@ let feature : featureDescr =
   { fd_name = "dsnsmt";
     fd_enabled = Cilutil.dsnSmt;
     fd_description = "Converts linearized concrete c program to SMT";
-    fd_extraopt = [];
+    fd_extraopt = [ ("--runsmtanalysistype", Arg.String 
+		     (fun x -> match x with 
+| "unsatcore" -> analysis := UNSATCORE
+| "linearsearch" -> analysis := LINEARSEARCH
+| "binarysearch" -> analysis := BINARYSEARCH
+| x -> failwith (x ^ " is not a valid analysis type")),
+		     " the analysis to use unsatcore linearsearch binarysearch")];
     fd_doit = dsnsmt;
     fd_post_check = true
   } 
