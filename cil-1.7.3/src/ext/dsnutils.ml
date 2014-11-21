@@ -2,15 +2,36 @@
 
 open Cil
 
+(********************* Printing ***********************************)
+
+let errormsg = 0
+let warnmsg = 1
+let debugmsg = 2
+let debugLevel = ref errormsg
+
+let debug_level_endline dl l =  if !debugLevel >= dl then print_endline l
+let warn_endline l = debug_level_endline warnmsg l
+let debug_endline l =  debug_level_endline debugmsg l
+let errormsg_endline l =  debug_level_endline errormsg l
+
+
+let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a = 
+  let f (d: Pretty.doc) : string = 
+    Pretty.sprint 800 d
+  in
+  Pretty.gprintf f fmt 
+
+let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
+
+
 (************************* utils *************************)
 let time f x =
-  let start = Unix.gettimeofday ()
-  in let res = f x
-     in let stop = Unix.gettimeofday ()
-        in let duration = stop -. start
-	   in let () = Printf.printf "Execution time: %fs\n%!" duration
-	      in
-	      flush stdout; (res, duration)
+  let start = Unix.gettimeofday () in 
+  let res = f x in 
+  let stop = Unix.gettimeofday () in 
+  let duration = stop -. start in 
+  debug_endline ("Execution time: " ^ string_of_float duration);
+  (res, duration)
 
 let safe_mkdir name mask = 
   if not (Sys.file_exists name) then Unix.mkdir name mask
@@ -57,26 +78,6 @@ let rec compress = function
   | a :: (b :: _ as t) -> if a = b then compress t else a :: compress t
   | smaller -> smaller
 
-(********************* Printing ***********************************)
-
-let errormsg = 0
-let warnmsg = 1
-let debugmsg = 2
-let debugLevel = ref errormsg
-
-let debug_level_endline dl l =  if !debugLevel >= dl then print_endline l
-let warn_endline l = debug_level_endline warnmsg l
-let debug_endline l =  debug_level_endline debugmsg l
-let errormsg_endline l =  debug_level_endline errormsg l
-
-
-let d_string (fmt : ('a,unit,Pretty.doc,string) format4) : 'a = 
-  let f (d: Pretty.doc) : string = 
-    Pretty.sprint 800 d
-  in
-  Pretty.gprintf f fmt 
-
-let print_bars msg str = print_string (msg ^ " |" ^ str ^"|\n")
 
 (********************* Printing ***********************************)
 let get_fn_name = function

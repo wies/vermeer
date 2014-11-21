@@ -986,8 +986,10 @@ let _do_smt clauses pt =
 let do_smt clauses pt =
   let res, duration = Dsnutils.time (fun () -> _do_smt clauses pt) () in
   smtCallTime := !smtCallTime @ [duration];
-  Printf.printf "No. calls=%d, Time_this=%.3f Time_total=%.3f\n"
-    (List.length !smtCallTime) duration (List.fold_left (+.) 0. !smtCallTime);
+  debug_endline 
+    ("No. calls=" ^ string_of_int (List.length !smtCallTime) 
+     ^ ", Time_this=" ^ string_of_float duration
+     ^ " Time_total=" ^ string_of_float (List.fold_left (+.) 0. !smtCallTime));
   res
 
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
@@ -1172,7 +1174,11 @@ let unsat_then_cheap trace =
 
 let unsat_then_window trace = 
   let cheap = unsat_then_cheap trace in
-  propegate_forward_window cheap
+  let window = propegate_forward_window cheap in
+  print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at window))) ^ " loc *****\n\n");
+  window
+
+
 
 let unsat_then_expensive propAlgorithm trace = 
   debug_endline 
