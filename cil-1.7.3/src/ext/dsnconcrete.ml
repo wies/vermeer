@@ -465,7 +465,7 @@ let mk_print_orig (* For printing debugging info. *) = function
       | Const(CStr s) -> to_c_string s
       | Const(CWStr s) -> E.s (E.unimp "CWStr not supported.")
       | _ -> d_string "%a" d_exp e in
-    mkPrintNoLoc (d_string "\n// %a = %s;\n" d_lval lv rhs) []
+    mkPrintNoLoc "%s" [mkString (d_string "\n// %a = %s;\n" d_lval lv rhs)]
   | Call(lv_o, e, al, _) as fnCall ->
     let rec arg_lst = function 
       | [] -> ""
