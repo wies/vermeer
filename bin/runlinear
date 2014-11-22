@@ -1,0 +1,65 @@
+#!/bin/bash
+
+EX_DIR=$VERMEER_PATH/examples
+
+if [ -z "$VERMEER_PATH" ]; then
+    echo "\$VERMEER_PATH not set."; exit 1
+elif [ ! -d "$EX_DIR" ]; then
+    echo -n "Cannot access example directory: \"$EX_DIR\"; "
+    echo    "wrong \$VERMEER_PATH setting?"; exit 1
+elif [ "$#" -ne 1 ]; then
+    echo "Usage: runlinear <prog name>"; exit 1
+elif [ ! -r "$1.c" ]; then
+    echo "Cannot read \"$1.c\"."; exit 1
+fi
+
+if [ ! -f $EX_DIR/dsnlog.o ]; then
+    cd $EX_DIR
+    . mk-log-o
+    cd -
+fi
+
+PROG=$1
+CIL_TMP_DIR="$1_dir"
+
+if [ ! -e $CIL_TMP_DIR ]; then mkdir $CIL_TMP_DIR; fi
+
+OPTS=
+if [ -r "opts" ]; then
+    OPTS=`cat opts`
+fi
+cd $CIL_TMP_DIR
+$VERMEER_PATH/cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --domakeCFG --dodsnlinear --save-temps --no-convert-direct-calls $OPTS "../$PROG.c" $EX_DIR/dsnlog.o -lm
+
+if [ "$?" -ne "0" -o ! -x ./a.out ]; then
+    echo "Sorry; something went wrong."; exit 1
+fi
+
+echo
+echo "+------------------------------------------+"
+echo "| Generating linear trace until failure... |"
+echo "+------------------------------------------+"
+if [ ! -r "../failing_input" ]; then
+    ./a.out
+else
+    echo "./a.out `cat ../failing_input`" > tmp
+    . tmp; rm -f tmp
+fi
+mv dsn_logfile.txt "$PROG.linear.c"
+
+rm -f "$PROG.postlinear.c"
+$VERMEER_PATH/bin/postprocess_linear "$PROG.linear.c" > "$PROG.postlinear.c"
+
+if [ -x "../fix_linear.sh" ]; then
+    ../fix_linear.sh
+fi
+
+if [ ! -s "$PROG.postlinear.c" ]; then
+    echo "Sorry; something went wrong."; exit 1
+fi
+
+echo
+echo "SUCCESS!"
+echo
+echo "Linear trace: \"$CIL_TMP_DIR/$PROG.postlinear.c\" generated."
+echo

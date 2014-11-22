@@ -1,0 +1,37 @@
+#!/bin/bash
+
+EX_DIR=$VERMEER_PATH/examples
+
+if [ -z "$VERMEER_PATH" ]; then
+    echo "\$VERMEER_PATH not set."; exit 1
+elif [ ! -d "$EX_DIR" ]; then
+    echo -n "Cannot access example directory: \"$EX_DIR\"; "
+    echo    "wrong \$VERMEER_PATH setting?"; exit 1
+elif [ "$#" -lt 1 ]; then
+    echo "usage: runexplain [-a (explain|fast_abs|full_abs)] <prog name>"
+fi
+
+ANALYSIS=unsatcore
+while [ "$1" ]; do
+  case $1 in
+  -a) case $2 in
+      explain ) ;;
+      fast_abs) ANALYSIS=noninductive;;
+      full_abs) ANALYSIS=binarysearch;;
+      *       ) echo Missing or bad option value.; exit 1
+      esac;
+      shift; shift;;
+  -*) echo Unrecognized option.; exit 1;;
+  *) PROG=$1; shift;;
+  esac
+done
+
+CIL_TMP_DIR="${PROG}_dir"
+
+if [ ! -r "$CIL_TMP_DIR/$PROG.postconcrete.c" ]; then
+    echo "Cannot read \"$CIL_TMP_DIR/$PROG.postconcrete.c\"."; exit 1
+fi
+
+$VERMEER_PATH/bin/runrmtmps $PROG
+$VERMEER_PATH/bin/runssa $PROG
+$VERMEER_PATH/bin/runsmt $PROG $ANALYSIS
