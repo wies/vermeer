@@ -1131,7 +1131,8 @@ let reduce_trace_noninductive (input : annotatedTrace) : annotatedTrace =
 	  aux ((remapped,s2)::rest) accum
 	else 
 	  aux ((i2,s2)::rest) ((i1,s1)::accum)
-      | _ -> accum
+      | [x] -> x::accum
+      | _ -> failwith "here"
   in
   List.rev (aux input [])
 
