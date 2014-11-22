@@ -18,7 +18,7 @@ let uninterpretedBitOperators = false
 
 let smtCallTime = ref []
 
-type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW
+type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE
 let analysis = ref UNSATCORE (*default *)
 
 (******************************** Optimizations ***************************)
@@ -1119,6 +1119,21 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
       zipped
     | _ -> failwith "make_cheap_annotated_trace failed"
 
+let reduce_trace_noninductive (input : annotatedTrace) : annotatedTrace =
+  let rec aux at accum = 
+    match at with
+      | (i1,s1)::(i2,s2)::rest -> 
+	let _ , rhsClauses = List.split rest in
+       	let remapped = remap_formula s1.ssaIdxs i1 in
+	let interpolant = make_clause remapped s1.ssaIdxs [] Interpolant in
+	let c1 =  make_clause i1 emptySSAMap  [] Interpolant in
+	if is_valid_interpolant [c1;s1] (s2::rhsClauses) interpolant then
+	  aux ((remapped,s2)::rest) accum
+	else 
+	  aux ((i2,s2)::rest) ((i1,s1)::accum)
+      | _ -> accum
+  in
+  List.rev (aux input [])
 
 let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
   (* Given an annotated list [I1,S1; I2,S2, etc) 
@@ -1214,6 +1229,14 @@ let unsat_then_window trace =
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at window))) ^ " loc *****\n\n");
   window
 
+let unsat_then_noninductive trace = 
+  let cheap = unsat_then_cheap trace in
+  let noninductive = reduce_trace_noninductive cheap in
+  print_endline ("\n***** Finished with " 
+		 ^ (string_of_int (List.length(reduced_linenums_at noninductive))) 
+		 ^ " loc *****\n\n");
+  noninductive
+
 
 
 let unsat_then_expensive propAlgorithm trace = 
@@ -1286,6 +1309,7 @@ let dsnsmt (f: file) : unit =
     | LINEARSEARCH -> unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses 
     | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses 
     | WINDOW -> unsat_then_window clauses
+    | NONINDUCTIVE -> unsat_then_noninductive clauses
   in
   let oc  = open_out "smtresult.txt" in
   print_annotated_trace ~stream:oc reduced;
@@ -1306,6 +1330,7 @@ let feature : featureDescr =
 	     | "linearsearch" -> analysis := LINEARSEARCH
 	     | "binarysearch" -> analysis := BINARYSEARCH
 	     | "window" -> analysis := WINDOW
+	     | "noninductive" -> analysis := NONINDUCTIVE
 	     | x -> failwith (x ^ " is not a valid analysis type")),
 	 " the analysis to use unsatcore linearsearch binarysearch");
 	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
