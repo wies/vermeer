@@ -61,33 +61,43 @@ There are a few things you will need to do before you can use VERMEER.
    that automatically call the relevant parts in the 
    correct order. 
 
-   $ cd $VERMEER_PATH/cil-examples
+   $ cd $VERMEER_PATH/examples
    Try running the "simple.c" example from the demo video.
    First, make a linear trace
-   $ ./runlinear simple
-   This should create a file in simple_dir called simple.postlinear.c
-   $ ./runconcrete simple
-   This should create a file in simple_dir called simple.postconcrete.c
-   $ ./runexplain simple
-   This should create a file in simple_dir called remapped.txt which contains 
-   the explanation
+       $ ../bin/runlinear simple
 
-TODO - add something about how they can select which algorithm to use by changing the paramater to runexplain
+   This should create a file in simple_dir called simple.postlinear.c
+       $ ../bin/runconcrete simple
+
+   This should create a file in simple_dir called simple.postconcrete.c
+       $ ../bin/runexplain simple
+
+   This should create a file in simple_dir called explanation.txt
+   which contains the explanation
+
+   You can choose which algorithm to use for explanation generation
+   among three available ones (see the paper for details), e.g.,
+       $ ../bin/runexplain -a explain simple
+       $ ../bin/runexplain -a fast_abs simple
+       $ ../bin/runexplain -a full_abs simple
 
 5) Now let's try an example from the SIR repository
-   cd $VERMEER_PATH\cil-examples\scam\sed
-   $ ./runlinear sed
+   cd $VERMEER_PATH\examples\sed
+       $ ../../bin/runlinear sed
+
    This should create a file sed.postlinear.c
+       $ ../../bin/runconcrete sed
 
-   $ ./runconcrete sed
    This should create a file sed.postconcrete.c
-   You will need to add an assertion to this file.  
-     dsn_assert(re_search_2__6__mem_1406 > 1024);
+   You will need to add an assertion ('dsn_assert') at the end of this file.
+       dsn_assert(re_search_2__6__mem_1406 > 1024);
    This should go right before the comment:
-     // Looks like the concretized trace ran into a crash.
+       // Looks like the concretized trace ran into a crash.
 
-   $ ./runexplain sed
-   check out remapped.txt for the reduced trace.
+   Then,
+       $ ../../bin/runexplain sed
+
+   check out explanation.txt for the reduced trace.
 
 ****************** Possible Problems **********************************
 We have developed and tested VERMEER on 64bit Ubuntu Linux 12.04.
