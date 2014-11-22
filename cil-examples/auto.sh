@@ -5,33 +5,33 @@ if [ $# -ne 1 ]; then
 fi
 
 echo "[[ RUNLINEAR ]]"
-./runlinear.sh $1
+./runlinear $1
 EXIT=$?
 cd $1_dir; rm -f a.out *.i *.o; cd ..
 if [ "$EXIT" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ RUNCONCRETE ]]"
-./runconcrete.sh $1
+./runconcrete $1
 EXIT=$?
 cd $1_dir; rm -f a.out *.i *.o; cd ..
 if [ "$EXIT" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ RUNRMTMPS ]]"
-./runrmtmps.sh $1
+./runrmtmps $1
 cd $1_dir; rm -f *.i *.o; cd ..
 if [ "$?" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ RUNSSA ]]"
-./runssa.sh $1
+./runssa $1
 cd $1_dir; rm -f *.i *.o; cd ..
 if [ "$?" -ne "0" ]; then exit 1; fi
 
 echo
 echo "[[ RUNSNAPS ]]"
-./runsnaps.sh $1
+./runsnaps $1
 cd $1_dir; rm -f a.out *.i *.o; cd ..
 if [ "$?" -ne "0" ]; then exit 1; fi
 

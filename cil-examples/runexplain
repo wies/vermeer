@@ -1,10 +1,36 @@
 #!/bin/bash
 
-if [ "$#" -ne 1 ] 
-then echo "needs an argument";
-    exit 1
+if [ "$#" -ne 1 ]; then
+  echo "usage: runexplain <prog_name> [-a (explain|fast_abs|full_abs)]"
+  exit 1
 fi
 
-./runrmtmps $1
-./runssa $1
-./runsmt $1
+PROG_NAME=$1
+CONCRETE_TRACe=$1.postconcrete.c
+if [ ! -r $CONCRETE_TRACE ]; then
+  echo "Cannot read '$CONCRETE_TRACE'."
+  exit 1
+fi
+shift
+
+function non_empty_arg {
+  if [ -z "$1" ]; then echo Value for an option not provided.; exit 1; fi      
+}
+
+ANALYSIS=unsatcore
+while [ "$1" ]; do
+  case $1 in
+  -a) case $2 in
+      explain ) ;;
+      fast_abs) ANALYSIS=noninductive;;
+      full_bas) ANALYSIS=binarysearch;;
+      *       ) echo Unrecognized option value.; exit 1
+      esac;;
+  * ) echo Unrecognized option.; exit 1
+  esac
+  shift; shift
+done
+
+./runrmtmps $PROG_NAME
+./runssa $PROG_NAME
+./runsmt $PROG_NAME $ANALYSIS

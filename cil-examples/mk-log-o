@@ -1,3 +1,2 @@
 #!/bin/bash
 gcc -c -O4 dsnlog.c
-gcc -c extern_debug_funs.c

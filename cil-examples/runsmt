@@ -1,7 +1,12 @@
 #!/bin/bash
-if [ "$#" -ne 1 ] 
-then echo "needs an argument";
+if [ "$#" -lt 2 ] 
+then echo "needs two arguments";
     exit 1
+fi
+
+DEBUG=
+if [ "$3" == "debug" ]; then
+  DEBUG="--smtdebug"
 fi
 
 CIL_TMP_DIR="$1_dir"
@@ -11,5 +16,5 @@ if [ ! -e $CIL_TMP_DIR ]; then
 fi
 
 cd $1_dir
-../../cil-1.7.3/bin/cilly -c --dodsnsmt --runsmtanalysistype="binarysearch" "$1.ssa.c"
+../../cil-1.7.3/bin/cilly -c --dodsnsmt --runsmtanalysistype="$2" "$1.ssa.c"
 ../remap_variables "$1.ssa.c" smtresult.txt > remapped.txt
