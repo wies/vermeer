@@ -1,5 +1,0 @@
-The original code has been heavily modified so that our tool can handle it.
-It does change the original behavior but in a neglibile way; the reason for
-the assertion failure and the execution path are preserved.
-
-Start with "./runlinear.sh faulty".

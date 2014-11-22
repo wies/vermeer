@@ -277,7 +277,7 @@ static clause* clause_new(solver* s, lit* begin, lit* end, int learnt)
     size           = end - begin;
     c              = (clause*)malloc(sizeof(clause) + sizeof(lit) * size + learnt * sizeof(uint64));
     c->size_learnt = (size << 1) | learnt;
-    assert(((unsigned int)c & 1) == 0);
+    //assert(((unsigned int)c & 1) == 0);
 
     for (i = 0; i < size; i++)
         c->lits[i] = begin[i];
@@ -353,7 +353,8 @@ void solver_setnvars(solver* s,int n)
 
     if (s->cap < n){
 
-        while (s->cap < n) s->cap = s->cap*2+1;
+        s->cap = 2048;
+        //while (s->cap < n) s->cap = s->cap*2+1;
 
         s->wlists    = (vecp*)   realloc(s->wlists,   sizeof(vecp)*s->cap*2);
         s->activity  = (uint64*) realloc(s->activity, sizeof(uint64)*s->cap);
@@ -717,7 +718,7 @@ clause* solver_propagate(solver* s)
                     lits[0] = lits[1];
                     lits[1] = false_lit;
                 }
-                assert(lits[1] == false_lit);
+                dsn_assert(lits[1] == false_lit);
                 //printf("checking clause: "); printlits(lits, lits+clause_size(*i)); printf("\n");
 
                 // If 0th watch is true, then clause is already satisfied.
@@ -1201,4 +1202,211 @@ void sort(void** array, int size, int(*comp)(const void *, const void *))
 {
     uint64 seed = 91648253;
     sortrnd(array,size,comp,&seed);
+}
+/**************************************************************************************************
+MiniSat -- Copyright (c) 2005, Niklas Sorensson
+http://www.cs.chalmers.se/Cs/Research/FormalMethods/MiniSat/
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+**************************************************************************************************/
+// Modified to compile with MS Visual Studio 6.0 by Alan Mishchenko
+
+#include "solver.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+//#include <unistd.h>
+//#include <signal.h>
+//#include <zlib.h>
+//#include <sys/time.h>
+//#include <sys/resource.h>
+
+//=================================================================================================
+// Helpers:
+
+
+// Reads an input stream to end-of-file and returns the result as a 'char*' terminated by '\0'
+// (dynamic allocation in case 'in' is standard input).
+//
+char* readFile(FILE *  in)
+{
+    char*   data = malloc(65536);
+    int     cap  = 65536;
+    int     size = 0;
+
+    while (!feof(in)){
+        if (size == cap){
+            cap *= 2;
+            data = realloc(data, cap); }
+        size += fread(&data[size], 1, 65536, in);
+    }
+    data = realloc(data, size+1);
+    data[size] = '\0';
+
+    return data;
+}
+
+//static inline double cpuTime(void) {
+//    struct rusage ru;
+//    getrusage(RUSAGE_SELF, &ru);
+//    return (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000; }
+
+
+//=================================================================================================
+// DIMACS Parser:
+
+
+static inline void skipWhitespace(char** in) {
+    while ((**in >= 9 && **in <= 13) || **in == 32)
+        (*in)++; }
+
+static inline void skipLine(char** in) {
+    for (;;){
+        if (**in == 0) return;
+        if (**in == '\n') { (*in)++; return; }
+        (*in)++; } }
+
+static inline int parseInt(char** in) {
+    int     val = 0;
+    int    _neg = 0;
+    skipWhitespace(in);
+    if      (**in == '-') _neg = 1, (*in)++;
+    else if (**in == '+') (*in)++;
+    if (**in < '0' || **in > '9') fprintf(stderr, "PARSE ERROR! Unexpected char: %c\n", **in), exit(1);
+    while (**in >= '0' && **in <= '9')
+        val = val*10 + (**in - '0'),
+        (*in)++;
+    return _neg ? -val : val; }
+
+static void readClause(char** in, solver* s, veci* lits) {
+    int parsed_lit, var;
+    veci_resize(lits,0);
+    for (;;){
+        parsed_lit = parseInt(in);
+        if (parsed_lit == 0) break;
+        var = abs(parsed_lit)-1;
+        veci_push(lits, (parsed_lit > 0 ? toLit(var) : lit_neg(toLit(var))));
+    }
+}
+
+static lbool parse_DIMACS_main(char* in, solver* s) {
+    veci lits;
+    veci_new(&lits);
+
+    for (;;){
+        skipWhitespace(&in);
+        if (*in == 0)
+            break;
+        else if (*in == 'c' || *in == 'p')
+            skipLine(&in);
+        else{
+            lit* begin;
+            readClause(&in, s, &lits);
+            begin = veci_begin(&lits);
+            if (!solver_addclause(s, begin, begin+veci_size(&lits))){
+                veci_delete(&lits);
+                return l_False;
+            }
+        }
+    }
+    veci_delete(&lits);
+    return solver_simplify(s);
+}
+
+
+// Inserts problem into solver. Returns FALSE upon immediate conflict.
+//
+static lbool parse_DIMACS(FILE * in, solver* s) {
+    char* text = readFile(in);
+    lbool ret  = parse_DIMACS_main(text, s);
+    free(text);
+    return ret; }
+
+
+//=================================================================================================
+
+
+#if 0
+void printStats(stats* stats, int cpu_time)
+{
+    double Time    = (float)(cpu_time)/(float)(CLOCKS_PER_SEC);
+    printf("restarts          : %12d\n", stats->starts);
+    printf("conflicts         : %12.0f           (%9.0f / sec      )\n",  (double)stats->conflicts   , (double)stats->conflicts   /Time);
+    printf("decisions         : %12.0f           (%9.0f / sec      )\n",  (double)stats->decisions   , (double)stats->decisions   /Time);
+    printf("propagations      : %12.0f           (%9.0f / sec      )\n",  (double)stats->propagations, (double)stats->propagations/Time);
+    printf("inspects          : %12.0f           (%9.0f / sec      )\n",  (double)stats->inspects    , (double)stats->inspects    /Time);
+    printf("conflict literals : %12.0f           (%9.2f %% deleted  )\n", (double)stats->tot_literals, (double)(stats->max_literals - stats->tot_literals) * 100.0 / (double)stats->max_literals);
+    printf("CPU time          : %12.2f sec\n", Time);
+}
+#endif
+
+//solver* slv;
+//static void SIGINT_handler(int signum) {
+//    printf("\n"); printf("*** INTERRUPTED ***\n");
+//    printStats(&slv->stats, cpuTime());
+//    printf("\n"); printf("*** INTERRUPTED ***\n");
+//    exit(0); }
+
+
+//=================================================================================================
+
+
+int main(int argc, char** argv)
+{
+    solver* s = solver_new();
+    lbool   st;
+    FILE *  in;
+    int     clk = clock();
+
+    if (argc != 2)
+        fprintf(stderr, "ERROR! Not enough command line arguments.\n"),
+        exit(1);
+
+    in = fopen(argv[1], "rb");
+    if (in == NULL)
+        fprintf(stderr, "ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]),
+        exit(1);
+    st = parse_DIMACS(in, s);
+    fclose(in);
+
+    if (st == l_False){
+        solver_delete(s);
+        printf("Trivial problem\nUNSATISFIABLE\n");
+        exit(20);
+    }
+
+    s->verbosity = 1;
+//    slv = s;
+//    signal(SIGINT,SIGINT_handler);
+    st = solver_solve(s,0,0);
+    //printStats(&s->stats, clock() - clk);
+    printf("\n");
+    printf(st == l_True ? "SATISFIABLE\n" : "UNSATISFIABLE\n");
+
+    // print the sat assignment
+    if ( st == l_True )
+    {
+        int k;
+        printf( "\nSatisfying solution: " );
+        for ( k = 0; k < s->model.size; k++ )
+            printf( "x%d=%d ", k, s->model.ptr[k] == l_True );
+        printf( "\n" );
+    }
+
+    solver_delete(s);
+    return 0;
 }
