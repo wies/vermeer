@@ -9,6 +9,7 @@ rm -f *.linear.c \
       *.i \
       *.o \
       *~ \
+      dsn_logfile.txt \
       smt/single_solver.smt2 \
       a.out
 

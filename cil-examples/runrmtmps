@@ -10,6 +10,10 @@ if [ ! -e $CIL_TMP_DIR ]; then
     exit 1
 fi
 
+OPTS=
+if [ -r "opts" ]; then
+    OPTS=`cat opts`
+fi
 cd $1_dir
-../../cil-1.7.3/bin/cilly -c --dodsnrmtmps --save-temps "$1.postconcrete.c"
+$VERMEER_PATH/cil-1.7.3/bin/cilly -c --dodsnrmtmps --save-temps $OPTS "$1.postconcrete.c"
 mv "$1.postconcrete.cil.c" "$1.postconcrete.notmps.c"

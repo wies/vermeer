@@ -1,6 +1,9 @@
 #!/bin/bash
-if [ "$#" -lt 2 ] 
-then echo "needs two arguments";
+
+EX_DIR=$VERMEER_PATH/cil-examples
+
+if [ "$#" -lt 1 ] 
+then echo "needs at least one argument"
     exit 1
 fi
 
@@ -15,6 +18,22 @@ if [ ! -e $CIL_TMP_DIR ]; then
     exit 1
 fi
 
+OPTS=
+if [ -r "opts" ]; then
+    OPTS=`cat opts`
+fi
 cd $1_dir
-../../cil-1.7.3/bin/cilly -c --dodsnsmt --runsmtanalysistype="$2" "$1.ssa.c"
-../remap_variables "$1.ssa.c" smtresult.txt > remapped.txt
+$VERMEER_PATH/cil-1.7.3/bin/cilly -c --dodsnsmt --runsmtanalysistype="$2" $OPTS "$1.ssa.c"
+
+rm -f 
+$EX_DIR/remap_variables "$1.ssa.c" smtresult.txt > explanation.txt
+
+if [ ! -s "explanation.txt" ]; then
+    echo "Sorry; something went wrong."; exit 1
+fi 
+
+echo
+echo "SUCCESS!"
+echo
+echo "Explanation: \"$CIL_TMP_DIR/explanation.txt\" generated."
+echo

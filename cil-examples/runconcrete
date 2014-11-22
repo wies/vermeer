@@ -1,20 +1,61 @@
 #!/bin/bash
-if [ "$#" -ne 1 ] 
-then echo "needs an argument";
-    exit 1
+
+EX_DIR=$VERMEER_PATH/cil-examples
+
+if [ -z "$VERMEER_PATH" ]; then
+    echo "\$VERMEER_PATH not set."; exit 1
+elif [ ! -d "$EX_DIR" ]; then
+    echo -n "Cannot access example directory: \"$EX_DIR\"; "
+    echo    "wrong \$VERMEER_PATH setting?"; exit 1
+elif [ "$#" -ne 1 ]; then
+    echo "Usage: runconcrete <prog name>"; exit 1
 fi
 
+PROG=$1
 CIL_TMP_DIR="$1_dir"
-if [ ! -e $CIL_TMP_DIR ]; then
-    echo "$CIL_TMP_DIR is missing";
-    exit 1
+
+if [ ! -r "$CIL_TMP_DIR/$PROG.postlinear.c" ]; then
+    echo "Cannot read \"$CIL_TMP_DIR/$PROG.postlinear.c\"."; exit 1
 fi
 
-cd $1_dir
-../../cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --domakeCFG --dodsnconcrete --save-temps "$1.postlinear.c" ../dsnlog.o ../extern_debug_funs.o -lm
+if [ ! -f $EX_DIR/dsnlog.o ]; then
+    cd $EX_DIR
+    . mk-log-o
+    cd -
+fi
 
-if [ "$?" -ne "0" -o ! -x ./a.out ]; then exit 1; fi
-./a.out
-mv dsn_logfile.txt "$1.concrete.c"
+OPTS=
+if [ -r "opts" ]; then
+    OPTS=`cat opts`
+fi
+cd $CIL_TMP_DIR
+$VERMEER_PATH/cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --domakeCFG --dodsnconcrete --save-temps --no-convert-direct-calls $OPTS "$PROG.postlinear.c" $EX_DIR/dsnlog.o -lm
 
-../postprocess_concrete "$1.concrete.c" > "$1.postconcrete.c"
+if [ "$?" -ne "0" -o ! -x ./a.out ]; then
+    echo "Sorry; something went wrong."; exit 1
+fi
+
+echo
+echo "+--------------------------------------------+"
+echo "| Generating concrete trace until failure... |"
+echo "+--------------------------------------------+"
+if [ ! -r "../failing_input" ]; then
+    ./a.out
+else
+    echo "./a.out `cat ../failing_input`" > tmp
+    . tmp; rm -f tmp
+fi
+mv dsn_logfile.txt "$PROG.concrete.c"
+
+rm -f "$PROG.postconcrete.c"
+$EX_DIR/postprocess_concrete "$PROG.concrete.c" > "$PROG.postconcrete.c"
+
+if [ ! -s "$PROG.postconcrete.c" ]; then
+    echo "Sorry; something went wrong."; exit 1
+fi
+
+echo
+echo "SUCCESS!"
+echo
+echo "Concrete trace: \"$CIL_TMP_DIR/$PROG.postconcrete.c\" generated."
+echo
