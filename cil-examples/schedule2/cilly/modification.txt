@@ -1,5 +1,0 @@
-// __cil_tmp5__4___44 = *mem_7__4___8;
-#line 192 "schedule2_nofloat.c"
-  __cil_tmp5__4___44 = _dsn_mem_0x23a8470/*|unsigned int |val: 0x11|*/; // Assigned: 17
-  assert( __cil_tmp5__4___44 == 10);  
-// Call: (no return or ignored) fprintf(__cil_tmp3__4___26, __cil_tmp4__4___44, __cil_tmp5__4___44);

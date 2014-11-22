@@ -18,8 +18,6 @@
 #include <stdlib.h>
 #include "schedule2.h"
 
-#define RATIO_SCALE 10000000
-
 static struct process * current_job;
 static int next_pid = 0;
 
@@ -48,7 +46,7 @@ int argc;
 char *argv[];
 {
     int command, prio;
-    int ratio;
+    float ratio;
     int nprocs, status, pid;
     struct process *process;
     if(argc != MAXPRIO + 1) exit_here(BADNOARGS);
@@ -72,13 +70,13 @@ char *argv[];
 int 
 get_command(command, prio, ratio)
     int *command, *prio;
-    int *ratio;
+    float *ratio;
 {
     int status = OK;
     char buf[CMDSIZE];
     if(fgets(buf, CMDSIZE, stdin))
     {
-	*prio = 1; *command = -1; *ratio = RATIO_SCALE;
+	*prio = 1; *command = -1; *ratio =1.0;
 	sscanf(buf, "%d", command);
 	switch(*command)
 	{
@@ -86,10 +84,10 @@ get_command(command, prio, ratio)
 	    sscanf(buf, "%*s%d", prio);
 	    break;
 	  case UNBLOCK :
-	    sscanf(buf, "%*s%d", ratio);
+	    sscanf(buf, "%*s%f", ratio);
 	    break;
 	  case UPGRADE_PRIO :
-	    sscanf(buf, "%*s%d%d", prio, ratio);
+	    sscanf(buf, "%*s%d%f", prio, ratio);
 	    break;
 	}
 	 /* Find end of  line of input if no EOF */
@@ -132,7 +130,7 @@ new_job(prio) /* allocate new pid and process block. Stick at end */
 
 int upgrade_prio(prio, ratio) /* increment priority at ratio in queue */
      int prio;
-     int ratio;
+     float ratio;
 {
     int status;
     struct process * job;
@@ -158,7 +156,7 @@ block() /* Put current job in blocked queue */
 
 int
 unblock(ratio) /* Restore job @ ratio in blocked queue to its queue */
-     int ratio;
+     float ratio;
 {
     int status;
     struct process * job;
@@ -189,7 +187,6 @@ finish() /* Get current job, print it, and zap it. */
     {
 	current_job = (struct process *)0;
 	reschedule(0);
-        dsn_assert(job->pid != 17);
 	fprintf(stdout, " %d", job->pid);
 	free(job);
 	return(FALSE);
@@ -213,7 +210,7 @@ get_current() /* If no current process, get it. Return it */
     {
 	for(prio = MAXPRIO; prio > 0; prio--)
 	{ /* find head of highest queue with a process */
-	    if(get_process(prio, 0, &current_job) > 0) break;
+	    if(get_process(prio, 0.0, &current_job) > 0) break;
 	}
     }
     return(current_job);
@@ -235,7 +232,7 @@ reschedule(prio) /* Put highest priority job into current_job */
 int 
 schedule(command, prio, ratio)
     int command, prio;
-    int ratio;
+    float ratio;
 {
     int status = OK;
     switch(command)
@@ -288,15 +285,15 @@ put_end(prio, process) /* Put process at end of queue */
 int 
 get_process(prio, ratio, job)
      int prio;
-     int ratio;
+     float ratio;
      struct process ** job;
 {
     int length, index;
     struct process **next;
     if(prio > MAXPRIO || prio < 0) return(BADPRIO); /* Somebody goofed */
-    if(ratio < 0 || ratio > RATIO_SCALE) {printf("%d ratio\n",ratio); return(BADRATIO);} /* Somebody else goofed */
+    if(ratio < 0.0 || ratio > 1.0) return(BADRATIO); /* Somebody else goofed */
     length = prio_queue[prio].length;
-    index = (ratio * length)/RATIO_SCALE;
+    index = ratio * length;
     index = index >= length ? length -1 : index; /* If ratio == 1.0 */
     for(next = &prio_queue[prio].head; index && *next; index--)
         next = &(*next)->next; /* Count up to it */
