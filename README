@@ -1,0 +1,84 @@
+Hi.  Welcome to VERMEER, a tool for Tracing and Explaining Faulty C programs.
+
+There are a few things you will need to do before you can use VERMEER.  
+
+1) First, you will need to install z3 and ensure that it is available on your 
+   path
+   -- download the package from https://z3.codeplex.com/
+   -- add it to your PATH
+   -- you can test if it works by trying 
+     $ z3 --version
+  which should give you something like:
+     Z3 version 4.3.2
+
+2) Secondly, you need to set the environment variable VERMEER_PATH 
+   to the same directory this file is in.  On my linux box, this meant
+   adding the line
+   export VERMEER_PATH="/home/dsn/Research/fault-localization"
+   to my .bashrc.
+
+   you can test if it is set correctly by running 
+   $ echo $VERMEER_PATH
+   /home/dsn/Research/fault-localization
+
+3) You will also need a recent version of:
+   -- ocaml compiler
+   -- PERL
+   -- JAVA
+   -- gcc
+
+   You can test for these by running
+   $ ocamlc -version
+   3.12.1
+
+   $ java -version
+   java version "1.7.0_65"
+
+   $ perl -version
+   This is perl 5, version 14, subversion 2 (v5.14.2) 
+
+   $ gcc --version
+   gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3
+
+   Consult your distros documentation on how to install those if they are
+   missing
+
+3) Now you need to build the tool.
+   $ cd $VERMEER_PATH/cil-1.7.3
+   $ ./configure
+   $ make
+   
+4) Now you're ready to try an example.
+   $ cd $VERMEER_PATH/cil-examples
+   Try running the "simple.c" example from the demo video.
+   First, make a linear trace
+   $ ./runlinear simple
+   This should create a file in simple_dir called simple.postlinear.c
+   $ ./runconcrete simple
+   This should create a file in simple_dir called simple.postconcrete.c
+   $ ./runexplain simple
+   This should create a file in simple_dir called remapped.txt which contains 
+   the explanation
+
+TODO - add something about how they can select which algorithm to use by changing the paramater to runexplain
+
+4) Now let's try an example from the SIR repository
+   cd $VERMEER_PATH\cil-examples\scam\sed
+   $ ./runlinear sed
+   This should create a file sed.postlinear.c
+
+   $ ./runconcrete sed
+   This should create a file sed.postconcrete.c
+   You will need to add an assertion to this file.  
+     dsn_assert(re_search_2__6__mem_1406 > 1024);
+   This should go right before the comment:
+     // Looks like the concretized trace ran into a crash.
+
+   $ ./runexplain sed
+   check out remapped.txt for the reduced trace.
+
+***
+
+A note about the SIR repository benchmarks.  These benchmarks are the property
+of the University of Nebraska, who have generously allowed us to use them.
+Please do not redistribute these files without their permission.
