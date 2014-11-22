@@ -1,6 +1,0 @@
-There is no wrapper for "fgets", but the program aborts before reusing the
-exclusive buffer assigned to it, actual characters read are being picked up
-by "postprocess_concrete", which is designed to identify accesses to
-uninitialized memory cells and create initializations for them.
-
-However, we should have had a proper wrapper for perfection.
