@@ -850,15 +850,14 @@ let smtinterpol_2_1 =
     kind = Process("java",["-jar";jarfile;"-q"]);
   }
     
+(* assume that z3 is on the path *)
 let z3_4_3 = 
-  let basedir = get_basedir () in
-  let z3file = basedir ^ "/z3/z3" in
   { 
     version = 4; 
     subversion = 3;
     has_set_theory = false;
     smt_options = smtOnlyOptions;
-    kind = Process(z3file,["-smt2"; "-in"]);
+    kind = Process("z3",["-smt2"; "-in"]);
   }
 
 
