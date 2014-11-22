@@ -62,7 +62,7 @@ There are a few things you will need to do before you can use VERMEER.
 
 TODO - add something about how they can select which algorithm to use by changing the paramater to runexplain
 
-4) Now let's try an example from the SIR repository
+5) Now let's try an example from the SIR repository
    cd $VERMEER_PATH\cil-examples\scam\sed
    $ ./runlinear sed
    This should create a file sed.postlinear.c
@@ -77,8 +77,14 @@ TODO - add something about how they can select which algorithm to use by changin
    $ ./runexplain sed
    check out remapped.txt for the reduced trace.
 
-***
+****************** Possible Problems **********************************
+We have developed and tested VERMEER on 64bit Ubuntu Linux 12.04.
+We believe that it should work on any linux box.  
 
+We have not tested it on Mac or Windows.  There are known issues with using
+the Cilly compiler on Mac, due to OS X's use of non-standard C constructs.
+
+****************** Benchmark Licence **********************************
 A note about the SIR repository benchmarks.  These benchmarks are the property
 of the University of Nebraska, who have generously allowed us to use them.
 Please do not redistribute these files without their permission.
