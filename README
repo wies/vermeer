@@ -65,13 +65,12 @@ There are a few things you will need to do before you can use VERMEER.
    Try running the "simple.c" example from the demo video.
    First, make a linear trace
        $ ../bin/runlinear simple
-
    This should create a file in simple_dir called simple.postlinear.c
+
        $ ../bin/runconcrete simple
-
    This should create a file in simple_dir called simple.postconcrete.c
-       $ ../bin/runexplain simple
 
+       $ ../bin/runexplain simple
    This should create a file in simple_dir called explanation.txt
    which contains the explanation
 
@@ -84,20 +83,17 @@ There are a few things you will need to do before you can use VERMEER.
 5) Now let's try an example from the SIR repository
    cd $VERMEER_PATH\examples\sed
        $ ../../bin/runlinear sed
-
    This should create a file sed.postlinear.c
-       $ ../../bin/runconcrete sed
 
+       $ ../../bin/runconcrete sed
    This should create a file sed.postconcrete.c
    You will need to add an assertion ('dsn_assert') at the end of this file.
        dsn_assert(re_search_2__6__mem_1406 > 1024);
    This should go right before the comment:
        // Looks like the concretized trace ran into a crash.
 
-   Then,
        $ ../../bin/runexplain sed
-
-   check out explanation.txt for the reduced trace.
+   Check out explanation.txt for the reduced trace.
 
 ****************** Possible Problems **********************************
 We have developed and tested VERMEER on 64bit Ubuntu Linux 12.04.
