@@ -2,7 +2,7 @@ Hi.  Welcome to VERMEER, a tool for Tracing and Explaining Faulty C programs.
 
 There are a few things you will need to do before you can use VERMEER.  
 
-1) First, you will need to install z3 and ensure that it is available on your 
+1) First, you will need to install Z3 and ensure that it is available on your 
    path
    -- download the package from https://z3.codeplex.com/
    -- add it to your PATH
@@ -93,10 +93,12 @@ TODO - add something about how they can select which algorithm to use by changin
 We have developed and tested VERMEER on 64bit Ubuntu Linux 12.04.
 We believe that it should work on any linux box.  
 
-We have not tested it on Mac or Windows.  There are known issues with using
-the Cilly compiler on Mac, due to OS X's use of non-standard C constructs.
+We have not tested it on Mac or Windows.  There are known issues with
+using the Cilly C front-end on Mac, due to OS X's use of non-standard
+C constructs.
 
 ****************** Benchmark Licence **********************************
-A note about the SIR repository benchmarks.  These benchmarks are the property
-of the University of Nebraska, who have generously allowed us to use them.
-Please do not redistribute these files without their permission.
+A note about the SIR repository benchmarks.  These benchmarks are the
+property of the University of Nebraska, who have generously allowed us
+to use them.  Please do not redistribute these files without their
+permission. See the file LICENSE for details.

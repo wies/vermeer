@@ -1,0 +1,313 @@
+Copyright (c) 2014
+  Daniel Schwartz-Narbonne (dsn@cs.nyu.edu)
+  Chanseok Oh              (chanseok@cs.nyu.edu)
+  Martin Schaef            (martinschaef@gmail.com)
+  Thomas Wies              (wies@cs.nyu.edu)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. The names of the contributors may not be used to endorse or promote
+products derived from this software without specific prior written
+permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+(See http://www.opensource.org/licenses/bsd-license.php)
+
+----
+
+Vermeer integrates code from CIL, excluded from the above copyright.
+Its copyright:
+
+Copyright (c) 2001-2013,
+ George C. Necula    <necula@cs.berkeley.edu>
+ Scott McPeak        <smcpeak@cs.berkeley.edu>
+ Wes Weimer          <weimer@cs.berkeley.edu>
+ Ben Liblit          <liblit@cs.wisc.edu>
+ Matt Harren         <matth@cs.berkeley.edu>
+ Gabriel Kerneis     <kerneis@pps.univ-paris-diderot.fr>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. The names of the contributors may not be used to endorse or promote
+products derived from this software without specific prior written
+permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+
+(See http://www.opensource.org/licenses/bsd-license.php)
+
+---
+
+The VERMEER benchmarks include code and test data from the
+Software-artifact Infrastructure Repository, excluded from the above
+copyright and license. It's license:
+
+SIR User License
+Preamble:
+
+This Preamble is intended to describe, in plain English, the nature,
+intent, and scope of this License. However, this Preamble is not a
+part of this License. The legal effect of this License is dependent
+only upon the terms of the License and not this Preamble.
+
+This license is based upon the principle that the sharing of
+scientific resources with other research and teaching institutions is
+vital to higher education and the development of knowledge and
+understanding. Further, the sharing of materials, including source
+code where applicable, is mutually beneficial. However, these must be
+weighed against the protection of intellectual property. Therefore, we
+allow the free use of our repository resource, and the materials and
+software therein, at other institutions of research and higher
+learning, but reserve the rights to provide access to the repository
+and sell, modify, and distribute the materials and software
+therein. We further allow the use of materials and software source
+code in order to improve the application but restrict the use of these
+materials and source code.  License:
+
+NOTICE - READ ALL THE TERMS AND CONDITIONS OF THIS LICENSE AGREEMENT
+PRIOR TO ACCESSING THE REPOSITORY AND BEFORE DOWNLOADING, INSTALLING
+AND/OR USING AND OF THE MATERIALS THEREIN. BOTH ACCESSING THE
+REPOSITORY, AND DOWNLOADING, INSTALLING AND/OR USING THE MATERIALS
+COVERED BY THIS LICENSE INDICATES YOUR ACCEPTANCE OF THESE TERMS AND
+CONDITIONS.
+
+    GRANT OF RIGHT: The Software-artifact Infrastructure Repository
+    (the "Resource"), all software, including binary and source code,
+    and artifacts therein (the "Materials"), and any related
+    documentation (the "Documentation") are licensed, not sold, to
+    you. The University of Nebraska grants you a personal,
+    non-exclusive and non-transferable right to use the Resource,
+    Materials, and Documentation, subject to the terms and
+    restrictions of this Agreement. The Resource, Materials, and
+    Documentation may be used by you, or an organization of which you
+    are a member or employee, solely for non-commercial, educational,
+    evaluation and/or personal use. "Non-commercial use" means uses
+    that are not or will not result in (a) the sale, lease or rental
+    of Materials or Documentation, or access to the Resource; and/or
+    (b) the use of the Materials or Documentation in any commercial
+    product or service.
+
+    You may make as many copies of the Materials and/or Documentation
+    as needed in order to use and/or modify the software and/or
+    artifacts. However, you may not redistribute the Materials with
+    your changes without approval of the ESQuaReD Laboratory, the
+    Computer Science and Engineering Department, and the University of
+    Nebraska. You may donate your changes to the Repository
+    (Resource), in which case we may opt to include your changes in
+    the official presentation of the Resource or distribution of the
+    Materials.
+
+    EXCEPT AS EXPRESSLY PROVIDED IN THIS AGREEMENT, YOU AGREE NOT TO
+    USE, COPY, MODIFY OR TRANSFER THE Materials OR Documentation OR
+    ANY COPY, IN WHOLE OR IN PART. You agree to use your best efforts
+    to prevent and protect the contents of the Resource, Materials,
+    and Documentation from unauthorized disclosure or use. You agree
+    not to sublicense, assign, delegate, rent, lease or otherwise
+    transfer this license or any of the related rights or obligations
+    for any reason. Any modifications to the Materials and/or
+    Documentation, or software or artifacts derived from the Materials
+    and/or Documentation provided by the Resource ("Derivative Works")
+    are governed by the terms and conditions of this Agreement. The
+    University of Nebraska reserves all rights not expressly granted
+    to you. NO OTHER LICENSES ARE GRANTED OR IMPLIED.
+
+    OWNERSHIP: The Resource, Materials, and Documentation are and will
+    remain the sole property of the University of Nebraska. The
+    Resource, Materials, and Documentation are copyrighted works and
+    protected by copyright law and/or contain proprietary information
+    protected at law. The University of Nebraska may at any time
+    assign or transfer all or part of its interests in any rights to
+    the Resource, Materials, or Documentation.
+
+    EXCLUSIONS: Some of the software available from the Resource may
+    be governed by existing copyrights and/or legal terms and
+    conditions of use and distribution. The University of Nebraska's
+    right of ownership does not extend to include such software to the
+    extent that such a claim conflicts with the terms of the existing
+    licenses. However, the University of Nebraska does NOT relinquish
+    any right to ownership to any and all artifacts associated with
+    the software, that were not originally distributed with the
+    software and are not governed by existing licenses. This includes,
+    but is not limited to, any testing and experimentation artifacts
+    provided with the software, and any changes to source code that
+    are incidental to the functionality (do not extend or improve the
+    functionality) of the software, and thus are not governed under
+    existing licenses. The University of Nebraska reserves all rights
+    to these Materials as governed by the terms of this Agreement.
+
+    DISPUTES: The University of Nebraska is committed to respecting
+    all intellectual property claims and rights as governed by law. If
+    you feel that the inclusion of any Materials provided by the
+    Resource infringe upon your rights, you agree to provide written
+    notice of your claim to the ESQuaRed Laboratory, the Computer
+    Science and Engineering Department, and the University of
+    Nebraska, for remedy. In the event that you are not satisfied with
+    the remedy provided to you, any dispute between you and the
+    University of Nebraska shall be submitted to final and binding
+    arbitration as the sole and exclusive remedy for such controversy
+    or dispute. Any claim required to be submitted to arbitration
+    shall be made by filing a demand for arbitration within one (1)
+    year following the occurrence first giving rise to the claim. The
+    right and duty of the parties to resolve disputes by arbitration
+    shall be governed exclusively by the United States Federal
+    Arbitration Act. The arbitration will be held in Lincoln,
+    Nebraska. Each party shall bear all of its own costs of
+    arbitration, except that the fees of the arbitrator shall be
+    divided equally between the parties. The arbitrator shall have no
+    authority to amend or modify the terms of this Agreement or to
+    award punitive or exemplary damages, and the award may be enforced
+    by judgment in a United States Court of Law.
+
+    LIMITATIONS ON USE: You agree not to transfer, sell, rent, lease,
+    publish or otherwise distribute copies of the Resource, Materials,
+    and/or Documentation to others including individuals internal or
+    external to your own organization.
+
+    FEEDBACK: In consideration for this license, if you provide any
+    feedback, reports on bugs, or errors in the Resource, Materials,
+    or Documentation, or suggested modifications (collectively
+    "Feedback") during the term of this Agreement, we shall have the
+    right to use such Feedback for any purpose without payment or
+    accounting to you.
+
+    CONTRIBUTIONS: In consideration for this license, if you provide
+    any modifications or additions to artifacts, software, or
+    documentation, or any other content governed by this license
+    (collectively "Contribution(s)") during the term of this
+    Agreement, we shall have the right to add such Contribution(s) to
+    the Resource without payment or accounting to you. Furthermore,
+    the act of providing any such Contribution(s) transfers all rights
+    of ownership to the University of Nebraska as governed under the
+    terms of this Agreement, except where expressly excluded by the
+    terms of this Agreement. By submitting the Contribution(s) to the
+    Resource, you relinquish any existing claims to copyright or
+    ownership (your "Rights") insofar as you are granted legal claim
+    to those Rights. In the event that we believe that you are not
+    legally entitled to transfer your Rights to the Contribution(s),
+    we will decline to accept the Contribution(s) and no transfer of
+    ownership or Rights shall be considered to have occurred. We also
+    reserve the right to decline to accept any Contribution(s) for any
+    reason, or without reason at all, in which case no transfer of
+    ownership shall be considered to have occurred, and you shall
+    retain all Rights previously granted to you.
+
+    EXCLUSIONS: Any Contribution(s) governed by an existing license
+    permitting free copy and redistribution of the Contribution(s)
+    shall be exempt from the transfer of Rights condition.
+
+    TERMINATION: This license is effective until terminated. You may
+    terminate this license at any time by requesting, in writing,
+    discontinuation of your access to the Resource, and destroying any
+    Materials and/or Documentation, including any permitted archival
+    copies, you have obtained from the Resource. This license
+    automatically terminates if you fail to comply with its terms and
+    conditions. The University of Nebraska may terminate this license
+    at any time by providing you notice of such termination. Upon
+    termination in any manner, you acknowledge that your access to the
+    Resource will be discontinued, and agree to destroy all copies of
+    any Materials and/or Documentation, obtained from the Resource, in
+    your possession. Your obligations under Sections 3 and 9 herein
+    shall survive and continue after any termination of this
+    Agreement.
+
+    DISCLAIMER OF WARRANTY/LIMITATION OF REMEDIES: The ESQuaReD
+    Laboratory, the Computer Science and Engineering Department, and
+    the University of Nebraska have no obligation to support the
+    Resource, Materials, or Documentation covered under this
+    license. To the extent permitted under applicable law, THE
+    Resource, Materials, and Documentation are licensed "AS IS", WITH
+    NO EXPRESS OR IMPLIED WARRANTIES OF ANY KIND, INCLUDING, BUT NOT
+    LIMITED TO, ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS
+    FOR ANY PARTICULAR PURPOSE OR WARRANTIES AGAINST INFRINGEMENT OF
+    ANY PROPRIETARY RIGHTS OF A THIRD PARTY. The ESQuaReD Laboratory,
+    the Computer Science and Engineering Department, and the
+    University of Nebraska WILL NOT BE LIABLE FOR ANY CONSEQUENTIAL,
+    INCIDENTAL, OR SPECIAL DAMAGES, OR ANY OTHER RELIEF, OR FOR ANY
+    CLAIM BY ANY THIRD PARTY, ARISING FROM YOUR USE OF THE Resource,
+    Materials, or Documentation. Some States and other jurisdictions
+    do not allow for the exclusion or limitation of implied warranties
+    so the above exclusions or limitations may not apply to you. This
+    warranty gives you specific legal rights and you may also have
+    other rights which vary from State to State.
+
+    ENTIRE AGREEMENT: This Agreement sets forth the entire agreement
+    and understanding between the parties pertaining to the subject
+    matter hereof and merges all prior written or oral discussions
+    between them. This Agreement shall be construed in accordance with
+    and governed by the laws of the State of Nebraska, United States
+    of America, excluding the United Nations Convention on Contracts
+    for the International Sale of Goods.
+
+    COMMERCIAL LICENSE: For information regarding a commercial license
+    please contact the ESQuaReD Laboratory at: Computer Science and
+    Engineering Dept., 256 Avery Hall, Lincoln, NE 68588-0115. You may
+    also contact the ESQuaReD Laboratory at 402.472.2184.
+
+(See http://sir.unl.edu/portal/sir-license.php)
+
+---
+
+The VERMEER benchmarks includes MiniSat code, excluded from the above copyright.
+See cil-examples/scam/MiniSat-C_v1.14.1.  Its copyright:
+
+  MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+             Copyright (c) 2007-2010  Niklas Sorensson
+
+  Permission is hereby granted, free of charge, to any person obtaining a
+  copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be included
+  in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
