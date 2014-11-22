@@ -26,6 +26,7 @@ There are a few things you will need to do before you can use VERMEER.
    -- PERL
    -- JAVA
    -- gcc
+   -- ocaml findlib
 
    You can test for these by running
    $ ocamlc -version
@@ -40,8 +41,12 @@ There are a few things you will need to do before you can use VERMEER.
    $ gcc --version
    gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3
 
-   Consult your distros documentation on how to install those if they are
-   missing
+   $ ocamlfind
+   
+   Consult your distribution's documentation on how to install those if they 
+   are missing.  NOTE: the versions listed above are the versions that we 
+   tested VERMEER with.  It is highly likely that any more recent version will
+   also work.
 
 3) Now you need to build the tool.
    $ cd $VERMEER_PATH/cil-1.7.3
@@ -49,6 +54,13 @@ There are a few things you will need to do before you can use VERMEER.
    $ make
    
 4) Now you're ready to try an example.
+   Vermeer consists of a number of different passes, including 
+   the cilly compiler, the gcc compiler, executing a a.out
+   and processing the result using perl scripts.  In order to
+   make it easier to run, we have provided shell scripts 
+   that automatically call the relevant parts in the 
+   correct order. 
+
    $ cd $VERMEER_PATH/cil-examples
    Try running the "simple.c" example from the demo video.
    First, make a linear trace
