@@ -1,0 +1,13 @@
+To run,
+
+    ../runlinear grep
+
+    ../runconcrete grep
+
+At this point, the concrete trace will tell us that the last pointer (inflate_dynamic__6__mem_222) we tried to dereference was pointing to the memory address that is way more off from the start position (0xbffff6). Open the trace (grep_dir/grep.postconcrete.c) and add the following assertion at the end of the trace.
+
+    assert(dfaexec__5__p < 0xc10000);
+
+Next,
+
+    ../runexplain grep
