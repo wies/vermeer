@@ -61,7 +61,7 @@ echo
 echo "Concrete trace: \"$CONC_TRACE\" generated."
 echo
 
-grep 'assert(.*);' "$PROG.concrete.c"
+grep -q 'assert(.*);' "$PROG.concrete.c"
 if [ $? -ne 0 ]; then
     echo
     echo "FURTHER ACTION MAY BE REQUIRED:"
