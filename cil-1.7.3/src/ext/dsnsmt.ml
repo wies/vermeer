@@ -1072,6 +1072,10 @@ let try_interpolant_forward_k k currentState interpolant suffix  =
       end
     | None -> NotKLeft
       
+(* propegate as far forward as we can, until failure.  
+ * if we were using k > 1, and failed, try again with k = 1
+ * Then return the new interpolant
+ * and the new right side *)
 let rec propegate_interpolant_forward_linear k currentState interpolant suffix = 
   match try_interpolant_forward_k k currentState interpolant suffix with 
     | InterpolantWorks (interpolant,suffix) ->
@@ -1079,7 +1083,9 @@ let rec propegate_interpolant_forward_linear k currentState interpolant suffix =
     | InterpolantFails -> 
       if k <= 1 then interpolant,suffix 
       else propegate_interpolant_forward_linear 1 currentState interpolant suffix
-    | NotKLeft -> propegate_interpolant_forward_linear 1 currentState interpolant suffix
+    | NotKLeft -> 
+      if k <= 1 then failwith "was not expecting not k left with k = 1";
+      propegate_interpolant_forward_linear 1 currentState interpolant suffix
 
 let propegate_interpolant_binarysearch currentState interpolant suffix =
   let rec helper k currentState interpolant suffix = 
@@ -1096,11 +1102,9 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
     | InterpolantWorks (interpolant,suffix) ->
       debug_endline "worked";
       helper (List.length suffix) currentState interpolant suffix
-    | InterpolantFails -> 
+    | InterpolantFails  | NotKLeft -> 
       propegate_interpolant_forward_linear 1 currentState interpolant suffix
-    | NotKLeft -> failwith "not able to propegate"
 
-(* this may subsume the reduce_trace_cheap! *)
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
   match do_smt unreducedClauses GetUnsatCore with
     | Unsat (GotUnsatCore core) ->
@@ -1135,32 +1139,6 @@ let reduce_trace_noninductive (input : annotatedTrace) : annotatedTrace =
   in
   List.rev (aux input [])
 
-let reduce_trace_cheap (unreducedClauses : trace) : annotatedTrace =
-  (* Given an annotated list [I1,S1; I2,S2, etc) 
-   * such that I1 is the precondition for S1. (ie the program goes I1 S1 I2 S2 ...
-   * if I1 and I2 are identical, then S1 is unnecessary.
-   *)
-  let rec propegate_forward_cheap (input : annotatedTrace) : annotatedTrace  =
-    match input with 
-      | [] | [_] -> input
-      | (i1,c1)::((i2,c2)::_ as rest)  -> 
-	if are_interpolants_equiv i1 i2 then begin
-	  (* if we match, we can throw away the next statement, and continue *)
-	  propegate_forward_cheap rest end
-	else (* if we didn't match, we need to hold on to the old startc *)
-	  input 
-  in
-  let rec propegate_cheap_driver  (input : annotatedTrace) (revAccum : annotatedTrace) 
-      : annotatedTrace = 
-    match propegate_forward_cheap input with
-      | [] -> List.rev revAccum
-      | x::xs -> 
-	let revAccum = x::revAccum in
-	propegate_cheap_driver xs revAccum
-  in
-  let unreducedTrace = make_cheap_annotated_trace unreducedClauses in
-  propegate_cheap_driver unreducedTrace [] 
-
 let propegate_forward_window (input : annotatedTrace) : annotatedTrace =
   let rec aux at accum = 
     match at with
@@ -1176,44 +1154,47 @@ let propegate_forward_window (input : annotatedTrace) : annotatedTrace =
       | _ -> accum
   in
   List.rev (aux input [])
-  
-(* reduced is the prefix of the trace *)
-(* We will work as follows:
- * assume that the reducedPrefix is maximally reduced
- * At the end of this prefix, we are in the state currentState
- * We need the next assignment, otherwise we would have been able 
- * to map the interpolant even further forward
- * so take : [currentState; x ; prefix] and find an interpolant between
- * x and prefix.
- * map that as far as possible
- * repeat
- * keep the reduced prefix in reverse order to prevent unneccessary list conjunctions
- *)
-  let reduce_trace_expensive propAlgorithm trace = 
-    let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
-      match unreducedSuffix with
-	| [] -> reducedPrefixRev
-	| [x] -> (currentState.formula,x)::reducedPrefixRev
-	| x :: xs ->
-	  let clist = currentState :: unreducedSuffix in
-	  let before = [currentState;x] in
-	  let after = xs in
-	  let partition = make_interpolate_between before after in
-	  match do_smt clist (GetInterpolation partition)  with 
-	    | Unsat (GotInterpolant [interpolantTerm]) -> 
-	      let interpolant = 
-		make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
-	    (*find_farthest_point_interpolant_valid *)
-	      let newCurrentState, unreducedSuffix = 
-		propAlgorithm currentState interpolant unreducedSuffix in
-	      reduce_trace_imp 
-		((currentState.formula,x)::reducedPrefixRev)
-		newCurrentState
-		unreducedSuffix
-	    | Sat -> failwith "was sat"
-	    | _ -> failwith "Problem getting interpolant"
-    in
-    List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
+    
+  (* reduced is the prefix of the trace *)
+  (* We will work as follows:
+   * assume that the reducedPrefix is maximally reduced
+   * At the end of this prefix, we are in the state currentState
+   * We need the next assignment, otherwise we would have been able 
+   * to map the interpolant even further forward
+   * so take : [currentState; x ; prefix] and find an interpolant between
+   * x and prefix.
+   * map that as far as possible
+   * repeat
+   * keep the reduced prefix in reverse order to prevent unneccessary list conjunctions
+   *)
+let reduce_trace_expensive propAlgorithm trace = 
+  let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
+    match unreducedSuffix with
+      | [] -> reducedPrefixRev
+      | [x] -> (currentState.formula,x)::reducedPrefixRev
+      | x :: unreducedSuffix ->
+	  (* We know we need to keep x, but can we reduce the suffix further? *)
+	let before = [currentState;x] in
+	let after = unreducedSuffix in
+	let partition = make_interpolate_between before after in
+	match do_smt (before @ after) (GetInterpolation partition)  with 
+	  | Unsat (GotInterpolant [interpolantTerm]) -> 
+	    let interpolant = 
+	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
+	      (*find_farthest_point_interpolant_valid 
+	       * we start in state interpolant, with guess 
+	       * interpolant.  See if we can propegage it
+	       * across the new suffix  *)
+	    let newCurrentState, unreducedSuffix = 
+	      propAlgorithm interpolant interpolant unreducedSuffix in
+	    reduce_trace_imp 
+	      ((currentState.formula,x)::reducedPrefixRev)
+	      newCurrentState 
+	      unreducedSuffix 
+	  | Sat -> failwith "was sat"
+	  | _ -> failwith "Problem getting interpolant"
+  in
+  List.rev (reduce_trace_imp [] (make_true_clause ()) trace)
 
 let unsat_then_cheap trace =
   print_endline 
