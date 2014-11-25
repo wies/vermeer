@@ -68,10 +68,10 @@ if [ $? -ne 0 ]; then
     echo
     echo "It appears that the trace crashed not because of assertion violation."
     echo "You will certainly need to put a proper assertion that captures"
-    echo "the crash to the concrete trace\"$CONC_TRACE\" for correct analysis."
+    echo "the crash to the concrete trace \"$CONC_TRACE\" for correct analysis."
     echo
     echo "For example, \"assert(some_ptr != 0);\" for null-pointer access."
     echo
     echo "For the examples provided in our package, please consult README"
-    echo "in each example program directory for such assertions."
+    echo "in each example program directory."
 fi
