@@ -6,8 +6,8 @@ EXAMPLES="simple:simple  sed:sed  tcas:tcas  replace:replace  schedule2:schedule
 DIFF_REPORT=`pwd`/diff_report.txt
 
 
-if [ ! -x "$VERMEER_PATH/bin/runexplain" ]; then
-    echo "[TEST] Cannot run runexplain; check \$VERMEER_PATH."; exit 1
+if [ ! -x "$VERMEER_PATH/bin/runsmt" ]; then
+    echo "[TEST] Cannot find runsmt; check \$VERMEER_PATH."; exit 1
 fi
 
 rm -f $DIFF_REPORT
@@ -37,8 +37,8 @@ for DIR_AND_PROG in $EXAMPLES; do
     for ALGO in unsatcore noninductive binarysearch; do
         runsmt $PROG $ALGO
 
-        SRC=${PROG}_dir/explanation.txt
-        TRGT=$VERMEER_PATH/tests/output.$PROG.$ALGO.txt
+        SRC="${PROG}_dir/explanation.txt"
+        TRGT="$VERMEER_PATH/test/output.$PROG.$ALGO.txt"
         if [ "$1" = "snapshot" ]; then
             OVERWRITE=Y
             if [ -e "$TRGT" ]; then
@@ -47,7 +47,7 @@ for DIR_AND_PROG in $EXAMPLES; do
                 read OVERWRITE
             fi
             if [ "$OVERWRITE" = "Y" -o "$OVERWRITE" = "y" ]; then
-                cp -f $SRC $VERMEER_PATH/tests/output.$PROG.$ALGO.txt
+                cp -f $SRC $TRGT
             fi
         else
             if [ ! -e "$TRGT" ]; then
