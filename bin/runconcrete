@@ -54,8 +54,24 @@ if [ ! -s "$PROG.postconcrete.c" ]; then
     echo "Sorry; something went wrong."; exit 1
 fi
 
+CONC_TRACE="$CIL_TMP_DIR/$PROG.postconcrete.c"
 echo
 echo "SUCCESS!"
 echo
-echo "Concrete trace: \"$CIL_TMP_DIR/$PROG.postconcrete.c\" generated."
+echo "Concrete trace: \"$CONC_TRACE\" generated."
 echo
+
+grep 'assert(.*);' "$PROG.concrete.c"
+if [ $? -ne 0 ]; then
+    echo
+    echo "FURTHER ACTION MAY BE REQUIRED:"
+    echo
+    echo "It appears that the trace crashed not because of assertion violation."
+    echo "You will certainly need to put a proper assertion that captures"
+    echo "the crash to the concrete trace\"$CONC_TRACE\" for correct analysis."
+    echo
+    echo "For example, \"assert(some_ptr != 0);\" for null-pointer access."
+    echo
+    echo "For the examples provided in our package, please consult README"
+    echo "in each example program directory for such assertions."
+fi

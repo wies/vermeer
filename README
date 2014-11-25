@@ -21,6 +21,10 @@ There are a few things you will need to do before you can use VERMEER.
    $ echo $VERMEER_PATH
    /home/dsn/Research/fault-localization
 
+   We highly recommend adding $VERMEER_PATH/bin to your PATH environment
+   variable. For Bash,
+   $ export PATH=$VERMEER_PATH/bin:$PATH
+
 3) You will also need a recent version of:
    -- ocaml compiler
    -- PERL
@@ -61,38 +65,42 @@ There are a few things you will need to do before you can use VERMEER.
    that automatically call the relevant parts in the 
    correct order. 
 
-   $ cd $VERMEER_PATH/examples
+   $ cd $VERMEER_PATH/examples/simple
+   Here we assume that you have put $VERMEER_PATH/bin to your PATH, where
+   all the scripts used below reside.
+
    Try running the "simple.c" example from the demo video.
    First, make a linear trace
-       $ ../bin/runlinear simple
+       $ runlinear simple
    This should create a file in simple_dir called simple.postlinear.c
 
-       $ ../bin/runconcrete simple
+       $ runconcrete simple
    This should create a file in simple_dir called simple.postconcrete.c
 
-       $ ../bin/runexplain simple
+       $ runexplain simple
    This should create a file in simple_dir called explanation.txt
-   which contains the explanation
+   which contains the explanation. (FYI, the default explanation algorithm
+   generates a trace different from the one in the demo video.)
 
    You can choose which algorithm to use for explanation generation
    among three available ones (see the paper for details), e.g.,
-       $ ../bin/runexplain -a explain simple
-       $ ../bin/runexplain -a fast_abs simple
-       $ ../bin/runexplain -a full_abs simple
+       $ runexplain -a explain simple
+       $ runexplain -a fast_abs simple
+       $ runexplain -a full_abs simple
 
 5) Now let's try an example from the SIR repository
    cd $VERMEER_PATH\examples\sed
-       $ ../../bin/runlinear sed
+       $ runlinear sed
    This should create a file sed.postlinear.c
 
-       $ ../../bin/runconcrete sed
+       $ runconcrete sed
    This should create a file sed.postconcrete.c
    You will need to add an assertion ('dsn_assert') at the end of this file.
        dsn_assert(re_search_2__6__mem_1406 > 1024);
    This should go right before the comment:
        // Looks like the concretized trace ran into a crash.
 
-       $ ../../bin/runexplain sed
+       $ runexplain sed
    Check out explanation.txt for the reduced trace.
 
 ****************** Possible Problems **********************************
