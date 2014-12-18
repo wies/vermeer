@@ -75,12 +75,16 @@ type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLe
 type ifContextElem = {iformula : term; istmt : stmt}
 type ifContextList = ifContextElem list
 
+type clauseTag = Thread of int
+let noTags = []
+
 type clause = {formula : term; 
 	       idx : int; 
 	       vars : VarSet.t; 
 	       ssaIdxs : varSSAMap;
 	       typ : clauseType;
-	       ifContext : ifContextList
+	       ifContext : ifContextList;
+	       cTags : clauseTag list
 	      }
 
 type trace = clause list
@@ -471,7 +475,8 @@ let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
       in
       make_ssa_map vs ssaMap
 
-let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)  (ct: clauseType)
+let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList) 
+    (ct: clauseType) (tags : clauseTag list)
     : clause = 
   incr count;
   let v  = get_vars [f] emptyVarSet in
@@ -481,11 +486,18 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)  (ct: clauseType
     | ProgramStmt _ ->  type_check_and_cast_to_bool f
     | _ -> f
   in
-  let c  = {formula = f; idx = !count; vars = v; ssaIdxs = ssa; typ = ct; ifContext = ic} in
+  let c  = {formula = f; 
+	    idx = !count; 
+	    vars = v; 
+	    ssaIdxs = ssa; 
+	    typ = ct; 
+	    ifContext = ic;
+	    cTags = tags
+	   } in
   c
 
-let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant
-let make_false_clause () =  make_clause SMTFalse emptySSAMap emptyIfContext Constant
+let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant noTags
+let make_false_clause () =  make_clause SMTFalse emptySSAMap emptyIfContext Constant noTags
 let negate_clause cls = {cls with formula = SMTRelation("not",[cls.formula])}
 
 
@@ -528,7 +540,7 @@ let remap_clause ssaMap cls =
     ssaMap 
     (List.map (fun x -> {x with iformula = remap_formula ssaMap x.iformula}) cls.ifContext)
     cls.typ    
-
+    cls.cTags
 
 
 
@@ -734,7 +746,7 @@ let clause_from_sexp
     (ct : clauseType) 
     : clause = 
   match extract_term sexp with 
-    | [t] -> make_clause t ssaBefore ic ct
+    | [t] -> make_clause t ssaBefore ic ct [] (*DSN TODO No tags at this point*)
     | _ -> failwith ("should only get one term from the sexp: " ^ sexp)
 
 let begins_with str header =
@@ -1041,7 +1053,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
   if i1form = i2form then true 
   else 
     let equiv = SMTRelation("distinct",[i1form; i2form]) in
-    let cls = make_clause equiv emptySSAMap emptyIfContext EqTest in
+    let cls = make_clause equiv emptySSAMap emptyIfContext EqTest noTags in 
     match (do_smt [cls] CheckSat) with
       | Sat -> false
       | Unsat _ -> true
@@ -1128,8 +1140,8 @@ let reduce_trace_noninductive (input : annotatedTrace) : annotatedTrace =
       | (i1,s1)::(i2,s2)::rest -> 
 	let _ , rhsClauses = List.split rest in
        	let remapped = remap_formula s1.ssaIdxs i1 in
-	let interpolant = make_clause remapped s1.ssaIdxs [] Interpolant in
-	let c1 =  make_clause i1 emptySSAMap  [] Interpolant in
+	let interpolant = make_clause remapped s1.ssaIdxs [] Interpolant noTags in
+	let c1 =  make_clause i1 emptySSAMap  [] Interpolant noTags in
 	if is_valid_interpolant [c1;s1] (s2::rhsClauses) interpolant then
 	  aux ((remapped,s2)::rest) accum
 	else 
@@ -1144,9 +1156,9 @@ let propegate_forward_window (input : annotatedTrace) : annotatedTrace =
     match at with
       | (i1,s1)::(i2,s2)::(i3,s3)::rest -> 
 	let remapped = remap_formula s1.ssaIdxs i1 in
-	let interpolant = make_clause remapped s1.ssaIdxs [] Interpolant in
-	let c1 = make_clause i1 emptySSAMap   [] Interpolant  in
-	let c3 =  make_clause i3 emptySSAMap   [] Interpolant in
+	let interpolant = make_clause remapped s1.ssaIdxs [] Interpolant noTags in
+	let c1 = make_clause i1 emptySSAMap   [] Interpolant noTags in
+	let c3 =  make_clause i3 emptySSAMap   [] Interpolant noTags in
 	if is_valid_interpolant [c1;s1][s2;c3] interpolant then
 	  aux ((remapped,s2)::(i3,s3)::rest) accum
 	else 
@@ -1180,7 +1192,7 @@ let reduce_trace_expensive propAlgorithm trace =
 	match do_smt (before @ after) (GetInterpolation partition)  with 
 	  | Unsat (GotInterpolant [interpolantTerm]) -> 
 	    let interpolant = 
-	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant in
+	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
 	      (*find_farthest_point_interpolant_valid 
 	       * we start in state interpolant, with guess 
 	       * interpolant.  See if we can propegage it
@@ -1201,7 +1213,7 @@ let unsat_then_cheap trace =
     ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^ " lines");
   let reduced = reduce_trace_unsatcore trace in
   print_endline 
-    ("cheap left " ^ string_of_int (List.length (reduced_linenums reduced)) ^ " lines");
+    ("boo " ^ "cheap left " ^ string_of_int (List.length (reduced_linenums reduced)) ^ " lines");
   make_cheap_annotated_trace reduced
 
 let unsat_then_window trace = 
@@ -1236,13 +1248,14 @@ class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
   method vinst i = begin
+    print_endline "visiting an instruction";
     match i with
       |  Set(lv, e, l) -> 
 	let lvForm = formula_from_lval lv in
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
 	let ssaBefore = get_ssa_before() in
-	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt i) in
+	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt i) noTags in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | Call(lo,e,al,l) ->
@@ -1252,12 +1265,15 @@ class dsnsmtVisitorClass = object
 	  | _ -> failwith "assert should have exactly one element"
 	in
 	let ssaBefore = get_ssa_before() in
-	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) in
+	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) noTags in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
+    (* first, extract the current tags *)
+    List.iter (fun l -> print_endline (d_string "%a" d_label l)) s.labels;
+    print_endline "visiting a stmt";
     match s.skind with
       | If(i,t,e,l) ->
 	if e.bstmts <> [] then failwith "else block not handeled";
