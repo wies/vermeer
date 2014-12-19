@@ -27,9 +27,6 @@ let analysis = ref UNSATCORE (*default *)
 
 (*******************************TYPES *************************************)
 
-module Int = struct                       
-  type t = int                                              
-  let compare x y = if x < y then -1 else if x > y then 1 else 0 end ;;  
 
 type varOwner = | Thread of int 
 		| Global
@@ -52,6 +49,7 @@ module VarSSAMap = Map.Make(Int)
 module TypeMap = Map.Make(Int)
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
+module TIDSet = Set.Make(Int)
 type varSSAMap = smtvar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
@@ -69,7 +67,8 @@ type term = | SMTRelation of string * term list
 
 
 (* TODO record the program location in the programStmt *)
-type clauseType = ProgramStmt of Cil.instr | Interpolant | Constant | EqTest
+type clauseType = ProgramStmt of Cil.instr * int option 
+		  | Interpolant | Constant | EqTest | Summary 
 
 type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLet
 type ifContextElem = {iformula : term; istmt : stmt}
@@ -88,10 +87,10 @@ type clause = {formula : term;
 	      }
 
 type trace = clause list
+
+(* An annotated trace pairs a clause represneting an instruction
+ * with the term which represents its precondition *)
 type annotatedTrace = (term * clause) list
-(* we take the left hand side of the interpolation problem 
- * this lets us have the info we need for remapping vars etc
- *)
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
 type unsatResult = 
     GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
@@ -120,6 +119,7 @@ let currentIfContext : ifContextList ref = ref emptyIfContext
 let flowSensitiveEncoding = true
 let currentThread : int option ref = ref None
 let threadAnalysis = false
+let seenThreads = ref TIDSet.empty
 
 let get_var_type (var : smtvar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
@@ -169,11 +169,21 @@ let string_of_ifcontext ic =
   in
   aux ic ""
 
+let string_of_tag  = function 
+  | Thread i -> "Thread " ^ string_of_int i
+    
+let string_of_tags tags = List.fold_left (fun a x -> "//" ^ string_of_tag x ^ "\n" ^ a) "" tags
+
 let string_of_cprogram c =
-  match c.typ with 
-    | ProgramStmt i -> d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
-    | Interpolant | Constant -> "//" ^ string_of_formula c.formula
-    | EqTest -> failwith "shouldn't have equality tests in the final program"
+  let tagsStr = string_of_tags c.cTags in
+  let mainStr = 
+    match c.typ with 
+      | ProgramStmt i -> d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
+      | Interpolant | Constant -> "//" ^ string_of_formula c.formula
+      | EqTest -> failwith "shouldn't have equality tests in the final program"
+  in
+  tagsStr ^ mainStr
+
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
 let string_of_formlist fl = List.fold_left (fun a e -> a ^ string_of_formula e ^ "\n") "" fl
@@ -1250,6 +1260,16 @@ let unsat_then_expensive propAlgorithm trace =
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
+
+let explain_thread trace tid = 
+  let rec aux trace accum pre =
+    match trace with 
+      | [] -> List.rev accum
+      | (cond,instr) :: xs -> if 
+	
+  match trace 
+
+
 (* we assume that the thread mentioned in the label is good until the next label
  * this requires that we use --keepunused to keep the labels active *)
 let updateThread s = 
@@ -1257,7 +1277,7 @@ let updateThread s =
     | [] -> ()
     | [Label(s,l,b)] -> 
       let newThread = get_tid s in
-      print_endline ("new thread is " ^ string_of_int newThread);
+      seenThreads := TIDSet.add newThread !seenThreads;
       currentThread := Some (newThread)
     | _ -> failwith ("unexpected label " ^ d_labels s.labels)
 
@@ -1330,7 +1350,6 @@ let dsnsmt (f: file) : unit =
   exit_solver (getZ3());
   exit_solver (getSmtinterpol())
 
-    
 
 let feature : featureDescr = 
   { fd_name = "dsnsmt";

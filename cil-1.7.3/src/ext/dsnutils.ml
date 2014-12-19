@@ -2,6 +2,11 @@
 
 open Cil
 
+
+module Int = struct                       
+  type t = int                                              
+  let compare x y = if x < y then -1 else if x > y then 1 else 0 end ;;  
+
 (********************* Printing ***********************************)
 
 let errormsg = 0
