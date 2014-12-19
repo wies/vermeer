@@ -118,6 +118,8 @@ let revProgram : clause list ref = ref []
 let typeMap : varTypeMap ref  = ref emptyTypeMap
 let currentIfContext : ifContextList ref = ref emptyIfContext
 let flowSensitiveEncoding = true
+let currentThread : int option ref = ref None
+let threadAnalysis = false
 
 let get_var_type (var : smtvar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
@@ -628,6 +630,12 @@ let getFirstArgType str =
 
 let split_on_underscore str = Str.split (Str.regexp "[_]+") str
 let is_cse_var str = Str.string_match (Str.regexp ".cse[0-9]+") str 0
+let is_tid_label str = Str.string_match (Str.regexp "T[0-9]+_[0-9]+") str 0
+let get_tid str = 
+  if (not (is_tid_label str)) then failwith (str ^ " is not a tid label");
+  ignore (Str.search_forward (Str.regexp "[0-9]+") str 0);
+  int_of_string (Str.matched_string str)
+    
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
@@ -1167,25 +1175,25 @@ let propegate_forward_window (input : annotatedTrace) : annotatedTrace =
   in
   List.rev (aux input [])
     
-  (* reduced is the prefix of the trace *)
-  (* We will work as follows:
-   * assume that the reducedPrefix is maximally reduced
-   * At the end of this prefix, we are in the state currentState
-   * We need the next assignment, otherwise we would have been able 
-   * to map the interpolant even further forward
-   * so take : [currentState; x ; prefix] and find an interpolant between
-   * x and prefix.
-   * map that as far as possible
-   * repeat
-   * keep the reduced prefix in reverse order to prevent unneccessary list conjunctions
-   *)
+(* reduced is the prefix of the trace *)
+(* We will work as follows:
+ * assume that the reducedPrefix is maximally reduced
+ * At the end of this prefix, we are in the state currentState
+ * We need the next assignment, otherwise we would have been able 
+ * to map the interpolant even further forward
+ * so take : [currentState; x ; prefix] and find an interpolant between
+ * x and prefix.
+ * map that as far as possible
+ * repeat
+ * keep the reduced prefix in reverse order to prevent unneccessary list conjunctions
+ *)
 let reduce_trace_expensive propAlgorithm trace = 
   let rec reduce_trace_imp reducedPrefixRev currentState unreducedSuffix =
     match unreducedSuffix with
       | [] -> reducedPrefixRev
       | [x] -> (currentState.formula,x)::reducedPrefixRev
       | x :: unreducedSuffix ->
-	  (* We know we need to keep x, but can we reduce the suffix further? *)
+	(* We know we need to keep x, but can we reduce the suffix further? *)
 	let before = [currentState;x] in
 	let after = unreducedSuffix in
 	let partition = make_interpolate_between before after in
@@ -1193,10 +1201,10 @@ let reduce_trace_expensive propAlgorithm trace =
 	  | Unsat (GotInterpolant [interpolantTerm]) -> 
 	    let interpolant = 
 	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
-	      (*find_farthest_point_interpolant_valid 
-	       * we start in state interpolant, with guess 
-	       * interpolant.  See if we can propegage it
-	       * across the new suffix  *)
+	    (*find_farthest_point_interpolant_valid 
+	     * we start in state interpolant, with guess 
+	     * interpolant.  See if we can propegage it
+	     * across the new suffix  *)
 	    let newCurrentState, unreducedSuffix = 
 	      propAlgorithm interpolant interpolant unreducedSuffix in
 	    reduce_trace_imp 
@@ -1230,8 +1238,6 @@ let unsat_then_noninductive trace =
 		 ^ " loc *****\n\n");
   noninductive
 
-
-
 let unsat_then_expensive propAlgorithm trace = 
   debug_endline 
     ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^  " lines");
@@ -1244,18 +1250,31 @@ let unsat_then_expensive propAlgorithm trace =
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
+(* we assume that the thread mentioned in the label is good until the next label
+ * this requires that we use --keepunused to keep the labels active *)
+let updateThread s = 
+  match s.labels with
+    | [] -> ()
+    | [Label(s,l,b)] -> 
+      let newThread = get_tid s in
+      print_endline ("new thread is " ^ string_of_int newThread);
+      currentThread := Some (newThread)
+    | _ -> failwith ("unexpected label " ^ d_labels s.labels)
+
 class dsnsmtVisitorClass = object
   inherit nopCilVisitor
 
   method vinst i = begin
-    print_endline "visiting an instruction";
+    let tags = match !currentThread with
+      | Some (tid) -> [Thread tid]
+      | None -> [] in
+    let ssaBefore = get_ssa_before() in
     match i with
       |  Set(lv, e, l) -> 
 	let lvForm = formula_from_lval lv in
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
-	let ssaBefore = get_ssa_before() in
-	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt i) noTags in
+	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt i) tags in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | Call(lo,e,al,l) ->
@@ -1264,16 +1283,13 @@ class dsnsmtVisitorClass = object
 	  | [x] -> formula_from_exp x
 	  | _ -> failwith "assert should have exactly one element"
 	in
-	let ssaBefore = get_ssa_before() in
-	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) noTags in
+	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) tags in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
-    (* first, extract the current tags *)
-    List.iter (fun l -> print_endline (d_string "%a" d_label l)) s.labels;
-    print_endline "visiting a stmt";
+    updateThread s;
     match s.skind with
       | If(i,t,e,l) ->
 	if e.bstmts <> [] then failwith "else block not handeled";
@@ -1283,6 +1299,7 @@ class dsnsmtVisitorClass = object
 			      fun x -> 
 				currentIfContext := List.tl !currentIfContext;
 				x)
+      | Block _ -> DoChildren
       | _ -> DoChildren
   end
 end

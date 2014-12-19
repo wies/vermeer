@@ -94,3 +94,6 @@ let assert_is_assert f =
   let fname = (get_fn_name f) in
   if not (is_assert_fnname fname) then  
     failwith ("shouldn't have non-assert calls in a concrete trace: " ^ fname)
+
+let d_labels (l : label list) : string = 
+  List.fold_left (fun a x -> a ^ (d_string "%a" d_label x)) "" l
