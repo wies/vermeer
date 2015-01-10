@@ -178,7 +178,7 @@ let string_of_cprogram c =
   let tagsStr = string_of_tags c.cTags in
   let mainStr = 
     match c.typ with 
-      | ProgramStmt i -> d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
+      | ProgramStmt (i,_) -> d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
       | Interpolant | Constant -> "//" ^ string_of_formula c.formula
       | EqTest -> failwith "shouldn't have equality tests in the final program"
   in
@@ -261,7 +261,7 @@ let make_var_decl v =
   "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
 let print_linenum c = 
   match c.typ with 
-    | ProgramStmt (i) -> d_string "%a" d_loc (get_instrLoc i)
+    | ProgramStmt (i,_) -> d_string "%a" d_loc (get_instrLoc i)
     | _ -> ""
 
 let print_formulas x = 
@@ -1261,14 +1261,6 @@ let unsat_then_expensive propAlgorithm trace =
   expensive
     
 
-let explain_thread trace tid = 
-  let rec aux trace accum pre =
-    match trace with 
-      | [] -> List.rev accum
-      | (cond,instr) :: xs -> if 
-	
-  match trace 
-
 
 (* we assume that the thread mentioned in the label is good until the next label
  * this requires that we use --keepunused to keep the labels active *)
@@ -1294,7 +1286,7 @@ class dsnsmtVisitorClass = object
 	let lvForm = formula_from_lval lv in
 	let eForm = formula_from_exp e in
 	let assgt = SMTRelation("=",[lvForm;eForm]) in
-	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt i) tags in
+	let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt (i,!currentThread)) tags in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | Call(lo,e,al,l) ->
@@ -1303,7 +1295,7 @@ class dsnsmtVisitorClass = object
 	  | [x] -> formula_from_exp x
 	  | _ -> failwith "assert should have exactly one element"
 	in
-	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt i) tags in
+	let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt (i,!currentThread)) tags in
 	revProgram := cls :: !revProgram;
 	DoChildren
       | _ -> DoChildren
