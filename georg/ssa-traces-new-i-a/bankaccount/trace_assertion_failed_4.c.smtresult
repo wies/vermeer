@@ -1,0 +1,29 @@
+
+true
+#line 22 "trace_assertion_failed_4.c"
+bal = 100;
+
+(<= 0 (+ bal (- 100 ) ) )
+#line 30
+end1 = 1;
+
+(and (<= 0 (+ end1 (- 1 ) ) ) (<= 0 (+ bal (- 100 ) ) ) )
+#line 31
+b_T2 = bal;
+
+(and (<= 0 (+ end1 (- 1 ) ) ) (<= 0 (+ b_T2 (- 100 ) ) ) )
+#line 32
+b_T2 = 30 + b_T2;
+
+(and (<= 0 (+ end1 (- 1 ) ) ) (<= 0 (+ b_T2 (- 130 ) ) ) )
+#line 33
+bal = b_T2;
+
+(and (<= 0 (+ end1 (- 1 ) ) ) (<= 0 (+ bal (- 130 ) ) ) )
+#line 34
+end2 = 1;
+
+(let ((.cse0 (- 1 )) ) (and (<= 0 (+ end2 .cse0 ) ) (<= 0 (+ bal (- 130 ) ) ) (<= 0 (+ end1 .cse0 ) ) ))
+if ((distinct end2 0 ) && (distinct end1 0 ))
+#line 35
+assert(-120 + bal == 0);

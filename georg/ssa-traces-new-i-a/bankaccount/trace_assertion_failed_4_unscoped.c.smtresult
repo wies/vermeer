@@ -1,0 +1,20 @@
+
+true
+#line 22 "trace_assertion_failed_4_unscoped.c"
+bal = 100;
+
+(<= 0 (+ bal (- 100 ) ) )
+#line 31
+b_T2 = bal;
+
+(<= 0 (+ b_T2 (- 100 ) ) )
+#line 32
+b_T2 = 30 + b_T2;
+
+(<= 0 (+ b_T2 (- 130 ) ) )
+#line 33
+bal = b_T2;
+
+(<= 0 (+ bal (- 130 ) ) )
+#line 37
+assert(-120 + bal == 0);

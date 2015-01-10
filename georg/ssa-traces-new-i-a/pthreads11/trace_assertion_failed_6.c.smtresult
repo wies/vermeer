@@ -1,0 +1,18 @@
+
+true
+#line 14 "trace_assertion_failed_6.c"
+x = 1;
+
+(= (+ x (- 1 ) ) 0 )
+if ((= (+ (- 1) x ) 0 ))
+#line 16
+x = 2;
+
+(= (+ x (- 2 ) ) 0 )
+if ((= (+ (- 2) x ) 0 ))
+#line 18
+y = 1;
+
+(<= 0 (+ y (- 1 ) ) )
+#line 19
+assert(y <= 0);

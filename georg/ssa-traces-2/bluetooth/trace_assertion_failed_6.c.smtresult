@@ -1,0 +1,35 @@
+
+true
+#line 21 "trace_assertion_failed_6.c"
+input1_T0 = 1;
+
+(and (<= 0 (+ input1_T0 (- 1 ) ) ) (<= input1_T0 1 ) )
+#line 22
+input2_T0 = 0;
+
+(and (<= input2_T0 0 ) (<= 0 (+ input1_T0 (- 1 ) ) ) (<= input1_T0 1 ) )
+#line 25
+stoppingFlag = 0;
+
+(and (<= stoppingFlag 0 ) (<= input2_T0 0 ) (<= 0 (+ input1_T0 (- 1 ) ) ) (<= input1_T0 1 ) )
+#line 30
+in_T1 = input1_T0;
+
+(and (<= stoppingFlag 0 ) (<= input2_T0 0 ) (let ((.cse0 (+ in_T1 (- 1 ) )) ) (ite (<= in_T1 0 ) (<= 0 .cse0 ) (or (<= .cse0 0 ) (<= in_T1 1 ) ) )) )
+#line 32
+in_T2 = input2_T0;
+
+(and (ite (<= in_T1 0 ) (<= 0 (+ in_T1 (- 1 ) ) ) (<= in_T1 1 ) ) (<= in_T2 0 ) (<= stoppingFlag 0 ) )
+if ((distinct (+ (- 1) in_T2 ) 0 ))
+#line 37
+stopped = 1;
+
+(let ((.cse0 (- 1 )) ) (and (= (+ stopped .cse0 ) 0 ) (ite (<= in_T1 0 ) (<= 0 (+ in_T1 .cse0 ) ) (<= in_T1 1 ) ) (<= stoppingFlag 0 ) ))
+if ((distinct (+ (- 1) stoppingFlag ) 0 ) && (= (+ (- 1) in_T1 ) 0 ))
+#line 38
+status1 = 0;
+
+(let ((.cse1 (- 1 )) ) (let ((.cse3 (+ in_T1 .cse1 )) ) (let ((.cse0 (= .cse3 0 )) (.cse2 (ite (<= in_T1 0 ) (<= 0 .cse3 ) (<= in_T1 1 ) )) ) (ite .cse0 (and (not (not (= status1 0 ) ) ) (and (= (+ stopped .cse1 ) 0 ) (or .cse0 .cse2 ) ) ) .cse2 ))))
+if ((= status1 0 ) && (= (+ (- 1) in_T1 ) 0 ))
+#line 39
+assert(-1 + stopped != 0);

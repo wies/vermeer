@@ -1,0 +1,8 @@
+
+true
+#line 20 "trace_assertion_failed_6_unscoped.c"
+y = 1;
+
+(<= 0 (+ y (- 1 ) ) )
+#line 21
+assert(y <= 0);
