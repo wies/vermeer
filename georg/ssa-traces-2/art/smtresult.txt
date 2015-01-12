@@ -1,159 +1,159 @@
 
 true
-//Thread 0
+//Tid 0
 #line 69 "trace_assertion_failed_17.c"
 x_0_0 = 0;
 
 (and (<= x_0_0 0 ) (<= 0 x_0_0 ) )
-//Thread 2
+//Tid 2
 #line 77
 x_11_1 = 2;
 
 (and (<= x_0_0 0 ) (<= 0 x_0_0 ) (= (+ x_11_1 (- 2 ) ) 0 ) )
-//Thread 2
+//Tid 2
 if ((= (+ (- 2) x_11_1 ) 0 ))
 #line 79
 x_12_1 = 0;
 
 (let ((.cse0 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse1 (<= x_12_1 0 )) ) (and (<= x_0_0 0 ) (<= 0 x_0_0 ) .cse0 (and .cse1 .cse0 ) (and .cse0 .cse1 ) ))
-//Thread 2
+//Tid 2
 if ((< (+ (- 9) x_12_1 ) 0 ) && (= (+ (- 2) x_11_1 ) 0 ))
 #line 81
 x_13_1 = x_0_0;
 
 (let ((.cse0 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse5 (<= x_12_1 0 )) ) (let ((.cse3 (<= (+ x_12_1 (- 8 ) ) 0 )) (.cse4 (and .cse0 .cse5 )) ) (let ((.cse1 (and .cse5 .cse0 )) (.cse2 (or .cse3 .cse4 )) ) (and (or (and (<= x_13_1 0 ) (<= 0 x_13_1 ) .cse0 .cse1 .cse2 ) (and .cse0 (and (not .cse3 ) .cse4 ) ) ) .cse0 .cse1 .cse2 ))))
-//Thread 2
+//Tid 2
 if ((< (+ (- 9) x_12_1 ) 0 ) && (= (+ (- 2) x_11_1 ) 0 ))
 #line 82
 x_13_2 = 10 + x_13_1;
 
 (let ((.cse0 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse5 (<= x_12_1 0 )) ) (let ((.cse2 (<= (+ x_12_1 (- 8 ) ) 0 )) (.cse3 (and .cse0 .cse5 )) ) (let ((.cse4 (and .cse0 (and (not .cse2 ) .cse3 ) )) ) (or (let ((.cse1 (and .cse5 .cse0 )) ) (and (or (and (<= x_13_2 10 ) (<= 0 (+ x_13_2 (- 10 ) ) ) .cse0 .cse1 (or .cse2 .cse3 ) ) .cse4 ) .cse0 .cse1 )) .cse4 ))))
-//Thread 2
+//Tid 2
 if ((< (+ (- 9) x_12_1 ) 0 ) && (= (+ (- 2) x_11_1 ) 0 ))
 #line 83
 x_0_1 = x_13_2;
 
 (let ((.cse0 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse3 (<= x_12_1 0 )) ) (let ((.cse2 (and .cse0 (and (<= 0 (+ x_12_1 (- 9 ) ) ) .cse0 .cse3 ) )) ) (or (let ((.cse1 (and .cse3 .cse0 )) ) (and (or (and (<= x_0_1 10 ) (<= 0 (+ x_0_1 (- 10 ) ) ) .cse0 .cse1 ) .cse2 ) .cse0 .cse1 )) .cse2 )))
-//Thread 2
+//Tid 2
 if ((= (+ (- 2) x_11_1 ) 0 ))
 #line 85
 x_12_2 = 1 + x_12_1;
 
 (let ((.cse1 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse0 (- 10 )) (.cse2 (<= x_12_2 1 )) ) (let ((.cse3 (and .cse1 (and (<= 0 (+ x_12_2 .cse0 ) ) .cse2 ) )) ) (or (and (or (and (<= x_0_1 10 ) (<= 0 (+ x_0_1 .cse0 ) ) .cse1 .cse2 ) .cse3 ) .cse1 .cse2 ) .cse3 )))
-//Thread 2
+//Tid 2
 if ((< (+ (- 9) x_12_2 ) 0 ) && (= (+ (- 2) x_11_1 ) 0 ))
 #line 87
 x_14_1 = x_0_1;
 
 (let ((.cse1 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse2 (<= (+ x_12_2 (- 8 ) ) 0 )) (.cse0 (- 10 )) (.cse3 (<= x_12_2 1 )) ) (let ((.cse5 (and .cse1 (ite .cse2 (<= 0 (+ x_12_2 .cse0 ) ) .cse3 ) )) ) (or (let ((.cse4 (or .cse2 .cse3 )) ) (and (or (and (or (and (<= x_14_1 10 ) (<= 0 (+ x_14_1 .cse0 ) ) ) (and .cse1 (and (not .cse2 ) .cse3 ) ) ) .cse1 .cse4 ) .cse5 ) .cse1 .cse4 )) .cse5 )))
-//Thread 2
+//Tid 2
 if ((< (+ (- 9) x_12_2 ) 0 ) && (= (+ (- 2) x_11_1 ) 0 ))
 #line 88
 x_14_2 = 10 + x_14_1;
 
 (let ((.cse1 (= (+ x_11_1 (- 2 ) ) 0 )) (.cse2 (<= (+ x_12_2 (- 8 ) ) 0 )) (.cse3 (<= x_12_2 1 )) ) (let ((.cse0 (and .cse1 (and (not .cse2 ) .cse3 ) )) ) (or (and (or (and (<= x_14_2 20 ) (<= 0 (+ x_14_2 (- 20 ) ) ) ) .cse0 ) .cse1 (or .cse2 .cse3 ) ) (and .cse1 (ite .cse2 (<= 0 (+ x_12_2 (- 10 ) ) ) .cse3 ) ) .cse0 )))
-//Thread 2
+//Tid 2
 if ((< (+ (- 9) x_12_2 ) 0 ) && (= (+ (- 2) x_11_1 ) 0 ))
 #line 89
 x_0_2 = x_14_2;
 
 (and (<= x_0_2 20 ) (<= 0 (+ x_0_2 (- 20 ) ) ) )
-//Thread 3
+//Tid 3
 #line 94
 x_16_1 = 1;
 
 (and (<= x_0_2 20 ) (<= 0 (+ x_0_2 (- 20 ) ) ) (= (+ x_16_1 (- 1 ) ) 0 ) )
-//Thread 3
+//Tid 3
 if ((= (+ (- 1) x_16_1 ) 0 ))
 #line 96
 x_17_1 = 0;
 
 (let ((.cse1 (<= x_17_1 0 )) (.cse0 (= (+ x_16_1 (- 1 ) ) 0 )) ) (and (<= x_0_2 20 ) (<= 0 (+ x_0_2 (- 20 ) ) ) .cse0 (and .cse0 .cse1 ) (and .cse1 .cse0 ) ))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_1 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 98
 x_18_1 = x_0_2;
 
 (let ((.cse0 (= (+ x_16_1 (- 1 ) ) 0 )) (.cse3 (<= x_17_1 0 )) ) (let ((.cse1 (<= (+ x_17_1 (- 8 ) ) 0 )) (.cse2 (and .cse0 .cse3 )) ) (and (or (and (<= x_18_1 20 ) (<= 0 (+ x_18_1 (- 20 ) ) ) ) (and .cse0 (and (not .cse1 ) .cse2 ) ) ) .cse0 (and .cse3 .cse0 ) (or .cse1 .cse2 ) )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_1 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 99
 x_18_2 = 1 + x_18_1;
 
 (let ((.cse5 (<= x_17_1 0 )) (.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) ) (let ((.cse2 (and .cse5 .cse1 )) ) (and (let ((.cse3 (<= (+ x_17_1 (- 8 ) ) 0 )) (.cse4 (and .cse1 .cse5 )) ) (let ((.cse0 (and .cse1 (and (not .cse3 ) .cse4 ) )) ) (or (and (or (and (<= x_18_2 21 ) (<= 0 (+ x_18_2 (- 21 ) ) ) ) .cse0 ) .cse1 .cse2 (or .cse3 .cse4 ) ) .cse0 ))) .cse1 .cse2 )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_1 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 100
 x_0_3 = x_18_2;
 
 (let ((.cse3 (<= x_17_1 0 )) (.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) ) (let ((.cse2 (and .cse3 .cse1 )) ) (and (let ((.cse0 (and .cse1 (and (<= 0 (+ x_17_1 (- 9 ) ) ) .cse1 .cse3 ) )) ) (or (and (or (and (or (and (<= x_0_3 21 ) (<= 0 (+ x_0_3 (- 21 ) ) ) ) .cse0 ) .cse1 .cse2 ) .cse0 ) .cse1 .cse2 ) .cse0 )) .cse1 .cse2 )))
-//Thread 3
+//Tid 3
 if ((= (+ (- 1) x_16_1 ) 0 ))
 #line 102
 x_17_2 = 1 + x_17_1;
 
 (let ((.cse2 (<= x_17_2 1 )) (.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) ) (let ((.cse3 (and .cse2 .cse1 )) ) (and (let ((.cse0 (and .cse1 (and (<= 0 (+ x_17_2 (- 10 ) ) ) .cse1 .cse2 ) )) ) (or (and (or (and (or (and (<= x_0_3 21 ) (<= 0 (+ x_0_3 (- 21 ) ) ) ) .cse0 ) .cse1 .cse2 ) .cse0 ) .cse1 .cse3 .cse2 ) .cse0 )) .cse1 .cse3 )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_2 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 104
 x_19_1 = x_0_3;
 
 (let ((.cse5 (<= x_17_2 1 )) (.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) ) (let ((.cse3 (and .cse5 .cse1 )) ) (and (let ((.cse0 (and .cse1 (and (<= 0 (+ x_17_2 (- 10 ) ) ) .cse1 .cse5 ) )) ) (or (let ((.cse4 (<= (+ x_17_2 (- 8 ) ) 0 )) ) (let ((.cse2 (or .cse4 .cse5 )) ) (and (or (and (or (and (or (and (<= x_19_1 21 ) (<= 0 (+ x_19_1 (- 21 ) ) ) ) .cse0 ) .cse1 .cse2 ) .cse0 ) .cse1 .cse3 ) (and .cse1 (and (not .cse4 ) .cse5 ) ) ) .cse1 .cse2 .cse3 ))) .cse0 )) .cse1 .cse3 )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_2 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 105
 x_19_2 = 1 + x_19_1;
 
 (let ((.cse5 (<= x_17_2 1 )) (.cse2 (= (+ x_16_1 (- 1 ) ) 0 )) ) (let ((.cse3 (and .cse5 .cse2 )) ) (and (let ((.cse0 (and .cse2 (and (<= 0 (+ x_17_2 (- 10 ) ) ) .cse2 .cse5 ) )) ) (or (let ((.cse4 (<= (+ x_17_2 (- 8 ) ) 0 )) ) (and (let ((.cse1 (and .cse2 (and (not .cse4 ) .cse5 ) )) ) (or (and (or (and (<= x_19_2 22 ) (<= 0 (+ x_19_2 (- 22 ) ) ) ) .cse0 .cse1 ) .cse2 .cse3 ) .cse1 )) .cse2 (or .cse4 .cse5 ) .cse3 )) .cse0 )) .cse2 .cse3 )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_2 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 106
 x_0_4 = x_19_2;
 
 (let ((.cse3 (<= x_17_2 1 )) (.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) ) (let ((.cse2 (and .cse3 .cse1 )) ) (and (let ((.cse0 (and .cse1 (and (<= 0 (+ x_17_2 (- 10 ) ) ) .cse1 .cse3 ) )) ) (or (and (or (and (<= x_0_4 22 ) (<= 0 (+ x_0_4 (- 22 ) ) ) ) .cse0 ) .cse1 .cse2 ) .cse0 )) .cse1 .cse2 )))
-//Thread 3
+//Tid 3
 if ((= (+ (- 1) x_16_1 ) 0 ))
 #line 108
 x_17_3 = 1 + x_17_2;
 
 (let ((.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) (.cse2 (<= x_17_3 2 )) ) (and (let ((.cse0 (and .cse1 (and (<= 0 (+ x_17_3 (- 11 ) ) ) .cse2 ) )) ) (or (and (or (and (<= x_0_4 22 ) (<= 0 (+ x_0_4 (- 22 ) ) ) ) .cse0 ) .cse1 .cse2 ) .cse0 )) .cse1 (and .cse2 .cse1 ) .cse2 ))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_3 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 110
 x_20_1 = x_0_4;
 
 (let ((.cse3 (<= (+ x_17_3 (- 8 ) ) 0 )) (.cse4 (<= x_17_3 2 )) ) (let ((.cse1 (= (+ x_16_1 (- 1 ) ) 0 )) (.cse2 (or .cse3 .cse4 )) ) (and (let ((.cse0 (and .cse1 (ite .cse3 (<= 0 (+ x_17_3 (- 11 ) ) ) .cse4 ) )) ) (or (and (or (and (<= x_20_1 22 ) (<= 0 (+ x_20_1 (- 22 ) ) ) ) .cse0 ) .cse1 .cse2 ) (and .cse1 (and (not .cse3 ) .cse4 ) ) .cse0 )) .cse1 (and .cse4 .cse1 ) .cse2 )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_3 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 111
 x_20_2 = 1 + x_20_1;
 
 (let ((.cse0 (= (+ x_16_1 (- 1 ) ) 0 )) (.cse1 (<= (+ x_17_3 (- 8 ) ) 0 )) (.cse2 (<= x_17_3 2 )) ) (and (or (and (<= x_20_2 23 ) (<= 0 (+ x_20_2 (- 23 ) ) ) ) (and .cse0 (ite .cse1 (<= 0 (+ x_17_3 (- 11 ) ) ) .cse2 ) ) (and .cse0 (and (not .cse1 ) .cse2 ) ) ) .cse0 (and .cse2 .cse0 ) (or .cse1 .cse2 ) ))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_3 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 112
 x_0_5 = x_20_2;
 
 (let ((.cse0 (= (+ x_16_1 (- 1 ) ) 0 )) ) (and (<= x_0_5 23 ) (<= 0 (+ x_0_5 (- 23 ) ) ) .cse0 (and (<= x_17_3 2 ) .cse0 ) ))
-//Thread 3
+//Tid 3
 if ((= (+ (- 1) x_16_1 ) 0 ))
 #line 114
 x_17_4 = 1 + x_17_3;
 
 (and (<= x_0_5 23 ) (<= 0 (+ x_0_5 (- 23 ) ) ) (= (+ x_16_1 (- 1 ) ) 0 ) (<= x_17_4 3 ) )
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_4 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 116
 x_21_1 = x_0_5;
 
 (let ((.cse0 (= (+ x_16_1 (- 1 ) ) 0 )) (.cse1 (<= (+ x_17_4 (- 8 ) ) 0 )) (.cse2 (<= x_17_4 3 )) ) (and (or (and (<= x_21_1 23 ) (<= 0 (+ x_21_1 (- 23 ) ) ) ) (and .cse0 (and (not .cse1 ) .cse2 ) ) ) .cse0 (or .cse1 .cse2 ) ))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_4 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 117
 x_21_2 = 1 + x_21_1;
 
 (let ((.cse2 (= (+ x_16_1 (- 1 ) ) 0 )) (.cse3 (<= (+ x_17_4 (- 8 ) ) 0 )) (.cse4 (<= x_17_4 3 )) ) (let ((.cse1 (and .cse2 (and (not .cse3 ) .cse4 ) )) ) (or (and (or (let ((.cse0 (- x_21_2 )) ) (ite (<= (+ .cse0 25 ) 0 ) (<= x_21_2 24 ) (or (<= (+ .cse0 24 ) 0 ) (<= 0 (+ x_21_2 (- 24 ) ) ) ) )) .cse1 ) .cse2 (or .cse3 .cse4 ) ) .cse1 )))
-//Thread 3
+//Tid 3
 if ((< (+ (- 9) x_17_4 ) 0 ) && (= (+ (- 1) x_16_1 ) 0 ))
 #line 119
 assert(-24 + x_21_2 != 0);

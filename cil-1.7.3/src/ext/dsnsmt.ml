@@ -176,14 +176,15 @@ let string_of_tag  = function
 let string_of_tags tags = List.fold_left (fun a x -> "//" ^ string_of_tag x ^ "\n" ^ a) "" tags
 
 let string_of_cprogram c =
-  let tagsStr = string_of_tags c.cTags in
-  let mainStr = 
     match c.typ with 
-    | ProgramStmt (i,_) -> d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
+    | ProgramStmt (i,Some tid) -> 
+      d_string "//Tid %d\n%s%a" tid 
+	(string_of_ifcontext c.ifContext)  
+	d_instr i
+    | ProgramStmt (i,None) -> 
+      d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
     | Interpolant | Constant -> "//" ^ string_of_formula c.formula
     | EqTest -> failwith "shouldn't have equality tests in the final program"
-  in
-  tagsStr ^ mainStr
 
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
@@ -265,6 +266,8 @@ let print_linenum c =
   | ProgramStmt (i,_) -> d_string "%a" d_loc (get_instrLoc i)
   | _ -> ""
 
+
+
 let print_formulas x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
   flush stdout
@@ -285,18 +288,18 @@ let print_annotatedtrace_linenums x = List.iter (fun (_,c) -> Printf.printf "%s\
 
 let print_annotatedtrace_thread  ?(stream = stdout) trace tid = 
   let inThread = ref false in
-  Printf.fprintf stream "Analyzing thread %d\n" tid;
+  Printf.fprintf stream "\n\n*********Analyzing thread %d**********\n" tid;
   List.iter (fun (t,c) -> 
     match c.typ with
     | ProgramStmt(i,Some thisTid) when tid = thisTid -> 
       inThread := true;
-      Printf.fprintf stream "\n\\\\%s\n%s\n" 
+      Printf.fprintf stream "\n//%s\n%s\n" 
 	(string_of_formula t)
 	(string_of_cprogram c)  
     | ProgramStmt(i,Some thisTid) -> 
       if (!inThread) then begin 
 	inThread := false;
-	Printf.fprintf stream "\n\\\\(Thread Summary)\n\\\\%s\n" 
+	Printf.fprintf stream "\n//(Thread Summary)\n//%s\n" 
 	  (string_of_formula t) end
     | _ -> failwith "no tid / unexpected clause type"
   ) trace;
@@ -1362,9 +1365,8 @@ let dsnsmt (f: file) : unit =
   print_annotated_trace ~stream:oc reduced;
   if (!multithread) then
     TIDSet.iter 
-      (fun tid -> print_annotatedtrace_thread reduced tid) !seenThreads
-  else
-    print_string("why not active\n");
+      (fun tid -> print_annotatedtrace_thread reduced tid) 
+      !seenThreads;
   exit_solver (getZ3());
   exit_solver (getSmtinterpol())
 
