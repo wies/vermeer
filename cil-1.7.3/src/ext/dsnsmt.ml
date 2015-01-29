@@ -38,7 +38,7 @@ type smtvar = {fullname : string;
 	       vidx: int; 
 	       owner : int; 
 	       ssaIdx : int}
-  
+    
 module VarM = struct 
   type t = smtvar
   let compare x y = Pervasives.compare x y end ;;
@@ -95,7 +95,7 @@ type trace = clause list
 type annotatedTrace = (term * clause) list
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
 type unsatResult = 
-  GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
+    GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
 type smtResult = Sat | Unsat of unsatResult | Timeout
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
@@ -135,29 +135,29 @@ let string_of_var v = v.fullname
 
 let string_of_vartype typ = 
   match typ with
-  |SMTInt -> "Int"
-  |SMTBool -> "Bool"
-  |SMTUnknown -> "Unknown"
+    |SMTInt -> "Int"
+    |SMTBool -> "Bool"
+    |SMTUnknown -> "Unknown"
 
 let rec string_of_formula f = 
   let rec string_of_args a = 
     match a with
-    | [] -> ""
-    | arg :: args -> (string_of_formula arg) ^ " " ^ (string_of_args args)
+      | [] -> ""
+      | arg :: args -> (string_of_formula arg) ^ " " ^ (string_of_args args)
   in
   match f with
-  | SMTLet(b,t) ->
-    "(let (" ^ string_of_args b ^ ") " ^ string_of_formula t ^ ")" 
-  | SMTLetBinding(v,b) -> "(" ^ string_of_formula v ^ " " ^ string_of_formula b ^ ")"
-  | SMTRelation(rel, args) -> 
-    "(" ^ rel ^ " " ^(string_of_args args) ^ ")"
-  | SMTConstant(i) -> 
-    if i < Int64.zero then "(- " ^ Int64.to_string (Int64.abs i) ^ ")"
-    else Int64.to_string i
-  | SMTVar(v) -> string_of_var v
-  | SMTLetVar(v) -> v
-  | SMTFalse -> "false"
-  | SMTTrue -> "true"
+    | SMTLet(b,t) ->
+      "(let (" ^ string_of_args b ^ ") " ^ string_of_formula t ^ ")" 
+    | SMTLetBinding(v,b) -> "(" ^ string_of_formula v ^ " " ^ string_of_formula b ^ ")"
+    | SMTRelation(rel, args) -> 
+      "(" ^ rel ^ " " ^(string_of_args args) ^ ")"
+    | SMTConstant(i) -> 
+      if i < Int64.zero then "(- " ^ Int64.to_string (Int64.abs i) ^ ")"
+      else Int64.to_string i
+    | SMTVar(v) -> string_of_var v
+    | SMTLetVar(v) -> v
+    | SMTFalse -> "false"
+    | SMTTrue -> "true"
 let string_of_term = string_of_formula
 
 let string_of_clause c = 
@@ -166,9 +166,9 @@ let string_of_clause c =
 let string_of_ifcontext ic = 
   let rec aux ic acc = 
     match ic with 
-    | [] -> acc
-    | [x] ->  "if (" ^ acc ^  string_of_formula x.iformula ^ ")\n"
-    | x::xs -> aux xs (acc ^ string_of_formula x.iformula ^ " && ") 
+      | [] -> acc
+      | [x] ->  "if (" ^ acc ^  string_of_formula x.iformula ^ ")\n"
+      | x::xs -> aux xs (acc ^ string_of_formula x.iformula ^ " && ") 
   in
   aux ic ""
 
@@ -185,7 +185,7 @@ let rec label_string = function
   | [] -> ""
 
 let string_of_cprogram c =
-    match c.typ with 
+  match c.typ with 
     | ProgramStmt (i,Some tid) -> 
       d_string "//Tid %d\n%s%a" tid 
 	(string_of_ifcontext c.ifContext)  
@@ -207,19 +207,19 @@ let debug_var v =
   ^ "}"
 let rec debug_args a = 
   match a with
-  | [] -> ""
-  | arg :: args -> (debug_formula arg) ^ " " ^ (debug_args args)
+    | [] -> ""
+    | arg :: args -> (debug_formula arg) ^ " " ^ (debug_args args)
 and debug_formula f = 
   match f with
-  | SMTLet(b,t) ->
-    "(let ((" ^ debug_args b ^ " " ^ debug_formula t ^ ")) " 
-  | SMTRelation(rel, args) -> 
-    "\t(" ^ "Rel: " ^ rel ^ " args: " ^(debug_args args) ^ ")"
-  | SMTConstant(i) -> Int64.to_string i
-  | SMTVar(v) -> debug_var v
-  | SMTLetVar(v) -> v
-  | SMTFalse | SMTTrue -> string_of_formula f
-  | SMTLetBinding (v,e) -> debug_formula v ^ " " ^ debug_formula e
+    | SMTLet(b,t) ->
+      "(let ((" ^ debug_args b ^ " " ^ debug_formula t ^ ")) " 
+    | SMTRelation(rel, args) -> 
+      "\t(" ^ "Rel: " ^ rel ^ " args: " ^(debug_args args) ^ ")"
+    | SMTConstant(i) -> Int64.to_string i
+    | SMTVar(v) -> debug_var v
+    | SMTLetVar(v) -> v
+    | SMTFalse | SMTTrue -> string_of_formula f
+    | SMTLetBinding (v,e) -> debug_formula v ^ " " ^ debug_formula e
 
 (* could make tail rec if I cared *)
 let debug_SSAMap m = 
@@ -245,18 +245,18 @@ let debug_typemap () =
 let assertion_name (c : clause) :string = 
   let prefix = label_string c.cTags in
   match c.typ with
-  | ProgramStmt(_) -> prefix ^ "PS_" ^ (string_of_int c.idx)
-  | Interpolant -> "IP_" ^ (string_of_int c.idx)
-  | Constant -> "CON_" ^ (string_of_int c.idx)
-  | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
-  | Summary _ -> failwith "should not be asserting summaries"
+    | ProgramStmt(_) -> prefix ^ "PS_" ^ (string_of_int c.idx)
+    | Interpolant -> "IP_" ^ (string_of_int c.idx)
+    | Constant -> "CON_" ^ (string_of_int c.idx)
+    | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
+    | Summary _ -> failwith "should not be asserting summaries"
 
 let make_assertion_string c =
   let make_ifContext_formula ic = 
     match ic with 
-    | [] -> SMTTrue
-    | [x] -> x.iformula
-    | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
+      | [] -> SMTTrue
+      | [x] -> x.iformula
+      | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
   in
   let form = 
     if flowSensitiveEncoding && c.ifContext <> [] then
@@ -274,10 +274,8 @@ let make_var_decl v =
   "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
 let print_linenum c = 
   match c.typ with 
-  | ProgramStmt (i,_) -> d_string "%a" d_loc (get_instrLoc i)
-  | _ -> ""
-
-
+    | ProgramStmt (i,_) -> d_string "%a" d_loc (get_instrLoc i)
+    | _ -> ""
 
 let print_formulas x = 
   List.iter (fun f -> Printf.printf "%s\n" (string_of_formula f)) x; 
@@ -302,17 +300,17 @@ let print_annotatedtrace_thread  ?(stream = stdout) trace tid =
   Printf.fprintf stream "\n\n*********Analyzing thread %d**********\n" tid;
   List.iter (fun (t,c) -> 
     match c.typ with
-    | ProgramStmt(i,Some thisTid) when tid = thisTid -> 
-      inThread := true;
-      Printf.fprintf stream "\n//%s\n%s\n" 
-	(string_of_formula t)
-	(string_of_cprogram c)  
-    | ProgramStmt(i,Some thisTid) -> 
-      if (!inThread) then begin 
-	inThread := false;
-	Printf.fprintf stream "\n//(Thread Summary)\n//%s\n" 
-	  (string_of_formula t) end
-    | _ -> failwith "no tid / unexpected clause type"
+      | ProgramStmt(i,Some thisTid) when tid = thisTid -> 
+	inThread := true;
+	Printf.fprintf stream "\n//%s\n%s\n" 
+	  (string_of_formula t)
+	  (string_of_cprogram c)  
+      | ProgramStmt(i,Some thisTid) -> 
+	if (!inThread) then begin 
+	  inThread := false;
+	  Printf.fprintf stream "\n//(Thread Summary)\n//%s\n" 
+	    (string_of_formula t) end
+      | _ -> failwith "no tid / unexpected clause type"
   ) trace;
   flush stream
     
@@ -1295,7 +1293,36 @@ let unsat_then_expensive propAlgorithm trace =
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
-
+let threadlocal_annotated_trace trace thisTid = 
+  let rec aux remaining tlAccum threadExitCond summaryAccum =
+    match remaining with 
+      | [] -> List.rev tlAccum
+      | (i,c) as hd::xs -> 
+	begin match c.typ,threadExitCond with
+	  | ProgramStmt(instr,Some thatTid),None when thatTid = thisTid -> 
+	    (* Were in desired thread, stayed in it*)
+	    aux xs (hd::tlAccum) None [] 
+	  | ProgramStmt(instr,Some thatTid),Some cond when thatTid = thisTid -> 
+	    (* we not in the desired thread, now entered it.  Have to build 
+	     * the summary *)
+	    let summary = make_clause 
+	      (SMTRelation("=>",[cond;c.formula])) 
+	      c.ssaIdxs
+	      emptyIfContext
+	      (Summary(List.rev summaryAccum))
+	      noTags 
+	    in
+	    aux xs ((cond,summary)::hd::tlAccum) None []
+	  | ProgramStmt(instr,Some thatTid), None  -> 
+	    (* we just left the desired thread *)
+	    aux xs tlAccum (Some i) ((instr,Some thatTid)::summaryAccum)
+	  | ProgramStmt(instr,Some thatTid), Some cond  -> 
+	    (* we are out of the desired thread, and have been for at least one statment*)
+	    aux xs tlAccum threadExitCond ((instr,Some thatTid)::summaryAccum)
+	  | _ -> failwith "no tid / unexpected clause type"
+	end
+  in
+  aux trace [] None []
 
 (* we assume that the thread mentioned in the label is good until the next label
  * this requires that we use --keepunused to keep the labels active *)
@@ -1381,7 +1408,9 @@ let dsnsmt (f: file) : unit =
   print_annotated_trace ~stream:oc reduced;
   if (!multithread) then
     TIDSet.iter 
-      (fun tid -> print_annotatedtrace_thread reduced tid) 
+      (fun tid -> let summarized = threadlocal_annotated_trace reduced tid in
+		  print_string ("\n\n\n***Summary for tid: " ^ string_of_int tid);
+		  print_annotated_trace summarized) 
       !seenThreads;
   exit_solver (getZ3());
   exit_solver (getSmtinterpol())
