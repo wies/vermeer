@@ -70,12 +70,13 @@ type term = | SMTRelation of string * term list
 (* TODO record the program location in the programStmt *)
 type clauseType = ProgramStmt of Cil.instr * int option 
 		  | Interpolant | Constant | EqTest  
+		  | Summary of  (Cil.instr * int option ) list
 
 type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLet
 type ifContextElem = {iformula : term; istmt : stmt}
 type ifContextList = ifContextElem list
 
-type clauseTag = Thread of int
+type clauseTag = ThreadTag of int | LabelTag of string
 let noTags = []
 
 type clause = {formula : term; 
@@ -119,6 +120,7 @@ let typeMap : varTypeMap ref  = ref emptyTypeMap
 let currentIfContext : ifContextList ref = ref emptyIfContext
 let flowSensitiveEncoding = true
 let currentThread : int option ref = ref None
+let currentLabel : string option ref = ref None
 let threadAnalysis = false
 let seenThreads = ref TIDSet.empty
 
@@ -170,10 +172,17 @@ let string_of_ifcontext ic =
   in
   aux ic ""
 
+
 let string_of_tag  = function 
-  | Thread i -> "Thread " ^ string_of_int i
-    
+  | ThreadTag i -> "Thread_" ^ string_of_int i
+  | LabelTag s -> "Label_" ^ s
+
 let string_of_tags tags = List.fold_left (fun a x -> "//" ^ string_of_tag x ^ "\n" ^ a) "" tags
+
+let rec label_string = function
+  | LabelTag _ as l :: _ -> string_of_tag l
+  | x::xs -> label_string xs
+  | [] -> ""
 
 let string_of_cprogram c =
     match c.typ with 
@@ -185,7 +194,7 @@ let string_of_cprogram c =
       d_string "%s%a" (string_of_ifcontext c.ifContext)  d_instr i
     | Interpolant | Constant -> "//" ^ string_of_formula c.formula
     | EqTest -> failwith "shouldn't have equality tests in the final program"
-
+    | Summary _ -> "//(Summary)\n//" ^ string_of_formula c.formula
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
 let string_of_formlist fl = List.fold_left (fun a e -> a ^ string_of_formula e ^ "\n") "" fl
@@ -234,11 +243,13 @@ let debug_typemap () =
   TypeMap.fold fold_fn !typeMap ""
 
 let assertion_name (c : clause) :string = 
+  let prefix = label_string c.cTags in
   match c.typ with
-  | ProgramStmt(_) -> "PS_" ^ (string_of_int c.idx)
+  | ProgramStmt(_) -> prefix ^ "PS_" ^ (string_of_int c.idx)
   | Interpolant -> "IP_" ^ (string_of_int c.idx)
   | Constant -> "CON_" ^ (string_of_int c.idx)
   | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
+  | Summary _ -> failwith "should not be asserting summaries"
 
 let make_assertion_string c =
   let make_ifContext_formula ic = 
@@ -1294,7 +1305,8 @@ let updateThread s =
     | [Label(s,l,b)] -> 
       let newThread = get_tid s in
       seenThreads := TIDSet.add newThread !seenThreads;
-      currentThread := Some (newThread)
+      currentThread := Some (newThread);
+      currentLabel := Some(s)
     | _ -> failwith ("unexpected label " ^ d_labels s.labels)
 
 class dsnsmtVisitorClass = object
@@ -1302,8 +1314,12 @@ class dsnsmtVisitorClass = object
 
   method vinst i = begin
     let tags = match !currentThread with
-      | Some (tid) -> [Thread tid]
+      | Some (tid) -> [ThreadTag tid]
       | None -> [] in
+    let tags = match !currentLabel with
+      | Some l -> (LabelTag l)::tags
+      | None -> tags 
+    in
     let ssaBefore = get_ssa_before() in
     match i with
       |  Set(lv, e, l) -> 
