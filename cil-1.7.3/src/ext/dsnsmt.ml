@@ -20,7 +20,11 @@ let smtCallTime = ref []
 
 type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE 
 let analysis = ref UNSATCORE (*default *)
-let multithread = ref false
+let summarizeThread = ref false
+type multithreadAnalysis = ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI
+let multithread = ref NOMULTI
+
+
 
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
@@ -119,13 +123,13 @@ let currentFunc: string ref = ref ""
 let revProgram : clause list ref = ref [] 
 let typeMap : varTypeMap ref  = ref emptyTypeMap
 let currentIfContext : ifContextList ref = ref emptyIfContext
-let flowSensitiveEncoding = true
 let currentThread : int option ref = ref None
 let currentLabel : string option ref = ref None
 let currentGroup : int option ref = ref None
 let threadAnalysis = false
 let seenThreads = ref TIDSet.empty
 let seenGroups = ref GroupSet.empty
+
 
 let get_var_type (var : smtvar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
@@ -254,24 +258,38 @@ let assertion_name (c : clause) :string =
     | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
     | Summary _ -> failwith "should not be asserting summaries"
 
-let make_assertion_string c =
+let make_flowsensitive_formula c =
   let make_ifContext_formula ic = 
     match ic with 
       | [] -> SMTTrue
       | [x] -> x.iformula
       | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
   in
-  let form = 
-    if flowSensitiveEncoding && c.ifContext <> [] then
-      SMTRelation("=>", 
-		  [make_ifContext_formula c.ifContext; 
-		   c.formula])
-    else c.formula in 
+  if c.ifContext <> [] then
+    SMTRelation("=>", [make_ifContext_formula c.ifContext;c.formula])
+  else
+    c.formula
+
+let make_assertion_string flowSensitive c =
+  let form = if flowSensitive then make_flowsensitive_formula c else c.formula in 
   "(assert (! " 
   ^ string_of_formula form
   ^ " :named " ^ assertion_name c
   ^ "))\n"
-    
+
+(* DSN THIS IS A HORRID HACK FIX THIS LATER *)
+(* HACK HACK HACK *)
+let make_abstract_env_assertion_string localTid c = 
+  match c.typ with
+    | ProgramStmt(_,None) -> failwith "expected a tid here"
+    | ProgramStmt(instr, Some thatTid) when thatTid <> localTid ->
+      make_assertion_string false c
+    | _ ->
+      make_assertion_string true c
+
+(* by default, just use the standard make assertion string. Be flow sensitive *)
+let assertionStringFn = ref (make_assertion_string true)
+  
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in
   "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
@@ -290,33 +308,13 @@ let print_cprogram x =
   List.iter (fun f -> Printf.printf "%s\n" (string_of_cprogram f)) x; 
   flush stdout
 let print_annotated_trace  ?(stream = stdout) x = 
-  List.iter (fun (t,c) -> Printf.fprintf stream "\n%s\n%s\n" (string_of_formula t)
+  List.iter (fun (t,c) -> Printf.fprintf stream "\n//%s\n%s\n" (string_of_formula t)
     (string_of_cprogram c)) x; 
   flush stream
 let print_trace_linenums x = List.iter (fun c -> Printf.printf "%s\n" (print_linenum c)) x;
   flush stdout
 let print_annotatedtrace_linenums x = List.iter (fun (_,c) -> Printf.printf "%s\n" (print_linenum c)) x;
   flush stdout
-
-let print_annotatedtrace_thread  ?(stream = stdout) trace tid = 
-  let inThread = ref false in
-  Printf.fprintf stream "\n\n*********Analyzing thread %d**********\n" tid;
-  List.iter (fun (t,c) -> 
-    match c.typ with
-      | ProgramStmt(i,Some thisTid) when tid = thisTid -> 
-	inThread := true;
-	Printf.fprintf stream "\n//%s\n%s\n" 
-	  (string_of_formula t)
-	  (string_of_cprogram c)  
-      | ProgramStmt(i,Some thisTid) -> 
-	if (!inThread) then begin 
-	  inThread := false;
-	  Printf.fprintf stream "\n//(Thread Summary)\n//%s\n" 
-	    (string_of_formula t) end
-      | _ -> failwith "no tid / unexpected clause type"
-  ) trace;
-  flush stream
-    
 
 (* could make tailrec by using revmap *)
 let reduced_linenums x = 
@@ -1064,7 +1062,7 @@ let _do_smt clauses pt =
   let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* write the program clauses *)
-  List.iter (fun x -> write_line_to_solver solver (make_assertion_string x)) clauses;
+  List.iter (fun x -> write_line_to_solver solver (!assertionStringFn x)) clauses;
   (* write the commands *)
   let cmds = match pt with
     | CheckSat -> 
@@ -1261,7 +1259,7 @@ let unsat_then_cheap trace =
     ("started with " ^ string_of_int (List.length (reduced_linenums trace)) ^ " lines");
   let reduced = reduce_trace_unsatcore trace in
   print_endline 
-    ("boo " ^ "cheap left " ^ string_of_int (List.length (reduced_linenums reduced)) ^ " lines");
+    ("cheap left " ^ string_of_int (List.length (reduced_linenums reduced)) ^ " lines");
   make_cheap_annotated_trace reduced
 
 let unsat_then_window trace = 
@@ -1290,37 +1288,6 @@ let unsat_then_expensive propAlgorithm trace =
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
-let threadlocal_annotated_trace trace thisTid = 
-  let rec aux remaining tlAccum threadExitCond summaryAccum =
-    match remaining with 
-      | [] -> List.rev tlAccum
-      | (i,c) as hd::xs -> 
-	begin match c.typ,threadExitCond with
-	  | ProgramStmt(instr,Some thatTid),None when thatTid = thisTid -> 
-	    (* Were in desired thread, stayed in it*)
-	    aux xs (hd::tlAccum) None [] 
-	  | ProgramStmt(instr,Some thatTid),Some cond when thatTid = thisTid -> 
-	    (* we not in the desired thread, now entered it.  Have to build 
-	     * the summary *)
-	    let summary = make_clause 
-	      (SMTRelation("=>",[cond;c.formula])) 
-	      c.ssaIdxs
-	      emptyIfContext
-	      (Summary(List.rev summaryAccum))
-	      noTags 
-	    in
-	    aux xs ((cond,summary)::hd::tlAccum) None []
-	  | ProgramStmt(instr,Some thatTid), None  -> 
-	    (* we just left the desired thread *)
-	    aux xs tlAccum (Some i) ((instr,Some thatTid)::summaryAccum)
-	  | ProgramStmt(instr,Some thatTid), Some cond  -> 
-	    (* we are out of the desired thread, and have been for at least one statment*)
-	    aux xs tlAccum threadExitCond ((instr,Some thatTid)::summaryAccum)
-	  | _ -> failwith "no tid / unexpected clause type"
-	end
-  in
-  aux trace [] None []
-
 let extract_tid cls = 
   let rec aux = function
     | [] -> failwith "no tid"
@@ -1339,7 +1306,9 @@ let extract_group cls =
   in
   aux cls.cTags
 
-let summerize_annotated_trace  idExtractor (fullTrace : annotatedTrace) (groupId : int) =
+(* we can either work on tid or groups, by choosing the idExtractor function *)
+let summerize_annotated_trace (idExtractor : clause -> int) 
+    (fullTrace : annotatedTrace) (groupId : int) =
   let rec aux remaining groupAccum groupExitCond summaryAccum =
     match remaining with 
       | [] -> List.rev groupAccum
@@ -1446,6 +1415,15 @@ end
 
 let dsnsmtVisitor = new dsnsmtVisitorClass
 
+let reduce_using_technique technique clauses  = 
+  match technique with 
+    | UNSATCORE -> unsat_then_cheap clauses
+    | LINEARSEARCH -> unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses 
+    | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses 
+    | WINDOW -> unsat_then_window clauses
+    | NONINDUCTIVE -> unsat_then_noninductive clauses
+
+
 let dsnsmt (f: file) : unit =
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
@@ -1458,31 +1436,39 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
-  let reduced = match !analysis with
-    | UNSATCORE -> unsat_then_cheap clauses
-    | LINEARSEARCH -> unsat_then_expensive (propegate_interpolant_forward_linear 1) clauses 
-    | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses 
-    | WINDOW -> unsat_then_window clauses
-    | NONINDUCTIVE -> unsat_then_noninductive clauses
-  in
-  let oc  = open_out "smtresult.txt" in
-  print_annotated_trace ~stream:oc reduced;
-  if (!multithread) then
-    TIDSet.iter 
-      (fun tid  -> 
-	let summarized = summerize_annotated_trace extract_tid reduced tid  in
-	print_string ("\n\n\n***Summary for tid: " ^ string_of_int tid);
-	print_annotated_trace summarized) 
-      !seenThreads;
-  if (!multithread) then
-    GroupSet.iter 
-      (fun tid  -> 
-	let summarized = summerize_annotated_trace extract_group reduced tid  in
-	print_string ("\n\n\n***Summary for group: " ^ string_of_int tid);
-	print_annotated_trace summarized) 
-      !seenThreads;
-  exit_solver (getZ3());
-  exit_solver (getSmtinterpol())
+  match !multithread with
+    | ALLGROUPS -> 
+      let reduced = reduce_using_technique !analysis clauses in
+      GroupSet.iter 
+	(fun tid  -> 
+	  let summarized = summerize_annotated_trace extract_group reduced tid  in
+	  print_string ("\n\n\n***Summary for group: " ^ string_of_int tid);
+	  print_annotated_trace summarized) 
+	!seenGroups
+    | ALLTHREADS ->
+      let reduced = reduce_using_technique !analysis clauses in
+      TIDSet.iter 
+	(fun tid  -> 
+	  let summarized = summerize_annotated_trace extract_tid reduced tid  in
+	  print_string ("\n\n\n***Summary for thread: " ^ string_of_int tid);
+	  print_annotated_trace summarized) 
+	!seenThreads
+    | ABSTRACTENV -> 
+      TIDSet.iter 
+	(fun tid  -> 
+	  assertionStringFn := make_abstract_env_assertion_string tid;
+	  let reduced = reduce_using_technique !analysis clauses in
+	  let summarized = summerize_annotated_trace extract_tid reduced tid  in
+	  print_string ("\n\n\n***Summary for abstracte thread: " ^ string_of_int tid);
+	  print_annotated_trace summarized) 
+	!seenThreads
+    | NOMULTI -> 
+      let reduced = reduce_using_technique !analysis clauses in
+      let oc  = open_out "smtresult.txt" in
+      print_annotated_trace ~stream:oc reduced
+      ;
+      exit_solver (getZ3());
+      exit_solver (getSmtinterpol())
 
 
 let feature : featureDescr = 
@@ -1502,7 +1488,13 @@ let feature : featureDescr =
 	 " the analysis to use unsatcore linearsearch binarysearch");
 	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
 	 " turns on printing debug messages");
-	("--smtmultithread", Arg.Unit (fun x -> multithread := true), 
+	("--smtmultithread", Arg.String 
+	  (fun x -> match x with
+	    | "allgroups" -> multithread := ALLGROUPS
+	    | "allthreads" -> multithread := ALLTHREADS
+	    | "abstractenv" -> multithread := ABSTRACTENV
+	    | "nomulti" -> multithread := NOMULTI
+	    | x -> failwith (x ^ " is not a valid multithread analysis type")), 
 	 " turns on multithreaded analysis");
       ];
     fd_doit = dsnsmt;
