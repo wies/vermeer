@@ -51,6 +51,7 @@ module TypeMap = Map.Make(Int)
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 module TIDSet = Set.Make(Int)
+module GroupSet = Set.Make(Int)
 type varSSAMap = smtvar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
@@ -76,7 +77,7 @@ type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLe
 type ifContextElem = {iformula : term; istmt : stmt}
 type ifContextList = ifContextElem list
 
-type clauseTag = ThreadTag of int | LabelTag of string
+type clauseTag = ThreadTag of int | LabelTag of string | SummaryGroupTag of int
 let noTags = []
 
 type clause = {formula : term; 
@@ -121,8 +122,10 @@ let currentIfContext : ifContextList ref = ref emptyIfContext
 let flowSensitiveEncoding = true
 let currentThread : int option ref = ref None
 let currentLabel : string option ref = ref None
+let currentGroup : int option ref = ref None
 let threadAnalysis = false
 let seenThreads = ref TIDSet.empty
+let seenGroups = ref GroupSet.empty
 
 let get_var_type (var : smtvar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
@@ -172,10 +175,10 @@ let string_of_ifcontext ic =
   in
   aux ic ""
 
-
 let string_of_tag  = function 
   | ThreadTag i -> "Thread_" ^ string_of_int i
   | LabelTag s -> "Label_" ^ s
+  | SummaryGroupTag g -> "Group_" ^ string_of_int g
 
 let string_of_tags tags = List.fold_left (fun a x -> "//" ^ string_of_tag x ^ "\n" ^ a) "" tags
 
@@ -673,12 +676,6 @@ let getFirstArgType str =
 
 let split_on_underscore str = Str.split (Str.regexp "[_]+") str
 let is_cse_var str = Str.string_match (Str.regexp ".cse[0-9]+") str 0
-let is_tid_label str = Str.string_match (Str.regexp "T[0-9]+_[0-9]+") str 0
-let get_tid str = 
-  if (not (is_tid_label str)) then failwith (str ^ " is not a tid label");
-  ignore (Str.search_forward (Str.regexp "[0-9]+") str 0);
-  int_of_string (Str.matched_string str)
-    
 
 (* canonical format: x_vidx_ssaidx *)
 let smtVarFromString str = 
@@ -1324,16 +1321,78 @@ let threadlocal_annotated_trace trace thisTid =
   in
   aux trace [] None []
 
+let extract_tid cls = 
+  let rec aux = function
+    | [] -> failwith "no tid"
+    | x::xs ->  match x with
+	| ThreadTag i -> i
+	| _ -> aux xs
+  in
+  aux cls.cTags
+
+let extract_group cls = 
+  let rec aux = function
+    | [] -> failwith "no tid"
+    | x::xs ->  match x with
+	| SummaryGroupTag i -> i
+	| _ -> aux xs
+  in
+  aux cls.cTags
+
+let summerize_annotated_trace  idExtractor (fullTrace : annotatedTrace) (groupId : int) =
+  let rec aux remaining groupAccum groupExitCond summaryAccum =
+    match remaining with 
+      | [] -> List.rev groupAccum
+      | (i,c) as hd::xs -> begin
+	match c.typ with 
+	  | ProgramStmt(instr,Some thatTid) -> begin
+	    let inGroup = (groupId == idExtractor c) in
+	    match inGroup,groupExitCond with
+	      | true,None -> 
+		(* Were in desired thread, stayed in it*)
+		aux xs (hd::groupAccum) None [] 
+	      | true,Some cond  -> 
+		(* we not in the desired group, now entered it.  Have to build 
+		 * the summary *)
+		let summary = make_clause 
+		  (SMTRelation("=>",[cond;c.formula])) 
+		  c.ssaIdxs
+		  emptyIfContext
+		  (Summary(List.rev summaryAccum))
+		  noTags 
+		in
+		aux xs ((cond,summary)::hd::groupAccum) None []
+	      | false, None  -> 
+		(* we just left the desired thread *)
+		aux xs groupAccum (Some i) ((instr,Some thatTid)::summaryAccum)
+	      | false, Some cond  -> 
+		(* we are out of the desired thread, and have been for at least one statment*)
+		aux xs groupAccum groupExitCond ((instr,Some thatTid)::summaryAccum)
+	  end
+	  | _ -> failwith "not a programstatment in summirization"
+      end
+  in
+  aux fullTrace [] None []
+
+
 (* we assume that the thread mentioned in the label is good until the next label
  * this requires that we use --keepunused to keep the labels active *)
-let updateThread s = 
+let parseLabel s = 
   match s.labels with
     | [] -> ()
-    | [Label(s,l,b)] -> 
-      let newThread = get_tid s in
-      seenThreads := TIDSet.add newThread !seenThreads;
-      currentThread := Some (newThread);
-      currentLabel := Some(s)
+    | [Label(s,l,b)] -> begin
+      match split_on_underscore s with
+	| [prefix;tid;sid;group] ->
+	  if prefix <> "T" then failwith ("invalid label prefix " ^ prefix);
+	  let newThread = int_of_string tid in
+	  let newGroup = int_of_string group in
+	  seenThreads := TIDSet.add newThread !seenThreads;
+	  currentThread := Some (newThread);
+	  currentLabel := Some(s);
+	  seenGroups := GroupSet.add newThread !seenThreads;
+	  currentGroup := Some(newGroup)
+	| _ -> failwith ("bad label string " ^ s)
+    end
     | _ -> failwith ("unexpected label " ^ d_labels s.labels)
 
 class dsnsmtVisitorClass = object
@@ -1345,8 +1404,10 @@ class dsnsmtVisitorClass = object
       | None -> [] in
     let tags = match !currentLabel with
       | Some l -> (LabelTag l)::tags
-      | None -> tags 
-    in
+      | None -> tags in
+    let tags = match !currentGroup with
+      | Some g -> SummaryGroupTag g :: tags
+      | None -> tags in
     let ssaBefore = get_ssa_before() in
     match i with
       |  Set(lv, e, l) -> 
@@ -1368,7 +1429,7 @@ class dsnsmtVisitorClass = object
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
-    updateThread s;
+    parseLabel s;
     match s.skind with
       | If(i,t,e,l) ->
 	if e.bstmts <> [] then failwith "else block not handeled";
@@ -1408,9 +1469,17 @@ let dsnsmt (f: file) : unit =
   print_annotated_trace ~stream:oc reduced;
   if (!multithread) then
     TIDSet.iter 
-      (fun tid -> let summarized = threadlocal_annotated_trace reduced tid in
-		  print_string ("\n\n\n***Summary for tid: " ^ string_of_int tid);
-		  print_annotated_trace summarized) 
+      (fun tid  -> 
+	let summarized = summerize_annotated_trace extract_tid reduced tid  in
+	print_string ("\n\n\n***Summary for tid: " ^ string_of_int tid);
+	print_annotated_trace summarized) 
+      !seenThreads;
+  if (!multithread) then
+    GroupSet.iter 
+      (fun tid  -> 
+	let summarized = summerize_annotated_trace extract_group reduced tid  in
+	print_string ("\n\n\n***Summary for group: " ^ string_of_int tid);
+	print_annotated_trace summarized) 
       !seenThreads;
   exit_solver (getZ3());
   exit_solver (getSmtinterpol())
