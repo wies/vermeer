@@ -619,7 +619,7 @@ let print_to_file filename lines =
     
 let print_annotated_trace_to_file filename trace = 
   let oc = open_out filename in 
-  print_annotated_trace ~stream:oc;
+  print_annotated_trace ~stream:oc trace;
   close_out oc
 
 (******************** Input functions *************************)
@@ -1465,6 +1465,11 @@ let reduce_using_technique technique clauses  =
   | WINDOW -> unsat_then_window clauses
   | NONINDUCTIVE -> unsat_then_noninductive clauses
 
+let reduce_to_file technique filename clauses =
+  let reduced = reduce_using_technique technique clauses in
+  print_annotated_trace_to_file filename reduced;
+  reduced
+
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
   print_annotated_trace_to_file ("summary" ^ string_of_int id ^ ".txt") 
@@ -1487,22 +1492,18 @@ let dsnsmt (f: file) : unit =
     print_string("\n\n\n*** Print SMT ***\n\n");
     _print_smt clauses CheckSat
   | ALLGROUPS -> 
-    let reduced = reduce_using_technique !analysis clauses in
-    print_annotated_trace_to_file "reduced.txt" reduced;
+    let reduced = reduce_to_file !analysis "reduced.txt" clauses in
     GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
   | ALLTHREADS ->
-    let reduced = reduce_using_technique !analysis clauses in
-    print_annotated_trace_to_file "reduced.txt" reduced;
+    let reduced = reduce_to_file !analysis "reduced.txt" clauses in
     TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
   | ABSTRACTENV -> 
     TIDSet.iter 
       (fun tid  -> 
-	print_string 
-	  ("\n\n***Processing abstract thread: " ^ string_of_int tid);
+	print_string ("\n\n***Processing abstract thread: " ^ string_of_int tid);
 	assertionStringFn := make_abstract_env_assertion_string tid;
-	let reduced = reduce_using_technique !analysis clauses in
-	print_annotated_trace_to_file ("reduced" ^ string_of_int tid)
-	  reduced;
+	let reduced = reduce_to_file 
+	  !analysis ("reduced" ^ string_of_int tid ^ ".txt") clauses in
 	summarize_to_file extract_tid reduced tid 
       ) 
       !seenThreads
