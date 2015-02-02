@@ -21,7 +21,7 @@ let smtCallTime = ref []
 type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE 
 let analysis = ref UNSATCORE (*default *)
 let summarizeThread = ref false
-type multithreadAnalysis = ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI
+type multithreadAnalysis = PRINT_SMT | ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI
 let multithread = ref NOMULTI
 
 
@@ -95,7 +95,7 @@ type clause = {formula : term;
 
 type trace = clause list
 
-(* An annotated trace pairs a clause represneting an instruction
+(* An annotated trace pairs a clause representing an instruction
  * with the term which represents its precondition *)
 type annotatedTrace = (term * clause) list
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
@@ -1040,6 +1040,44 @@ let getZ3 () = match !z3Solver with
 
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
+let _print_smt clauses pt =
+  (* print_endline "doing smt"; *)
+  let solver = {
+    in_chan = stdin;
+    out_chan = stdout;
+    pid = 0;
+    log_out = None;
+  }
+  in
+  reset_solver solver;
+  let opts = unsatCoreOptions 
+  in 
+  set_solver_options solver opts;
+  set_logic solver "QF_LIA";
+  if uninterpretedBitOperators then declare_uninterpreted_ops solver smtUninterpreted;
+  (* on occation, there are variables that are never used in a way where their type matters
+   * assume they're ints *)
+  declare_unknown_sort solver;
+  (*write the declerations *)
+  let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
+  VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
+  (* write the program clauses *)
+  List.iter (fun x -> write_line_to_solver solver (!assertionStringFn x)) clauses;
+  (* write the commands *)
+  let cmds = match pt with
+    | CheckSat -> 
+      [smtCheckSat]
+    | GetInterpolation (partition) ->  
+      [smtCheckSat;partition]
+    | GetUnsatCore -> 
+      [smtCheckSat; smtGetUnsatCore]
+  in
+  write_to_solver solver cmds;
+  flush_solver solver(*;
+  read_from_solver solver pt*)
+
+
+(* given a set of clauses, do what is necessary to turn it into smt queries *)
 let _do_smt clauses pt =
   (* print_endline "doing smt"; *)
   let solver = match pt with
@@ -1437,6 +1475,9 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   match !multithread with
+    | PRINT_SMT ->
+      print_string("\n\n\n*** Print SMT ***\n\n");
+      _print_smt clauses CheckSat
     | ALLGROUPS -> 
       let reduced = reduce_using_technique !analysis clauses in
       GroupSet.iter 
@@ -1490,6 +1531,7 @@ let feature : featureDescr =
 	 " turns on printing debug messages");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
+            | "print_smt" -> multithread := PRINT_SMT
 	    | "allgroups" -> multithread := ALLGROUPS
 	    | "allthreads" -> multithread := ALLTHREADS
 	    | "abstractenv" -> multithread := ABSTRACTENV
