@@ -471,6 +471,7 @@ class dsnVisitorClass = object
   inherit nopCilVisitor
     
   method vinst i = begin
+    let funLabel = mkPrint ~indentp:false (d_string "VERMMER__%s:;\n" !currentFunc) [] in
     match i with
 	Set(lv, e, l) -> 
 	  let (lhsStr,lhsArg) = d_scope_lval lv in
@@ -481,7 +482,7 @@ class dsnVisitorClass = object
 	  let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	  let printArgs = lhsArg @ rhsArg in
 	  let printCall = mkPrint printStr printArgs in
-	  let newInstrs =  printCall :: [i] in
+	  let newInstrs = funLabel :: printCall :: [i] in
 	  ChangeTo newInstrs
       | Call(lo,e,al,l) ->
 	(* first, make the actual call *)
@@ -504,7 +505,7 @@ class dsnVisitorClass = object
 	let newInstrs =  
 	  logCall @ makeScopeOpen  
 	  @ temps @ returnTemp @ doneSetupComment
-	  @ [i] 
+	  @ [i; funLabel]
 	  @ saveReturn
 	  @ makeScopeClose 
 	in 
@@ -512,6 +513,7 @@ class dsnVisitorClass = object
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
+    let funLabel = mkPrintStmt ~indentp:false (d_string "VERMEER__%s:;\n" !currentFunc) [] in
     match s.skind with
       | Return(Some e, loc) -> 
 	if (!currentFunc = "main") then
@@ -520,7 +522,7 @@ class dsnVisitorClass = object
 	  let printArgs = rhsArg in
 	  let printStmt = mkPrintStmt printStr printArgs in
 	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
+          ChangeTo (stmtFromStmtList [ funLabel; preStmt; printStmt ; s ])
 	else
 	  let (lhsStr,lhsArg) = d_returnTemp in
 	  let (rhsStr,rhsArg) = d_scope_exp e in
@@ -528,7 +530,7 @@ class dsnVisitorClass = object
 	  let printArgs = lhsArg @ rhsArg in
 	  let printStmt = mkPrintStmt printStr printArgs in
 	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
+          ChangeTo (stmtFromStmtList [ funLabel; preStmt; printStmt ; s ])
       | Return(None,loc) ->
         ChangeTo (stmtFromStmtList 
 		    [ mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
@@ -539,7 +541,7 @@ class dsnVisitorClass = object
 	    | None -> raise (Failure "missing label") in
 	  let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
 	  ChangeTo (stmtFromStmtList 
-		      [ 
+		      [ funLabel;
 			mkCommentStmt commentStr []; 
 			s ])
 	else 
@@ -553,7 +555,7 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [ 
+		    [ funLabel;
 		      mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
 		      mkOpenBraceStmt();
 		      incrIndentStmt
