@@ -563,7 +563,11 @@ class dsnconcreteVisitorClass = object
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
-    if s.labels <> [] then E.s (E.bug "Cannot have labels.");
+    let label = match s.labels with | [] -> ""
+      | [Label(l,_,true)] -> if String.sub l 0 9 <> "VERMEER__" then
+                               E.s (E.bug "Cannot have labels.\n");
+                             l
+      | _ -> E.s (E.bug "Shouldn't be multiple labels there.") in
     match s.skind with
     | If(_, _, else_b, _) when else_b.bstmts = [] ->
         let postfn a =
@@ -594,7 +598,10 @@ class dsnconcreteVisitorClass = object
         ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall; s])
 
     | Instr _  | Block _ ->  DoChildren
-    | Goto _ | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
+    | Goto _ -> if not return_seen
+                then E.s (E.bug "Not expecting control flow statements.")
+                else SkipChildren (* Ignore fake gotos after main return. *)
+    | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
     | Break _ | Continue _ ->
         E.s (E.bug "Not expecting control flow statements.")
   end
