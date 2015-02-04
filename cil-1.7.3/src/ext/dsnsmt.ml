@@ -334,6 +334,7 @@ let print_reduced_linenums x =
   List.iter (Printf.printf "%s\n") reduced
 
 
+
 (****************************** Clauses ******************************)
 (* two possibilities: either maintain a mapping at each point
  * or remap as we go starting from one end *)
@@ -1319,14 +1320,20 @@ let unsat_then_expensive propAlgorithm trace =
   print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
-let extract_tid cls = 
+
+let extract_tid_opt cls = 
   let rec aux = function
-    | [] -> failwith "no tid"
+    | [] -> None
     | x::xs ->  match x with
-	| ThreadTag i -> i
+	| ThreadTag i -> Some i
 	| _ -> aux xs
   in
   aux cls.cTags
+
+let extract_tid cls = 
+  match extract_tid_opt cls with
+    | None -> failwith "no tid"
+    | Some i -> i
 
 let extract_group cls = 
   let rec aux = function
@@ -1336,6 +1343,20 @@ let extract_group cls =
 	| _ -> aux xs
   in
   aux cls.cTags
+
+let reduced_contextswitches x = 
+  let nums = List.map extract_tid_opt x in
+  let nums = List.filter (fun c -> match c with | None -> false |Some _ ->true) nums in
+  let nums = List.map (fun c -> match c with | None -> failwith "wtf" | Some i -> i) nums in
+  compress nums
+
+let reduced_contextswitches_at x = 
+  let interpolants,trace = List.split x in
+  reduced_contextswitches trace
+
+let print_reduced_contextswitches x =
+  let reduced = reduced_contextswitches x in
+  List.iter (Printf.printf "%d\n") reduced
 
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
@@ -1510,7 +1531,10 @@ let dsnsmt (f: file) : unit =
       let reduced = reduce_to_file !analysis "reduced" clauses in
       GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
     | ALLTHREADS ->
+      let initialSwitches = List.length (reduced_contextswitches clauses) in
       let reduced = reduce_to_file !analysis "reduced" clauses in
+      let finalSwitches = List.length  (reduced_contextswitches_at reduced) in
+      Printf.printf "reduced from %d to %d switches\n" initialSwitches finalSwitches;
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
       TIDSet.iter 
