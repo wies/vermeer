@@ -1384,13 +1384,13 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	  (* we not in the desired group, now entered it.  Have to build 
 	   * the summary *)
 		let summary = make_clause 
-		  (SMTRelation("=>",[cond;c.formula])) 
+		  (SMTRelation("=>",[cond;i])) 
 		  c.ssaIdxs
 		  emptyIfContext
 		  (Summary(List.rev summaryAccum))
 		  noTags 
 		in
-		aux xs ((cond,summary)::hd::groupAccum) None []
+		aux xs (hd::(cond,summary)::groupAccum) None []
 	      | false, None  -> 
 	  (* we just left the desired thread *)
 		aux xs groupAccum (Some i) ((instr,Some thatTid)::summaryAccum)
