@@ -18,10 +18,12 @@ let uninterpretedBitOperators = false
 
 let smtCallTime = ref []
 
-type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE 
+type analysis = 
+    UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE | NOREDUCTION
 let analysis = ref UNSATCORE (*default *)
 let summarizeThread = ref false
-type multithreadAnalysis = ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI
+type multithreadAnalysis = 
+    ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI | PARTITIONTID | PARTITIONGROUP
 let multithread = ref NOMULTI
 let printTraceSMT = ref false
 let printReducedSMT = ref false
@@ -1335,10 +1337,14 @@ let extract_group cls =
   in
   aux cls.cTags
 
-let split_into_partitions (idExtractor : clause -> int) trace groupId = 
-  match List.partition (fun x -> idExtractor x = groupId) trace with
-  | (a,b) -> make_interpolate_between a b
-
+let get_partition_interpolant partitionP trace =
+  let partitionString = match List.partition partitionP trace with
+    | (a,b) -> make_interpolate_between a b in
+  let result = do_smt trace (GetInterpolation partitionString) in
+  match result with 
+    | Unsat(GotInterpolant [theInterpolant]) -> theInterpolant
+    | _ -> failwith "didn't get interpolant for partition"
+      
 (* we can either work on tid or groups, by choosing the idExtractor function *)
 let summerize_annotated_trace (idExtractor : clause -> int) 
     (fullTrace : annotatedTrace) (groupId : int) =
@@ -1455,6 +1461,7 @@ let reduce_using_technique technique clauses  =
   | BINARYSEARCH -> unsat_then_expensive (propegate_interpolant_binarysearch) clauses 
   | WINDOW -> unsat_then_window clauses
   | NONINDUCTIVE -> unsat_then_noninductive clauses
+  | NOREDUCTION -> make_cheap_annotated_trace clauses
 
 let annotated_trace_to_smtfile at filename = 
   let interpolants,trace = List.split at in
@@ -1473,6 +1480,12 @@ let summarize_to_file technique reduced id =
   print_annotated_trace_to_file ("summary" ^ string_of_int id) 
     summarized
     
+let partition_to_file technique reduced id = 
+  print_endline ("Partitioning. A group is " ^ string_of_int id);
+  let interpolant = get_partition_interpolant 
+    (fun x -> (technique x) = id) reduced in
+  print_endline (string_of_formula interpolant)
+    
 let dsnsmt (f: file) : unit =
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
@@ -1487,6 +1500,12 @@ let dsnsmt (f: file) : unit =
   let clauses = make_true_clause () :: clauses in
   if !printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
   match !multithread with
+    | PARTITIONTID -> 
+      let reducedClauses = reduce_trace_unsatcore clauses in
+      TIDSet.iter (partition_to_file extract_tid reducedClauses) !seenThreads
+    | PARTITIONGROUP -> 
+      let reducedClauses = reduce_trace_unsatcore clauses in
+      GroupSet.iter (partition_to_file extract_group reducedClauses) !seenGroups
   | ALLGROUPS -> 
     let reduced = reduce_to_file !analysis "reduced" clauses in
     GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
@@ -1520,6 +1539,7 @@ let feature : featureDescr =
       [ ("--runsmtanalysistype", 
 	 Arg.String 
 	   (fun x -> match x with 
+	     | "noreduction" -> analysis := NOREDUCTION
 	   | "unsatcore" -> analysis := UNSATCORE
 	   | "linearsearch" -> analysis := LINEARSEARCH
 	   | "binarysearch" -> analysis := BINARYSEARCH
@@ -1535,7 +1555,9 @@ let feature : featureDescr =
 	 " prints the reduced code to smt");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
-	  | "allgroups" -> multithread := ALLGROUPS
+	    | "partitionTID" -> multithread := PARTITIONTID
+	    | "partitionGroup" -> multithread := PARTITIONGROUP
+	    | "allgroups" -> multithread := ALLGROUPS
 	  | "allthreads" -> multithread := ALLTHREADS
 	  | "abstractenv" -> multithread := ABSTRACTENV
 	  | "nomulti" -> multithread := NOMULTI
