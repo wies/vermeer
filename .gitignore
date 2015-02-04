@@ -1,3 +1,5 @@
+.sw?
+.*.sw?
 cil-1.7.3/Makefile
 cil-1.7.3/Makefile.features
 cil-1.7.3/_build/
@@ -10,6 +12,7 @@ cil-1.7.3/lib/MYMETA.yml
 cil-1.7.3/lib/Makefile
 cil-1.7.3/lib/blib/
 cil-1.7.3/lib/pm_to_blib
+examples/*_dir/
 examples/MiniSat-C_v1.14.1/solver_dir/
 examples/dsnlog.o
 examples/grep/grep_dir/
