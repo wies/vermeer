@@ -32,7 +32,7 @@ close SSAFILE;
 
 open SMTFILE, "<", $smtresult or die $!;
 while (<SMTFILE>) {
-    s/x_(\d+)(_\d+)/$ssaVars{$1}$2/ge;
+    s/x_(\d+)_(\d+)/"$ssaVars{$1}_ssa$2"/ge;
     #also remove any added indices that I had put on?
     s/(\w+)__\d+/$1/ge;
     print $_;
