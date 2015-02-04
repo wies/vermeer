@@ -555,7 +555,7 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [ 
+		    [ funLabel;
 		      mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
 		      mkOpenBraceStmt();
 		      incrIndentStmt
