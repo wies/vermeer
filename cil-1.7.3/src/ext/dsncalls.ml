@@ -14,6 +14,12 @@ module H = Hashtbl
  * bitfield in GCC. *)
 
 let currentFunc: string ref = ref ""
+
+let label_counter = ref 0
+let funLabel () =
+  incr label_counter;
+  d_string "VERMEER__%s_%d" !currentFunc !label_counter
+
 let indentSpaces = 2
 
 (* this should really be a commandline argument *)
@@ -55,7 +61,6 @@ let printFunctionName = ref "dsn_log"(*"printf"*)
 
 let addProto = ref false
 let counter = ref 0
-let label_counter = ref 0
 
 let d_tempArg (idx : int) : logStatement = 
   (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])
@@ -86,8 +91,11 @@ let getLabelString s =
     | _ -> raise (Failure "not handeling multiple labels at this point")
 
 
-let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) : instr = 
+let mkPrint ?(indentp = true) ?(locp = true) ?(label="") (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
+  let format, args =
+    if label <> "" then ("%s: " ^ format, mkString label :: args)
+    else format, args in
   let format = 
     if indentp then  "%*s" ^ format 
     else format in
@@ -102,8 +110,8 @@ let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) 
     else args in
   Call(None, Lval(var p), (mkString format) :: args, !currentLoc)
 
-let mkPrintStmt  ?indentp ?locp (format: string) (args: exp list) : stmt = 
-  mkStmtOneInstr (mkPrint ?indentp ?locp format args)
+let mkPrintStmt  ?indentp ?locp ?label (format: string) (args: exp list) : stmt = 
+  mkStmtOneInstr (mkPrint ?indentp ?locp ?label format args)
 
 let mkOpenBraceStmt ?(indentp = true) ?(locp = false)  (): stmt =
   mkPrintStmt ~indentp:indentp ~locp:locp ("{\n") []
@@ -212,7 +220,7 @@ let declareAllFormalsStmt (sformals : varinfo list) : stmt =
     let (lhsStr,lhsArgs) = d_decl v in
     let (rhsStr, rhsArgs) = d_tempArg idx in
     let argStr = lhsStr ^ " = " ^ rhsStr ^ ";\n" in
-    mkPrint ~locp:false argStr ( lhsArgs @ rhsArgs)   
+    mkPrint ~locp:false ~label:(funLabel()) argStr ( lhsArgs @ rhsArgs)   
   in
   let rec declareAllFormalsHelper (slocals : varinfo list) (idx : int) : instr list = 
     match slocals with
@@ -328,7 +336,7 @@ let mkCopyReturnToOuterscope lo : instr list =
       let (rhsStr,rhsArg) = d_returnTemp in
       let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
       let printArgs = lhsArg @ rhsArg in
-      let printCall = mkPrint printStr printArgs in
+      let printCall = mkPrint ~label:(funLabel()) printStr printArgs in
       [printCall]
     | None -> []
 
@@ -372,7 +380,7 @@ let mkActualToTemp (actual : exp) (idx : int) =
     @ lhsArgs 
     @ postTypeArgs
     @ rhsArgs in
-  mkPrint printStr printArgs
+  mkPrint ~label:(funLabel()) printStr printArgs
 
 let rec mkActualsToTempsRec (actual : exp list) (idx : int) : instr list  = 
   match actual with 
@@ -466,14 +474,10 @@ let name = ref ""
 let makeScopeOpen = [mkPrint ~locp:false "{\n" []; incrScope; incrIndent]
 let makeScopeClose = [decrIndent; decrScope; mkPrint ~locp:false "}\n" []]
 
-
-
 class dsnVisitorClass = object
   inherit nopCilVisitor
     
   method vinst i = begin
-    let funLabel = mkPrint ~indentp:false (d_string "VERMEER__%s_%d:;\n" !currentFunc !label_counter) [] in
-    incr label_counter;
     match i with
 	Set(lv, e, l) -> 
 	  let (lhsStr,lhsArg) = d_scope_lval lv in
@@ -483,8 +487,8 @@ class dsnVisitorClass = object
 	  let (rhsStr,rhsArg) = d_scope_exp e in
 	  let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	  let printArgs = lhsArg @ rhsArg in
-	  let printCall = mkPrint printStr printArgs in
-	  let newInstrs = funLabel :: printCall :: [i] in
+	  let printCall = mkPrint ~label:(funLabel()) printStr printArgs in
+	  let newInstrs = printCall :: [i] in
 	  ChangeTo newInstrs
       | Call(lo,e,al,l) ->
 	(* first, make the actual call *)
@@ -507,7 +511,7 @@ class dsnVisitorClass = object
 	let newInstrs =  
 	  logCall @ makeScopeOpen  
 	  @ temps @ returnTemp @ doneSetupComment
-	  @ [i; funLabel]
+	  @ [i]
 	  @ saveReturn
 	  @ makeScopeClose 
 	in 
@@ -515,25 +519,23 @@ class dsnVisitorClass = object
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
-    let funLabel = mkPrintStmt ~indentp:false (d_string "VERMEER__%s_%d:;\n" !currentFunc !label_counter) [] in
-    incr label_counter;
     match s.skind with
       | Return(Some e, loc) -> 
 	if (!currentFunc = "main") then
 	  let (rhsStr,rhsArg) = d_scope_exp e in
 	  let printStr = "return " ^ rhsStr ^ ";\n" in
 	  let printArgs = rhsArg in
-	  let printStmt = mkPrintStmt printStr printArgs in
+	  let printStmt = mkPrintStmt ~label:(funLabel()) printStr printArgs in
 	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-          ChangeTo (stmtFromStmtList [ funLabel; preStmt; printStmt ; s ])
+          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
 	else
 	  let (lhsStr,lhsArg) = d_returnTemp in
 	  let (rhsStr,rhsArg) = d_scope_exp e in
 	  let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	  let printArgs = lhsArg @ rhsArg in
-	  let printStmt = mkPrintStmt printStr printArgs in
+	  let printStmt = mkPrintStmt ~label:(funLabel()) printStr printArgs in
 	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-          ChangeTo (stmtFromStmtList [ funLabel; preStmt; printStmt ; s ])
+          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
       | Return(None,loc) ->
         ChangeTo (stmtFromStmtList 
 		    [ mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
@@ -544,8 +546,7 @@ class dsnVisitorClass = object
 	    | None -> raise (Failure "missing label") in
 	  let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
 	  ChangeTo (stmtFromStmtList 
-		      [ funLabel;
-			mkCommentStmt commentStr []; 
+		      [ mkCommentStmt commentStr []; 
 			s ])
 	else 
 	  DoChildren
@@ -558,8 +559,7 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [ funLabel;
-		      mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
+		    [ mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
 		      mkOpenBraceStmt();
 		      incrIndentStmt
 		    ] in
