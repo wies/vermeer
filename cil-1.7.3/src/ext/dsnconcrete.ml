@@ -90,7 +90,7 @@ let spaces = ref 0
 let incrIndent () = spaces := !spaces + 2
 let decrIndent () = if !spaces <= 0 then E.s (E.bug "Negative indentation?");
                    spaces := !spaces - 2
-let indent () =
+let getIndent () =
   let rec f i = if i=0 then "" else f (i-1) ^ " " in f !spaces
 
 let argc_argv_handler =
@@ -102,15 +102,15 @@ let argc_argv_handler =
 let log_fn = makeGlobalVar log_fn_name
                (TFun(voidType, Some [("format", charPtrType, [])], true, []))
 
-let mkPrintNoLoc ?(noindent=false) (fmt: string) (args: exp list) : instr =
-  let spaces = if noindent then "" else indent () in
-  Call(None, Lval(var log_fn), (mkString (spaces ^ fmt)) :: args, !currentLoc)
+let mkPrint ?(indent=true) ?(loc=true) (fmt: string) (args: exp list) : instr =
+  let fmt = if indent then getIndent () ^ fmt else fmt in
+  let fmt = if not loc then fmt else
+    let lineStr l = "#line "^ string_of_int l.line ^" \""^ l.file ^"\"" in
+    (lineStr !currentLoc) ^"\n"^ fmt in
+  Call(None, Lval(var log_fn), (mkString fmt) :: args, !currentLoc)
 
-let mkPrint (fmt: string) (args: exp list) : instr =
-  let lineStr (loc: location) =
-    "#line "^ string_of_int loc.line ^" \""^ loc.file ^"\"" in
-  let fmt' = (lineStr !currentLoc) ^"\n"^ indent () ^ fmt in
-  mkPrintNoLoc ~noindent:true fmt' args
+let mkPrintStmt ?indent ?loc fmt args =
+  mkStmtOneInstr (mkPrint ?indent ?loc fmt args)
 
 let stmtFromStmtList (stmts : stmt list) : stmt =
   mkStmt(Block(mkBlock (compactStmts stmts)))
@@ -424,14 +424,14 @@ let d_decl (v : varinfo) : logStatement =
 
 let mkVarDecl (v : varinfo) : instr =
   let (str,args) = d_decl v in
-  mkPrintNoLoc (str ^ ";\n") args
+  mkPrint ~loc:false (str ^ ";\n") args
 
 let declareAllVars (slocals : varinfo list) : instr list =
   List.map mkVarDecl slocals
 *)
 
 let declareAllVarsStmt (slocals : varinfo list) : stmt =
-  let pr_decl vi = mkPrintNoLoc ("long long "^ vi.vname ^";\n") [] in
+  let pr_decl vi = mkPrint ~loc:false ("long long "^ vi.vname ^";\n") [] in
   let instr_lst = List.map pr_decl slocals in
   mkStmt (Instr instr_lst)
 
@@ -463,7 +463,7 @@ let mk_print_orig (* For printing debugging info. *) = function
       | Const(CStr s) -> to_c_string s
       | Const(CWStr s) -> E.s (E.unimp "CWStr not supported.")
       | _ -> d_string "%a" d_exp e in
-    mkPrintNoLoc "%s" [mkString (d_string "\n// %a = %s;\n" d_lval lv rhs)]
+    mkPrint ~loc:false "%s" [mkString (d_string "\n// %a = %s;\n" d_lval lv rhs)]
   | Call(lv_o, e, al, _) as fnCall ->
     let rec arg_lst = function 
       | [] -> ""
@@ -471,7 +471,7 @@ let mk_print_orig (* For printing debugging info. *) = function
       | x::xs -> (d_string "%a, " d_exp x) ^ arg_lst xs in
     let fn_name =get_fn_name fnCall in
     if (is_assert_fn fnCall) then
-      mkPrint(fn_name ^"("^ (arg_lst al) ^");\n") []
+      mkPrint (fn_name ^"("^ (arg_lst al) ^");\n") []
     else 
       let lhs = match lv_o with 
 	| None -> "(no return or ignored)"
@@ -523,8 +523,8 @@ class dsnconcreteVisitorClass = object
         let pr_s2, pr_a2 = pr_s2 ^" // Assigned: "^ val_s ^"\n",
                            pr_a2 @ val_a in
 
-        let print_asgn      = mkPrint                     pr_s1 pr_a1 in
-        let print_asgn_post = mkPrintNoLoc ~noindent:true pr_s2 pr_a2 in
+        let print_asgn      = mkPrint                          pr_s1 pr_a1 in
+        let print_asgn_post = mkPrint ~indent:false ~loc:false pr_s2 pr_a2 in
         let newInstrs =  [print_orig; print_asgn; i; print_asgn_post] in
         ChangeTo newInstrs
 
@@ -555,19 +555,21 @@ class dsnconcreteVisitorClass = object
 
               if if_s = "" then [i; mkPrint pr_s pr_a]
               else let print_if = mkPrint ("if ("^ if_s ^ "){ ") if_a in
-                   let print_asgn = mkPrintNoLoc ~noindent:true
-                                                 (pr_s ^" }\n") pr_a in 
+                   let print_asgn = mkPrint ~indent:false ~loc:false
+                                            (pr_s ^" }\n") pr_a in 
                    [print_if; i; print_asgn] in
 
         ChangeTo (print_orig :: print_asgn)
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
-    let label = match s.labels with | [] -> ""
-      | [Label(l,_,true)] -> if String.sub l 0 9 <> "VERMEER__" then
-                               E.s (E.bug "Cannot have labels.\n");
-                             l
-      | _ -> E.s (E.bug "Shouldn't be multiple labels there.") in
+    if s.labels <> [] then (match s.skind with Instr _ -> ()
+                            | _ -> E.s (E.bug "Labels not in Instr."));
+    let getFnLabel s =
+      match s.labels with
+      | [Label(l,_,true)] when String.sub l 0 9 = "VERMEER__" -> l
+      | _ -> E.s (E.bug "Should be one and only function label there.") in
+
     match s.skind with
     | If(_, _, else_b, _) when else_b.bstmts = [] ->
         let postfn a =
@@ -577,9 +579,9 @@ class dsnconcreteVisitorClass = object
               let eStr, eArg = d_mem_exp ~pr_val:true e in
               let fStr = "if ("^ eStr ^"){\n" in
               then_b.bstmts <- compactStmts (
-                [mkStmtOneInstr (mkPrint fStr eArg)]
+                [mkPrintStmt fStr eArg]
                 @ then_b.bstmts
-                @ [mkStmtOneInstr (mkPrintNoLoc "}\n" [])]);
+                @ [mkPrintStmt ~loc:false "}\n" []]);
               a
           | _ -> E.s (E.bug "If statement corrupted.") in
         incrIndent ();
@@ -595,12 +597,19 @@ class dsnconcreteVisitorClass = object
         let printCall = match e_opt with
             None   -> mkPrint "return;\n} // main\n" []
           | Some e -> mkPrint (d_string "return %a;\n} // main\n" d_exp e) [] in
-        ChangeTo (stmtFromStmtList [mkStmtOneInstr printCall; s])
+        ChangeTo (stmtFromStmtList [mkPrintStmt ~loc:false "\n" [];
+                                    mkStmtOneInstr printCall; s])
 
-    | Instr _  | Block _ ->  DoChildren
+    | Instr _ when s.labels <> [] ->
+        let l = getFnLabel s ^":;\n" in
+        let postfn a =
+          stmtFromStmtList [mkPrintStmt ~indent:false ~loc:false "\n" [];
+                            mkPrintStmt ~indent:false l []; a] in
+        ChangeDoChildrenPost(s, postfn)
+    | Instr _ | Block _ -> DoChildren
     | Goto _ -> if not return_seen
                 then E.s (E.bug "Not expecting control flow statements.")
-                else SkipChildren (* Ignore fake gotos after main return. *)
+                else SkipChildren (* Ignore fake goto's after main return. *)
     | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
     | Break _ | Continue _ ->
         E.s (E.bug "Not expecting control flow statements.")
@@ -636,7 +645,7 @@ let dsnconcrete (f: file) : unit =
       let str = "long long "^ var ^";\n" in
       globalDeclFn.sbody <-
         mkBlock (compactStmts [mkStmt (Block globalDeclFn.sbody);
-                               mkStmtOneInstr (mkPrint str [])]) in
+                               mkPrintStmt str []]) in
 
     match g with
     | GVarDecl(vi, _) | GVar(vi, _, _) when isFunc vi ->
