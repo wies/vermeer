@@ -1356,7 +1356,11 @@ let reduced_contextswitches_at x =
 
 let print_reduced_contextswitches x =
   let reduced = reduced_contextswitches x in
-  List.iter (Printf.printf "%d\n") reduced
+  List.iter (Printf.printf "-%d-") reduced
+
+let print_reduced_contextswitches_at x =
+  let interpolants,trace = List.split x in
+  print_reduced_contextswitches trace
 
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
@@ -1534,7 +1538,10 @@ let dsnsmt (f: file) : unit =
       let initialSwitches = List.length (reduced_contextswitches clauses) in
       let reduced = reduce_to_file !analysis "reduced" clauses in
       let finalSwitches = List.length  (reduced_contextswitches_at reduced) in
-      Printf.printf "reduced from %d to %d switches\n" initialSwitches finalSwitches;
+      print_reduced_contextswitches clauses;
+      Printf.printf "\nreduced from %d to %d switches\n" initialSwitches finalSwitches;
+      print_reduced_contextswitches_at reduced;
+      print_endline "";
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
       TIDSet.iter 
