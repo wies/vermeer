@@ -14,6 +14,7 @@ module H = Hashtbl
  * bitfield in GCC. *)
 
 let currentFunc: string ref = ref ""
+
 let indentSpaces = 2
 
 (* this should really be a commandline argument *)
@@ -85,7 +86,7 @@ let getLabelString s =
     | _ -> raise (Failure "not handeling multiple labels at this point")
 
 
-let mkPrint ?(indentp = true) ?(locp = true)  (format: string) (args: exp list) : instr = 
+let mkPrint ?(indentp = true) ?(locp = true) (format: string) (args: exp list) : instr = 
   let p: varinfo = makePrintfFunction () in 
   let format = 
     if indentp then  "%*s" ^ format 
@@ -465,13 +466,15 @@ let name = ref ""
 let makeScopeOpen = [mkPrint ~locp:false "{\n" []; incrScope; incrIndent]
 let makeScopeClose = [decrIndent; decrScope; mkPrint ~locp:false "}\n" []]
 
-
+let label_count = ref 0
+let printFnLabel fnName =
+  incr label_count;
+  mkPrint ~indentp:false (d_string "VERMEER__%s_%d:;\n" fnName !label_count) []
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
     
   method vinst i = begin
-    let funLabel = mkPrint ~indentp:false (d_string "VERMMER__%s:;\n" !currentFunc) [] in
     match i with
 	Set(lv, e, l) -> 
 	  let (lhsStr,lhsArg) = d_scope_lval lv in
@@ -482,7 +485,7 @@ class dsnVisitorClass = object
 	  let printStr = lhsStr ^  " = " ^ rhsStr ^ ";\n" in
 	  let printArgs = lhsArg @ rhsArg in
 	  let printCall = mkPrint printStr printArgs in
-	  let newInstrs = funLabel :: printCall :: [i] in
+	  let newInstrs = printCall :: [i] in
 	  ChangeTo newInstrs
       | Call(lo,e,al,l) ->
 	(* first, make the actual call *)
@@ -503,17 +506,18 @@ class dsnVisitorClass = object
 	let saveReturn = mkCopyReturnToOuterscope lo in 
 	let doneSetupComment = [mkComment "done setup\n" []] in
 	let newInstrs =  
-	  logCall @ makeScopeOpen  
+          (printFnLabel fnNameStr)
+	  :: logCall @ makeScopeOpen  
 	  @ temps @ returnTemp @ doneSetupComment
-	  @ [i; funLabel]
+	  @ [i]
 	  @ saveReturn
 	  @ makeScopeClose 
+          @ [printFnLabel !currentFunc]
 	in 
 	ChangeTo newInstrs
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
-    let funLabel = mkPrintStmt ~indentp:false (d_string "VERMEER__%s:;\n" !currentFunc) [] in
     match s.skind with
       | Return(Some e, loc) -> 
 	if (!currentFunc = "main") then
@@ -522,7 +526,7 @@ class dsnVisitorClass = object
 	  let printArgs = rhsArg in
 	  let printStmt = mkPrintStmt printStr printArgs in
 	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-          ChangeTo (stmtFromStmtList [ funLabel; preStmt; printStmt ; s ])
+          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
 	else
 	  let (lhsStr,lhsArg) = d_returnTemp in
 	  let (rhsStr,rhsArg) = d_scope_exp e in
@@ -530,7 +534,7 @@ class dsnVisitorClass = object
 	  let printArgs = lhsArg @ rhsArg in
 	  let printStmt = mkPrintStmt printStr printArgs in
 	  let preStmt = mkCommentStmt (d_string "exiting %s\n" !currentFunc) [] in
-          ChangeTo (stmtFromStmtList [ funLabel; preStmt; printStmt ; s ])
+          ChangeTo (stmtFromStmtList [ preStmt; printStmt ; s ])
       | Return(None,loc) ->
         ChangeTo (stmtFromStmtList 
 		    [ mkCommentStmt (d_string "exiting %s\n" !currentFunc) []; s ])
@@ -541,8 +545,7 @@ class dsnVisitorClass = object
 	    | None -> raise (Failure "missing label") in
 	  let commentStr = d_string "goto %s in %s\n" labelStr !currentFunc in
 	  ChangeTo (stmtFromStmtList 
-		      [ funLabel;
-			mkCommentStmt commentStr []; 
+		      [ mkCommentStmt commentStr []; 
 			s ])
 	else 
 	  DoChildren
@@ -555,8 +558,7 @@ class dsnVisitorClass = object
 		  let eStr = if t then eStr else "!(" ^ eStr ^")" in
 		  let comment = if t then "then" else "else" in
 		  let blockEnter = 
-		    [ funLabel;
-		      mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
+		    [ mkPrintStmt ("if( " ^ eStr ^ ")" ^ commentLine ^ comment ^ "\n") eArg;
 		      mkOpenBraceStmt();
 		      incrIndentStmt
 		    ] in
