@@ -466,10 +466,8 @@ let name = ref ""
 let makeScopeOpen = [mkPrint ~locp:false "{\n" []; incrScope; incrIndent]
 let makeScopeClose = [decrIndent; decrScope; mkPrint ~locp:false "}\n" []]
 
-let label_count = ref 0
 let printFnLabel fnName =
-  incr label_count;
-  mkPrint ~indentp:false (d_string "VERMEER__%s_%d:;\n" fnName !label_count) []
+  mkPrint ~indentp:false ("VERMEER__"^ fnName ^":;\n") []
 
 class dsnVisitorClass = object
   inherit nopCilVisitor

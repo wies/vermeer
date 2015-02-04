@@ -217,9 +217,12 @@ sub keepLabels {
     die "Too many arguments " if @bad;
 
     my @fun_labels = ();
+    my $cnt = 0;
     foreach my $line (@$lines) {
         if ($line =~ /^ *(VERMEER__[^:]+):/) {
-            push(@fun_labels, $1);
+            $cnt++;
+            $line =~ s/(VERMEER__[^:]+):/$1_$cnt:/;
+            push(@fun_labels, "$1_$cnt");
         }
     }
     my $lastLine = pop(@$lines);
