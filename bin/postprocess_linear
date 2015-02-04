@@ -212,6 +212,24 @@ sub instantiateCalls {
     return @output;
 }
 
+sub keepLabels {
+    my ($lines, @bad) = @_;
+    die "Too many arguments " if @bad;
+
+    my @fun_labels = ();
+    foreach my $line (@$lines) {
+        if ($line =~ /^(VERMEER__.*):;$/) {
+            push(@fun_labels, $1);
+        }
+    }
+    my $lastLine = pop(@$lines);
+    foreach my $label (@fun_labels) {
+        push(@$lines, "  goto $label;\n");
+    }
+    push(@$lines, $lastLine);
+    return @$lines;
+}
+
 sub main {
     my ($infilename, @bad) = @ARGV;
     die "Too many arguments " if @bad;
@@ -225,6 +243,7 @@ sub main {
     closeBraces(\@infile);
     my @instantiatedCalls = instantiateCalls(\@infile);
 
+    keepLabels(\@instantiatedCalls);
     
     foreach my $line (@instantiatedCalls){
 	print $line;
