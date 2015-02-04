@@ -563,8 +563,8 @@ class dsnconcreteVisitorClass = object
     | Asm _ -> E.s (E.bug "Not expecting assembly instructions.")
   end
   method vstmt (s : stmt) = begin
-    if s.labels <> [] then (match s.skind with Instr _ -> ()
-                            | _ -> E.s (E.bug "Labels not in Instr."));
+    if s.labels <> [] then (match s.skind with Instr _ | Block _ -> ()
+                            | _ -> E.s (E.bug "Labels not expected."));
     let getFnLabel s =
       match s.labels with
       | [Label(l,_,true)] when String.sub l 0 9 = "VERMEER__" -> l
@@ -600,16 +600,16 @@ class dsnconcreteVisitorClass = object
         ChangeTo (stmtFromStmtList [mkPrintStmt ~loc:false "\n" [];
                                     mkStmtOneInstr printCall; s])
 
-    | Instr _ when s.labels <> [] ->
+    | Instr _ | Block _ when s.labels <> [] ->
         let l = getFnLabel s ^":;\n" in
         let postfn a =
           stmtFromStmtList [mkPrintStmt ~indent:false ~loc:false "\n" [];
                             mkPrintStmt ~indent:false l []; a] in
         ChangeDoChildrenPost(s, postfn)
     | Instr _ | Block _ -> DoChildren
-    | Goto _ -> if not return_seen
-                then E.s (E.bug "Not expecting control flow statements.")
-                else SkipChildren (* Ignore fake goto's after main return. *)
+    | Goto (stmt_ref, _) ->
+        (* Check sanity and ignore goto's to function name labels. *)
+        let _ = getFnLabel !stmt_ref in SkipChildren
     | ComputedGoto _ | Switch _ | Loop _ | TryFinally _ | TryExcept _
     | Break _ | Continue _ ->
         E.s (E.bug "Not expecting control flow statements.")
