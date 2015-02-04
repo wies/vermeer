@@ -55,6 +55,7 @@ let printFunctionName = ref "dsn_log"(*"printf"*)
 
 let addProto = ref false
 let counter = ref 0
+let label_counter = ref 0
 
 let d_tempArg (idx : int) : logStatement = 
   (argTempBasename ^ string_of_int idx ^ "__%u ",[currentScopeExpr])
@@ -471,7 +472,8 @@ class dsnVisitorClass = object
   inherit nopCilVisitor
     
   method vinst i = begin
-    let funLabel = mkPrint ~indentp:false (d_string "VERMMER__%s:;\n" !currentFunc) [] in
+    let funLabel = mkPrint ~indentp:false (d_string "VERMEER__%s_%d:;\n" !currentFunc !label_counter) [] in
+    incr label_counter;
     match i with
 	Set(lv, e, l) -> 
 	  let (lhsStr,lhsArg) = d_scope_lval lv in
@@ -513,7 +515,8 @@ class dsnVisitorClass = object
       | _ -> DoChildren
   end
   method vstmt (s : stmt) = begin
-    let funLabel = mkPrintStmt ~indentp:false (d_string "VERMEER__%s:;\n" !currentFunc) [] in
+    let funLabel = mkPrintStmt ~indentp:false (d_string "VERMEER__%s_%d:;\n" !currentFunc !label_counter) [] in
+    incr label_counter;
     match s.skind with
       | Return(Some e, loc) -> 
 	if (!currentFunc = "main") then
