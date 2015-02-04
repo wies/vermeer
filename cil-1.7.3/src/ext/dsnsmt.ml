@@ -21,9 +21,10 @@ let smtCallTime = ref []
 type analysis = UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE 
 let analysis = ref UNSATCORE (*default *)
 let summarizeThread = ref false
-type multithreadAnalysis = PRINT_SMT | ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI
+type multithreadAnalysis = ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI
 let multithread = ref NOMULTI
-
+let printTraceSMT = ref false
+let printReducedSMT = ref false
 
 
 (******************************** Optimizations ***************************)
@@ -101,7 +102,7 @@ type annotatedTrace = (term * clause) list
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
 type unsatResult = 
   GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
-type smtResult = Sat | Unsat of unsatResult | Timeout
+type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
 exception CantMap of smtvar
@@ -618,7 +619,7 @@ let print_to_file filename lines =
   close_out oc                (* flush and close the channel *)
     
 let print_annotated_trace_to_file filename trace = 
-  let oc = open_out filename in 
+  let oc = open_out (filename ^ ".txt") in 
   print_annotated_trace ~stream:oc trace;
   close_out oc
 
@@ -1044,50 +1045,8 @@ let getZ3 () = match !z3Solver with
 
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
-let _print_smt clauses pt =
+let _do_smt ?(justPrint = false) solver clauses pt =
   (* print_endline "doing smt"; *)
-  let solver = {
-    in_chan = stdin;
-    out_chan = stdout;
-    pid = 0;
-    log_out = None;
-  }
-  in
-  reset_solver solver;
-  let opts = unsatCoreOptions 
-  in 
-  set_solver_options solver opts;
-  set_logic solver "QF_LIA";
-  if uninterpretedBitOperators then declare_uninterpreted_ops solver smtUninterpreted;
-  (* on occation, there are variables that are never used in a way where their type matters
-   * assume they're ints *)
-  declare_unknown_sort solver;
-  (*write the declerations *)
-  let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
-  VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
-  (* write the program clauses *)
-  List.iter (fun x -> write_line_to_solver solver (!assertionStringFn x)) clauses;
-  (* write the commands *)
-  let cmds = match pt with
-    | CheckSat -> 
-      [smtCheckSat]
-    | GetInterpolation (partition) ->  
-      [smtCheckSat;partition]
-    | GetUnsatCore -> 
-      [smtCheckSat; smtGetUnsatCore]
-  in
-  write_to_solver solver cmds;
-  flush_solver solver(*;
-		       read_from_solver solver pt*)
-
-
-(* given a set of clauses, do what is necessary to turn it into smt queries *)
-let _do_smt clauses pt =
-  (* print_endline "doing smt"; *)
-  let solver = match pt with
-    | CheckSat | GetUnsatCore -> getZ3 ()
-    | GetInterpolation _ -> getSmtinterpol()
-  in
   reset_solver solver;
   let opts = match pt with 
     | CheckSat -> smtOnlyOptions
@@ -1116,16 +1075,42 @@ let _do_smt clauses pt =
   in
   write_to_solver solver cmds;
   flush_solver solver;
-  read_from_solver solver pt
+  if justPrint then NoSMTResult 
+  else read_from_solver solver pt
 
 let do_smt clauses pt =
-  let res, duration = Dsnutils.time (fun () -> _do_smt clauses pt) () in
+  let solver = match pt with
+    | CheckSat | GetUnsatCore -> getZ3 ()
+    | GetInterpolation _ -> getSmtinterpol()
+  in
+  let res, duration = Dsnutils.time (fun () -> _do_smt solver clauses pt) () in
   smtCallTime := !smtCallTime @ [duration];
   debug_endline 
     ("No. calls=" ^ string_of_int (List.length !smtCallTime) 
      ^ ", Time_this=" ^ string_of_float duration
      ^ " Time_total=" ^ string_of_float (List.fold_left (+.) 0. !smtCallTime));
   res
+
+let print_smt filenameOpt clauses pt = 
+  match filenameOpt with
+  | Some filename ->
+    let oc = open_out (filename ^ ".smt2") in
+    let solver = {
+      in_chan = stdin;
+      out_chan = oc;
+      pid = 0;
+      log_out = None} in
+    ignore( _do_smt ~justPrint:true solver clauses pt);
+    close_out oc;
+  | None -> 
+    let solver = {
+      in_chan = stdin;
+      out_chan = stdout;
+      pid = 0;
+      log_out = None;
+    } in
+    ignore(_do_smt ~justPrint:true solver clauses pt)
+
 
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
   (* interpolants have no need for ssa variables.  So we can just drop them *)
@@ -1146,14 +1131,17 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     | Sat -> false
     | Unsat _ -> true
     | Timeout -> false (* conservative on timeout *)
+    | NoSMTResult -> failwith "trying to get result from smt logging call"
 
 let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
   let not_inter = negate_clause inter in
   match do_smt (not_inter :: before) CheckSat  with
+  | NoSMTResult -> failwith "trying to get result from smt logging call"
   | Timeout -> false
   | Sat -> false
   | Unsat(_) -> 
     match do_smt (inter :: after) CheckSat with
+    | NoSMTResult -> failwith "trying to get result from smt logging call"
     | Sat -> false
     | Unsat(_) -> true 
     | Timeout -> false
@@ -1465,14 +1453,21 @@ let reduce_using_technique technique clauses  =
   | WINDOW -> unsat_then_window clauses
   | NONINDUCTIVE -> unsat_then_noninductive clauses
 
+let annotated_trace_to_smtfile at filename = 
+  let interpolants,trace = List.split at in
+  print_smt (Some filename) trace CheckSat 
+    
+    
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
   print_annotated_trace_to_file filename reduced;
+  if(!printReducedSMT) then 
+    annotated_trace_to_smtfile reduced filename;
   reduced
 
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
-  print_annotated_trace_to_file ("summary" ^ string_of_int id ^ ".txt") 
+  print_annotated_trace_to_file ("summary" ^ string_of_int id) 
     summarized
     
 let dsnsmt (f: file) : unit =
@@ -1487,15 +1482,13 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
+  if !printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
   match !multithread with
-  | PRINT_SMT ->
-    print_string("\n\n\n*** Print SMT ***\n\n");
-    _print_smt clauses CheckSat
   | ALLGROUPS -> 
-    let reduced = reduce_to_file !analysis "reduced.txt" clauses in
+    let reduced = reduce_to_file !analysis "reduced" clauses in
     GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
   | ALLTHREADS ->
-    let reduced = reduce_to_file !analysis "reduced.txt" clauses in
+    let reduced = reduce_to_file !analysis "reduced" clauses in
     TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
   | ABSTRACTENV -> 
     TIDSet.iter 
@@ -1503,18 +1496,18 @@ let dsnsmt (f: file) : unit =
 	print_string ("\n\n***Processing abstract thread: " ^ string_of_int tid);
 	assertionStringFn := make_abstract_env_assertion_string tid;
 	let reduced = reduce_to_file 
-	  !analysis ("reduced" ^ string_of_int tid ^ ".txt") clauses in
+	  !analysis ("reduced" ^ string_of_int tid) clauses in
 	summarize_to_file extract_tid reduced tid 
       ) 
       !seenThreads
   | NOMULTI -> 
-    let reduced = reduce_using_technique !analysis clauses in
-    let oc  = open_out "smtresult.txt" in
-    print_annotated_trace ~stream:oc reduced
+    ignore(reduce_to_file !analysis "smtresult" clauses)
     ;
+    (*this is slightly inefficient: if the solver has not been started,
+     * this will start it and then exit it *)
     exit_solver (getZ3());
     exit_solver (getSmtinterpol())
-
+      
 
 let feature : featureDescr = 
   { fd_name = "dsnsmt";
@@ -1533,9 +1526,12 @@ let feature : featureDescr =
 	 " the analysis to use unsatcore linearsearch binarysearch");
 	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
 	 " turns on printing debug messages");
+	("--smtprinttrace", Arg.Unit (fun x -> printTraceSMT := true), 
+	 " prints the origional trace to smt");
+	("--smtprintreduced", Arg.Unit (fun x -> printReducedSMT := true), 
+	 " prints the reduced code to smt");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
-          | "print_smt" -> multithread := PRINT_SMT
 	  | "allgroups" -> multithread := ALLGROUPS
 	  | "allthreads" -> multithread := ALLTHREADS
 	  | "abstractenv" -> multithread := ABSTRACTENV
