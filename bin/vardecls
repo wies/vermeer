@@ -1,0 +1,29 @@
+#!/usr/bin/perl -w
+use warnings;
+use strict;
+
+my ($infile, @bad) = @ARGV;
+die "Too many arguments " if @bad;
+die "missing inputfile " unless $infile;
+
+my %vars = ();
+open INFILE, "<", $infile or die $!;
+my @infile = <INFILE>;
+
+foreach my $line (@infile) {
+    if ($line =~ m/^(\w+)\s*=.*/){
+	$vars{$1} = 1;
+    }
+}
+
+print "int main(int argc, char** argv) {\n";
+
+foreach my $key (sort keys %vars){
+    print "long long $key;\n";
+}
+
+foreach my $line (@infile){
+    print $line;
+}
+
+print "}\n";
