@@ -1,8 +1,0 @@
-
-true
-#line 41 "trace_assertion_failed_6_unscoped.c"
-stopped = 1;
-
-(= (+ stopped (- 1 ) ) 0 )
-#line 44
-assert(-1 + stopped != 0);
