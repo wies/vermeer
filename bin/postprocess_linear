@@ -218,7 +218,7 @@ sub keepLabels {
 
     my @fun_labels = ();
     foreach my $line (@$lines) {
-        if ($line =~ /^( *VERMEER__[^:]+): /) {
+        if ($line =~ /^ *(VERMEER__[^:]+):/) {
             push(@fun_labels, $1);
         }
     }
