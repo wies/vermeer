@@ -59,6 +59,7 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 module TIDSet = Set.Make(Int)
 module GroupSet = Set.Make(Int)
+module BaseVarSet = Set.Make(Int)
 type varSSAMap = smtvar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
@@ -349,7 +350,18 @@ let print_reduced_linenums x =
  * var -> type mappings
  *)
 
+let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
 
+let all_basevars clauses = 
+  let allVars = all_vars clauses in
+  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
+
+let count_basevars clauses = 
+  BaseVarSet.cardinal (all_basevars clauses)
+
+let count_basevars_at a = 
+  let interpolants,trace = List.split a in
+  count_basevars trace
 
 let type_check_and_cast_to_bool topForm = 
   let updatedVar = ref false in
@@ -1062,7 +1074,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
    * assume they're ints *)
   declare_unknown_sort solver;
   (*write the declerations *)
-  let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
+  let allVars = all_vars clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* write the program clauses *)
   List.iter (fun x -> write_line_to_solver solver (!assertionStringFn x)) clauses;
@@ -1367,6 +1379,11 @@ let print_contextswitches_at x =
   let interpolants,trace = List.split x in
   print_contextswitches trace
 
+let count_statements clauses = 
+  List.length 
+    (List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) 
+       clauses)
+
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
     | (a,b) -> make_interpolate_between a b in
@@ -1507,6 +1524,7 @@ let reduce_to_file technique filename clauses =
 
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
+  Printf.printf "Summary for %d had %d statements\n" id (List.length summarized);
   print_annotated_trace_to_file ("summary" ^ string_of_int id) 
     summarized
     
@@ -1544,7 +1562,8 @@ let dsnsmt (f: file) : unit =
       let initialSwitches =  print_contextswitches clauses in
       let finalSwitches = print_contextswitches_at reduced in
       Printf.printf "\nreduced from %d to %d switches\n" initialSwitches finalSwitches;
-      print_endline "";
+      Printf.printf "reduced from %d to %d statements\n" 
+	(List.length clauses) (List.length reduced);
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
       TIDSet.iter 
