@@ -15,7 +15,7 @@ if [ -r "opts" ]; then
     OPTS=`cat opts`
 fi
 cd $1_dir
-$VERMEER_PATH/cil-1.7.3/bin/cilly --dodsnsnaps --save-temps $OPTS "$1.ssa.c"
+$VERMEER_PATH/cil-1.7.3/bin/cilly --keepnoncaselabels --dodsnsnaps --save-temps $OPTS "$1.ssa.c"
 
 if [ "$?" -ne "0" -o ! -x ./a.out ]; then exit 1; fi
 ./a.out

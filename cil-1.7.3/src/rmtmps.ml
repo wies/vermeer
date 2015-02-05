@@ -47,6 +47,7 @@ module U = Util
 
 (* Set on the command-line: *)
 let keepUnused = ref false
+let keepNonCaseLabels = ref false
 let rmUnusedInlines = ref false
 
 
@@ -580,36 +581,36 @@ let markReachable file isRoot =
  * kept, and the remaining filtered list of labels. After this cleanup,
  * every statement's labels will be either a single 'Default' or any
  * number of 'Case's, in either case possibly preceded by a single 'Label'. *)
-let labelsToKeep (ll: label list) : (string * location * bool) * label list = 
-  let rec loop (sofar: string * location * bool) = function
-      [] -> sofar, []
+let labelsToKeep (ll: label list) : bool * (string * location * bool) * label list = 
+  let rec loop isnewlabelorig (sofar: string * location * bool) = function
+      [] -> isnewlabelorig, sofar, []
     | l :: rest -> 
-        let newlabel, keepl = 
+        let isnewlabelorig, newlabel, keepl = 
           match l with
-          | CaseRange _ | Case _ | Default _ -> sofar, true
+          | CaseRange _ | Case _ | Default _ -> false, sofar, true
           | Label (ln, lloc, isorig) -> begin
               match isorig, sofar with 
               | false, ("", _, _) -> 
                   (* keep this one only if we have no label so far *)
-                  (ln, lloc, isorig), false
-              | false, _ -> sofar, false
+                  false, (ln, lloc, isorig), false
+              | false, _ -> false, sofar, false
               | true, (_, _, false) -> 
                   (* this is an original label; prefer it to temporary or 
                    * missing labels *)
-                  (ln, lloc, isorig), false
-              | true, _ -> sofar, false
+                  true, (ln, lloc, isorig), false
+              | true, _ -> false, sofar, false
           end
         in
-        let newlabel', rest' = loop newlabel rest in
-        newlabel', (if keepl then l :: rest' else rest')
+        let isnewlabelorig', newlabel', rest' = loop isnewlabelorig newlabel rest in
+        isnewlabelorig', newlabel', (if keepl then l :: rest' else rest')
   in
-  let sofar, labels = loop ("", locUnknown, false) ll in
+  let isnewlabelorig, sofar, labels = loop false ("", locUnknown, false) ll in
   try
       (* If there is a 'default' label, remove all 'case' labels, as they are unnecessary *)
       let default = List.find (function Default _ -> true | _ -> false) labels
-      in sofar, [ default ]
+      in isnewlabelorig, sofar, [ default ]
   with Not_found ->
-      sofar, labels
+      isnewlabelorig, sofar, labels
 
 (* Remove some trivial gotos, typically inserted at the end of for loops,
  * because they are not printed by CIL which might yield an unused label
@@ -658,7 +659,7 @@ class markUsedLabels (labelMap: (string, unit) H.t) = object
   method vstmt (s: stmt) = 
     match s.skind with 
       Goto (dest, _) -> 
-        let (ln, _, _), _ = labelsToKeep !dest.labels in
+        let _, (ln, _, _), _ = labelsToKeep !dest.labels in
         if ln = "" then 
           E.s (E.bug "rmtmps: destination of statement does not have labels");
         (* Mark it as used *)
@@ -669,7 +670,7 @@ class markUsedLabels (labelMap: (string, unit) H.t) = object
 
   method vexpr e = match e with
   | AddrOfLabel dest ->
-      let (ln, _, _), _ = labelsToKeep !dest.labels in
+      let _, (ln, _, _), _ = labelsToKeep !dest.labels in
       if ln = "" then
         E.s (E.bug "rmtmps: destination of address of label does not have labels");
       (* Mark it as used *)
@@ -682,16 +683,17 @@ class removeUnusedLabels (labelMap: (string, unit) H.t) = object
   inherit nopCilVisitor
 
   method vstmt (s: stmt) = 
-    let (ln, lloc, lorig), lrest = labelsToKeep s.labels in
+    let isnewlabelorig, (ln, lloc, lorig), lrest = labelsToKeep s.labels in
     (* Check our desired invariants for labels: 'lrest' must be either a
        single 'Default' or only 'Case's. It is okay for 'lrest' to be
        empty, because a 'Label' can exist on its own, independent of
        switch statement labels, and the 'for_all' accepts this case. *)
     assert (match lrest with
                   [ Default _ ] -> true
-                | _ -> List.for_all (function Case _ | CaseRange _ -> true | _ -> false) lrest);
+                | _ -> !keepNonCaseLabels || List.for_all (function Case _ | CaseRange _ -> true | _ -> false) lrest);
     s.labels <-
-       (if ln <> "" && H.mem labelMap ln then (* We had labels *)
+       (if ln <> "" && H.mem labelMap ln (* We had labels *)
+           || !keepNonCaseLabels && isnewlabelorig then
          (Label(ln, lloc, lorig) :: lrest)
        else
          lrest);

@@ -29,7 +29,7 @@ if [ -r "opts" ]; then
     OPTS=`cat opts`
 fi
 cd $CIL_TMP_DIR
-$VERMEER_PATH/cil-1.7.3/bin/cilly --dosimpleMem --dosimplify --domakeCFG --dodsnconcrete --save-temps --no-convert-direct-calls $OPTS "$PROG.postlinear.c" $EX_DIR/dsnlog.o -lm
+$VERMEER_PATH/cil-1.7.3/bin/cilly --keepnoncaselabels --dosimpleMem --dosimplify --domakeCFG --dodsnconcrete --save-temps --no-convert-direct-calls $OPTS "$PROG.postlinear.c" $EX_DIR/dsnlog.o -lm
 
 if [ "$?" -ne "0" -o ! -x ./a.out ]; then
     echo "Sorry; something went wrong."; exit 1
