@@ -139,6 +139,13 @@ let get_var_type (var : smtvar) : smtVarType =
   try IntMap.find var.vidx !typeMap 
   with Not_found -> SMTUnknown
 
+let trace_from_at at = 
+  let interpolants,trace = List.split at in 
+  trace
+    
+let do_on_trace fn at = fn (trace_from_at at)
+
+
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
 
@@ -1362,10 +1369,7 @@ let contextswitches x =
   let nums = List.map (fun c -> match c with | None -> failwith "wtf" | Some i -> i) nums in
   compress nums
 
-(*TODO clean this up *) 
-let contextswitches_at x = 
-  let interpolants,trace = List.split x in
-  contextswitches trace
+let contextswitches_at x = do_on_trace contextswitches x
 
 let print_contextswitches x =
   let cs = contextswitches x in
@@ -1375,14 +1379,14 @@ let print_contextswitches x =
   print_endline "";
   num
 
-let print_contextswitches_at x =
-  let interpolants,trace = List.split x in
-  print_contextswitches trace
+let print_contextswitches_at x = do_on_trace print_contextswitches x
 
 let count_statements clauses = 
   List.length 
     (List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) 
        clauses)
+
+let count_statements_at at = do_on_trace count_statements at
 
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
