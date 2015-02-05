@@ -829,7 +829,7 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-  (* Uninterpreted operators *)
+    (* Uninterpreted operators *)
     | BAnd ->  
       if not uninterpretedBitOperators then failwith "not supporting bit operators";
       "band" 
@@ -1206,8 +1206,8 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
   let partition =  make_all_interpolants clauses in
   match do_smt clauses (GetInterpolation partition) with
     | Unsat (GotInterpolant inters) -> 
-    (* the interpolant list will be missing the program precondition
-     * so we start with an extra interpolant "true" *)
+      (* the interpolant list will be missing the program precondition
+       * so we start with an extra interpolant "true" *)
       let zipped = List.combine (SMTTrue::inters) clauses in
       zipped
     | _ -> failwith "make_cheap_annotated_trace failed"
@@ -1263,7 +1263,7 @@ let reduce_trace_expensive propAlgorithm trace =
       | [] -> reducedPrefixRev
       | [x] -> (currentState.formula,x)::reducedPrefixRev
       | x :: unreducedSuffix ->
-      (* We know we need to keep x, but can we reduce the suffix further? *)
+	(* We know we need to keep x, but can we reduce the suffix further? *)
 	let before = [currentState;x] in
 	let after = unreducedSuffix in
 	let partition = make_interpolate_between before after in
@@ -1271,10 +1271,10 @@ let reduce_trace_expensive propAlgorithm trace =
 	  | Unsat (GotInterpolant [interpolantTerm]) -> 
 	    let interpolant = 
 	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
-	(*find_farthest_point_interpolant_valid 
-	 * we start in state interpolant, with guess 
-	 * interpolant.  See if we can propegage it
-	 * across the new suffix  *)
+	    (*find_farthest_point_interpolant_valid 
+	     * we start in state interpolant, with guess 
+	     * interpolant.  See if we can propegage it
+	     * across the new suffix  *)
 	    let newCurrentState, unreducedSuffix = 
 	      propAlgorithm interpolant interpolant unreducedSuffix in
 	    reduce_trace_imp 
@@ -1350,6 +1350,7 @@ let reduced_contextswitches x =
   let nums = List.map (fun c -> match c with | None -> failwith "wtf" | Some i -> i) nums in
   compress nums
 
+(*TODO clean this up *) 
 let reduced_contextswitches_at x = 
   let interpolants,trace = List.split x in
   reduced_contextswitches trace
@@ -1382,11 +1383,11 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	    let inGroup = (groupId = idExtractor c) in
 	    match inGroup,groupExitCond with
 	      | true,None -> 
-	  (* Were in desired thread, stayed in it*)
+		(* Were in desired thread, stayed in it*)
 		aux xs (hd::groupAccum) None [] 
 	      | true,Some cond  -> 
-	  (* we not in the desired group, now entered it.  Have to build 
-	   * the summary *)
+		(* we not in the desired group, now entered it.  Have to build 
+		 * the summary *)
 		let summary = make_clause 
 		  (SMTRelation("=>",[cond;i])) 
 		  c.ssaIdxs
@@ -1396,10 +1397,10 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 		in
 		aux xs (hd::(cond,summary)::groupAccum) None []
 	      | false, None  -> 
-	  (* we just left the desired thread *)
+		(* we just left the desired thread *)
 		aux xs groupAccum (Some i) ((instr,Some thatTid)::summaryAccum)
 	      | false, Some cond  -> 
-	  (* we are out of the desired thread, and have been for at least one statment*)
+		(* we are out of the desired thread, and have been for at least one statment*)
 		aux xs groupAccum groupExitCond ((instr,Some thatTid)::summaryAccum)
 	  end
 	  | _ -> failwith "not a programstatment in summirization"
@@ -1556,8 +1557,8 @@ let dsnsmt (f: file) : unit =
     | NOMULTI -> 
       ignore(reduce_to_file !analysis "smtresult" clauses)
       ;
-    (*this is slightly inefficient: if the solver has not been started,
-     * this will start it and then exit it *)
+      (*this is slightly inefficient: if the solver has not been started,
+       * this will start it and then exit it *)
       exit_solver (getZ3());
       exit_solver (getSmtinterpol())
 	
