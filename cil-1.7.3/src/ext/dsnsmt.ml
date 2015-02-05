@@ -1316,13 +1316,13 @@ let unsat_then_cheap trace =
 let unsat_then_window trace = 
   let cheap = unsat_then_cheap trace in
   let window = propegate_forward_window cheap in
-  print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at window))) ^ " loc *****\n\n");
+  debug_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at window))) ^ " loc *****\n\n");
   window
 
 let unsat_then_noninductive trace = 
   let cheap = unsat_then_cheap trace in
   let noninductive = reduce_trace_noninductive cheap in
-  print_endline ("\n***** Finished with " 
+  debug_endline ("\n***** Finished with " 
 		 ^ (string_of_int (List.length(reduced_linenums_at noninductive))) 
 		 ^ " loc *****\n\n");
   noninductive
@@ -1336,7 +1336,7 @@ let unsat_then_expensive propAlgorithm trace =
   let expensive = reduce_trace_expensive propAlgorithm cheap in
   (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
   (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
-  print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
+  debug_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
 
@@ -1370,16 +1370,19 @@ let contextswitches x =
   compress nums
 
 let contextswitches_at x = do_on_trace contextswitches x
+let count_contextswitches x = List.length (contextswitches x) -1
+let count_contextswitches_at x = List.length (contextswitches_at x) -1
 
-let print_contextswitches x =
+let print_contextswitches description x =
   let cs = contextswitches x in
   let num = List.length cs - 1 in
-  Printf.printf "%d contextSwitches: " num;
+  Printf.printf "%s\t(%d context switches)\t" description num;
   List.iter (Printf.printf "-%d-") cs;
   print_endline "";
   num
 
-let print_contextswitches_at x = do_on_trace print_contextswitches x
+let print_contextswitches_at description x = 
+  print_contextswitches description (trace_from_at x)
 
 let count_statements clauses = 
   List.length 
@@ -1514,13 +1517,19 @@ let reduce_using_technique technique clauses  =
     | NONINDUCTIVE -> unsat_then_noninductive clauses
     | NOREDUCTION -> make_cheap_annotated_trace clauses
 
-let calculate_stats description trace = 
-  let switches = print_contextswitches trace in
+let calculate_stats (description : string) (trace : clause list)  = 
+  let switches = count_contextswitches trace in
   let stmts = count_statements trace in
   let numvars = count_basevars trace in
   Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
     description switches stmts numvars
 
+let calculate_thread_stats (trace : clause list) = 
+  TIDSet.iter (fun tid -> 
+    let tidStmts = List.filter 
+      (fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) trace in
+    calculate_stats ("Init" ^ string_of_int tid) tidStmts ) !seenThreads
+    
 let calculate_stats_at description at = calculate_stats description (trace_from_at at)
 
 let annotated_trace_to_smtfile at filename = 
@@ -1529,6 +1538,7 @@ let annotated_trace_to_smtfile at filename =
     
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
+  calculate_stats_at "Reduced" reduced;
   print_annotated_trace_to_file filename reduced;
   if(!printReducedSMT) then 
     annotated_trace_to_smtfile reduced filename;
@@ -1544,8 +1554,6 @@ let partition_to_file technique reduced id =
   let interpolant = get_partition_interpolant 
     (fun x -> (technique x) = id) reduced in
   print_endline (string_of_formula interpolant)
-    
-
 
 let dsnsmt (f: file) : unit =
   let doGlobal = function 
@@ -1573,7 +1581,7 @@ let dsnsmt (f: file) : unit =
       GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
     | ALLTHREADS ->
       let reduced = reduce_to_file !analysis "reduced" clauses in
-      calculate_stats_at "Reduced" reduced;
+      calculate_thread_stats clauses;
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
       TIDSet.iter 
