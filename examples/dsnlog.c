@@ -52,7 +52,8 @@ int dsn_log_var(const char* format, ...)
   return result;
 }
 
-void main_argc_argv_dsn_printer(int *p_argc, char ***p_argv)
+void main_argc_argv_dsn_printer(int *p_argc, char ***p_argv,
+                                int line_no, char *src_file)
 {
   int i, j;
   int argc = *p_argc;
@@ -62,18 +63,24 @@ void main_argc_argv_dsn_printer(int *p_argc, char ***p_argv)
   dsn_log("    // Setting up argc and argv.                            //\n");
   dsn_log("    //////////////////////////////////////////////////////////\n");
   dsn_log("    // argc = %d\n", argc);
+  dsn_log("#line %d \"%s\"\n", line_no, src_file);
   dsn_log("    long long main__1__argc = %d;\n", argc);
+  dsn_log("#line %d \"%s\"\n", line_no, src_file);
   dsn_log("    _dsn_mem_%p/*|int |*/ = %d;\n", p_argc, argc);
 
   dsn_log("    // argv = %p\n", argv);
+  dsn_log("#line %d \"%s\"\n", line_no, src_file);
   dsn_log("    long long main__1__argv = %p;\n", argv);
+  dsn_log("#line %d \"%s\"\n", line_no, src_file);
   dsn_log("    _dsn_mem_%p/*|char **|*/ = %p;\n", p_argv, argv);
   for (i = 0; i < *p_argc; i++){
     dsn_log("    // argv[%d] = \"%s\"\n", i, argv[i]);
+    dsn_log("#line %d \"%s\"\n", line_no, src_file);
     dsn_log("    _dsn_mem_%p/*|char *|*/ = %p;\n", argv+i, argv[i]);
-    for (j = 0; argv[i][j] != 0; j++)
+    for (j = 0; argv[i][j] != 0; j++){
+      dsn_log("#line %d \"%s\"\n", line_no, src_file);
       dsn_log("    _dsn_mem_%p/*|char |*/ = %d; // '%c'\n",
-              argv[i]+j, argv[i][j], argv[i][j]);
+              argv[i]+j, argv[i][j], argv[i][j]); }
   }
   dsn_log("    //////////////////////////////////////////////////////////\n\n");
 }

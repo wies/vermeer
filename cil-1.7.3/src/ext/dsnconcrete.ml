@@ -96,7 +96,9 @@ let getIndent () =
 let argc_argv_handler =
   makeGlobalVar "main_argc_argv_dsn_printer"
     (TFun(voidType, Some [("p_argc", intPtrType, []);
-                          ("argv", TPtr(TPtr(charPtrType, []), []), [])],
+                          ("argv", TPtr(TPtr(charPtrType, []), []), []);
+                          ("line_no", intType, []);
+                          ("src_file", charPtrType, [])],
           false, []))
 
 let log_fn = makeGlobalVar log_fn_name
@@ -671,7 +673,7 @@ let dsnconcrete (f: file) : unit =
       end
     (* | GVarDecl _ | GType _ | GCompTag _ | GEnumTag _ *)
 
-    | GFun (fdec, _) when fdec.svar.vname = "main" ->
+    | GFun (fdec, loc) when fdec.svar.vname = "main" ->
         incrIndent ();
         let allVarDeclaresStmt = declareAllVarsStmt fdec.slocals in
         let _ = visitCilFunction dsnconcreteVisitor fdec in
@@ -685,7 +687,8 @@ let dsnconcrete (f: file) : unit =
           let p_argc_e = mkAddrOrStartOf (var argc_vi) in
           let p_argv_e = mkAddrOrStartOf (var argv_vi) in
           Call(None, Lval(var argc_argv_handler),
-                     [p_argc_e; p_argv_e], locUnknown) in
+                     [p_argc_e; p_argv_e; integer loc.line; mkString loc.file],
+                     locUnknown) in
 
         let stmt = mkStmt (Instr
           [Call(None, Lval(var globalDeclFn.svar), [], locUnknown);
