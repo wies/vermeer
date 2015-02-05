@@ -1529,7 +1529,7 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   if !printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
-  match !multithread with
+  begin match !multithread with
     | PARTITIONTID -> 
       let reducedClauses = reduce_trace_unsatcore clauses in
       TIDSet.iter (partition_to_file extract_tid reducedClauses) !seenThreads
@@ -1558,11 +1558,12 @@ let dsnsmt (f: file) : unit =
 	!seenThreads
     | NOMULTI -> 
       ignore(reduce_to_file !analysis "smtresult" clauses)
-      ;
-      (*this is slightly inefficient: if the solver has not been started,
-       * this will start it and then exit it *)
-      exit_solver (getZ3());
-      exit_solver (getSmtinterpol())
+  end ;
+  (*this is slightly inefficient: if the solver has not been started,
+   * this will start it and then exit it *)
+  print_endline "got here";
+  exit_solver (getZ3());
+  exit_solver (getSmtinterpol())
 	
 
 let feature : featureDescr = 
