@@ -1514,10 +1514,18 @@ let reduce_using_technique technique clauses  =
     | NONINDUCTIVE -> unsat_then_noninductive clauses
     | NOREDUCTION -> make_cheap_annotated_trace clauses
 
+let calculate_stats description trace = 
+  let switches = print_contextswitches trace in
+  let stmts = count_statements trace in
+  let numvars = count_basevars trace in
+  Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
+    description switches stmts numvars
+
+let calculate_stats_at description at = calculate_stats description (trace_from_at at)
+
 let annotated_trace_to_smtfile at filename = 
   let interpolants,trace = List.split at in
   print_smt (Some filename) trace CheckSat 
-    
     
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
@@ -1528,9 +1536,8 @@ let reduce_to_file technique filename clauses =
 
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
-  Printf.printf "Summary for %d had %d statements\n" id (List.length summarized);
-  print_annotated_trace_to_file ("summary" ^ string_of_int id) 
-    summarized
+  calculate_stats_at ("Slice" ^ string_of_int id) summarized;
+  print_annotated_trace_to_file ("summary" ^ string_of_int id) summarized
     
 let partition_to_file technique reduced id = 
   print_endline ("Partitioning. A group is " ^ string_of_int id);
@@ -1538,6 +1545,8 @@ let partition_to_file technique reduced id =
     (fun x -> (technique x) = id) reduced in
   print_endline (string_of_formula interpolant)
     
+
+
 let dsnsmt (f: file) : unit =
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
@@ -1550,6 +1559,7 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
+  calculate_stats "Initial" clauses;
   if !printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
   begin match !multithread with
     | PARTITIONTID -> 
@@ -1563,11 +1573,7 @@ let dsnsmt (f: file) : unit =
       GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
     | ALLTHREADS ->
       let reduced = reduce_to_file !analysis "reduced" clauses in
-      let initialSwitches =  print_contextswitches clauses in
-      let finalSwitches = print_contextswitches_at reduced in
-      Printf.printf "\nreduced from %d to %d switches\n" initialSwitches finalSwitches;
-      Printf.printf "reduced from %d to %d statements\n" 
-	(List.length clauses) (List.length reduced);
+      calculate_stats_at "Reduced" reduced;
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
       TIDSet.iter 
