@@ -1344,24 +1344,28 @@ let extract_group cls =
   in
   aux cls.cTags
 
-let reduced_contextswitches x = 
+let contextswitches x = 
   let nums = List.map extract_tid_opt x in
   let nums = List.filter (fun c -> match c with | None -> false |Some _ ->true) nums in
   let nums = List.map (fun c -> match c with | None -> failwith "wtf" | Some i -> i) nums in
   compress nums
 
 (*TODO clean this up *) 
-let reduced_contextswitches_at x = 
+let contextswitches_at x = 
   let interpolants,trace = List.split x in
-  reduced_contextswitches trace
+  contextswitches trace
 
-let print_reduced_contextswitches x =
-  let reduced = reduced_contextswitches x in
-  List.iter (Printf.printf "-%d-") reduced
+let print_contextswitches x =
+  let cs = contextswitches x in
+  let num = List.length cs - 1 in
+  Printf.printf "%d contextSwitches: " num;
+  List.iter (Printf.printf "-%d-") cs;
+  print_endline "";
+  num
 
-let print_reduced_contextswitches_at x =
+let print_contextswitches_at x =
   let interpolants,trace = List.split x in
-  print_reduced_contextswitches trace
+  print_contextswitches trace
 
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
@@ -1536,12 +1540,10 @@ let dsnsmt (f: file) : unit =
       let reduced = reduce_to_file !analysis "reduced" clauses in
       GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
     | ALLTHREADS ->
-      let initialSwitches = List.length (reduced_contextswitches clauses) in
       let reduced = reduce_to_file !analysis "reduced" clauses in
-      let finalSwitches = List.length  (reduced_contextswitches_at reduced) in
-      print_reduced_contextswitches clauses;
+      let initialSwitches =  print_contextswitches clauses in
+      let finalSwitches = print_contextswitches_at reduced in
       Printf.printf "\nreduced from %d to %d switches\n" initialSwitches finalSwitches;
-      print_reduced_contextswitches_at reduced;
       print_endline "";
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
