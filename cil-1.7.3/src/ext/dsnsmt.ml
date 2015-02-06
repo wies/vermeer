@@ -1443,6 +1443,7 @@ let parseLabel s =
   match s.labels with
     | [] -> ()
     | [Label(s,l,b)] -> begin
+      if String.sub s 0 9 <> "VERMEER__" then
       match split_on_underscore s with
 	| [prefix;tid;sid;group] ->
 	  if prefix <> "T" then failwith ("invalid label prefix " ^ prefix);
