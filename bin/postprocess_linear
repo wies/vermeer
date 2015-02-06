@@ -218,13 +218,11 @@ sub makeLabelsUnique {
     my ($lines, @bad) = @_;
     die "Too many arguments " if @bad;
 
-    my @fun_labels = ();
     my $cnt = 0;
     foreach my $line (@$lines) {
-        if ($line =~ /^ *(VERMEER__[^:]+):/) {
+        if ($line =~ /^ *VERMEER__[^:]+:/) {
             $cnt++;
-            $line =~ s/(VERMEER__[^:]+):/$1_$cnt:/;
-            push(@fun_labels, "$1_$cnt");
+            $line =~ s/(VERMEER__[^:]+):/$1__U$cnt:/;
         }
     }
 }

@@ -466,8 +466,9 @@ let name = ref ""
 let makeScopeOpen = [mkPrint ~locp:false "{\n" []; incrScope; incrIndent]
 let makeScopeClose = [decrIndent; decrScope; mkPrint ~locp:false "}\n" []]
 
-let printFnLabel fnName =
-  mkPrint ~indentp:false ("VERMEER__"^ fnName ^":;\n") []
+let printFnLabel ?(postfix="") fnName scopeExpr =
+  mkPrint ~indentp:false
+          ("VERMEER__"^ fnName ^"__S%u"^ postfix ^":;\n") [scopeExpr]
 
 class dsnVisitorClass = object
   inherit nopCilVisitor
@@ -503,14 +504,15 @@ class dsnVisitorClass = object
 	let returnTemp = mkReturnTemp e in
 	let saveReturn = mkCopyReturnToOuterscope lo in 
 	let doneSetupComment = [mkComment "done setup\n" []] in
+        let fnLabel    = printFnLabel fnNameStr nextScopeExpr in
+        let fnLabelRet = printFnLabel ~postfix:"__RETUREND" !currentFunc currentScopeExpr in
 	let newInstrs =  
-          (printFnLabel fnNameStr)
-	  :: logCall @ makeScopeOpen  
+          fnLabel :: logCall @ makeScopeOpen  
 	  @ temps @ returnTemp @ doneSetupComment
 	  @ [i]
 	  @ saveReturn
 	  @ makeScopeClose 
-          @ [printFnLabel !currentFunc]
+          @ [fnLabelRet]
 	in 
 	ChangeTo newInstrs
       | _ -> DoChildren
