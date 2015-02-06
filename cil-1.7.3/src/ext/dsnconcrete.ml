@@ -478,7 +478,8 @@ let mk_print_orig (* For printing debugging info. *) = function
       let lhs = match lv_o with 
 	| None -> "(no return or ignored)"
         | Some lv -> d_string "%a =" d_lval lv in
-      mkPrint ("\n// Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^");\n") []
+      mkPrint ~loc:false
+              ("\n// Call: "^ lhs ^" "^ fn_name ^"("^ (arg_lst al) ^");\n") []
   | _ -> E.s (E.bug "Invalid usage.")
 
 (* Is this a string literal assignment? If yes, we need to assign an actual
