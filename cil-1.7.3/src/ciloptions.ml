@@ -339,6 +339,11 @@ let options : (string * Arg.spec * string) list =
     (" Remove unused variables and types" ^
        is_default (not !Rmtmps.keepUnused));
 
+    "--keepnoncaselabels",
+    Arg.Set Rmtmps.keepNonCaseLabels,
+    (" Do not remove the unused non-case labels even with --keepunused" ^
+       is_default !Rmtmps.keepNonCaseLabels);
+
     "--rmUnusedInlines",
     Arg.Set Rmtmps.rmUnusedInlines,
     (" Delete any unused inline functions; this is the default in MSVC mode" ^

@@ -59,6 +59,7 @@ module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 module TIDSet = Set.Make(Int)
 module GroupSet = Set.Make(Int)
+module BaseVarSet = Set.Make(Int)
 type varSSAMap = smtvar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
@@ -137,6 +138,13 @@ let seenGroups = ref GroupSet.empty
 let get_var_type (var : smtvar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
   with Not_found -> SMTUnknown
+
+let trace_from_at at = 
+  let interpolants,trace = List.split at in 
+  trace
+    
+let do_on_trace fn at = fn (trace_from_at at)
+
 
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
@@ -349,7 +357,18 @@ let print_reduced_linenums x =
  * var -> type mappings
  *)
 
+let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
 
+let all_basevars clauses = 
+  let allVars = all_vars clauses in
+  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
+
+let count_basevars clauses = 
+  BaseVarSet.cardinal (all_basevars clauses)
+
+let count_basevars_at a = 
+  let interpolants,trace = List.split a in
+  count_basevars trace
 
 let type_check_and_cast_to_bool topForm = 
   let updatedVar = ref false in
@@ -829,7 +848,7 @@ let smtOpFromBinop op =
     | Ne -> "distinct"
     | LAnd -> "and"
     | LOr -> "or"
-  (* Uninterpreted operators *)
+    (* Uninterpreted operators *)
     | BAnd ->  
       if not uninterpretedBitOperators then failwith "not supporting bit operators";
       "band" 
@@ -1062,7 +1081,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
    * assume they're ints *)
   declare_unknown_sort solver;
   (*write the declerations *)
-  let allVars = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses in
+  let allVars = all_vars clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* write the program clauses *)
   List.iter (fun x -> write_line_to_solver solver (!assertionStringFn x)) clauses;
@@ -1206,8 +1225,8 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
   let partition =  make_all_interpolants clauses in
   match do_smt clauses (GetInterpolation partition) with
     | Unsat (GotInterpolant inters) -> 
-    (* the interpolant list will be missing the program precondition
-     * so we start with an extra interpolant "true" *)
+      (* the interpolant list will be missing the program precondition
+       * so we start with an extra interpolant "true" *)
       let zipped = List.combine (SMTTrue::inters) clauses in
       zipped
     | _ -> failwith "make_cheap_annotated_trace failed"
@@ -1263,7 +1282,7 @@ let reduce_trace_expensive propAlgorithm trace =
       | [] -> reducedPrefixRev
       | [x] -> (currentState.formula,x)::reducedPrefixRev
       | x :: unreducedSuffix ->
-      (* We know we need to keep x, but can we reduce the suffix further? *)
+	(* We know we need to keep x, but can we reduce the suffix further? *)
 	let before = [currentState;x] in
 	let after = unreducedSuffix in
 	let partition = make_interpolate_between before after in
@@ -1271,10 +1290,10 @@ let reduce_trace_expensive propAlgorithm trace =
 	  | Unsat (GotInterpolant [interpolantTerm]) -> 
 	    let interpolant = 
 	      make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
-	(*find_farthest_point_interpolant_valid 
-	 * we start in state interpolant, with guess 
-	 * interpolant.  See if we can propegage it
-	 * across the new suffix  *)
+	    (*find_farthest_point_interpolant_valid 
+	     * we start in state interpolant, with guess 
+	     * interpolant.  See if we can propegage it
+	     * across the new suffix  *)
 	    let newCurrentState, unreducedSuffix = 
 	      propAlgorithm interpolant interpolant unreducedSuffix in
 	    reduce_trace_imp 
@@ -1297,13 +1316,13 @@ let unsat_then_cheap trace =
 let unsat_then_window trace = 
   let cheap = unsat_then_cheap trace in
   let window = propegate_forward_window cheap in
-  print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at window))) ^ " loc *****\n\n");
+  debug_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at window))) ^ " loc *****\n\n");
   window
 
 let unsat_then_noninductive trace = 
   let cheap = unsat_then_cheap trace in
   let noninductive = reduce_trace_noninductive cheap in
-  print_endline ("\n***** Finished with " 
+  debug_endline ("\n***** Finished with " 
 		 ^ (string_of_int (List.length(reduced_linenums_at noninductive))) 
 		 ^ " loc *****\n\n");
   noninductive
@@ -1317,7 +1336,7 @@ let unsat_then_expensive propAlgorithm trace =
   let expensive = reduce_trace_expensive propAlgorithm cheap in
   (* Printf.printf "expensive left %d lines\n" (List.length (reduced_linenums_at expensive)); *)
   (* Printf.printf "expensive left %d lines\n" (List.length (expensive)); *)
-  print_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
+  debug_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
 
@@ -1344,23 +1363,33 @@ let extract_group cls =
   in
   aux cls.cTags
 
-let reduced_contextswitches x = 
+let contextswitches x = 
   let nums = List.map extract_tid_opt x in
   let nums = List.filter (fun c -> match c with | None -> false |Some _ ->true) nums in
   let nums = List.map (fun c -> match c with | None -> failwith "wtf" | Some i -> i) nums in
   compress nums
 
-let reduced_contextswitches_at x = 
-  let interpolants,trace = List.split x in
-  reduced_contextswitches trace
+let contextswitches_at x = do_on_trace contextswitches x
+let count_contextswitches x = List.length (contextswitches x) -1
+let count_contextswitches_at x = List.length (contextswitches_at x) -1
 
-let print_reduced_contextswitches x =
-  let reduced = reduced_contextswitches x in
-  List.iter (Printf.printf "-%d-") reduced
+let print_contextswitches description x =
+  let cs = contextswitches x in
+  let num = List.length cs - 1 in
+  Printf.printf "%s\t(%d context switches)\t" description num;
+  List.iter (Printf.printf "-%d-") cs;
+  print_endline "";
+  num
 
-let print_reduced_contextswitches_at x =
-  let interpolants,trace = List.split x in
-  print_reduced_contextswitches trace
+let print_contextswitches_at description x = 
+  print_contextswitches description (trace_from_at x)
+
+let count_statements clauses = 
+  List.length 
+    (List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) 
+       clauses)
+
+let count_statements_at at = do_on_trace count_statements at
 
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
@@ -1382,11 +1411,11 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	    let inGroup = (groupId = idExtractor c) in
 	    match inGroup,groupExitCond with
 	      | true,None -> 
-	  (* Were in desired thread, stayed in it*)
+		(* Were in desired thread, stayed in it*)
 		aux xs (hd::groupAccum) None [] 
 	      | true,Some cond  -> 
-	  (* we not in the desired group, now entered it.  Have to build 
-	   * the summary *)
+		(* we not in the desired group, now entered it.  Have to build 
+		 * the summary *)
 		let summary = make_clause 
 		  (SMTRelation("=>",[cond;i])) 
 		  c.ssaIdxs
@@ -1396,10 +1425,10 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 		in
 		aux xs (hd::(cond,summary)::groupAccum) None []
 	      | false, None  -> 
-	  (* we just left the desired thread *)
+		(* we just left the desired thread *)
 		aux xs groupAccum (Some i) ((instr,Some thatTid)::summaryAccum)
 	      | false, Some cond  -> 
-	  (* we are out of the desired thread, and have been for at least one statment*)
+		(* we are out of the desired thread, and have been for at least one statment*)
 		aux xs groupAccum groupExitCond ((instr,Some thatTid)::summaryAccum)
 	  end
 	  | _ -> failwith "not a programstatment in summirization"
@@ -1488,13 +1517,28 @@ let reduce_using_technique technique clauses  =
     | NONINDUCTIVE -> unsat_then_noninductive clauses
     | NOREDUCTION -> make_cheap_annotated_trace clauses
 
+let calculate_stats (description : string) (trace : clause list)  = 
+  let switches = count_contextswitches trace in
+  let stmts = count_statements trace in
+  let numvars = count_basevars trace in
+  Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
+    description switches stmts numvars
+
+let calculate_thread_stats (trace : clause list) = 
+  TIDSet.iter (fun tid -> 
+    let tidStmts = List.filter 
+      (fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) trace in
+    calculate_stats ("Init" ^ string_of_int tid) tidStmts ) !seenThreads
+    
+let calculate_stats_at description at = calculate_stats description (trace_from_at at)
+
 let annotated_trace_to_smtfile at filename = 
   let interpolants,trace = List.split at in
   print_smt (Some filename) trace CheckSat 
     
-    
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
+  calculate_stats_at "Reduced" reduced;
   print_annotated_trace_to_file filename reduced;
   if(!printReducedSMT) then 
     annotated_trace_to_smtfile reduced filename;
@@ -1502,15 +1546,15 @@ let reduce_to_file technique filename clauses =
 
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
-  print_annotated_trace_to_file ("summary" ^ string_of_int id) 
-    summarized
+  calculate_stats_at ("Slice" ^ string_of_int id) summarized;
+  print_annotated_trace_to_file ("summary" ^ string_of_int id) summarized
     
 let partition_to_file technique reduced id = 
   print_endline ("Partitioning. A group is " ^ string_of_int id);
   let interpolant = get_partition_interpolant 
     (fun x -> (technique x) = id) reduced in
   print_endline (string_of_formula interpolant)
-    
+
 let dsnsmt (f: file) : unit =
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
@@ -1523,8 +1567,9 @@ let dsnsmt (f: file) : unit =
   let clauses = List.rev !revProgram in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
+  calculate_stats "Initial" clauses;
   if !printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
-  match !multithread with
+  begin match !multithread with
     | PARTITIONTID -> 
       let reducedClauses = reduce_trace_unsatcore clauses in
       TIDSet.iter (partition_to_file extract_tid reducedClauses) !seenThreads
@@ -1535,13 +1580,8 @@ let dsnsmt (f: file) : unit =
       let reduced = reduce_to_file !analysis "reduced" clauses in
       GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
     | ALLTHREADS ->
-      let initialSwitches = List.length (reduced_contextswitches clauses) in
       let reduced = reduce_to_file !analysis "reduced" clauses in
-      let finalSwitches = List.length  (reduced_contextswitches_at reduced) in
-      print_reduced_contextswitches clauses;
-      Printf.printf "\nreduced from %d to %d switches\n" initialSwitches finalSwitches;
-      print_reduced_contextswitches_at reduced;
-      print_endline "";
+      calculate_thread_stats clauses;
       TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
     | ABSTRACTENV -> 
       TIDSet.iter 
@@ -1555,11 +1595,11 @@ let dsnsmt (f: file) : unit =
 	!seenThreads
     | NOMULTI -> 
       ignore(reduce_to_file !analysis "smtresult" clauses)
-      ;
-    (*this is slightly inefficient: if the solver has not been started,
-     * this will start it and then exit it *)
-      exit_solver (getZ3());
-      exit_solver (getSmtinterpol())
+  end ;
+  (*this is slightly inefficient: if the solver has not been started,
+   * this will start it and then exit it *)
+  exit_solver (getZ3());
+  exit_solver (getSmtinterpol())
 	
 
 let feature : featureDescr = 

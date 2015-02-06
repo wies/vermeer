@@ -15,5 +15,5 @@ if [ -r "opts" ]; then
     OPTS=`cat opts`
 fi
 cd $1_dir
-$VERMEER_PATH/cil-1.7.3/bin/cilly -c --dodsnrmtmps --save-temps $OPTS "$1.postconcrete.c"
+$VERMEER_PATH/cil-1.7.3/bin/cilly --keepnoncaselabels -c --dodsnrmtmps --save-temps $OPTS "$1.postconcrete.c"
 mv "$1.postconcrete.cil.c" "$1.postconcrete.notmps.c"
