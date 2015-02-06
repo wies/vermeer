@@ -570,7 +570,7 @@ class dsnconcreteVisitorClass = object
                             | _ -> E.s (E.bug "Labels not expected."));
     let getFnLabel s =
       match s.labels with
-      | [Label(l,_,true)] when String.sub l 0 9 = "VERMEER__" -> l
+      | [Label(l,lloc,true)] when String.sub l 0 9 = "VERMEER__" -> l, lloc
       | _ -> E.s (E.bug "Should be one and only function label there.") in
 
     match s.skind with
@@ -604,10 +604,14 @@ class dsnconcreteVisitorClass = object
                                     mkStmtOneInstr printCall; s])
 
     | Instr _ | Block _ when s.labels <> [] ->
-        let l = getFnLabel s ^":;\n" in
+        let l, lloc = getFnLabel s in
         let postfn a =
-          stmtFromStmtList [mkPrintStmt ~indent:false ~loc:false "\n" [];
-                            mkPrintStmt ~indent:false l []; a] in
+          let loc_saved = !currentLoc in currentLoc := lloc;
+          let stmts = stmtFromStmtList
+                        [mkPrintStmt ~indent:false ~loc:false "\n" [];
+                         mkPrintStmt ~indent:false (l^":;\n") []; a] in
+          currentLoc := loc_saved;
+          stmts in
         ChangeDoChildrenPost(s, postfn)
     | Instr _ | Block _ -> DoChildren
     | Goto (stmt_ref, _) ->
