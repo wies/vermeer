@@ -307,22 +307,24 @@ let rec unsupported_op_cond exp =
                         let s2, a2 = unsupported_op_cond e in
                         join_conds (s1, a1) (s2, a2)
   | UnOp _ -> "", []
-  | BinOp(op, e1, e2, _) -> 
+  | BinOp(op, e1, e2, _) ->
     begin match op with
       | Shiftlt | Shiftrt | BAnd | BXor | BOr | Mod ->
 	let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
-	let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
+	let (s3, a3), (s4, a4) = unsupported_op_cond e1,
+                                 unsupported_op_cond e2 in
 	List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
-      | Mult -> 
+      | Mult ->
 	begin match e1,e2 with
-	  | _, Const _ | Const _ , _ -> 
+	  | _, Const _ | Const _ , _ ->
 	    "", []
-	  | _ -> 
+	  | _ ->
 	    let (s1, a1), (s2, a2) = cond_e e1, cond_e e2 in
-	    let (s3, a3), (s4, a4) = unsupported_op_cond e1, unsupported_op_cond e2 in
+	    let (s3, a3), (s4, a4) = unsupported_op_cond e1,
+                                     unsupported_op_cond e2 in
 	    List.fold_left join_conds ("", []) [s1, a1; s2, a2; s3, a3; s4, a4]
 	end
-      | _ -> "", [] 
+      | _ -> "", []
     end
   | Lval lv | AddrOf lv | StartOf lv -> begin match lv with
       | (Var _, _) -> "", []
@@ -467,15 +469,15 @@ let mk_print_orig (* For printing debugging info. *) = function
       | _ -> d_string "%a" d_exp e in
     mkPrint ~loc:false "%s" [mkString (d_string "\n// %a = %s;\n" d_lval lv rhs)]
   | Call(lv_o, e, al, _) as fnCall ->
-    let rec arg_lst = function 
+    let rec arg_lst = function
       | [] -> ""
       | [x] -> (d_string "%a" d_exp x)
       | x::xs -> (d_string "%a, " d_exp x) ^ arg_lst xs in
     let fn_name =get_fn_name fnCall in
     if (is_assert_fn fnCall) then
       mkPrint (fn_name ^"("^ (arg_lst al) ^");\n") []
-    else 
-      let lhs = match lv_o with 
+    else
+      let lhs = match lv_o with
 	| None -> "(no return or ignored)"
         | Some lv -> d_string "%a =" d_lval lv in
       mkPrint ~loc:false
@@ -559,7 +561,7 @@ class dsnconcreteVisitorClass = object
               if if_s = "" then [i; mkPrint pr_s pr_a]
               else let print_if = mkPrint ("if ("^ if_s ^ "){ ") if_a in
                    let print_asgn = mkPrint ~indent:false ~loc:false
-                                            (pr_s ^" }\n") pr_a in 
+                                            (pr_s ^" }\n") pr_a in
                    [print_if; i; print_asgn] in
 
         ChangeTo (print_orig :: print_asgn)
