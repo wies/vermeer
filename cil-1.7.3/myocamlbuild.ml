@@ -3,6 +3,11 @@ open Command ;;
 open Pathname ;;
 open Outcome ;;
 
+(* see https://ocaml.org/learn/tutorials/ocamlbuild/Using_ocamlfind_with_ocamlbuild.html *)
+let ocamlfind_query pkg =
+  let cmd = Printf.sprintf "ocamlfind query %s" (Filename.quote pkg) in
+  Ocamlbuild_pack.My_unix.run_and_open cmd (fun ic ->
+    input_line ic)
 
 let find_modules builder mllib =
   let dirs = include_dirs_of (dirname mllib) in
@@ -22,6 +27,8 @@ let cil_version =
 
 dispatch begin function
 | After_rules ->
+  ocaml_lib ~extern:true ~dir:(ocamlfind_query "ocamlgraph") "ocamlgraph";
+  
     (* the main CIL library *)
     ocaml_lib "src/cil";
 

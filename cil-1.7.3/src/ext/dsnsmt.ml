@@ -8,6 +8,7 @@
 
 open Cil
 open Dsnutils
+open Graph
 
 (* issue if interpolant tries to go past where something is used *)
 
