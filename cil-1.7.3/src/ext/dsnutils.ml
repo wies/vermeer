@@ -102,3 +102,68 @@ let assert_is_assert f =
 
 let d_labels (l : label list) : string = 
   List.fold_left (fun a x -> a ^ (d_string "%a" d_label x)) "" l
+
+(********************* Strings ************************************)
+(* for now only worry about ' ' *)
+(* ocaml 4.0 would allow trim *)
+let trim_left str = 
+  let rec trim_rec_left str i = 
+    if i = String.length str || str.[i] <> ' ' then i
+    else trim_rec_left str (i + 1)
+  in
+  trim_rec_left str 0
+
+let trim_right str = 
+  let rec trim_rec_right str i = 
+    if i < 0 || str.[i] <> ' ' then i
+    else trim_rec_right str (i - 1)
+  in 
+  trim_rec_right str ((String.length str) -1)
+
+let trim str =
+  if (String.contains str ' ' )then 
+    let l_idx = trim_left str in
+    let r_idx = trim_right str in
+    let len = r_idx - l_idx + 1  in 
+    let len = if (len < 0) then 0 else len in
+    String.sub str l_idx len
+  else 
+    str
+
+let split_on_underscore str = Str.split (Str.regexp "[_]+") str
+
+let rec matchParensRec str i level = 
+  if level = 0 then 
+    i - 1 
+  else if str.[i] = '(' then 
+    matchParensRec str (i+1) (level +1)
+  else if str.[i] = ')' then
+    matchParensRec str (i+1) (level -1)
+  else 
+    matchParensRec str (i+1) level
+
+let findEndOfWord str = 
+  if not (String.contains str ' ') then 
+    String.length str 
+  else
+    String.index str ' '
+
+(*if the entire expression is in parens, strip them away *)
+let rec strip_parens str =
+  let str = trim str in
+  let len = String.length str in
+  if len >= 2 && str.[0] = '(' && (matchParensRec str 1 1 = len - 1) then
+    let toStrip = String.sub str 1 (len - 2) in
+    strip_parens toStrip
+  else 
+    str
+
+
+let begins_with str header =
+  let ls = String.length str in
+  let lh = String.length header in
+  if ls >= lh then
+    let strHead = String.sub str 0 lh in
+    strHead = header 
+  else
+    false
