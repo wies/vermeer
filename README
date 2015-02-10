@@ -52,12 +52,18 @@ There are a few things you will need to do before you can use VERMEER.
    tested VERMEER with.  It is highly likely that any more recent version will
    also work.
 
-3) Now you need to build the tool.
+4) You will need to have Ocamlgraph installed
+   $ cd ocamlgraph-1.8.6
+   $ ./configure
+   $ make
+   $ sudo make install-findlib
+
+5) Now you need to build the tool.
    $ cd $VERMEER_PATH/cil-1.7.3
    $ ./configure
    $ make
    
-4) Now you're ready to try an example.
+6) Now you're ready to try an example.
    Vermeer consists of a number of different passes, including 
    the cilly compiler, the gcc compiler, executing a a.out
    and processing the result using perl scripts.  In order to
@@ -88,7 +94,7 @@ There are a few things you will need to do before you can use VERMEER.
        $ runexplain -a fast_abs simple
        $ runexplain -a full_abs simple
 
-5) Now let's try an example from the SIR repository
+7) Now let's try an example from the SIR repository
    cd $VERMEER_PATH\examples\sed
        $ runlinear sed
    This should create a file sed.postlinear.c
