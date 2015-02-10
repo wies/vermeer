@@ -48,3 +48,15 @@ test/output.solver.unsatcore.txt
 test/output.tcas.binarysearch.txt
 test/output.tcas.noninductive.txt
 test/output.tcas.unsatcore.txt
+*.cmi
+*.cmo
+*.cmx
+*.o
+*.annot
+*.cma
+*.log
+*.status
+*.json
+*.a
+*.cmxa
+*.cmxs
