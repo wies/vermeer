@@ -341,7 +341,7 @@ let options : (string * Arg.spec * string) list =
 
     "--keepnoncaselabels",
     Arg.Set Rmtmps.keepNonCaseLabels,
-    (" Do not remove the unused non-case labels even with --keepunused" ^
+    (" Do not remove the unused non-case labels even with --nokeepunused" ^
        is_default !Rmtmps.keepNonCaseLabels);
 
     "--rmUnusedInlines",
