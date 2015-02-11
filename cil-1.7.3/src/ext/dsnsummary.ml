@@ -310,7 +310,7 @@ let dsnsmt (f: file) : unit =
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;
-  Dsngraph.make_dependency_graph ();
+  ignore(Dsngraph.make_dependency_graph (clauses));
   exit_all_solvers() 
     
 

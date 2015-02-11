@@ -249,9 +249,12 @@ let debug_typemap () =
   TypeMap.fold fold_fn !typeMap ""
 
 let assertion_name (c : clause) :string = 
-  let prefix = label_string c.cTags in
   match c.typ with
-  | ProgramStmt(_) -> prefix ^ "PS_" ^ (string_of_int c.idx)
+  | ProgramStmt(_) -> 
+    (* as long as labels are unique, this will work just fine *)
+    let prefix = label_string c.cTags in
+    if prefix <> "" then prefix 
+    else "PS_" ^ (string_of_int c.idx)
   | Interpolant -> "IP_" ^ (string_of_int c.idx)
   | Constant -> "CON_" ^ (string_of_int c.idx)
   | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
