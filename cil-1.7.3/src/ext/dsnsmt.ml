@@ -15,8 +15,6 @@ open Graph
 open String
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
-let uninterpretedBitOperators = false
-
 let smtCallTime = ref []
 
 type analysis = 
@@ -415,8 +413,7 @@ let type_check_and_cast_to_bool topForm =
       | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
 	SMTInt
       | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	if not uninterpretedBitOperators then failwith "not supporting bit operators";
-	SMTInt
+	failwith "not supporting bit operators"
       | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
     end
   and analyze_type_lst l = List.fold_left 
@@ -449,8 +446,7 @@ let type_check_and_cast_to_bool topForm =
       | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
 	List.iter (assign_vartypes SMTInt) l
       | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	if not uninterpretedBitOperators then failwith "not supporting bit operators";
-	List.iter (assign_vartypes SMTInt) l
+	failwith "not supporting bit operators"
       | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
     end
   in
@@ -500,9 +496,7 @@ let type_check_and_cast_to_bool topForm =
 	let l = List.map (rec_casts SMTInt) l in
 	make_cast desired (SMTRelation(s,l))
       | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	if not uninterpretedBitOperators then failwith "not supporting bit operators";
-	let l = List.map (rec_casts SMTInt) l in
-	make_cast desired (SMTRelation(s,l))
+	failwith "not supporting bit operators"
       | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
     end
   in
@@ -666,8 +660,7 @@ let getFirstArgType str =
     | "let" 
       -> SexpLet
     | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" 
-      -> if not uninterpretedBitOperators then failwith "not supporting bit operators";
-	SexpRel
+      ->  failwith "not supporting bit operators"
     | "false" | "true" 
       -> SexpBoolConst
     | _ 
@@ -780,7 +773,6 @@ let formula_from_lval l =
   | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
   | _ -> failwith "should only have lvals of type var"
 
-(* IF YOU MODIFY this, you MUST modify smtUninterpreted and analyze_type *)
 let smtOpFromBinop op = 
   match op with
   | PlusA | MinusA | Mult | Lt | Gt | Le | Ge ->  d_string "%a" d_binop op 
@@ -790,32 +782,12 @@ let smtOpFromBinop op =
   | Ne -> "distinct"
   | LAnd -> "and"
   | LOr -> "or"
-    (* Uninterpreted operators *)
-  | BAnd ->  
-    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-    "band" 
-  | BXor -> 
-    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-    "bxor"
-  | BOr ->        
-    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-    "bor"
-  | Shiftlt -> 
-    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-    "shiftlt"
-  | Shiftrt -> 
-    if not uninterpretedBitOperators then failwith "not supporting bit operators";
-    "shiftrt"
+  (* Uninterpreted operators *)
+  | BAnd | BXor | BOr| Shiftlt | Shiftrt -> 
+    failwith "not supporting bit operators"
   | _ -> failwith ("unexpected operator in smtopfrombinop |" 
 		   ^ (d_string "%a" d_binop op ) ^ "|")
-
-let smtUninterpreted = 
-  ["band";
-   "bxor";
-   "bor";
-   "shiftlt";
-   "shiftrt";]
-
+    
 
 let rec formula_from_exp e = 
   match e with 
@@ -925,11 +897,6 @@ let set_timeout solver timeout =
   write_line_to_solver solver ("(set-option :timeout " ^ string_of_int timeout ^ ")\n")
 
 let set_logic solver logic = write_line_to_solver solver ("(set-logic " ^ logic ^ ")\n")
-let declare_uninterpreted_ops solver ops = 
-  if not uninterpretedBitOperators then failwith "not supporting bit operators";
-  List.iter 
-    (fun x -> write_line_to_solver solver ("(declare-fun " ^ x ^ " (Int Int) Int)\n"))
-    ops
 let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unknown () Int)\n"
   
 let reset_solver solver = write_line_to_solver solver "(reset)\n"
@@ -1018,7 +985,6 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   in 
   set_solver_options solver opts;
   set_logic solver "QF_LIA";
-  if uninterpretedBitOperators then declare_uninterpreted_ops solver smtUninterpreted;
   (* on occation, there are variables that are never used in a way where their type matters
    * assume they're ints *)
   declare_unknown_sort solver;
