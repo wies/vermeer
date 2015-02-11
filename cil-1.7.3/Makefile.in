@@ -64,6 +64,7 @@ endif
 
 EXE = $(EXEMODE)$(EXEEXT)
 
+# DSN modified this to make ocamlgraph work
 OCAMLBUILD = @OCAMLBUILD@
 OCAMLBUILD += -use-ocamlfind -pkgs ocamlgraph -build-dir $(OBJDIR) -no-links -classic-display
 

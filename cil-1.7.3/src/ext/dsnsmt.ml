@@ -79,7 +79,8 @@ let noTags = []
 
 type clause = {formula : term; 
 	       idx : int; 
-	       vars : VarSet.t; 
+	       vars : VarSet.t;
+	       defs : VarSet.t;
 	       ssaIdxs : varSSAMap;
 	       typ : clauseType;
 	       ifContext : ifContextList;
@@ -519,28 +520,30 @@ let extract_group cls =
 let get_vars_ic icList set = 
   List.fold_left (fun a e -> get_vars [e.iformula] a) set icList
 
-let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) : varSSAMap =
-  match vars with 
-  | [] -> ssaMap
-  | v :: vs -> 
-    let vidx = v.vidx in
-    let ssaMap = 
-      try let vOld = VarSSAMap.find vidx ssaMap in
-	  if vOld.ssaIdx < v.ssaIdx then
-	    VarSSAMap.add vidx v ssaMap
-	  else
-	    ssaMap
-      with Not_found -> VarSSAMap.add vidx v ssaMap
-    in
-    make_ssa_map vs ssaMap
 
+(* the first time we see a new index, we know we have a defn for it *)
 let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList) 
     (ct: clauseType) (tags : clauseTag list)
     : clause = 
+  let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) (defs : VarSet.t) 
+      : (varSSAMap * VarSet.t) =
+    let alreadyDefined v = 	
+      try let vOld = VarSSAMap.find v.vidx ssaMap in
+	  vOld.ssaIdx >= v.ssaIdx 
+      with Not_found -> false in
+    match vars with 
+    | [] -> ssaMap, defs
+    | v :: vs -> 
+      let vidx = v.vidx in
+      let ssaMap,defs = 
+	if (alreadyDefined v) then (ssaMap,defs)
+	else (VarSSAMap.add vidx v ssaMap, VarSet.add v defs)
+      in
+      make_ssa_map vs ssaMap defs in
   incr count;
   let v  = get_vars [f] emptyVarSet in
   let v = get_vars_ic ic v in
-  let ssa  = make_ssa_map (VarSet.elements v) ssa in
+  let ssa,defs  = make_ssa_map (VarSet.elements v) ssa VarSet.empty in
   let f = match ct with
     | ProgramStmt _ ->  type_check_and_cast_to_bool f
     | _ -> f
@@ -548,6 +551,7 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)
   let c  = {formula = f; 
 	    idx = !count; 
 	    vars = v; 
+	    defs = defs;
 	    ssaIdxs = ssa; 
 	    typ = ct; 
 	    ifContext = ic;

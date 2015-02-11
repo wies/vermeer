@@ -17,13 +17,15 @@
 
 (* Ocamlgraph demo program: solving the Sudoku puzzle using graph coloring *)
 
-open Format
 open Graph
+open Dsnutils
+
+type hazard = HAZARD_RAR |  HAZARD_RAW | HAZARD_WAR | HAZARD_WAW
 
 (* We use undirected graphs with nodes containing a pair of integers
    (the cell coordinates in 0..8 x 0..8).
    The integer marks of the nodes will store the colors. *)
-module G = Imperative.Graph.Abstract(struct type t = int * int end)
+module G = Imperative.Graph.AbstractLabeled(struct type t = int * int end)(Int)
 
 let make_dependency_graph x = x
 
