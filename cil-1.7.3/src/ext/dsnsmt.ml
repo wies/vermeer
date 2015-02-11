@@ -12,20 +12,10 @@ open Graph
 
 (* issue if interpolant tries to go past where something is used *)
 
-open String
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
 let smtCallTime = ref []
 
-type analysis = 
-  UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE | NOREDUCTION
-let analysis = ref UNSATCORE (*default *)
-let summarizeThread = ref false
-type multithreadAnalysis = 
-  ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI | PARTITIONTID | PARTITIONGROUP
-let multithread = ref NOMULTI
-let printTraceSMT = ref false
-let printReducedSMT = ref false
 
 
 (******************************** Optimizations ***************************)
@@ -692,25 +682,25 @@ let rec extract_term (str)  : term list =
    * and the remainder as another string *)
   let extract_first_sexp str = 
     let str = trim str in
-    let len = length str in
+    let len = String.length str in
     if len = 0 then failwith "nothing here"
     else if (str.[0] = '(') then
       let endIdx = matchParensRec str 1 1 in 
-      let lhs = sub str 0 (endIdx +1) in 
+      let lhs = String.sub str 0 (endIdx +1) in 
       (* +1 avoid the closing paren *)
-      let rhs = sub str (endIdx + 1) (len - endIdx - 1) in
+      let rhs = String.sub str (endIdx + 1) (len - endIdx - 1) in
       (trim lhs, trim rhs)
     else 
       let endIdx = findEndOfWord str in
       if endIdx = len then 
 	(str,"")
       else 
-	let lhs = sub str 0 (endIdx) in 
-	let rhs = sub str (endIdx + 1) (length str - endIdx - 1) in
+	let lhs = String.sub str 0 (endIdx) in 
+	let rhs = String.sub str (endIdx + 1) (String.length str - endIdx - 1) in
 	(trim lhs, trim rhs)
   in
   let str = strip_parens (trim str) in
-  if length str = 0 then 
+  if String.length str = 0 then 
     []
   else
     let headStr, tailStr = extract_first_sexp str in

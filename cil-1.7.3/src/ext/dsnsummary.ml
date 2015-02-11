@@ -3,6 +3,18 @@ open Graph
 open Dsnutils
 open Cil
 
+(****************************** Globals and types ******************************)
+type analysis = 
+  UNSATCORE | LINEARSEARCH | BINARYSEARCH | WINDOW | NONINDUCTIVE | NOREDUCTION
+let analysis = ref UNSATCORE (*default *)
+let summarizeThread = ref false
+type multithreadAnalysis = 
+  ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI | PARTITIONTID | PARTITIONGROUP
+let multithread = ref NOMULTI
+let printTraceSMT = ref false
+let printReducedSMT = ref false
+
+
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
 let try_interpolant_forward_k k currentState interpolant suffix  =
   match split_off_n_reversed k suffix with
