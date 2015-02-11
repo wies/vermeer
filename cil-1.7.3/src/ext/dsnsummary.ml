@@ -187,28 +187,7 @@ let unsat_then_expensive propAlgorithm trace =
   expensive
     
 
-let extract_tid_opt cls = 
-  let rec aux = function
-    | [] -> None
-    | x::xs ->  match x with
-      | ThreadTag i -> Some i
-      | _ -> aux xs
-  in
-  aux cls.cTags
 
-let extract_tid cls = 
-  match extract_tid_opt cls with
-  | None -> failwith "no tid"
-  | Some i -> i
-
-let extract_group cls = 
-  let rec aux = function
-    | [] -> failwith "no tid"
-    | x::xs ->  match x with
-      | SummaryGroupTag i -> i
-      | _ -> aux xs
-  in
-  aux cls.cTags
 
 let contextswitches x = 
   let nums = List.map extract_tid_opt x in

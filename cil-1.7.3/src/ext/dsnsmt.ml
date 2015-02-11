@@ -119,7 +119,6 @@ let currentIfContext : ifContextList ref = ref emptyIfContext
 let currentThread : int option ref = ref None
 let currentLabel : string option ref = ref None
 let currentGroup : int option ref = ref None
-let threadAnalysis = false
 let seenThreads = ref TIDSet.empty
 let seenGroups = ref GroupSet.empty
 
@@ -330,34 +329,7 @@ let print_reduced_linenums x =
   let reduced = reduced_linenums x in
   List.iter (Printf.printf "%s\n") reduced
 
-
-
-(****************************** Clauses ******************************)
-(* two possibilities: either maintain a mapping at each point
- * or remap as we go starting from one end *)
-
-
-(* So we need to figure out the type of each variable *)
-
-
-
-(* this function does two things: It determines the type of the 
- * expression.  It also updates the mapping with any newly discovered
- * var -> type mappings
- *)
-
-let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
-
-let all_basevars clauses = 
-  let allVars = all_vars clauses in
-  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
-
-let count_basevars clauses = 
-  BaseVarSet.cardinal (all_basevars clauses)
-
-let count_basevars_at a = 
-  let interpolants,trace = List.split a in
-  count_basevars trace
+(****************************** Formula processing ******************************)
 
 let type_check_and_cast_to_bool topForm = 
   let updatedVar = ref false in
@@ -510,6 +482,58 @@ let rec get_vars formulaList set =
     | SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ -> set
     | SMTVar(v) -> VarSet.add v set 
     | SMTLetBinding(v,e) -> get_vars [e] set
+
+
+(****************************** Clauses ******************************)
+(* two possibilities: either maintain a mapping at each point
+ * or remap as we go starting from one end *)
+
+
+(* So we need to figure out the type of each variable *)
+
+
+
+(* this function does two things: It determines the type of the 
+ * expression.  It also updates the mapping with any newly discovered
+ * var -> type mappings
+ *)
+
+let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
+
+let all_basevars clauses = 
+  let allVars = all_vars clauses in
+  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
+
+let count_basevars clauses = 
+  BaseVarSet.cardinal (all_basevars clauses)
+
+let count_basevars_at a = 
+  let interpolants,trace = List.split a in
+  count_basevars trace
+
+
+let extract_tid_opt cls = 
+  let rec aux = function
+    | [] -> None
+    | x::xs ->  match x with
+      | ThreadTag i -> Some i
+      | _ -> aux xs
+  in
+  aux cls.cTags
+
+let extract_tid cls = 
+  match extract_tid_opt cls with
+  | None -> failwith "no tid"
+  | Some i -> i
+
+let extract_group cls = 
+  let rec aux = function
+    | [] -> failwith "no tid"
+    | x::xs ->  match x with
+      | SummaryGroupTag i -> i
+      | _ -> aux xs
+  in
+  aux cls.cTags
 
 let get_vars_ic icList set = 
   List.fold_left (fun a e -> get_vars [e.iformula] a) set icList
@@ -803,7 +827,7 @@ let get_ssa_before () =
   | x::xs -> x.ssaIdxs
 
 
-(****************************** Interpolation ******************************)
+(****************************** Solver definitions ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
  * really just port what I'm doing over to that.  But for now, I'll just take
  * the min necessary
@@ -962,6 +986,8 @@ let getZ3 () = match !z3Solver with
       {name = "z3"; info=z3_4_3} true in
     z3Solver := Some s;
     s
+
+(* TODO Maintain a list of active solvers, so I can close them at the end *)
 
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
