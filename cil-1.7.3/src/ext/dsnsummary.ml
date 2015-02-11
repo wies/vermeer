@@ -186,37 +186,6 @@ let unsat_then_expensive propAlgorithm trace =
   debug_endline ("\n***** Finished with " ^ (string_of_int (List.length(reduced_linenums_at expensive))) ^ " loc *****\n\n");
   expensive
     
-
-
-
-let contextswitches x = 
-  let nums = List.map extract_tid_opt x in
-  let nums = List.filter (fun c -> match c with | None -> false |Some _ ->true) nums in
-  let nums = List.map (fun c -> match c with | None -> failwith "wtf" | Some i -> i) nums in
-  compress nums
-
-let contextswitches_at x = do_on_trace contextswitches x
-let count_contextswitches x = List.length (contextswitches x) -1
-let count_contextswitches_at x = List.length (contextswitches_at x) -1
-
-let print_contextswitches description x =
-  let cs = contextswitches x in
-  let num = List.length cs - 1 in
-  Printf.printf "%s\t(%d context switches)\t" description num;
-  List.iter (Printf.printf "-%d-") cs;
-  print_endline "";
-  num
-
-let print_contextswitches_at description x = 
-  print_contextswitches description (trace_from_at x)
-
-let count_statements clauses = 
-  List.length 
-    (List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) 
-       clauses)
-
-let count_statements_at at = do_on_trace count_statements at
-
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
     | (a,b) -> make_interpolate_between a b in
@@ -263,79 +232,6 @@ let summerize_annotated_trace (idExtractor : clause -> int)
   aux fullTrace [] None []
 
 
-(* we assume that the thread mentioned in the label is good until the next label
- * this requires that we use --keepunused to keep the labels active *)
-let parseLabel s = 
-  match s.labels with
-  | [] -> ()
-  | [Label(s,l,b)] -> begin
-    if not (begins_with s "VERMEER__") then begin
-      match split_on_underscore s with
-      | [prefix;tid;sid;group] ->
-	if prefix <> "T" then failwith ("invalid label prefix " ^ prefix);
-	let newThread = int_of_string tid in
-	let newGroup = int_of_string group in
-	seenThreads := TIDSet.add newThread !seenThreads;
-	currentThread := Some (newThread);
-	currentLabel := Some(s);
-	seenGroups := GroupSet.add newThread !seenThreads;
-	currentGroup := Some(newGroup)
-      | _ -> failwith ("bad label string " ^ s)
-    end
-  end
-  | _ -> failwith ("unexpected label " ^ d_labels s.labels)
-
-class dsnsmtVisitorClass = object
-  inherit nopCilVisitor
-
-  method vinst i = begin
-    let tags = match !currentThread with
-      | Some (tid) -> [ThreadTag tid]
-      | None -> [] in
-    let tags = match !currentLabel with
-      | Some l -> (LabelTag l)::tags
-      | None -> tags in
-    let tags = match !currentGroup with
-      | Some g -> SummaryGroupTag g :: tags
-      | None -> tags in
-    let ssaBefore = get_ssa_before() in
-    match i with
-    |  Set(lv, e, l) -> 
-      let lvForm = formula_from_lval lv in
-      let eForm = formula_from_exp e in
-      let assgt = SMTRelation("=",[lvForm;eForm]) in
-      let cls = make_clause assgt ssaBefore !currentIfContext (ProgramStmt (i,!currentThread)) tags in
-      revProgram := cls :: !revProgram;
-      DoChildren
-    | Call(lo,e,al,l) ->
-      assert_is_assert i;
-      let form = match al with 
-	| [x] -> formula_from_exp x
-	| _ -> failwith "assert should have exactly one element"
-      in
-      let cls = make_clause form ssaBefore !currentIfContext (ProgramStmt (i,!currentThread)) tags in
-      revProgram := cls :: !revProgram;
-      DoChildren
-    | _ -> DoChildren
-  end
-  method vstmt (s : stmt) = begin
-    parseLabel s;
-    match s.skind with
-    | If(i,t,e,l) ->
-      if e.bstmts <> [] then failwith "else block not handeled";
-      let cond = type_check_and_cast_to_bool (formula_from_exp i) in
-      currentIfContext := {iformula = cond; istmt = s} :: !currentIfContext;
-      ChangeDoChildrenPost (s,
-			    fun x -> 
-			      currentIfContext := List.tl !currentIfContext;
-			      x)
-    | Block _ -> DoChildren
-    | _ -> DoChildren
-  end
-end
-
-let dsnsmtVisitor = new dsnsmtVisitorClass
-
 let reduce_using_technique technique clauses  = 
   match technique with 
   | UNSATCORE -> unsat_then_cheap clauses
@@ -345,20 +241,7 @@ let reduce_using_technique technique clauses  =
   | NONINDUCTIVE -> unsat_then_noninductive clauses
   | NOREDUCTION -> make_cheap_annotated_trace clauses
 
-let calculate_stats (description : string) (trace : clause list)  = 
-  let switches = count_contextswitches trace in
-  let stmts = count_statements trace in
-  let numvars = count_basevars trace in
-  Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
-    description switches stmts numvars
-
-let calculate_thread_stats (trace : clause list) = 
-  TIDSet.iter (fun tid -> 
-    let tidStmts = List.filter 
-      (fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) trace in
-    calculate_stats ("Init" ^ string_of_int tid) tidStmts ) !seenThreads
-    
-let calculate_stats_at description at = calculate_stats description (trace_from_at at)
+(****************************** Printing to files ******************************)
 
 let annotated_trace_to_smtfile at filename = 
   let interpolants,trace = List.split at in
@@ -383,6 +266,9 @@ let partition_to_file technique reduced id =
     (fun x -> (technique x) = id) reduced in
   print_endline (string_of_formula interpolant)
 
+(******************** Actually do the pass over the code ********************)
+
+let dsnsmtVisitor = new dsnsmtVisitorClass
 let dsnsmt (f: file) : unit =
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
