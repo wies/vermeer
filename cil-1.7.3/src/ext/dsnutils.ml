@@ -2,10 +2,13 @@
 
 open Cil
 
-
-module Int = struct                       
-  type t = int                                              
-  let compare x y = if x < y then -1 else if x > y then 1 else 0 end ;;  
+module Int = struct  
+  type t = int 
+  let compare = compare               
+  let hash = Hashtbl.hash 
+  let equal = (=)
+  let default = 0
+end   
 
 (********************* Printing ***********************************)
 
