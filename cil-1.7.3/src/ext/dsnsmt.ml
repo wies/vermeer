@@ -55,6 +55,7 @@ let emptyTypeMap : varTypeMap = TypeMap.empty
 let emptyVarSet = VarSet.empty
 let emptyStringSet = StringSet.empty
 
+
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
 	    | SMTVar of smtvar 
@@ -894,7 +895,6 @@ let set_logic solver logic = write_line_to_solver solver ("(set-logic " ^ logic 
 let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unknown () Int)\n"
   
 let reset_solver solver = write_line_to_solver solver "(reset)\n"
-let exit_solver solver = write_line_to_solver solver "(exit)\n"; flush_solver solver
 
 let line_from_solver solver = 
   let line = input_line solver.in_chan in
@@ -924,51 +924,57 @@ let rec read_from_solver (solver) (pt) : smtResult =
   else 
     failwith ("unmatched line:\n" ^ l ^ "\n")
 
-(* Given a description of a solver, start the solver and create pipes to it *)
-let start_with_solver session_name solver do_log = 
-  let log_out = 
-    if do_log then begin
-      safe_mkdir smtDir 0o777;
-      let log_file_name = smtDir ^ "/" ^ session_name ^ ".smt2" in
-      Some(open_out log_file_name)
-    end 
-    else None
-  in
-  let state = match solver.info.kind with
-    | Process (cmnd, args) ->
-      let aargs = Array.of_list (cmnd :: args) in
-      let in_read, in_write = Unix.pipe () in
-      let out_read, out_write = Unix.pipe () in
-      let pid = Unix.create_process cmnd aargs out_read in_write in_write in 
-      { in_chan = Unix.in_channel_of_descr in_read;
-	out_chan = Unix.out_channel_of_descr out_write;
-	pid = pid;
-	log_out = log_out;
-      } in
-  set_solver_options state solver.info.smt_options;
-  set_timeout state 10000;
-  state
+(* keep a map of active solvers *)
+module SolverMap = Map.Make(String)
+type solverMap = solver_state SolverMap.t
+let emptySolverMap : solverMap = SolverMap.empty
+let activeSolvers = ref emptySolverMap
 
-let smtinterpolSolver = ref None
-let getSmtinterpol () = match !smtinterpolSolver with
-  | Some x -> x
-  | None -> 
-    let s = start_with_solver "smtinterpol_out" 
-      {name = "smtinterpol"; info=smtinterpol_2_1} true in
-    smtinterpolSolver := Some s;
-    s
+(* get the solver.  Create if necessary *)
+let _create_or_get_solver session_name solver do_log = 
+  try SolverMap.find session_name !activeSolvers
+  with Not_found -> 
+    (* Given a description of a solver, start the solver and create pipes to it *)
+    let log_out = 
+      if do_log then begin
+	safe_mkdir smtDir 0o777;
+	let log_file_name = smtDir ^ "/" ^ session_name ^ ".smt2" in
+	Some(open_out log_file_name)
+      end 
+      else None
+    in
+    let state = match solver.info.kind with
+      | Process (cmnd, args) ->
+	let aargs = Array.of_list (cmnd :: args) in
+	let in_read, in_write = Unix.pipe () in
+	let out_read, out_write = Unix.pipe () in
+	let pid = Unix.create_process cmnd aargs out_read in_write in_write in 
+	{ in_chan = Unix.in_channel_of_descr in_read;
+	  out_chan = Unix.out_channel_of_descr out_write;
+	  pid = pid;
+	  log_out = log_out;
+	} in
+    set_solver_options state solver.info.smt_options;
+    set_timeout state 10000;
+    activeSolvers := SolverMap.add session_name state !activeSolvers;
+    state 
+      
+let getSmtinterpol () = 
+  _create_or_get_solver "smtinterpol_out" {name = "smtinterpol"; info=smtinterpol_2_1} true 
 
-let z3Solver = ref None
-let getZ3 () = match !z3Solver with
-  | Some x -> x
-  | None -> 
-    let s = start_with_solver "z3_out" 
-      {name = "z3"; info=z3_4_3} true in
-    z3Solver := Some s;
-    s
+let getZ3 () = 
+  _create_or_get_solver "z3_out" {name = "z3"; info=z3_4_3} true
 
-(* TODO Maintain a list of active solvers, so I can close them at the end *)
+let _exit_solver solver = write_line_to_solver solver "(exit)\n"; flush_solver solver
+let exit_solver session_name = 
+  try let solver = SolverMap.find session_name !activeSolvers in
+      _exit_solver solver;
+      activeSolvers := SolverMap.remove session_name !activeSolvers
+  with Not_found -> ()
 
+let exit_all_solvers () = 
+  SolverMap.iter (fun k v -> _exit_solver v) !activeSolvers;
+  activeSolvers := emptySolverMap
 
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
 let _do_smt ?(justPrint = false) solver clauses pt =

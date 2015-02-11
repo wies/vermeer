@@ -312,8 +312,7 @@ let dsnsmt (f: file) : unit =
   end ;
   (*this is slightly inefficient: if the solver has not been started,
    * this will start it and then exit it *)
-  exit_solver (getZ3());
-  exit_solver (getSmtinterpol())
+  exit_all_solvers() 
     
 
 let feature : featureDescr = 
