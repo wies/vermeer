@@ -107,7 +107,7 @@ let features : C.featureDescr list =
     Dsncalls.feature;
     Dsnconcrete.feature;
     Dsnrmtmps.feature;
-    Dsnsmt.feature;
+    Dsnsummary.feature;
     Dsnssa.feature;
     Dsnsnaps.feature;
   ] 
