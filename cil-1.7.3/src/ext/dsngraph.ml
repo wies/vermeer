@@ -119,7 +119,7 @@ let make_dependency_graph clauses =
 
     let (lastDefn,lastUses) = VarSet.fold 
       (fun v (lastDefn,lastUses) -> 
-	(IntClauseMap.remove v.vidx lastDefn, 
+	(IntClauseMap.add v.vidx clause lastDefn, 
 	 IntClauseMap.remove v.vidx lastUses)
       ) defs (lastDefn,lastUses) in
 
@@ -127,5 +127,5 @@ let make_dependency_graph clauses =
   ) (emptyICM,emptyICLMap) clauses);
   let file = open_out_bin "mygraph.dot" in
   let () = Dot.output_graph file graph in
-  graph
+  graph 
     
