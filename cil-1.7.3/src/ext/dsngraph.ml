@@ -51,6 +51,7 @@ let search_iclmap tid icm =
   try IntClauseMap.find tid icm
   with Not_found -> []
 
+let get_uses clause = VarSet.diff clause.vars clause.defs
 
 (* given that there is a hazard such that c1 => c2, determine the type *)
 let determine_hazard c1 c2 v =
@@ -85,7 +86,7 @@ let make_dependency_graph clauses =
   ) emptyICM clauses);
 
   (* Add the hazards *)
-  ignore (List.fold_left (fun lastDefn clause ->
+  ignore (List.fold_left (fun (lastDefn,lastUses) clause ->
     (* Add the hazards *)
     VarSet.iter (fun v -> match search_icm v.vidx lastDefn with
     | Some c -> 
@@ -96,8 +97,8 @@ let make_dependency_graph clauses =
     (* update the last defns *)
     let lastDefn = VarSet.fold 
       (fun e a -> IntClauseMap.add e.vidx clause a) clause.defs lastDefn in
-    lastDefn
-  ) emptyICM clauses);
+    lastDefn,lastUses
+  ) (emptyICM,emptyICLMap) clauses);
 
   let file = open_out_bin "mygraph.dot" in
   let () = Dot.output_graph file graph in
