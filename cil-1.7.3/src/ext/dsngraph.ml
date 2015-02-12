@@ -47,7 +47,7 @@ let search_icm id icm : clause option =
 
 type intCLMap = (Dsnsmt.clause list) IntClauseMap.t
 let emptyICLMap : intCLMap = IntClauseMap.empty
-let search_iclmap id icm = 
+let search_iclmap id icm : clause list= 
   try IntClauseMap.find id icm
   with Not_found -> []
 
@@ -109,10 +109,23 @@ let make_dependency_graph clauses =
       (fun c -> G.add_edge_e graph (G.E.create c HAZARD_WAR clause))
       (search_iclmap v.vidx lastUses)
     ) defs;
-    
-    (lastDefn,lastUses)
-  ) (IntClauseMap.empty,IntClauseMap.empty) clauses);
+
+    (* First add the uses.  Some of these might get overridden in the next step *)
+    let lastUses = VarSet.fold (fun v lastUses -> 
+      let oldUses = search_iclmap v.vidx lastUses in
+      let updatedUses = clause::oldUses in
+      IntClauseMap.add v.vidx updatedUses lastUses
+    ) uses lastUses in
+
+    let (lastDefn,lastUses) = VarSet.fold 
+      (fun v (lastDefn,lastUses) -> 
+	(IntClauseMap.remove v.vidx lastDefn, 
+	 IntClauseMap.remove v.vidx lastUses)
+      ) defs (lastDefn,lastUses) in
+
+    lastDefn,lastUses
+  ) (emptyICM,emptyICLMap) clauses);
   let file = open_out_bin "mygraph.dot" in
   let () = Dot.output_graph file graph in
   graph
-
+    
