@@ -41,14 +41,14 @@ end)
 module IntClauseMap = Map.Make(Int)
 type intClauseMap = Dsnsmt.clause IntClauseMap.t
 let emptyICM : intClauseMap = IntClauseMap.empty
-let search_icm tid icm : clause option = 
-  try Some(IntClauseMap.find tid icm) 
+let search_icm id icm : clause option = 
+  try Some(IntClauseMap.find id icm) 
   with Not_found -> None
 
 type intCLMap = (Dsnsmt.clause list) IntClauseMap.t
 let emptyICLMap : intCLMap = IntClauseMap.empty
-let search_iclmap tid icm = 
-  try IntClauseMap.find tid icm
+let search_iclmap id icm = 
+  try IntClauseMap.find id icm
   with Not_found -> []
 
 let get_uses clause = VarSet.diff clause.vars clause.defs
@@ -87,19 +87,31 @@ let make_dependency_graph clauses =
 
   (* Add the hazards *)
   ignore (List.fold_left (fun (lastDefn,lastUses) clause ->
-    (* Add the hazards *)
+    let uses = get_uses clause in
+    let defs = clause.defs in
+
+    (* Start by adding the RAW hazards *)
     VarSet.iter (fun v -> match search_icm v.vidx lastDefn with
     | Some c -> 
-      let hazardType = determine_hazard c clause v in
-      G.add_edge_e graph (G.E.create c hazardType clause)
+      G.add_edge_e graph (G.E.create c HAZARD_RAW clause)
     | None -> ()
-    ) clause.vars;
-    (* update the last defns *)
-    let lastDefn = VarSet.fold 
-      (fun e a -> IntClauseMap.add e.vidx clause a) clause.defs lastDefn in
-    lastDefn,lastUses
-  ) (emptyICM,emptyICLMap) clauses);
+    ) (uses);
 
+    (* Now the WAW *)
+    VarSet.iter (fun v -> match search_icm v.vidx lastDefn with
+    | Some c -> 
+      G.add_edge_e graph (G.E.create c HAZARD_WAW clause)
+    | None -> ()
+    ) (defs);
+
+    (* Now the WAR *)
+    VarSet.iter (fun v -> List.iter
+      (fun c -> G.add_edge_e graph (G.E.create c HAZARD_WAR clause))
+      (search_iclmap v.vidx lastUses)
+    ) defs;
+    
+    (lastDefn,lastUses)
+  ) (IntClauseMap.empty,IntClauseMap.empty) clauses);
   let file = open_out_bin "mygraph.dot" in
   let () = Dot.output_graph file graph in
   graph
