@@ -37,6 +37,7 @@ module Dot = Graph.Graphviz.Dot(struct
    let default_vertex_attributes _ = []
   let graph_attributes _ = []
 end)
+module Top = Graph.Topological.Make_stable(G)
 
 module IntClauseMap = Map.Make(Int)
 type intClauseMap = Dsnsmt.clause IntClauseMap.t
@@ -127,5 +128,6 @@ let make_dependency_graph clauses =
   ) (emptyICM,emptyICLMap) clauses);
   let file = open_out_bin "mygraph.dot" in
   let () = Dot.output_graph file graph in
+  Top.iter (fun c -> print_endline (string_of_clause c)) graph;
   graph 
     
