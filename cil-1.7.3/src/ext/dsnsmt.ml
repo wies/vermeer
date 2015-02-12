@@ -483,8 +483,8 @@ let rec get_vars formulaList set =
  * var -> type mappings
  *)
 
+let get_uses clause = VarSet.diff clause.vars clause.defs
 let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
-
 let all_basevars clauses = 
   let allVars = all_vars clauses in
   VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
@@ -492,9 +492,7 @@ let all_basevars clauses =
 let count_basevars clauses = 
   BaseVarSet.cardinal (all_basevars clauses)
 
-let count_basevars_at a = 
-  let interpolants,trace = List.split a in
-  count_basevars trace
+let count_basevars_at a = count_basevars (trace_from_at a)
 
 
 let extract_tid_opt cls = 
@@ -510,6 +508,14 @@ let extract_tid cls =
   match extract_tid_opt cls with
   | None -> failwith "no tid"
   | Some i -> i
+
+let compare_tid_opt a b = 
+  try 
+    let tidA = extract_tid a in
+    let tidB = extract_tid b in
+    Some (compare tidA tidB)
+  with
+    _ -> None
 
 let extract_group cls = 
   let rec aux = function
@@ -1097,10 +1103,7 @@ let reduced_linenums x =
   let nums = List.map print_linenum x in
   let nums = List.filter (fun x -> x <> "") nums in
   compress nums
-
-let reduced_linenums_at x = 
-  let interpolants,trace = List.split x in
-  reduced_linenums trace
+let reduced_linenums_at x = reduced_linenums (trace_from_at x)
 
 let print_reduced_linenums x = 
   let reduced = reduced_linenums x in

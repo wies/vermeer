@@ -310,7 +310,9 @@ let dsnsmt (f: file) : unit =
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;
-  ignore(Dsngraph.make_dependency_graph (clauses));
+  let clause_graph = Dsngraph.make_dependency_graph (clauses) in
+  Dsngraph.make_dotty_file "myfile" clause_graph;
+  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);
   exit_all_solvers() 
     
 

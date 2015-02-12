@@ -19,9 +19,13 @@ module HazardEdge = struct
   let default = NO_HAZARD
 end   
 
+(* Sort by tid first, to try to group tids as much as possible *)
 module ClauseVertex = struct 
   type t = Dsnsmt.clause
-  let compare=compare
+  let compare a b = 
+    match Dsnsmt.compare_tid_opt a b with
+    | Some c -> c
+    | None -> compare a.idx b.idx
   let equal = (=)
   let hash = Hashtbl.hash
 end
@@ -52,19 +56,6 @@ let search_iclmap id icm : clause list=
   try IntClauseMap.find id icm
   with Not_found -> []
 
-let get_uses clause = VarSet.diff clause.vars clause.defs
-
-(* given that there is a hazard such that c1 => c2, determine the type *)
-let determine_hazard c1 c2 v =
-  assert (VarSet.exists (fun x -> x.vidx = v.vidx) c1.vars);
-  assert (VarSet.exists (fun x -> x.vidx = v.vidx) c2.vars);
-  let c1_write = VarSet.exists (fun x -> x.vidx = v.vidx) c1.defs in
-  let c2_write = VarSet.exists (fun x -> x.vidx = v.vidx) c2.defs in
-  match c1_write,c2_write with
-  | true,true -> HAZARD_WAW
-  | true,false -> HAZARD_RAW
-  | false,true -> HAZARD_WAR
-  | false,false -> failwith "RAR hazard???"
 
 (* possibly use builder to remove the dependence on using imperative graphs here *)
 let make_dependency_graph clauses = 
@@ -126,8 +117,13 @@ let make_dependency_graph clauses =
 
     lastDefn,lastUses
   ) (emptyICM,emptyICLMap) clauses);
-  let file = open_out_bin "mygraph.dot" in
-  let () = Dot.output_graph file graph in
-  Top.iter (fun c -> print_endline (string_of_clause c)) graph;
   graph 
     
+let make_dotty_file filename graph = 
+  let file = open_out_bin (filename ^ ".dot") in
+  let () = Dot.output_graph file graph in
+  close_out file
+
+let topo_sort graph = 
+  List.rev (Top.fold (fun c lst -> c::lst)  graph [])
+
