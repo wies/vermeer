@@ -8,6 +8,151 @@ module LetMappings = Map.Make(
     type t = symbol
   end
 );;
+
+type term = 
+  | Variable of string
+  | Value of int 
+  | Sum of term list
+  | Mult of term list
+  (* division, subtraction? *)
+;;
+
+type formula = 
+  | True
+  | False
+  | Not of formula
+  | And of formula list
+  | Or of formula list
+  (* relations: *)
+  | LEQ of term * term
+  | EQ of term * term
+  | GEQ of term * term
+  | NEQ of term * term
+  | LT of term * term
+  | GT of term * term
+;; 
+
+let rec
+  print_formula f indentation =
+  match f with
+  | True -> print_string(indentation ^ "TRUE\n")
+  | False -> print_string(indentation ^ "FALSE\n")
+  | Not(g) -> print_string(indentation ^ "NOT(\n"); print_formula g (indentation ^ "  "); print_string(indentation ^ ")\n")
+  | And(fs) -> print_string(indentation ^ "AND(\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
+  | Or(fs) -> print_string(indentation ^ "OR(\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
+  | LEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" <= "); print_term t2; print_string("\n")
+  | _ -> print_string("pf_TODO\n")
+and
+  print_term t = 
+  match t with
+  | Variable(s) -> print_string(s)
+  | Value(v) -> print_int(v)
+  | Sum([ t1 ]) -> print_term t1
+  | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term(Sum(ts)) (* add braces in output! *)
+  | _ -> print_string("*pt_TODO*")  
+;;
+
+let rec
+  translate_to_term smt_term = 
+  match smt_term with
+  | TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s)))) ->
+      Variable(s)
+
+  | TermSpecConst (_, SpecConstNum(_, c)) -> 
+      let
+        v = int_of_string c
+      in
+        Value(v)
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, [ t1; t2 ])) ->
+      let 
+        t1_trans = translate_to_term t1
+      in
+        let
+          t2_trans = translate_to_term t2
+        in
+          Sum( [ t1_trans; t2_trans ] )
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "-"))), (_, [ TermSpecConst (_, SpecConstNum(_, c)) ])) ->
+      let
+        v = int_of_string c
+      in
+        let
+          v2 = -1 * v
+        in
+          Value(v2)
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), _) ->
+      print_string(s ^ "\n"); Value(-888)
+
+  | _ -> print_string("ttt_TODO\n"); Value(-666)
+and
+  translate_to_formula smt_term =
+  match smt_term with 
+  |TermSpecConst (p , specconstant1) -> 
+    print_string("TODO: Implement TermSpecConst!\n"); False
+
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, "true") ))) -> 
+    True
+
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, "false") ))) -> 
+    False
+
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, s)))) ->
+    print_string("@ " ^ s ^ "@\n"); False
+
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, sym))) -> 
+    print_string("TODO: Implement TermQualIdentifier1!\n"); False
+
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> 
+    print_string("TODO: Implement TermQualIdentifier2!\n"); False
+
+  |TermQualIdentifier (p , QualIdentifierAs (p2, id, s)) -> 
+    print_string("TODO: Implement TermQualIdentifier3!\n"); False
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "<="))), (_, [ t1; t2 ])) -> 
+    let
+      t1_trans = translate_to_term t1
+    in
+      let
+        t2_trans = translate_to_term t2
+      in 
+        LEQ(t1_trans, t2_trans)
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "or"))), (_, ts)) ->
+    let
+      ts2 = List.map translate_to_formula ts
+    in
+      Or( ts2 )
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "and"))), (_, ts)) ->
+    let
+      ts2 = List.map translate_to_formula ts
+    in
+      And( ts2 )
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (p2, ts)) -> 
+    print_string("TODO: Implement TermQualIdTerm1! " ^ s ^ "\n"); False
+
+  |TermQualIdTerm (p , QualIdentifierId(_, id), (p2, ts)) -> 
+    print_string("TODO: Implement TermQualIdTerm2!\n"); False
+
+  |TermQualIdTerm (p , QualIdentifierAs(_, id, s) , (p2, ts)) -> 
+    print_string("TODO: Implement TermQualIdTerm3!\n"); False
+
+  |TermLetTerm (p , termletterm_term_varbinding584 , t2) -> 
+    raise (Failure "Let terms are not allowed!\n")
+
+  |TermForAllTerm (p , t_var , t2) -> 
+    print_string("TODO: Implement TermForAllTerm!\n"); False
+
+  |TermExistsTerm (p , t_var , t2) -> 
+    print_string("TODO: Implement TermExistsTerm!\n"); False
+
+  |TermExclimationPt (p , t2 , termexclimationpt_term_attribute644) -> 
+    print_string("TODO: Implement TermExclimationPt!\n"); False
+;;
+
 let rec 
   to_let_mapping bindings m = 
   match bindings with
@@ -35,9 +180,10 @@ and
 and
 eliminate_let_terms t m =
 match t with
-  |TermSpecConst (p , specconstant1) -> print_string("(TermSpecConst)\n"); t
+  |TermSpecConst (p , specconstant1) -> (* print_string("(TermSpecConst)\n"); *) t
+
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, sym))) -> 
-    print_string("(TermQualIdentifier1)\n");
+    (* print_string("(TermQualIdentifier1)\n"); *)
     (try
       let 
         t_new = LetMappings.find sym m 
@@ -45,35 +191,45 @@ match t with
         t_new
     with 
       Not_found -> t)
-  |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> print_string("(TermQualIdentifier2)\n"); t
-  |TermQualIdentifier (p , QualIdentifierAs (p2, id, s)) -> print_string("(TermQualIdentifier3)\n"); t
+
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> (* print_string("(TermQualIdentifier2)\n"); *) t
+
+  |TermQualIdentifier (p , QualIdentifierAs (p2, id, s)) -> (* print_string("(TermQualIdentifier3)\n"); *) t
+
   |TermQualIdTerm (p , qualidentifier2 , (p2, ts)) -> 
     let
       ts2 = List.map (fun t2 -> eliminate_let_terms t2 m) ts
     in 
-      print_string("(TermQualIdTerm)\n"); 
+      (* print_string("(TermQualIdTerm)\n"); *)
       TermQualIdTerm (p, qualidentifier2, (p2, ts2))
+
   |TermLetTerm (p , termletterm_term_varbinding584 , t2) -> 
     let 
       m2 = create_let_mapping termletterm_term_varbinding584 m
     in 
-      print_string("(TermLetTerm)\n"); 
+      (* print_string("(TermLetTerm)\n"); *)
       eliminate_let_terms t2 (LetMappings.merge (fun k v1 v2 -> match v1, v2 with | _, Some v -> Some v | Some v, None -> Some v | None, None -> None) m m2)
+
   |TermForAllTerm (p , t_var , t2) -> 
     let
       t2_prime = eliminate_let_terms t2 m
     in
-      print_string("(TermForAllTerm)\n"); TermForAllTerm (p, t_var, t2_prime)
+      (* print_string("(TermForAllTerm)\n"); *)
+      TermForAllTerm (p, t_var, t2_prime)
+
   |TermExistsTerm (p , t_var , t2) -> 
     let
       t2_prime = eliminate_let_terms t2 m
     in
-      print_string("(TermExistsTerm)\n"); TermExistsTerm (p, t_var, t2_prime)
+      (* print_string("(TermExistsTerm)\n"); *)
+      TermExistsTerm (p, t_var, t2_prime)
+
   |TermExclimationPt (p , t2 , termexclimationpt_term_attribute644) -> 
     let 
       t2_prime = eliminate_let_terms t2 m 
     in 
-      print_string("(TermExclimationPt)\n"); TermExclimationPt (p, t2_prime, termexclimationpt_term_attribute644)
+      (* print_string("(TermExclimationPt)\n"); *)
+      TermExclimationPt (p, t2_prime, termexclimationpt_term_attribute644)
 ;;
 
 
@@ -99,7 +255,15 @@ and pp_command = function
    |CommandPush (_ , str3) ->  print_string "(";print_string " "; print_string "push";print_string " "; print_string str3;print_string " "; print_string ")"; () 
    |CommandPop (_ , str3) ->  print_string "(";print_string " "; print_string "pop";print_string " "; print_string str3;print_string " "; print_string ")"; () 
 
-   |CommandAssert (_ , term3) ->  pp_term term3; () 
+   (* this is the important command case *)
+   |CommandAssert (_ , term3) ->  (* pp_term term3; () *)
+      let 
+        t = eliminate_let_terms term3 LetMappings.empty
+      in 
+        let 
+          f = translate_to_formula t
+        in 
+          print_formula f ""; () 
 
    |CommandCheckSat (_) ->  print_string "(";print_string " "; print_string "check-sat";print_string " "; print_string ")"; () 
    |CommandGetAssert (_) ->  print_string "(";print_string " "; print_string "get-assertions";print_string " "; print_string ")"; () 
@@ -113,7 +277,8 @@ and pp_command = function
 and pp_commands = function 
    |Commands (_ , commands_commands_command301) ->  pp_commands_commands_command30 commands_commands_command301; () 
 and pp_identifier = function 
-   |IdSymbol (_ , symbol1) ->  pp_symbol symbol1; () 
+   |IdSymbol (_ , Symbol(_, "<=")) -> print_string "holla"; ()
+   |IdSymbol (_ , symbol1) ->  print_string "&"; pp_symbol symbol1; () 
    |IdUnderscoreSymNum (_ , symbol3 , idunderscoresymnum_identifier_numeral334) ->  print_string "(";print_string " "; print_string "_";print_string " "; pp_symbol symbol3;print_string " "; pp_idunderscoresymnum_identifier_numeral33 idunderscoresymnum_identifier_numeral334;print_string " "; print_string ")"; () 
 and pp_infoflag = function 
    |InfoFlagKeyword (_ , str1) ->  print_string str1; () 
@@ -139,16 +304,30 @@ and pp_specconstant = function
 and pp_symbol = function 
    |Symbol (_ , str1) ->  print_string str1; () 
    |SymbolWithOr (_ , str1) ->  print_string str1; () 
-and pp_term = function 
-   |TermSpecConst (_ , specconstant1) ->  pp_specconstant specconstant1; () 
-   |TermQualIdentifier (_ , qualidentifier1) ->  pp_qualidentifier qualidentifier1; () 
+
+
+and pp_term = function (* simplification is done here *)
+
+   |TermSpecConst (_ , specconstant1) ->  print_string "#"; pp_specconstant specconstant1; () 
+
+   |TermQualIdentifier (_ , qualidentifier1) ->  print_string "@"; pp_qualidentifier qualidentifier1; () 
+
    |TermQualIdTerm (_ , qualidentifier2 , termqualidterm_term_term563) ->  print_string "(";print_string " "; pp_qualidentifier qualidentifier2;print_string " "; pp_termqualidterm_term_term56 termqualidterm_term_term563;print_string " "; print_string ")"; () 
 
-   |TermLetTerm (p , termletterm_term_varbinding584 , term6) ->  (*let m = create_let_mapping termletterm_term_varbinding584 in LetMappings.iter print_let_mapping m; *) let t = eliminate_let_terms (TermLetTerm (p , termletterm_term_varbinding584 , term6)) LetMappings.empty in print_string "("; print_string " "; (*print_string "let";print_string " "; print_string "(";print_string " "; pp_termletterm_term_varbinding58 termletterm_term_varbinding584;print_string " "; print_string ")";print_string " ";*) pp_term t(*term6*);print_string " "; print_string ")"; () 
+   |TermLetTerm (p , termletterm_term_varbinding584 , term6) ->  
+	let 
+		t = eliminate_let_terms (TermLetTerm (p , termletterm_term_varbinding584 , term6)) LetMappings.empty 
+	in 
+		pp_term t; () 
 
-   |TermForAllTerm (_ , termforallterm_term_sortedvar604 , term6) ->  print_string "(";print_string " "; print_string "forall";print_string " "; print_string "(";print_string " "; pp_termforallterm_term_sortedvar60 termforallterm_term_sortedvar604;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
+   |TermForAllTerm (_ , termforallterm_term_sortedvar604 , term6) ->  
+print_string "(";print_string " "; print_string "forall";print_string " "; print_string "(";print_string " "; pp_termforallterm_term_sortedvar60 termforallterm_term_sortedvar604;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
+
    |TermExistsTerm (_ , termexiststerm_term_sortedvar624 , term6) ->  print_string "(";print_string " "; print_string "exists";print_string " "; print_string "(";print_string " "; pp_termexiststerm_term_sortedvar62 termexiststerm_term_sortedvar624;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
+
    |TermExclimationPt (_ , term3 , termexclimationpt_term_attribute644) ->  print_string "(";print_string " "; print_string "!";print_string " "; pp_term term3;print_string " "; pp_termexclimationpt_term_attribute64 termexclimationpt_term_attribute644;print_string " "; print_string ")"; () 
+
+
 and pp_varbinding = function 
    |VarBindingSymTerm (_ , symbol2 , term3) ->  print_string "(";print_string " "; pp_symbol symbol2;print_string " represents "; pp_term term3;print_string " "; print_string ")"; () 
 and pp_termexclimationpt_term_attribute64 = function 
