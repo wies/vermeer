@@ -43,6 +43,10 @@ module Dot = Graph.Graphviz.Dot(struct
 end)
 
 (* just import the G for now.  Could fix this later *)
+(* DSN. I took the topological.stable_sort algorithm
+ * and modified it slightly so that it maintains a reference to the last returned tid
+ * This ensures that we will group things from the same tid together when possible 
+ *)
 module Sort_using_tid  =
 struct
 
@@ -55,7 +59,6 @@ struct
     else if n < min then [ v ], n
     else old
 
-  let last = ref None
   module Q = struct
     module M = Map.Make(Int)
     type elt = G.V.t
@@ -66,14 +69,14 @@ struct
       (* since we maintain PO, should only have at most one binding per thread *)
       assert(not (M.mem tid !s)); 
       M.add (extract_tid v) v !s
-    let pop s =
+    let pop last s =
       let pop_binding s (k,v) = 
 	s:= M.remove k !s;
 	last := Some k;
 	v
       in
       let get_min_binding s = 
-	let binding = M.min_binding !s in (* could also use choose *)
+	let binding = M.min_binding !s in (* could also use max_binding or choose *)
 	pop_binding s binding
       in
       match !last with
@@ -122,6 +125,7 @@ struct
     List.filter on_top_cycle vl
 
   let fold f g acc =
+    let last = ref None in
     let checker = C.create g in
     let degree = H.create 97 in
     let todo = Q.create () in
@@ -143,7 +147,7 @@ struct
           (* let v = choose_independent_vertex checker min in push v; *)
 	  walk acc
       else
-	let v = Q.pop todo in
+	let v = Q.pop last  todo in
 	let acc = f v acc in
 	G.iter_succ
 	  (fun x->
