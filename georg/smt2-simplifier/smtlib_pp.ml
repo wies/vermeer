@@ -41,7 +41,11 @@ let rec
   | And(fs) -> print_string(indentation ^ "AND(\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
   | Or(fs) -> print_string(indentation ^ "OR(\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
   | LEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" <= "); print_term t2; print_string("\n")
-  | _ -> print_string("pf_TODO\n")
+  | EQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" = "); print_term t2; print_string("\n")
+  | GEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" >= "); print_term t2; print_string("\n")
+  | NEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" != "); print_term t2; print_string("\n")
+  | LT(t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
+  | GT(t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
 and
   print_term t = 
   match t with
