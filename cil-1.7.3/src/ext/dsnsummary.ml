@@ -312,7 +312,11 @@ let dsnsmt (f: file) : unit =
   end ;
   let clause_graph = Dsngraph.make_dependency_graph (clauses) in
   Dsngraph.make_dotty_file "myfile" clause_graph;
-  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);
+  let sorted = Dsngraph.topo_sort clause_graph in
+  print_clauses sorted;
+  print_cprogram sorted;
+  Printf.printf "%d\n" (count_contextswitches sorted);
+(*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
   exit_all_solvers() 
     
 

@@ -32,16 +32,143 @@ end
 
 module G = Imperative.Digraph.ConcreteLabeled(ClauseVertex)(HazardEdge)
 module Dot = Graph.Graphviz.Dot(struct
-   include G (* use the graph module from above *)
-   let edge_attributes (a, e, b) = [`Label (string_of_hazard e); `Color 4711]
-   let default_edge_attributes _ = []
-   let get_subgraph _ = None
-   let vertex_attributes _ = [`Shape `Box]
-   let vertex_name v = assertion_name v
-   let default_vertex_attributes _ = []
+  include G (* use the graph module from above *)
+  let edge_attributes (a, e, b) = [`Label (string_of_hazard e); `Color 4711]
+  let default_edge_attributes _ = []
+  let get_subgraph _ = None
+  let vertex_attributes _ = [`Shape `Box]
+  let vertex_name v = assertion_name v
+  let default_vertex_attributes _ = []
   let graph_attributes _ = []
 end)
-module Top = Graph.Topological.Make_stable(G)
+
+(* just import the G for now.  Could fix this later *)
+module Sort_using_tid  =
+struct
+
+  module H = Hashtbl.Make(G.V)
+  module C = Path.Check(G)
+
+  let choose ~old (v, n) =
+    let l, min = old in
+    if n = min then v :: l, n
+    else if n < min then [ v ], n
+    else old
+
+  let last = ref None
+  module Q = struct
+    module M = Map.Make(Int)
+    type elt = G.V.t
+    type q = G.V.t M.t ref
+    let create () = ref M.empty
+    let push v s = s := 
+      let tid = extract_tid v in
+      (* since we maintain PO, should only have at most one binding per thread *)
+      assert(not (M.mem tid !s)); 
+      M.add (extract_tid v) v !s
+    let pop s =
+      let pop_binding s (k,v) = 
+	s:= M.remove k !s;
+	last := Some k;
+	v
+      in
+      let get_min_binding s = 
+	let binding = M.min_binding !s in (* could also use choose *)
+	pop_binding s binding
+      in
+      match !last with
+      | None -> get_min_binding s      
+      | Some lastTid -> 
+	try let r = M.find lastTid !s in pop_binding s (lastTid,r)
+	with Not_found -> get_min_binding s	 
+    let is_empty s = M.is_empty !s
+    let choose ~old new_ =
+      let l, n = choose ~old new_ in
+      List.sort G.V.compare l, n
+  end
+
+  let rec choose_independent_vertex checker = function
+    | [] -> assert false
+    | [ v ] -> v
+    | v :: l ->
+      (* choose [v] if each other vertex [v'] is in the same cycle
+	 (a path from v to v') or is in a separate component
+	 (no path from v' to v).
+	 So, if there is a path from v' to without any path from v to v',
+	 discard v. *)
+      if List.for_all
+	(fun v' -> C.check_path checker v v' || not (C.check_path checker v' v))
+	l
+      then
+	v
+      else
+	choose_independent_vertex checker l
+
+  (* in case of multiple cycles, choose one vertex in a cycle which
+     does not depend of any other. *)
+  let find_top_cycle checker vl =
+    (* choose [v] if each other vertex [v'] is in the same cycle
+       (a path from v to v') or is in a separate component
+       (no path from v' to v).
+       So, if there is a path from v' to without any path from v to v',
+       discard v. *)
+    let on_top_cycle v =
+      List.for_all
+	(fun v' ->
+          G.V.equal v v' ||
+            C.check_path checker v v' || not (C.check_path checker v' v))
+        vl
+    in
+    List.filter on_top_cycle vl
+
+  let fold f g acc =
+    let checker = C.create g in
+    let degree = H.create 97 in
+    let todo = Q.create () in
+    let push x =
+      H.remove degree x;
+      Q.push x todo
+    in
+    let rec walk acc =
+      if Q.is_empty todo then
+        (* let's find any node of minimal degree *)
+	let min, _ =
+	  H.fold (fun v d old -> Q.choose ~old (v, d)) degree ([], max_int)
+	in
+	match min with
+	| [] -> acc
+	| _ ->
+	  let vl = find_top_cycle checker min in
+	  List.iter push vl;
+          (* let v = choose_independent_vertex checker min in push v; *)
+	  walk acc
+      else
+	let v = Q.pop todo in
+	let acc = f v acc in
+	G.iter_succ
+	  (fun x->
+            try
+              let d = H.find degree x in
+	      if d = 1 then push x else H.replace degree x (d-1)
+            with Not_found ->
+	       (* [x] already visited *)
+	      ())
+	  g v;
+	walk acc
+    in
+    G.iter_vertex
+      (fun v ->
+	let d = G.in_degree g v in
+	if d = 0 then Q.push v todo
+	else H.add degree v d)
+      g;
+    walk acc
+
+  let iter f g = fold (fun v () -> f v) g ()
+
+end
+
+module Top = Sort_using_tid
 
 module IntClauseMap = Map.Make(Int)
 type intClauseMap = Dsnsmt.clause IntClauseMap.t
