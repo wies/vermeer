@@ -24,6 +24,7 @@ type formula =
   | Not of formula
   | And of formula list
   | Or of formula list
+  | Implication of formula * formula
   (* relations: *)
   | LEQ of term * term
   | EQ of term * term
@@ -39,9 +40,10 @@ let rec
   match f with
   | True -> print_string(indentation ^ "TRUE\n")
   | False -> print_string(indentation ^ "FALSE\n")
-  | Not(g) -> print_string(indentation ^ "NOT(\n"); print_formula g (indentation ^ "  "); print_string(indentation ^ ")\n")
-  | And(fs) -> print_string(indentation ^ "AND(\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
-  | Or(fs) -> print_string(indentation ^ "OR(\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
+  | Not(g) -> print_string(indentation ^ "NOT (\n"); print_formula g (indentation ^ "  "); print_string(indentation ^ ")\n")
+  | And(fs) -> print_string(indentation ^ "AND (\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
+  | Or(fs) -> print_string(indentation ^ "OR (\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
+  | Implication(f1, f2) -> print_string(indentation ^ "IMPLICATION (\n"); print_formula f1 (indentation ^ "  "); print_formula f2 (indentation ^ "  "); print_string(indentation ^ ")\n")
   | LEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" <= "); print_term t2; print_string("\n")
   | EQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" = "); print_term t2; print_string("\n")
   | GEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" >= "); print_term t2; print_string("\n")
@@ -55,7 +57,8 @@ and
   | Variable(s) -> print_string(s) (* add braces in output? *)
   | Value(v) -> print_int(v) (* add braces in output? *)
   | Sum([ t1 ]) -> print_term t1 (* add braces in output? *)
-  | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term(Sum(ts)) (* add braces in output? *)
+  | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term (Sum(ts)) (* add braces in output? *)
+  | Mult([t1; t2]) -> print_term t1; print_string(" * "); print_term t2 (* add braces in output? *)
   | _ -> print_string("*print_term_TODO*")  
 ;;
 
@@ -91,6 +94,15 @@ let rec
           v2 = -1 * v
         in
           Value(v2)
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "*"))), (_, [ t1; t2 ])) ->
+      let 
+        t1_trans = translate_to_term t1
+      in
+        let
+          t2_trans = translate_to_term t2
+        in
+          Mult([ t1_trans; t2_trans ])
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), _) ->
       UnsupportedTerm("Case#1_" ^ s)
@@ -129,6 +141,51 @@ and
       in 
         LEQ(t1_trans, t2_trans)
 
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, ">="))), (_, [ t1; t2 ])) -> 
+    let
+      t1_trans = translate_to_term t1
+    in
+      let
+        t2_trans = translate_to_term t2
+      in 
+        GEQ(t1_trans, t2_trans)
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "="))), (_, [ t1; t2 ])) -> 
+    let
+      t1_trans = translate_to_term t1
+    in
+      let
+        t2_trans = translate_to_term t2
+      in 
+        EQ(t1_trans, t2_trans)
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "distinct"))), (_, [ t1; t2 ])) -> 
+    let
+      t1_trans = translate_to_term t1
+    in
+      let
+        t2_trans = translate_to_term t2
+      in 
+        NEQ(t1_trans, t2_trans)
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, ">"))), (_, [ t1; t2 ])) -> 
+    let
+      t1_trans = translate_to_term t1
+    in
+      let
+        t2_trans = translate_to_term t2
+      in 
+        GT(t1_trans, t2_trans)
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "<"))), (_, [ t1; t2 ])) -> 
+    let
+      t1_trans = translate_to_term t1
+    in
+      let
+        t2_trans = translate_to_term t2
+      in 
+        LT(t1_trans, t2_trans)
+
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "or"))), (_, ts)) ->
     let
       ts2 = List.map translate_to_formula ts
@@ -140,6 +197,15 @@ and
       ts2 = List.map translate_to_formula ts
     in
       And( ts2 )
+
+  | TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "=>"))), (_, [ f1; f2 ])) -> 
+    let
+      f1_trans = translate_to_formula f1
+    in
+      let
+        f2_trans = translate_to_formula f2
+      in 
+        Implication(f1_trans, f2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (p2, ts)) -> 
     UnsupportedFormula("TermQualIdTerm1! " ^ s ^ "\n")
