@@ -81,6 +81,7 @@ and
         (
           match fs_simple with
           | [ LEQ(t1, t2); LEQ(t3, t4) ] when (t1 = t4 && t2 = t3) -> EQ(t1, t2)
+          | [ LEQ(t1, Value(c1)); LEQ(Value(0), Sum([ t2; Value(c2) ])) ] when (t1 = t2 && c1 = -1 * c2) -> EQ(t1, Value(c1))
           | _ -> And(fs_simple)
         )
   | Or([]) -> False
@@ -89,7 +90,12 @@ and
       let
         fs_simple = remove_duplicates (flatten_nested_or (simplify_or fs))
       in
-        Or(fs_simple)
+        (
+          match fs_simple with
+          | [ LEQ(Value(c1), t1) ; LEQ(t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
+          | [ LEQ(t2, Value(c2)) ; LEQ(Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
+          | _ -> Or(fs_simple)
+        )
   | Implication(f1, f2) ->
       let
         f1_simple = simplify_formula f1
