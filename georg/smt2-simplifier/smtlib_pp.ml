@@ -14,6 +14,7 @@ type term =
   | Value of int 
   | Sum of term list
   | Mult of term list
+  | UnsupportedTerm of string
   (* division, subtraction? *)
 ;;
 
@@ -30,6 +31,7 @@ type formula =
   | NEQ of term * term
   | LT of term * term
   | GT of term * term
+  | UnsupportedFormula of string
 ;; 
 
 let rec
@@ -46,14 +48,15 @@ let rec
   | NEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" != "); print_term t2; print_string("\n")
   | LT(t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
   | GT(t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
+  | UnsupportedFormula(s) -> print_string(indentation ^ "UNSUPPORTED FORMULA: " ^ s ^ "\n")
 and
   print_term t = 
   match t with
-  | Variable(s) -> print_string(s)
-  | Value(v) -> print_int(v)
-  | Sum([ t1 ]) -> print_term t1
-  | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term(Sum(ts)) (* add braces in output! *)
-  | _ -> print_string("*pt_TODO*")  
+  | Variable(s) -> print_string(s) (* add braces in output? *)
+  | Value(v) -> print_int(v) (* add braces in output? *)
+  | Sum([ t1 ]) -> print_term t1 (* add braces in output? *)
+  | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term(Sum(ts)) (* add braces in output? *)
+  | _ -> print_string("*print_term_TODO*")  
 ;;
 
 let rec
@@ -68,14 +71,17 @@ let rec
       in
         Value(v)
 
-  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, [ t1; t2 ])) ->
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, [ t1 ])) ->
       let 
         t1_trans = translate_to_term t1
       in
-        let
-          t2_trans = translate_to_term t2
-        in
-          Sum( [ t1_trans; t2_trans ] )
+        t1_trans
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, ts)) ->
+      let 
+        ts_trans = List.map translate_to_term ts
+      in
+        Sum( ts_trans )
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "-"))), (_, [ TermSpecConst (_, SpecConstNum(_, c)) ])) ->
       let
@@ -87,14 +93,14 @@ let rec
           Value(v2)
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), _) ->
-      print_string(s ^ "\n"); Value(-888)
+      UnsupportedTerm("Case#1_" ^ s)
 
-  | _ -> print_string("ttt_TODO\n"); Value(-666)
+  | _ -> UnsupportedTerm("Case#2")
 and
   translate_to_formula smt_term =
   match smt_term with 
   |TermSpecConst (p , specconstant1) -> 
-    print_string("TODO: Implement TermSpecConst!\n"); False
+    UnsupportedFormula("TermSpecConst")
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, "true") ))) -> 
     True
@@ -103,16 +109,16 @@ and
     False
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, s)))) ->
-    print_string("@ " ^ s ^ "@\n"); False
+    UnsupportedFormula("TermQualIdentifier: " ^ s)
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, sym))) -> 
-    print_string("TODO: Implement TermQualIdentifier1!\n"); False
+    UnsupportedFormula("TermQualIdentifier1")
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> 
-    print_string("TODO: Implement TermQualIdentifier2!\n"); False
+    UnsupportedFormula("TermQualIdentifier2")
 
   |TermQualIdentifier (p , QualIdentifierAs (p2, id, s)) -> 
-    print_string("TODO: Implement TermQualIdentifier3!\n"); False
+    UnsupportedFormula("TermQualIdentifier3")
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "<="))), (_, [ t1; t2 ])) -> 
     let
@@ -136,25 +142,25 @@ and
       And( ts2 )
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (p2, ts)) -> 
-    print_string("TODO: Implement TermQualIdTerm1! " ^ s ^ "\n"); False
+    UnsupportedFormula("TermQualIdTerm1! " ^ s ^ "\n")
 
   |TermQualIdTerm (p , QualIdentifierId(_, id), (p2, ts)) -> 
-    print_string("TODO: Implement TermQualIdTerm2!\n"); False
+    UnsupportedFormula("TermQualIdTerm2")
 
   |TermQualIdTerm (p , QualIdentifierAs(_, id, s) , (p2, ts)) -> 
-    print_string("TODO: Implement TermQualIdTerm3!\n"); False
+    UnsupportedFormula("TermQualIdTerm3")
 
   |TermLetTerm (p , termletterm_term_varbinding584 , t2) -> 
     raise (Failure "Let terms are not allowed!\n")
 
   |TermForAllTerm (p , t_var , t2) -> 
-    print_string("TODO: Implement TermForAllTerm!\n"); False
+    UnsupportedFormula("TermForAllTerm")
 
   |TermExistsTerm (p , t_var , t2) -> 
-    print_string("TODO: Implement TermExistsTerm!\n"); False
+    UnsupportedFormula("TermExistsTerm")
 
   |TermExclimationPt (p , t2 , termexclimationpt_term_attribute644) -> 
-    print_string("TODO: Implement TermExclimationPt!\n"); False
+    UnsupportedFormula("TermExclimationPt")
 ;;
 
 let rec 
