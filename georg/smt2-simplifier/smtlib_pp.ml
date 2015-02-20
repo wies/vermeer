@@ -71,7 +71,13 @@ and
   | GT(Value(v1), Value(v2)) -> if v1 > v2 then True else False
   | Not(False) -> True
   | Not(True) -> False
-  | And(fs) -> And(List.map simplify_formula fs)
+  | And([]) -> True
+  | And([ f1 ]) -> simplify_formula f1
+  | And(fs) -> 
+      let
+        fs_simple = simplify_and fs
+      in
+        And(fs_simple)
   | Or(fs) -> Or(List.map simplify_formula fs)
   | Implication(f1, f2) ->
       let
@@ -93,6 +99,8 @@ and
                 )
           )
   | _ -> f
+and
+  simplify_and fs = List.filter (fun (f) -> let f_simple = simplify_formula f in f_simple <> True) fs
 and
   simplify_term t = 
   match t with
