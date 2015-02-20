@@ -65,6 +65,7 @@ and
   match f with
   | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
   | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
+  | EQ(Value(v), Variable(x)) -> EQ(Variable(x), Value(v))
   | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
   | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
   | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
@@ -77,7 +78,11 @@ and
       let
         fs_simple = remove_duplicates (flatten_nested_and (simplify_and fs))
       in
-        And(fs_simple)
+        (
+          match fs_simple with
+          | [ LEQ(t1, t2); LEQ(t3, t4) ] when (t1 = t4 && t2 = t3) -> EQ(t1, t2)
+          | _ -> And(fs_simple)
+        )
   | Or([]) -> False
   | Or([ f1 ]) -> simplify_formula f1
   | Or(fs) ->
