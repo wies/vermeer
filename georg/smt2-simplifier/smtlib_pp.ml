@@ -118,15 +118,12 @@ and
       fs_simple = List.map simplify_formula fs
     in
       let 
-        fs1 = List.filter (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
+        (fs1, fs2) = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
       in
         let 
-          fs2 = List.filter (fun (f) -> match f with | Or(_) -> true | _ -> false) fs_simple
+          fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
         in
-          let
-            fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
-          in
-            List.concat [ fs1; (List.concat fs2_extracted)]
+          List.concat [ fs1; (List.concat fs2_extracted)]
 and
   simplify_term t = 
   match t with
