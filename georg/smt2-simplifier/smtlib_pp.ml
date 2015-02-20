@@ -78,7 +78,13 @@ and
         fs_simple = simplify_and fs
       in
         And(fs_simple)
-  | Or(fs) -> Or(List.map simplify_formula fs)
+  | Or([]) -> False
+  | Or([ f1 ]) -> simplify_formula f1
+  | Or(fs) ->
+      let
+        fs_simple = simplify_or fs
+      in
+        Or(fs_simple)
   | Implication(f1, f2) ->
       let
         f1_simple = simplify_formula f1
@@ -100,7 +106,9 @@ and
           )
   | _ -> f
 and
-  simplify_and fs = List.filter (fun (f) -> let f_simple = simplify_formula f in f_simple <> True) fs
+  simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula fs)
+and
+  simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula fs)
 and
   simplify_term t = 
   match t with
