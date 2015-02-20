@@ -60,6 +60,14 @@ and
   | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term (Sum(ts)) (* add braces in output? *)
   | Mult([t1; t2]) -> print_term t1; print_string(" * "); print_term t2 (* add braces in output? *)
   | _ -> print_string("*print_term_TODO*")  
+and
+  simplify_formula f =
+  match f with
+  | _ -> f
+and
+  simplify_term t = 
+  match t with
+  | _ -> t
 ;;
 
 let rec
@@ -256,10 +264,9 @@ and
 and
 eliminate_let_terms t m =
 match t with
-  |TermSpecConst (p , specconstant1) -> (* print_string("(TermSpecConst)\n"); *) t
+  |TermSpecConst (p , specconstant1) -> t
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, sym))) -> 
-    (* print_string("(TermQualIdentifier1)\n"); *)
     (try
       let 
         t_new = LetMappings.find sym m 
@@ -268,43 +275,38 @@ match t with
     with 
       Not_found -> t)
 
-  |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> (* print_string("(TermQualIdentifier2)\n"); *) t
+  |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> t
 
-  |TermQualIdentifier (p , QualIdentifierAs (p2, id, s)) -> (* print_string("(TermQualIdentifier3)\n"); *) t
+  |TermQualIdentifier (p , QualIdentifierAs (p2, id, s)) -> t
 
   |TermQualIdTerm (p , qualidentifier2 , (p2, ts)) -> 
     let
       ts2 = List.map (fun t2 -> eliminate_let_terms t2 m) ts
     in 
-      (* print_string("(TermQualIdTerm)\n"); *)
       TermQualIdTerm (p, qualidentifier2, (p2, ts2))
 
   |TermLetTerm (p , termletterm_term_varbinding584 , t2) -> 
     let 
       m2 = create_let_mapping termletterm_term_varbinding584 m
     in 
-      (* print_string("(TermLetTerm)\n"); *)
       eliminate_let_terms t2 (LetMappings.merge (fun k v1 v2 -> match v1, v2 with | _, Some v -> Some v | Some v, None -> Some v | None, None -> None) m m2)
 
   |TermForAllTerm (p , t_var , t2) -> 
     let
       t2_prime = eliminate_let_terms t2 m
     in
-      (* print_string("(TermForAllTerm)\n"); *)
       TermForAllTerm (p, t_var, t2_prime)
 
   |TermExistsTerm (p , t_var , t2) -> 
     let
       t2_prime = eliminate_let_terms t2 m
     in
-      (* print_string("(TermExistsTerm)\n"); *)
       TermExistsTerm (p, t_var, t2_prime)
 
   |TermExclimationPt (p , t2 , termexclimationpt_term_attribute644) -> 
     let 
       t2_prime = eliminate_let_terms t2 m 
     in 
-      (* print_string("(TermExclimationPt)\n"); *)
       TermExclimationPt (p, t2_prime, termexclimationpt_term_attribute644)
 ;;
 
