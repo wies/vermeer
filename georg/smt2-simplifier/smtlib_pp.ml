@@ -54,11 +54,11 @@ let rec
 and
   print_term t = 
   match t with
-  | Variable(s) -> print_string(s) (* add braces in output? *)
-  | Value(v) -> print_int(v) (* add braces in output? *)
-  | Sum([ t1 ]) -> print_term t1 (* add braces in output? *)
-  | Sum(t1 :: ts) -> print_term t1; print_string(" + "); print_term (Sum(ts)) (* add braces in output? *)
-  | Mult([t1; t2]) -> print_term t1; print_string(" * "); print_term t2 (* add braces in output? *)
+  | Variable(s) -> print_string(s)
+  | Value(v) -> print_int(v)
+  | Sum([ t1 ]) -> print_term t1
+  | Sum(t1 :: ts) -> print_string("("); print_term t1; print_string(" + "); print_term (Sum(ts)); print_string(")")
+  | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
   | _ -> print_string("*print_term_TODO*")  
 and
   simplify_formula f =
