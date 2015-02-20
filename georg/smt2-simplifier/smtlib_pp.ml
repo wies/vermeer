@@ -63,11 +63,49 @@ and
 and
   simplify_formula f =
   match f with
+  | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
+  | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
+  | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
+  | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
+  | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
+  | GT(Value(v1), Value(v2)) -> if v1 > v2 then True else False
+  | Not(False) -> True
+  | Not(True) -> False
+  | And(fs) -> And(List.map simplify_formula fs)
+  | Or(fs) -> Or(List.map simplify_formula fs)
+  | Implication(f1, f2) ->
+      let
+        f1_simple = simplify_formula f1
+      in
+        let
+          f2_simple = simplify_formula f2
+        in
+          (
+            match f1_simple with
+            | True -> f2_simple
+            | False -> True         
+            | _ -> 
+                (
+                  match f2_simple with
+                  | True -> True
+                  | False -> Not(f1_simple)
+                  | _ -> Implication(f1_simple, f2_simple)
+                )
+          )
   | _ -> f
 and
   simplify_term t = 
   match t with
   | _ -> t
+and
+  beautify_formula f =
+    let
+      f_simple = simplify_formula f
+    in
+      if f = f_simple then
+        f_simple
+      else
+        beautify_formula f_simple
 ;;
 
 let rec
@@ -341,7 +379,10 @@ and pp_command = function
         let 
           f = translate_to_formula t
         in 
-          print_formula f ""; () 
+          let
+            f_simple = beautify_formula f
+          in
+            print_formula f_simple ""; () 
 
    |CommandCheckSat (_) ->  print_string "(";print_string " "; print_string "check-sat";print_string " "; print_string ")"; () 
    |CommandGetAssert (_) ->  print_string "(";print_string " "; print_string "get-assertions";print_string " "; print_string ")"; () 
