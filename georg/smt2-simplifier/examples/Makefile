@@ -1,6 +1,6 @@
 SMT_SIMPLIFIER=../smtlib
 
-all: example1 example2 example3 example4 example5 example6 example7 example8 example9 example10 example11 example12 example13 example14
+all: example1 example2 example3 example4 example5 example6 example7 example8 example9 example10 example11 example12 example13 example14 example15
 
 example1:
 	@$(SMT_SIMPLIFIER) < example1.smt2
@@ -43,5 +43,8 @@ example13:
 
 example14:
 	@$(SMT_SIMPLIFIER) < example14.smt2
+
+example15:
+	@$(SMT_SIMPLIFIER) < example15.smt2
 
 

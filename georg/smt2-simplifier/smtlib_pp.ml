@@ -75,7 +75,7 @@ and
   | And([ f1 ]) -> simplify_formula f1
   | And(fs) -> 
       let
-        fs_simple = simplify_and fs
+        fs_simple = remove_duplicates (flatten_nested_and (simplify_and fs))
       in
         And(fs_simple)
   | Or([]) -> False
@@ -124,6 +124,18 @@ and
       in
         let 
           fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
+        in
+          List.append fs1 (List.concat fs2_extracted)
+and 
+  flatten_nested_and fs = 
+    let
+      fs_simple = List.map simplify_formula fs
+    in
+      let 
+        (fs1, fs2) = List.partition (fun (f) -> match f with | And(_) -> false | _ -> true) fs_simple
+      in
+        let 
+          fs2_extracted = List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
         in
           List.append fs1 (List.concat fs2_extracted)
 and
