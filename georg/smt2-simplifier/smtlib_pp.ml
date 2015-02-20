@@ -84,7 +84,10 @@ and
       let
         fs_simple = simplify_or fs
       in
-        Or(fs_simple)
+        let 
+          fs_simple2 = flatten_nested_or fs_simple
+        in
+          Or(fs_simple2)
   | Implication(f1, f2) ->
       let
         f1_simple = simplify_formula f1
@@ -109,6 +112,21 @@ and
   simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula fs)
 and
   simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula fs)
+and 
+  flatten_nested_or fs = 
+    let
+      fs_simple = List.map simplify_formula fs
+    in
+      let 
+        fs1 = List.filter (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
+      in
+        let 
+          fs2 = List.filter (fun (f) -> match f with | Or(_) -> true | _ -> false) fs_simple
+        in
+          let
+            fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
+          in
+            List.concat [ fs1; (List.concat fs2_extracted)]
 and
   simplify_term t = 
   match t with
