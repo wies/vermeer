@@ -255,6 +255,13 @@ let make_dotty_file filename graph =
   let () = Dot.output_graph file graph in
   close_out file
 
-let topo_sort graph = 
+let topo_sort_graph graph = 
   List.rev (Top.fold (fun c lst -> c::lst)  graph [])
 
+let topo_sort ?(dottyFileName = None) clauses = 
+  let clause_graph = make_dependency_graph clauses in
+  (match dottyFileName with 
+  | None -> ()
+  | Some filename -> make_dotty_file filename clause_graph);
+  topo_sort_graph clause_graph 
+  

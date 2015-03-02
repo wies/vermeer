@@ -13,7 +13,7 @@ type multithreadAnalysis =
 let multithread = ref NOMULTI
 let printTraceSMT = ref false
 let printReducedSMT = ref false
-
+let toposortInput = ref false
 
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
 let try_interpolant_forward_k k currentState interpolant suffix  =
@@ -279,6 +279,7 @@ let dsnsmt (f: file) : unit =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
   let clauses = List.rev !revProgram in
+  let clauses = if (!toposortInput) then Dsngraph.topo_sort clauses else clauses in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   calculate_stats "Initial" clauses;
@@ -312,9 +313,9 @@ let dsnsmt (f: file) : unit =
   end ;
   let clause_graph = Dsngraph.make_dependency_graph (clauses) in
   Dsngraph.make_dotty_file "myfile" clause_graph;
-  let sorted = Dsngraph.topo_sort clause_graph in
-  print_clauses sorted;
-  print_cprogram sorted;
+  let sorted = Dsngraph.topo_sort_graph clause_graph in
+  (*print_clauses sorted;
+  print_cprogram sorted;*)
   Printf.printf "%d\n" (count_contextswitches sorted);
 (*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
   exit_all_solvers() 
@@ -342,6 +343,8 @@ let feature : featureDescr =
 	 " prints the origional trace to smt");
 	("--smtprintreduced", Arg.Unit (fun x -> printReducedSMT := true), 
 	 " prints the reduced code to smt");
+	("--toposortinput", Arg.Unit (fun x -> toposortInput := true), 
+	 " Topologically Sorts the input before processing it");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
 	  | "partitionTID" -> multithread := PARTITIONTID
