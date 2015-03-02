@@ -277,20 +277,22 @@ let assertion_name (c : clause) :string =
   | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
   | Summary _ -> failwith "should not be asserting summaries"
 
-let make_flowsensitive_formula c =
-  let make_ifContext_formula ic = 
-    match ic with 
-    | [] -> SMTTrue
-    | [x] -> x.iformula
-    | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
-  in
-  if c.ifContext <> [] then
-    SMTRelation("=>", [make_ifContext_formula c.ifContext;c.formula])
-  else
-    c.formula
 
-let make_assertion_string flowSensitive c =
-  let form = if flowSensitive then make_flowsensitive_formula c else c.formula in 
+
+let make_assertion_string flags c =
+  let make_flowsensitive_formula c =
+    let make_ifContext_formula ic = 
+      match ic with 
+      | [] -> SMTTrue
+      | [x] -> x.iformula
+      | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
+    in
+    if c.ifContext <> [] then
+      SMTRelation("=>", [make_ifContext_formula c.ifContext;c.formula])
+    else
+      c.formula
+  in
+  let form = if flags.flowSensitive then make_flowsensitive_formula c else c.formula in 
   "(assert (! " 
   ^ string_of_formula form
   ^ " :named " ^ assertion_name c
@@ -298,16 +300,16 @@ let make_assertion_string flowSensitive c =
 
 (* DSN THIS IS A HORRID HACK FIX THIS LATER *)
 (* HACK HACK HACK *)
-let make_abstract_env_assertion_string localTid c = 
+let make_abstract_env_assertion_string flags localTid c = 
   match c.typ with
   | ProgramStmt(_,None) -> failwith "expected a tid here"
   | ProgramStmt(instr, Some thatTid) when thatTid <> localTid ->
-    make_assertion_string false c
+    make_assertion_string {flags with flowSensitive = false} c
   | _ ->
-    make_assertion_string true c
+    make_assertion_string {flags with flowSensitive = true} c
 
 (* by default, just use the standard make assertion string. Be flow sensitive *)
-let assertionStringFn = ref (make_assertion_string true)
+let assertionStringFn = ref (make_assertion_string flowSensitiveEncoding)
   
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in

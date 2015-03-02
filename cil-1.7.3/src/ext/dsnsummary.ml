@@ -301,7 +301,7 @@ let dsnsmt (f: file) : unit =
     TIDSet.iter 
       (fun tid  -> 
 	print_string ("\n\n***Processing abstract thread: " ^ string_of_int tid);
-	assertionStringFn := make_abstract_env_assertion_string tid;
+	assertionStringFn := make_abstract_env_assertion_string flowSensitiveEncoding tid;
 	let reduced = reduce_to_file 
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
 	summarize_to_file extract_tid reduced tid 
