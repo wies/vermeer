@@ -4,6 +4,7 @@
  * handle operators that differ between c and smt eg && vs and
  * remap interpolants when returning them
  * fix the way that I cast if context
+ * SMTVar should have subtypes
  *)
 
 open Cil
@@ -33,6 +34,22 @@ type smtvar = {fullname : string;
 	       vidx: int; 
 	       owner : int; 
 	       ssaIdx : int}
+
+type encodingSwitches = 
+  {flowSensitive : bool; 
+   makeFlags : bool; 
+   enforceRAW: bool; 
+   enforceWAR : bool; 
+   enforceWAW : bool}
+
+let encodingSwitchesOff = 
+  {flowSensitive = false;
+   makeFlags = false ; 
+   enforceRAW = false; 
+   enforceWAR = false; 
+   enforceWAW = false}	
+
+let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
   
 module VarM = struct 
   type t = smtvar
