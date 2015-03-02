@@ -155,7 +155,7 @@ struct
               let d = H.find degree x in
 	      if d = 1 then push x else H.replace degree x (d-1)
             with Not_found ->
-	       (* [x] already visited *)
+	      (* [x] already visited *)
 	      ())
 	  g v;
 	walk acc
@@ -187,9 +187,13 @@ let search_iclmap id icm : clause list=
   try IntClauseMap.find id icm
   with Not_found -> []
 
+let make_dotty_file filename graph = 
+  let file = open_out_bin (filename ^ ".dot") in
+  let () = Dot.output_graph file graph in
+  close_out file
 
 (* possibly use builder to remove the dependence on using imperative graphs here *)
-let make_dependency_graph clauses = 
+let make_dependency_graph  ?(dottyFileName = None) clauses = 
   let clauses = 
     (List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) clauses)
   in
@@ -248,20 +252,18 @@ let make_dependency_graph clauses =
 
     lastDefn,lastUses
   ) (emptyICM,emptyICLMap) clauses);
+
+  (* Optionally Print out the graph *)
+  (match dottyFileName with 
+  | None -> ()
+  | Some filename -> make_dotty_file filename graph);
+
   graph 
     
-let make_dotty_file filename graph = 
-  let file = open_out_bin (filename ^ ".dot") in
-  let () = Dot.output_graph file graph in
-  close_out file
-
 let topo_sort_graph graph = 
   List.rev (Top.fold (fun c lst -> c::lst)  graph [])
 
-let topo_sort ?(dottyFileName = None) clauses = 
-  let clause_graph = make_dependency_graph clauses in
-  (match dottyFileName with 
-  | None -> ()
-  | Some filename -> make_dotty_file filename clause_graph);
+let topo_sort  ?(dottyFileName = None) clauses = 
+  let clause_graph = make_dependency_graph ~dottyFileName:dottyFileName clauses in
   topo_sort_graph clause_graph 
-  
+    
