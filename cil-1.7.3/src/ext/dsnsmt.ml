@@ -30,11 +30,12 @@ type varOwner = | Thread of int
 
 type smtVarType = SMTBool | SMTInt | SMTUnknown
     
-type smtvar = {fullname : string; 
-	       vidx: int; 
-	       owner : int; 
-	       ssaIdx : int}
-
+type smtSsaVar = 
+  {fullname : string; 
+   vidx: int; 
+   owner : int; 
+   ssaIdx : int}
+    
 type encodingSwitches = 
   {flowSensitive : bool; 
    makeFlags : bool; 
@@ -52,8 +53,8 @@ let encodingSwitchesOff =
 let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
   
 module VarM = struct 
-  type t = smtvar
-  let compare x y = Pervasives.compare x y end ;;
+  type t = smtSsaVar
+  let compare = Pervasives.compare end ;;
 (* Given a variable name determine the correct mapping for it *)
 module VarMap = Map.Make(VarM)
 module VarSet = Set.Make(VarM)
@@ -65,7 +66,7 @@ module StringSet = Set.Make(String)
 module TIDSet = Set.Make(Int)
 module GroupSet = Set.Make(Int)
 module BaseVarSet = Set.Make(Int)
-type varSSAMap = smtvar VarSSAMap.t
+type varSSAMap = smtSsaVar VarSSAMap.t
 type varTypeMap = smtVarType TypeMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
 let emptyTypeMap : varTypeMap = TypeMap.empty
@@ -73,9 +74,15 @@ let emptyVarSet = VarSet.empty
 let emptyStringSet = StringSet.empty
 
 
+(* A let can take a list of bindings that it applies
+ * So we SMTLet which takes a list of SMTLetBindings, which are of the 
+ * form (SMTLetVar, term)
+ * Eventually, this should all be cleaned up by encoding the whole thing in
+ * some proper grammer.
+ *)
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
-	    | SMTVar of smtvar 
+	    | SMTSsaVar of smtSsaVar 
 	    | SMTLetVar of string
 	    | SMTLetBinding of term * term 
 	    | SMTLet of term list * term
@@ -115,7 +122,7 @@ type unsatResult =
 type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
-exception CantMap of smtvar
+exception CantMap of smtSsaVar
 
 
 (******************** Defs *************************)
@@ -140,7 +147,7 @@ let currentGroup : int option ref = ref None
 let seenThreads = ref TIDSet.empty
 let seenGroups = ref GroupSet.empty
 
-let get_var_type (var : smtvar) : smtVarType = 
+let get_var_type (var : smtSsaVar) : smtVarType = 
   try IntMap.find var.vidx !typeMap 
   with Not_found -> SMTUnknown
 
@@ -177,7 +184,7 @@ let rec string_of_formula f =
   | SMTConstant(i) -> 
     if i < Int64.zero then "(- " ^ Int64.to_string (Int64.abs i) ^ ")"
     else Int64.to_string i
-  | SMTVar(v) -> string_of_var v
+  | SMTSsaVar(v) -> string_of_var v
   | SMTLetVar(v) -> v
   | SMTFalse -> "false"
   | SMTTrue -> "true"
@@ -239,7 +246,7 @@ and debug_formula f =
   | SMTRelation(rel, args) -> 
     "\t(" ^ "Rel: " ^ rel ^ " args: " ^(debug_args args) ^ ")"
   | SMTConstant(i) -> Int64.to_string i
-  | SMTVar(v) -> debug_var v
+  | SMTSsaVar(v) -> debug_var v
   | SMTLetVar(v) -> v
   | SMTFalse | SMTTrue -> string_of_formula f
   | SMTLetBinding (v,e) -> debug_formula v ^ " " ^ debug_formula e
@@ -345,7 +352,7 @@ let type_check_and_cast_to_bool topForm =
   let second_if_matching t1 t2 = 
     if types_match t1 t2 then t2 else failwith "mismatching types"
   in
-  let update_type (var : smtvar) newType = 
+  let update_type (var : smtSsaVar) newType = 
     let currentType = get_var_type var  in
     match (currentType,newType) with 
     | SMTUnknown,SMTBool | SMTUnknown,SMTInt ->  
@@ -360,7 +367,7 @@ let type_check_and_cast_to_bool topForm =
     | SMTLetVar _ -> failwith "shouldn't be parsing this!"
     | SMTFalse | SMTTrue -> SMTBool
     | SMTConstant(_) -> SMTInt
-    | SMTVar(v) -> get_var_type v
+    | SMTSsaVar(v) -> get_var_type v
     | SMTRelation(s,l) -> begin
       match s with 
       | "ite" -> begin
@@ -391,7 +398,7 @@ let type_check_and_cast_to_bool topForm =
     | SMTLet _ -> failwith "shouldn't be parsing this!"
     | SMTLetVar _ -> failwith "shouldn't be parsing this!"
     | SMTFalse | SMTTrue | SMTConstant _ -> ()
-    | SMTVar(v) -> update_type v desired
+    | SMTSsaVar(v) -> update_type v desired
     | SMTRelation(s,l) -> begin
       match s with 
       | "ite" -> begin
@@ -435,7 +442,7 @@ let type_check_and_cast_to_bool topForm =
     | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
     | SMTLet _ -> failwith "shouldn't be parsing this!"
     | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-    | SMTFalse | SMTTrue | SMTConstant _ | SMTVar _ -> make_cast desired f
+    | SMTFalse | SMTTrue | SMTConstant _ | SMTSsaVar _ -> make_cast desired f
     | SMTRelation(s,l) -> begin
       match s with 
       | "ite" -> begin
@@ -484,7 +491,7 @@ let rec get_vars formulaList set =
     | SMTRelation(s,l) -> get_vars l set
     | SMTLet(b,t) -> get_vars b (get_vars [t] set)
     | SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ -> set
-    | SMTVar(v) -> VarSet.add v set 
+    | SMTSsaVar(v) -> VarSet.add v set 
     | SMTLetBinding(v,e) -> get_vars [e] set
 
 
@@ -553,7 +560,7 @@ let get_vars_ic icList set =
 let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList) 
     (ct: clauseType) (tags : clauseTag list)
     : clause = 
-  let rec make_ssa_map (vars : smtvar list) (ssaMap : varSSAMap) (defs : VarSet.t) 
+  let rec make_ssa_map (vars : smtSsaVar list) (ssaMap : varSSAMap) (defs : VarSet.t) 
       : (varSSAMap * VarSet.t) =
     let alreadyDefined v = 	
       try let vOld = VarSSAMap.find v.vidx ssaMap in
@@ -611,10 +618,10 @@ let remap_formula ssaMap form =
     | SMTRelation(s,tl) ->
       SMTRelation(s,List.map aux tl)
     | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ as form -> form
-    | SMTVar(v) ->
+    | SMTSsaVar(v) ->
       let newVarOpt = get_current_var v ssaMap in
       match newVarOpt with
-      | Some (newVar) -> SMTVar(newVar)
+      | Some (newVar) -> SMTSsaVar(newVar)
       | None -> raise (CantMap v)
   in
   aux form
@@ -697,7 +704,7 @@ let getFirstArgType str =
 let is_cse_var str = Str.string_match (Str.regexp ".cse[0-9]+") str 0
 
 (* canonical format: x_vidx_ssaidx *)
-let smtVarFromString str = 
+let smtSsaVarFromString str = 
   match split_on_underscore str with
   | [prefix;vidxStr;ssaIdxStr] -> 
     if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
@@ -769,7 +776,7 @@ let rec extract_term (str)  : term list =
       let tailExp = extract_term tailStr in
       let term = if is_cse_var headStr 
 	then SMTLetVar(headStr)
-	else SMTVar(smtVarFromString headStr) 
+	else SMTSsaVar(smtSsaVarFromString headStr) 
       in
       term :: tailExp
     | SexpRel -> 
@@ -797,7 +804,7 @@ let clause_from_sexp
 (*********************************C to smt converstion *************************************)
 let formula_from_lval l = 
   match l with 
-  | (Var(v),_) -> SMTVar(smtVarFromString(v.vname))
+  | (Var(v),_) -> SMTSsaVar(smtSsaVarFromString(v.vname))
   | _ -> failwith "should only have lvals of type var"
 
 let smtOpFromBinop op = 
@@ -1081,7 +1088,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     | SMTLetBinding(v,e) -> SMTLetBinding(v,ssa_free_interpolant e)
     | SMTRelation(s,tl) -> SMTRelation(s,List.map ssa_free_interpolant tl)
     | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar(_)-> form
-    | SMTVar(v) -> SMTVar {v with ssaIdx=0}
+    | SMTSsaVar(v) -> SMTSsaVar {v with ssaIdx=0}
     | SMTLet(b,t) -> SMTLet(List.map ssa_free_interpolant b,ssa_free_interpolant t)
   in
   let i1form = ssa_free_interpolant i1 in
