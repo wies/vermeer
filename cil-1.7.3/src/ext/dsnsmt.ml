@@ -82,7 +82,8 @@ let emptyStringSet = StringSet.empty
  *)
 type term = | SMTRelation of string * term list
 	    | SMTConstant of int64
-	    | SMTSsaVar of smtSsaVar 
+	    | SMTSsaVar of smtSsaVar
+	    | SMTFlagVar of string
 	    | SMTLetVar of string
 	    | SMTLetBinding of term * term 
 	    | SMTLet of term list * term
@@ -94,7 +95,15 @@ type clauseType = ProgramStmt of Cil.instr * int option
 		  | Interpolant | Constant | EqTest  
 		  | Summary of  (Cil.instr * int option ) list
 
-type sexpType = Sexp | SexpRel | SexpIntConst | SexpVar | SexpBoolConst | SexpLet
+type sexpType = | Sexp 
+		| SexpRel 
+		| SexpLet
+		| SexpIntConst 
+		| SexpBoolConst
+		| SexpSsaVar of smtSsaVar 
+		| SexpLetVar 
+		| SexpFlagVar 
+
 type ifContextElem = {iformula : term; istmt : stmt}
 type ifContextList = ifContextElem list
 
@@ -186,6 +195,7 @@ let rec string_of_formula f =
     else Int64.to_string i
   | SMTSsaVar(v) -> string_of_var v
   | SMTLetVar(v) -> v
+  | SMTFlagVar v -> v
   | SMTFalse -> "false"
   | SMTTrue -> "true"
 let string_of_term = string_of_formula
@@ -248,6 +258,7 @@ and debug_formula f =
   | SMTConstant(i) -> Int64.to_string i
   | SMTSsaVar(v) -> debug_var v
   | SMTLetVar(v) -> v
+  | SMTFlagVar v -> v
   | SMTFalse | SMTTrue -> string_of_formula f
   | SMTLetBinding (v,e) -> debug_formula v ^ " " ^ debug_formula e
 
@@ -365,6 +376,7 @@ let type_check_and_cast_to_bool topForm =
     | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
     | SMTLet _ -> failwith "shouldn't be parsing this!"
     | SMTLetVar _ -> failwith "shouldn't be parsing this!"
+    | SMTFlagVar _ -> failwith "shouldn't be parsing this!"
     | SMTFalse | SMTTrue -> SMTBool
     | SMTConstant(_) -> SMTInt
     | SMTSsaVar(v) -> get_var_type v
@@ -396,6 +408,7 @@ let type_check_and_cast_to_bool topForm =
     match f with
     | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
     | SMTLet _ -> failwith "shouldn't be parsing this!"
+    | SMTFlagVar _ -> failwith "shouldn't be parsing this!"
     | SMTLetVar _ -> failwith "shouldn't be parsing this!"
     | SMTFalse | SMTTrue | SMTConstant _ -> ()
     | SMTSsaVar(v) -> update_type v desired
@@ -442,6 +455,7 @@ let type_check_and_cast_to_bool topForm =
     | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
     | SMTLet _ -> failwith "shouldn't be parsing this!"
     | SMTLetVar _ -> failwith "shouldn't be parsing this!"
+    | SMTFlagVar _ -> failwith "shouldn't be parsing this!"
     | SMTFalse | SMTTrue | SMTConstant _ | SMTSsaVar _ -> make_cast desired f
     | SMTRelation(s,l) -> begin
       match s with 
@@ -490,7 +504,7 @@ let rec get_vars formulaList set =
     match x with
     | SMTRelation(s,l) -> get_vars l set
     | SMTLet(b,t) -> get_vars b (get_vars [t] set)
-    | SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ -> set
+    | SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ | SMTFlagVar _ -> set
     | SMTSsaVar(v) -> VarSet.add v set 
     | SMTLetBinding(v,e) -> get_vars [e] set
 
@@ -617,7 +631,7 @@ let remap_formula ssaMap form =
       SMTLet(List.map aux b, aux t)
     | SMTRelation(s,tl) ->
       SMTRelation(s,List.map aux tl)
-    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ as form -> form
+    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ | SMTFlagVar _ as form -> form
     | SMTSsaVar(v) ->
       let newVarOpt = get_current_var v ssaMap in
       match newVarOpt with
@@ -675,8 +689,21 @@ let print_annotated_trace_to_file filename trace =
 
 (******************** Input functions *************************)
 
+(* canonical format: x_vidx_ssaidx *)
+let smtSsaVarFromString str = 
+  match split_on_underscore str with
+  | [prefix;vidxStr;ssaIdxStr] -> 
+    if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
+    {fullname = str; 
+     vidx = (int_of_string vidxStr);
+     ssaIdx =  (int_of_string ssaIdxStr);
+     owner = -1
+    }
+  | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
 
 let getFirstArgType str = 
+  let is_cse_var s = Str.string_match (Str.regexp ".cse[0-9]+") s 0 in
+  let is_flag_var s = begins_with "flag_" s in
   let str = trim str in
   match str.[0] with
   | '(' 
@@ -697,25 +724,12 @@ let getFirstArgType str =
       ->  failwith "not supporting bit operators"
     | "false" | "true" 
       -> SexpBoolConst
-    | _ 
-      -> SexpVar
+    | _ when (is_cse_var str) -> SexpLetVar
+    | _ when (is_flag_var str) -> SexpFlagVar
+    (* if its not a known type, just assume its ssa var.  The conversion function
+     * will throw is this doesn't work *)
+    | _ -> SexpSsaVar (smtSsaVarFromString str) 
     end
-
-let is_cse_var str = Str.string_match (Str.regexp ".cse[0-9]+") str 0
-
-(* canonical format: x_vidx_ssaidx *)
-let smtSsaVarFromString str = 
-  match split_on_underscore str with
-  | [prefix;vidxStr;ssaIdxStr] -> 
-    if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
-    {fullname = str; 
-     vidx = (int_of_string vidxStr);
-     ssaIdx =  (int_of_string ssaIdxStr);
-     owner = -1
-    }
-  | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
-    
-
 
 let extract_unsat_core (str) : string list = 
   let str = strip_parens str in
@@ -772,12 +786,17 @@ let rec extract_term (str)  : term list =
       let c = Int64.of_string headStr in
       let term = SMTConstant(c) in
       term :: tailExp
-    | SexpVar ->
+    | SexpSsaVar v ->
       let tailExp = extract_term tailStr in
-      let term = if is_cse_var headStr 
-	then SMTLetVar(headStr)
-	else SMTSsaVar(smtSsaVarFromString headStr) 
-      in
+      let term = SMTSsaVar(v) in
+      term :: tailExp
+    | SexpLetVar ->
+      let tailExp = extract_term tailStr in
+      let term = SMTLetVar(headStr) in
+      term :: tailExp
+    | SexpFlagVar ->
+      let tailExp = extract_term tailStr in
+      let term = SMTFlagVar(headStr) in
       term :: tailExp
     | SexpRel -> 
       let tailExp = extract_term tailStr in
@@ -1087,7 +1106,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
   let rec ssa_free_interpolant form = match form with
     | SMTLetBinding(v,e) -> SMTLetBinding(v,ssa_free_interpolant e)
     | SMTRelation(s,tl) -> SMTRelation(s,List.map ssa_free_interpolant tl)
-    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar(_)-> form
+    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ | SMTFlagVar _ -> form
     | SMTSsaVar(v) -> SMTSsaVar {v with ssaIdx=0}
     | SMTLet(b,t) -> SMTLet(List.map ssa_free_interpolant b,ssa_free_interpolant t)
   in
