@@ -15,6 +15,24 @@ let printTraceSMT = ref false
 let printReducedSMT = ref false
 let toposortInput = ref false
 
+
+(****************************** encoding rules ******************************)
+let make_flowsensitive clause formula = 
+  make_dependent_on (List.map (fun x -> x.iformula) clause.ifContext) formula
+
+let make_flowsensitive_this_tid tid clause formula = 
+  match clause.typ with
+  | ProgramStmt(_,None) -> failwith "expected a tid here"
+  | ProgramStmt(instr, Some thatTid) when thatTid <> tid ->
+    identityEncodingFn clause formula
+  | _ ->
+    make_flowsensitive clause formula
+
+let make_hazards graph hazards clause formula = 
+  let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
+  let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
+  make_dependent_on pred_flags formula
+
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
 let try_interpolant_forward_k k currentState interpolant suffix  =
   match split_off_n_reversed k suffix with
@@ -345,6 +363,8 @@ let feature : featureDescr =
 	 " prints the reduced code to smt");
 	("--toposortinput", Arg.Unit (fun x -> toposortInput := true), 
 	 " Topologically Sorts the input before processing it");
+	("--flowsensitive", Arg.Unit (fun x -> toposortInput := true), 
+	 " Makes the encoding flow sensitive");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
 	  | "partitionTID" -> multithread := PARTITIONTID

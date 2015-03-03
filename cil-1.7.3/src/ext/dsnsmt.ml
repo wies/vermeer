@@ -115,34 +115,6 @@ type unsatResult =
 type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
-(* Given a clause, and a term, encode that term into a new term
- * suitable for SMT processing
- * possibily adding new flags, dependencies, etc 
- * Since we are using functions, can hide lots of interresting stuff in the 
- * curried variables *)
-type encodingFn = clause -> term -> term
-type encodingFunctions = 
-  {makeflowSensitive : encodingFn;
-   makeFlag : encodingFn;
-   makeHazards : encodingFn;
-  }
-
-
-type encodingSwitches = 
-  {flowSensitive : bool; 
-   makeFlags : bool; 
-   enforceRAW: bool; 
-   enforceWAR : bool; 
-   enforceWAW : bool}
-
-let encodingSwitchesOff = 
-  {flowSensitive = false;
-   makeFlags = false ; 
-   enforceRAW = false; 
-   enforceWAR = false; 
-   enforceWAW = false}	
-
-let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
 
 exception CantMap of smtSsaVar
 
@@ -296,6 +268,43 @@ let debug_typemap () =
   in
   TypeMap.fold fold_fn !typeMap ""
 
+
+(****************************** Encoding in smt strings ******************************)
+(* Given a clause, and a term, encode that term into a new term
+ * suitable for SMT processing
+ * possibily adding new flags, dependencies, etc 
+ * Since we are using functions, can hide lots of interresting stuff in the 
+ * curried variables *)
+type encodingFn = clause -> term -> term
+type encodingFunctions = 
+  {makeflowSensitive : encodingFn;
+   makeFlag : encodingFn;
+   makeHazards : encodingFn;
+  }
+let identityEncodingFn clause formula = formula
+let identityEncoding = {
+  makeflowSensitive = identityEncodingFn;
+  makeFlag =  identityEncodingFn;
+  makeHazards = identityEncodingFn;
+}
+
+
+type encodingSwitches = 
+  {flowSensitive : bool; 
+   makeFlags : bool; 
+   enforceRAW: bool; 
+   enforceWAR : bool; 
+   enforceWAW : bool}
+
+let encodingSwitchesOff = 
+  {flowSensitive = false;
+   makeFlags = false ; 
+   enforceRAW = false; 
+   enforceWAR = false; 
+   enforceWAW = false}	
+
+let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
+
 let assertion_name (c : clause) :string = 
   match c.typ with
   | ProgramStmt(_) -> 
@@ -309,15 +318,16 @@ let assertion_name (c : clause) :string =
   | Summary _ -> failwith "should not be asserting summaries"
 
 let get_flag_var c = SMTFlagVar ("flag_" ^ assertion_name c)
+let make_dependent_on (dependencyList: term list) (formula : term) = 
+  match dependencyList with
+  | [] -> formula
+  | [x] -> SMTRelation ("=>", [x;formula])
+  | _ -> let dependency = SMTRelation("and", dependencyList) in
+	 SMTRelation("=>", [dependency; formula]) 
+
+
 
 let make_assertion_string encodingOpts c =
-  let make_dependent_on (dependencyList: term list) (formula : term) = 
-    match dependencyList with
-    | [] -> formula
-    | [x] -> SMTRelation ("=>", [x;formula])
-    | _ -> let dependency = SMTRelation("and", dependencyList) in
-	   SMTRelation("=>", [dependency; formula]) 
-  in
   let make_flowsensitive_formula ic formula = 
     make_dependent_on (List.map (fun x -> x.iformula) ic) formula
   in
