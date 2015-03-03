@@ -11,13 +11,24 @@ let string_of_hazard = function
   | HAZARD_PO  -> "PO" 
   | NO_HAZARD  -> failwith "shouldn't ever see this"
 
-module HazardEdge = struct 
+module HazardM = struct 
   type t = hazard 
   let compare = compare               
   let hash = Hashtbl.hash 
   let equal = (=)
   let default = NO_HAZARD
 end   
+
+module HazardSet = Set.Make(HazardM)
+
+module HazardEdge = HazardM
+
+module ClauseM = struct
+  type t = clause
+  let compare = compare
+  let equal = (=)
+  let hash = Hashtbl.hash
+end
 
 (* Sort by tid first, to try to group tids as much as possible *)
 module ClauseVertex = struct 
@@ -29,6 +40,8 @@ module ClauseVertex = struct
   let equal = (=)
   let hash = Hashtbl.hash
 end
+
+module ClauseSet = Set.Make(ClauseVertex)
 
 module G = Imperative.Digraph.ConcreteLabeled(ClauseVertex)(HazardEdge)
 module Dot = Graph.Graphviz.Dot(struct
@@ -266,4 +279,14 @@ let topo_sort_graph graph =
 let topo_sort  ?(dottyFileName = None) clauses = 
   let clause_graph = make_dependency_graph ~dottyFileName:dottyFileName clauses in
   topo_sort_graph clause_graph 
+    
+(* Given a vertex and a set of hazards, get all the clauses that that 
+ * are predecessors to the clause by some hazard relation *)
+let get_hazard_preds graph hazards vertex =
+  G.fold_pred_e 
+    (fun edge acc -> 
+      if (HazardSet.mem (G.E.label edge) hazards) 
+      then ClauseSet.add (G.E.src edge) acc
+      else acc
+    ) graph vertex ClauseSet.empty
     
