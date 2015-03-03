@@ -35,22 +35,7 @@ type smtSsaVar =
    vidx: int; 
    owner : int; 
    ssaIdx : int}
-    
-type encodingSwitches = 
-  {flowSensitive : bool; 
-   makeFlags : bool; 
-   enforceRAW: bool; 
-   enforceWAR : bool; 
-   enforceWAW : bool}
 
-let encodingSwitchesOff = 
-  {flowSensitive = false;
-   makeFlags = false ; 
-   enforceRAW = false; 
-   enforceWAR = false; 
-   enforceWAW = false}	
-
-let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
   
 module VarM = struct 
   type t = smtSsaVar
@@ -72,7 +57,6 @@ let emptySSAMap : varSSAMap = VarSSAMap.empty
 let emptyTypeMap : varTypeMap = TypeMap.empty
 let emptyVarSet = VarSet.empty
 let emptyStringSet = StringSet.empty
-
 
 (* A let can take a list of bindings that it applies
  * So we SMTLet which takes a list of SMTLetBindings, which are of the 
@@ -130,6 +114,35 @@ type unsatResult =
   GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
 type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
+
+(* Given a clause, and a term, encode that term into a new term
+ * suitable for SMT processing
+ * possibily adding new flags, dependencies, etc 
+ * Since we are using functions, can hide lots of interresting stuff in the 
+ * curried variables *)
+type encodingFn = clause -> term -> term
+type encodingFunctions = 
+  {makeflowSensitive : encodingFn;
+   makeFlag : encodingFn;
+   makeHazards : encodingFn;
+  }
+
+
+type encodingSwitches = 
+  {flowSensitive : bool; 
+   makeFlags : bool; 
+   enforceRAW: bool; 
+   enforceWAR : bool; 
+   enforceWAW : bool}
+
+let encodingSwitchesOff = 
+  {flowSensitive = false;
+   makeFlags = false ; 
+   enforceRAW = false; 
+   enforceWAR = false; 
+   enforceWAW = false}	
+
+let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
 
 exception CantMap of smtSsaVar
 
@@ -295,22 +308,25 @@ let assertion_name (c : clause) :string =
   | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
   | Summary _ -> failwith "should not be asserting summaries"
 
+let get_flag_var c = SMTFlagVar ("flag_" ^ assertion_name c)
 
-
-let make_assertion_string flags c =
-  let make_flowsensitive_formula c =
-    let make_ifContext_formula ic = 
-      match ic with 
-      | [] -> SMTTrue
-      | [x] -> x.iformula
-      | _ -> SMTRelation("and", List.map (fun x -> x.iformula) ic)
-    in
-    if c.ifContext <> [] then
-      SMTRelation("=>", [make_ifContext_formula c.ifContext;c.formula])
-    else
-      c.formula
+let make_assertion_string encodingOpts c =
+  let make_dependent_on (dependencyList: term list) (formula : term) = 
+    match dependencyList with
+    | [] -> formula
+    | [x] -> SMTRelation ("=>", [x;formula])
+    | _ -> let dependency = SMTRelation("and", dependencyList) in
+	   SMTRelation("=>", [dependency; formula]) 
   in
-  let form = if flags.flowSensitive then make_flowsensitive_formula c else c.formula in 
+  let make_flowsensitive_formula ic formula = 
+    make_dependent_on (List.map (fun x -> x.iformula) ic) formula
+  in
+  let form = 
+    if encodingOpts.makeFlags then SMTRelation("and", [get_flag_var c; c.formula]) 
+    else c.formula in
+  let form = 
+    if encodingOpts.flowSensitive then make_flowsensitive_formula c.ifContext form
+    else form in 
   "(assert (! " 
   ^ string_of_formula form
   ^ " :named " ^ assertion_name c
