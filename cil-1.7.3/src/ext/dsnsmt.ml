@@ -325,8 +325,17 @@ let make_dependent_on (dependencyList: term list) (formula : term) =
   | _ -> let dependency = SMTRelation("and", dependencyList) in
 	 SMTRelation("=>", [dependency; formula]) 
 
-
-
+(* Important that we make the flag first, cause it has to go inside the dependency *)
+let encode_formula opts clause = 
+  let form = clause.formula in
+  let form = opts.makeFlag clause form in
+  let form = opts.makeflowSensitive clause form in
+  let form = opts.makeHazards clause form in
+  "(assert (! " 
+  ^ string_of_formula form
+  ^ " :named " ^ assertion_name clause
+  ^ "))\n"
+    
 let make_assertion_string encodingOpts c =
   let make_flowsensitive_formula ic formula = 
     make_dependent_on (List.map (fun x -> x.iformula) ic) formula
@@ -341,6 +350,8 @@ let make_assertion_string encodingOpts c =
   ^ string_of_formula form
   ^ " :named " ^ assertion_name c
   ^ "))\n"
+
+
 
 (* DSN THIS IS A HORRID HACK FIX THIS LATER *)
 (* HACK HACK HACK *)

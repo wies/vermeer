@@ -28,6 +28,7 @@ let make_flowsensitive_this_tid tid clause formula =
   | _ ->
     make_flowsensitive clause formula
 
+
 let make_hazards graph hazards clause formula = 
   let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
   let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
