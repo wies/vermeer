@@ -36,7 +36,7 @@ type smtSsaVar =
    owner : int; 
    ssaIdx : int}
 
-  
+    
 module VarM = struct 
   type t = smtSsaVar
   let compare = Pervasives.compare end ;;
@@ -277,33 +277,16 @@ let debug_typemap () =
  * curried variables *)
 type encodingFn = clause -> term -> term
 type encodingFunctions = 
-  {makeflowSensitive : encodingFn;
+  {makeFlowSensitive : encodingFn;
    makeFlag : encodingFn;
    makeHazards : encodingFn;
   }
 let identityEncodingFn clause formula = formula
 let identityEncoding = {
-  makeflowSensitive = identityEncodingFn;
+  makeFlowSensitive = identityEncodingFn;
   makeFlag =  identityEncodingFn;
   makeHazards = identityEncodingFn;
 }
-
-
-type encodingSwitches = 
-  {flowSensitive : bool; 
-   makeFlags : bool; 
-   enforceRAW: bool; 
-   enforceWAR : bool; 
-   enforceWAW : bool}
-
-let encodingSwitchesOff = 
-  {flowSensitive = false;
-   makeFlags = false ; 
-   enforceRAW = false; 
-   enforceWAR = false; 
-   enforceWAW = false}	
-
-let flowSensitiveEncoding = {encodingSwitchesOff with flowSensitive = true}
 
 let assertion_name (c : clause) :string = 
   match c.typ with
@@ -329,42 +312,14 @@ let make_dependent_on (dependencyList: term list) (formula : term) =
 let encode_formula opts clause = 
   let form = clause.formula in
   let form = opts.makeFlag clause form in
-  let form = opts.makeflowSensitive clause form in
+  let form = opts.makeFlowSensitive clause form in
   let form = opts.makeHazards clause form in
   "(assert (! " 
   ^ string_of_formula form
   ^ " :named " ^ assertion_name clause
   ^ "))\n"
     
-let make_assertion_string encodingOpts c =
-  let make_flowsensitive_formula ic formula = 
-    make_dependent_on (List.map (fun x -> x.iformula) ic) formula
-  in
-  let form = 
-    if encodingOpts.makeFlags then SMTRelation("and", [get_flag_var c; c.formula]) 
-    else c.formula in
-  let form = 
-    if encodingOpts.flowSensitive then make_flowsensitive_formula c.ifContext form
-    else form in 
-  "(assert (! " 
-  ^ string_of_formula form
-  ^ " :named " ^ assertion_name c
-  ^ "))\n"
-
-
-
-(* DSN THIS IS A HORRID HACK FIX THIS LATER *)
-(* HACK HACK HACK *)
-let make_abstract_env_assertion_string flags localTid c = 
-  match c.typ with
-  | ProgramStmt(_,None) -> failwith "expected a tid here"
-  | ProgramStmt(instr, Some thatTid) when thatTid <> localTid ->
-    make_assertion_string {flags with flowSensitive = false} c
-  | _ ->
-    make_assertion_string {flags with flowSensitive = true} c
-
-(* by default, just use the standard make assertion string. Be flow sensitive *)
-let assertionStringFn = ref (make_assertion_string flowSensitiveEncoding)
+let encodeFormulaOpts = ref identityEncoding
   
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in
@@ -1089,7 +1044,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   let allVars = all_vars clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* write the program clauses *)
-  List.iter (fun x -> write_line_to_solver solver (!assertionStringFn x)) clauses;
+  List.iter (fun x -> write_line_to_solver solver (encode_formula !encodeFormulaOpts x)) clauses;
   (* write the commands *)
   let cmds = match pt with
     | CheckSat -> 

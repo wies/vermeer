@@ -28,7 +28,6 @@ let make_flowsensitive_this_tid tid clause formula =
   | _ ->
     make_flowsensitive clause formula
 
-
 let make_hazards graph hazards clause formula = 
   let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
   let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
@@ -91,8 +90,8 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
   let partition =  make_all_interpolants clauses in
   match do_smt clauses (GetInterpolation partition) with
   | Unsat (GotInterpolant inters) -> 
-      (* the interpolant list will be missing the program precondition
-       * so we start with an extra interpolant "true" *)
+    (* the interpolant list will be missing the program precondition
+     * so we start with an extra interpolant "true" *)
     let zipped = List.combine (SMTTrue::inters) clauses in
     zipped
   | _ -> failwith "make_cheap_annotated_trace failed"
@@ -148,7 +147,7 @@ let reduce_trace_expensive propAlgorithm trace =
     | [] -> reducedPrefixRev
     | [x] -> (currentState.formula,x)::reducedPrefixRev
     | x :: unreducedSuffix ->
-	(* We know we need to keep x, but can we reduce the suffix further? *)
+      (* We know we need to keep x, but can we reduce the suffix further? *)
       let before = [currentState;x] in
       let after = unreducedSuffix in
       let partition = make_interpolate_between before after in
@@ -156,10 +155,10 @@ let reduce_trace_expensive propAlgorithm trace =
       | Unsat (GotInterpolant [interpolantTerm]) -> 
 	let interpolant = 
 	  make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
-	    (*find_farthest_point_interpolant_valid 
-	     * we start in state interpolant, with guess 
-	     * interpolant.  See if we can propegage it
-	     * across the new suffix  *)
+	(*find_farthest_point_interpolant_valid 
+	 * we start in state interpolant, with guess 
+	 * interpolant.  See if we can propegage it
+	 * across the new suffix  *)
 	let newCurrentState, unreducedSuffix = 
 	  propAlgorithm interpolant interpolant unreducedSuffix in
 	reduce_trace_imp 
@@ -225,11 +224,11 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	let inGroup = (groupId = idExtractor c) in
 	match inGroup,groupExitCond with
 	| true,None -> 
-		(* Were in desired thread, stayed in it*)
+	  (* Were in desired thread, stayed in it*)
 	  aux xs (hd::groupAccum) None [] 
 	| true,Some cond  -> 
-		(* we not in the desired group, now entered it.  Have to build 
-		 * the summary *)
+	  (* we not in the desired group, now entered it.  Have to build 
+	   * the summary *)
 	  let summary = make_clause 
 	    (SMTRelation("=>",[cond;i])) 
 	    c.ssaIdxs
@@ -239,10 +238,10 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	  in
 	  aux xs (hd::(cond,summary)::groupAccum) None []
 	| false, None  -> 
-		(* we just left the desired thread *)
+	  (* we just left the desired thread *)
 	  aux xs groupAccum (Some i) ((instr,Some thatTid)::summaryAccum)
 	| false, Some cond  -> 
-		(* we are out of the desired thread, and have been for at least one statment*)
+	  (* we are out of the desired thread, and have been for at least one statment*)
 	  aux xs groupAccum groupExitCond ((instr,Some thatTid)::summaryAccum)
       end
       | _ -> failwith "not a programstatment in summirization"
@@ -321,7 +320,8 @@ let dsnsmt (f: file) : unit =
     TIDSet.iter 
       (fun tid  -> 
 	print_string ("\n\n***Processing abstract thread: " ^ string_of_int tid);
-	assertionStringFn := make_abstract_env_assertion_string flowSensitiveEncoding tid;
+	encodeFormulaOpts := 
+	  {!encodeFormulaOpts with makeFlowSensitive = make_flowsensitive_this_tid tid};
 	let reduced = reduce_to_file 
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
 	summarize_to_file extract_tid reduced tid 
@@ -334,9 +334,9 @@ let dsnsmt (f: file) : unit =
   Dsngraph.make_dotty_file "myfile" clause_graph;
   let sorted = Dsngraph.topo_sort_graph clause_graph in
   (*print_clauses sorted;
-  print_cprogram sorted;*)
+    print_cprogram sorted;*)
   Printf.printf "%d\n" (count_contextswitches sorted);
-(*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
+  (*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
   exit_all_solvers() 
     
 
@@ -364,7 +364,8 @@ let feature : featureDescr =
 	 " prints the reduced code to smt");
 	("--toposortinput", Arg.Unit (fun x -> toposortInput := true), 
 	 " Topologically Sorts the input before processing it");
-	("--flowsensitive", Arg.Unit (fun x -> toposortInput := true), 
+	("--flowsensitive", Arg.Unit (fun x -> encodeFormulaOpts := 
+	  {!encodeFormulaOpts with makeFlowSensitive = make_flowsensitive}), 
 	 " Makes the encoding flow sensitive");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
