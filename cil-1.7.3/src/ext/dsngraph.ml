@@ -1,6 +1,6 @@
 open Graph
 open Dsnutils
-open Dsnsmt
+open Dsnsmtdefs
 
 type hazard = HAZARD_RAR |  HAZARD_RAW | HAZARD_WAR | HAZARD_WAW | HAZARD_PO | NO_HAZARD
 let string_of_hazard = function 
@@ -31,9 +31,9 @@ end
 
 (* Sort by tid first, to try to group tids as much as possible *)
 module ClauseVertex = struct 
-  type t = Dsnsmt.clause
+  type t = clause
   let compare a b = 
-    match Dsnsmt.compare_tid_opt a b with
+    match Dsnsmtdefs.compare_tid_opt a b with
     | Some c -> c
     | None -> compare a.idx b.idx
   let equal = (=)
@@ -49,7 +49,7 @@ module Dot = Graph.Graphviz.Dot(struct
   let default_edge_attributes _ = []
   let get_subgraph _ = None
   let vertex_attributes _ = [`Shape `Box]
-  let vertex_name v = assertion_name v
+  let vertex_name v = clause_name v
   let default_vertex_attributes _ = []
   let graph_attributes _ = []
 end)
@@ -187,13 +187,13 @@ end
 module Top = Sort_using_tid
 
 module IntClauseMap = Map.Make(Int)
-type intClauseMap = Dsnsmt.clause IntClauseMap.t
+type intClauseMap = clause IntClauseMap.t
 let emptyICM : intClauseMap = IntClauseMap.empty
 let search_icm id icm : clause option = 
   try Some(IntClauseMap.find id icm) 
   with Not_found -> None
 
-type intCLMap = (Dsnsmt.clause list) IntClauseMap.t
+type intCLMap = (clause list) IntClauseMap.t
 let emptyICLMap : intCLMap = IntClauseMap.empty
 let search_iclmap id icm : clause list= 
   try IntClauseMap.find id icm

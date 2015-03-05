@@ -9,12 +9,14 @@
 
 open Cil
 open Dsnutils
+open Dsnsmtdefs
 
 (* issue if interpolant tries to go past where something is used *)
 
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
 let smtCallTime = ref []
+let calcStats = ref false
 
 
 
@@ -22,101 +24,7 @@ let smtCallTime = ref []
 (* keep around the vars for a partition
 *)
 
-(*******************************TYPES *************************************)
 
-
-type varOwner = | Thread of int 
-		| Global
-
-type smtVarType = SMTBool | SMTInt | SMTUnknown
-    
-type smtSsaVar = 
-  {fullname : string; 
-   vidx: int; 
-   owner : int; 
-   ssaIdx : int}
-
-    
-module VarM = struct 
-  type t = smtSsaVar
-  let compare = Pervasives.compare end ;;
-(* Given a variable name determine the correct mapping for it *)
-module VarMap = Map.Make(VarM)
-module VarSet = Set.Make(VarM)
-module IntMap = Map.Make(Int)
-module VarSSAMap = Map.Make(Int)
-module TypeMap = Map.Make(Int)
-module StringMap = Map.Make(String)
-module StringSet = Set.Make(String)
-module TIDSet = Set.Make(Int)
-module GroupSet = Set.Make(Int)
-module BaseVarSet = Set.Make(Int)
-type varSSAMap = smtSsaVar VarSSAMap.t
-type varTypeMap = smtVarType TypeMap.t
-let emptySSAMap : varSSAMap = VarSSAMap.empty
-let emptyTypeMap : varTypeMap = TypeMap.empty
-let emptyVarSet = VarSet.empty
-let emptyStringSet = StringSet.empty
-
-(* A let can take a list of bindings that it applies
- * So we SMTLet which takes a list of SMTLetBindings, which are of the 
- * form (SMTLetVar, term)
- * Eventually, this should all be cleaned up by encoding the whole thing in
- * some proper grammer.
- *)
-type term = | SMTRelation of string * term list
-	    | SMTConstant of int64
-	    | SMTSsaVar of smtSsaVar
-	    | SMTFlagVar of string
-	    | SMTLetVar of string
-	    | SMTLetBinding of term * term 
-	    | SMTLet of term list * term
-	    | SMTTrue | SMTFalse
-
-
-(* TODO record the program location in the programStmt *)
-type clauseType = ProgramStmt of Cil.instr * int option 
-		  | Interpolant | Constant | EqTest  
-		  | Summary of  (Cil.instr * int option ) list
-
-type sexpType = | Sexp 
-		| SexpRel 
-		| SexpLet
-		| SexpIntConst 
-		| SexpBoolConst
-		| SexpSsaVar of smtSsaVar 
-		| SexpLetVar 
-		| SexpFlagVar 
-
-type ifContextElem = {iformula : term; istmt : stmt}
-type ifContextList = ifContextElem list
-
-type clauseTag = ThreadTag of int | LabelTag of string | SummaryGroupTag of int
-let noTags = []
-
-type clause = {formula : term; 
-	       idx : int; 
-	       vars : VarSet.t;
-	       defs : VarSet.t;
-	       ssaIdxs : varSSAMap;
-	       typ : clauseType;
-	       ifContext : ifContextList;
-	       cTags : clauseTag list
-	      }
-
-type trace = clause list
-
-(* An annotated trace pairs a clause representing an instruction
- * with the term which represents its precondition *)
-type annotatedTrace = (term * clause) list
-type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
-type unsatResult = 
-  GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
-type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
-type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
-
-
-exception CantMap of smtSsaVar
 
 
 (******************** Defs *************************)
@@ -131,18 +39,24 @@ let emptyIfContext = []
 (******************** Globals *************************)
 
 (* DSN TODO just pass this around *)
-type smtParsedFile = 
-  {mutable count : int;
-   mutable currentFunc: string;
-   mutable revProgram: clause list;
-   mutable typeMap: varTypeMap;
-   mutable currentIfContext : ifContextList;
-   mutable currentThread : int option;
-   mutable currentLabel : string option;
-   mutable currentGroup : int option;
-   mutable seenThreads : TIDSet.t;
-   mutable seenGroups : GroupSet.t;
+type smtParsedResults = 
+  { count : int;
+    typeMap: varTypeMap;
+    seenThreads : TIDSet.t;
+    seenGroups : GroupSet.t;
+    clauses : clause list;
+    (*mutable graph : Dsngraph.G.t option;*)
   }
+
+type smtParseInternal = {
+  mutable currentFunc: string;
+  mutable revProgram: clause list;
+  mutable currentIfContext : ifContextList;
+  mutable currentThread : int option;
+  mutable currentLabel : string option;
+  mutable currentGroup : int option;
+}
+
 
 let count = ref 1
 let currentFunc: string ref = ref ""
@@ -212,17 +126,7 @@ let string_of_ifcontext ic =
   in
   aux ic ""
 
-let string_of_tag  = function 
-  | ThreadTag i -> "Thread_" ^ string_of_int i
-  | LabelTag s -> "Label_" ^ s
-  | SummaryGroupTag g -> "Group_" ^ string_of_int g
 
-let string_of_tags tags = List.fold_left (fun a x -> "//" ^ string_of_tag x ^ "\n" ^ a) "" tags
-
-let rec label_string = function
-  | LabelTag _ as l :: _ -> string_of_tag l
-  | x::xs -> label_string xs
-  | [] -> ""
 
 let string_of_cprogram c =
   match c.typ with 
@@ -303,19 +207,7 @@ let identityEncoding = {
   makeHazards = identityEncodingFn;
 }
 
-let assertion_name (c : clause) :string = 
-  match c.typ with
-  | ProgramStmt(_) -> 
-    (* as long as labels are unique, this will work just fine *)
-    let prefix = label_string c.cTags in
-    if prefix <> "" then prefix 
-    else "PS_" ^ (string_of_int c.idx)
-  | Interpolant -> "IP_" ^ (string_of_int c.idx)
-  | Constant -> "CON_" ^ (string_of_int c.idx)
-  | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
-  | Summary _ -> failwith "should not be asserting summaries"
-
-let get_flag_var c = SMTFlagVar ("flag_" ^ assertion_name c)
+let get_flag_var c = SMTFlagVar ("flag_" ^ clause_name c)
 let make_dependent_on (dependencyList: term list) (formula : term) = 
   match dependencyList with
   | [] -> formula
@@ -331,7 +223,7 @@ let encode_formula opts clause =
   let form = opts.makeHazards clause form in
   "(assert (! " 
   ^ string_of_formula form
-  ^ " :named " ^ assertion_name clause
+  ^ " :named " ^ clause_name clause
   ^ "))\n"
     
 let encodeFormulaOpts = ref identityEncoding
@@ -530,11 +422,6 @@ let rec get_vars formulaList set =
  * var -> type mappings
  *)
 
-let get_uses clause = VarSet.diff clause.vars clause.defs
-let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
-let all_basevars clauses = 
-  let allVars = all_vars clauses in
-  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
 
 let count_basevars clauses = 
   BaseVarSet.cardinal (all_basevars clauses)
@@ -542,36 +429,6 @@ let count_basevars clauses =
 let count_basevars_at a = count_basevars (trace_from_at a)
 
 
-let extract_tid_opt cls = 
-  let rec aux = function
-    | [] -> None
-    | x::xs ->  match x with
-      | ThreadTag i -> Some i
-      | _ -> aux xs
-  in
-  aux cls.cTags
-
-let extract_tid cls = 
-  match extract_tid_opt cls with
-  | None -> failwith "no tid"
-  | Some i -> i
-
-let compare_tid_opt a b = 
-  try 
-    let tidA = extract_tid a in
-    let tidB = extract_tid b in
-    Some (compare tidA tidB)
-  with
-    _ -> None
-
-let extract_group cls = 
-  let rec aux = function
-    | [] -> failwith "no tid"
-    | x::xs ->  match x with
-      | SummaryGroupTag i -> i
-      | _ -> aux xs
-  in
-  aux cls.cTags
 
 let get_vars_ic icList set = 
   List.fold_left (fun a e -> get_vars [e.iformula] a) set icList
@@ -666,17 +523,17 @@ let remap_clause ssaMap cls =
 (******************** File creation ********************)
 
 let make_all_interpolants program =
-  let str = List.fold_left (fun accum elem -> accum ^ " " ^ (assertion_name elem)) "" program in
+  let str = List.fold_left (fun accum elem -> accum ^ " " ^ (clause_name elem)) "" program in
   "(get-interpolants " ^ str ^ ")\n"
 
 let make_interpolate_between before after = 
   let string_of_partition part = 
     match part with 
     | [] -> failwith "should be a partition"
-    | [x] -> assertion_name x
+    | [x] -> clause_name x
     | _ -> 
       let names = List.fold_left 
-	(fun accum elem -> (assertion_name elem) ^ " " ^ accum) "" part in
+	(fun accum elem -> (clause_name elem) ^ " " ^ accum) "" part in
       "(and " ^ names ^ ")"
   in
   let beforeNames = string_of_partition before in
@@ -1190,18 +1047,22 @@ let count_statements clauses =
 let count_statements_at at = do_on_trace count_statements at
 
 let calculate_stats (description : string) (trace : clause list)  = 
-  let switches = count_contextswitches trace in
-  let stmts = count_statements trace in
-  let numvars = count_basevars trace in
-  Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
-    description switches stmts numvars
+  if !calcStats then begin
+    let switches = count_contextswitches trace in
+    let stmts = count_statements trace in
+    let numvars = count_basevars trace in
+    Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
+      description switches stmts numvars
+  end
 
 let calculate_thread_stats (trace : clause list) = 
-  TIDSet.iter (fun tid -> 
-    let tidStmts = List.filter 
-      (fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) trace in
-    calculate_stats ("Init" ^ string_of_int tid) tidStmts ) !seenThreads
-    
+  if !calcStats then begin
+    TIDSet.iter (fun tid -> 
+      let tidStmts = List.filter 
+	(fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) 
+	trace in
+      calculate_stats ("Init" ^ string_of_int tid) tidStmts ) !seenThreads
+  end
 let calculate_stats_at description at = calculate_stats description (trace_from_at at)
 
 (***************************** Parse file to smt ******************************)
@@ -1279,3 +1140,20 @@ class dsnsmtVisitorClass = object
   end
 end
 
+let parse_file (file: file) = 
+  let dsnsmtVisitor = new dsnsmtVisitorClass in
+  let doGlobal = function 
+    | GVarDecl (v, _) -> ()
+    | GFun (fdec, loc) ->
+      currentFunc := fdec.svar.vname;
+      (* do the body *)
+      ignore (visitCilFunction dsnsmtVisitor fdec);
+    | _ -> () in 
+  let _ = Stats.time "dsn" (iterGlobals file) doGlobal in
+  let clauses = List.rev !revProgram in
+  {count = !count;
+   typeMap = !typeMap;
+   seenGroups = !seenGroups;
+   seenThreads = !seenThreads;
+   clauses = clauses;
+  }

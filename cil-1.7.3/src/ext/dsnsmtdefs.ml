@@ -70,6 +70,18 @@ type ifContextList = ifContextElem list
 type clauseTag = ThreadTag of int | LabelTag of string | SummaryGroupTag of int
 let noTags = []
 
+let string_of_tag  = function 
+  | ThreadTag i -> "Thread_" ^ string_of_int i
+  | LabelTag s -> "Label_" ^ s
+  | SummaryGroupTag g -> "Group_" ^ string_of_int g
+
+let string_of_tags tags = List.fold_left (fun a x -> "//" ^ string_of_tag x ^ "\n" ^ a) "" tags
+
+let rec label_string = function
+  | LabelTag _ as l :: _ -> string_of_tag l
+  | x::xs -> label_string xs
+  | [] -> ""
+
 type clause = {formula : term; 
 	       idx : int; 
 	       vars : VarSet.t;
@@ -92,3 +104,52 @@ type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
 exception CantMap of smtSsaVar
+
+let clause_name (c : clause) :string = 
+  match c.typ with
+  | ProgramStmt(_) -> 
+    (* as long as labels are unique, this will work just fine *)
+    let prefix = label_string c.cTags in
+    if prefix <> "" then prefix 
+    else "PS_" ^ (string_of_int c.idx)
+  | Interpolant -> "IP_" ^ (string_of_int c.idx)
+  | Constant -> "CON_" ^ (string_of_int c.idx)
+  | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
+  | Summary _ -> failwith "should not be asserting summaries"
+
+let extract_tid_opt cls = 
+  let rec aux = function
+    | [] -> None
+    | x::xs ->  match x with
+      | ThreadTag i -> Some i
+      | _ -> aux xs
+  in
+  aux cls.cTags
+
+let extract_tid cls = 
+  match extract_tid_opt cls with
+  | None -> failwith "no tid"
+  | Some i -> i
+
+let compare_tid_opt a b = 
+  try 
+    let tidA = extract_tid a in
+    let tidB = extract_tid b in
+    Some (compare tidA tidB)
+  with
+    _ -> None
+
+let extract_group cls = 
+  let rec aux = function
+    | [] -> failwith "no tid"
+    | x::xs ->  match x with
+      | SummaryGroupTag i -> i
+      | _ -> aux xs
+  in
+  aux cls.cTags
+
+let get_uses clause = VarSet.diff clause.vars clause.defs
+let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
+let all_basevars clauses = 
+  let allVars = all_vars clauses in
+  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty

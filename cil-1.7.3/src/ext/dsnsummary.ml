@@ -2,6 +2,7 @@ open Dsnsmt
 open Graph
 open Dsnutils
 open Cil
+open Dsnsmtdefs
 
 (****************************** Globals and types ******************************)
 type analysis = 
@@ -90,7 +91,7 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
   match do_smt unreducedClauses GetUnsatCore with
   | Unsat (GotUnsatCore core) ->
-    List.filter (fun c -> StringSet.mem (assertion_name c) core) unreducedClauses 
+    List.filter (fun c -> StringSet.mem (clause_name c) core) unreducedClauses 
   | _-> failwith "unable to get core"
     
 (* all this does is find the precondition for each statement.  No reductions *)
@@ -294,17 +295,9 @@ let partition_to_file technique reduced id =
 
 (******************** Actually do the pass over the code ********************)
 
-let dsnsmtVisitor = new dsnsmtVisitorClass
 let dsnsmt (f: file) : unit =
-  let doGlobal = function 
-    | GVarDecl (v, _) -> ()
-    | GFun (fdec, loc) ->
-      currentFunc := fdec.svar.vname;
-      (* do the body *)
-      ignore (visitCilFunction dsnsmtVisitor fdec);
-    | _ -> () in 
-  let _ = Stats.time "dsn" (iterGlobals f) doGlobal in
-  let clauses = List.rev !revProgram in
+  let parsed = parse_file f in
+  let clauses = parsed.clauses in
   let clauses = if (!toposortInput) then Dsngraph.topo_sort clauses else clauses in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
@@ -313,17 +306,17 @@ let dsnsmt (f: file) : unit =
   begin match !multithread with
   | PARTITIONTID -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
-    TIDSet.iter (partition_to_file extract_tid reducedClauses) !seenThreads
+    TIDSet.iter (partition_to_file extract_tid reducedClauses) parsed.seenThreads
   | PARTITIONGROUP -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
-    GroupSet.iter (partition_to_file extract_group reducedClauses) !seenGroups
+    GroupSet.iter (partition_to_file extract_group reducedClauses) parsed.seenGroups
   | ALLGROUPS -> 
     let reduced = reduce_to_file !analysis "reduced" clauses in
-    GroupSet.iter (summarize_to_file extract_group reduced) !seenGroups
+    GroupSet.iter (summarize_to_file extract_group reduced) parsed.seenGroups
   | ALLTHREADS ->
     let reduced = reduce_to_file !analysis "reduced" clauses in
     calculate_thread_stats clauses;
-    TIDSet.iter (summarize_to_file extract_tid reduced) !seenThreads
+    TIDSet.iter (summarize_to_file extract_tid reduced) parsed.seenThreads
   | ABSTRACTENV -> 
     TIDSet.iter 
       (fun tid  -> 
@@ -366,6 +359,8 @@ let feature : featureDescr =
 	 " the analysis to use unsatcore linearsearch binarysearch");
 	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
 	 " turns on printing debug messages");
+	("--smtcalcstats", Arg.Unit (fun x -> calcStats := true), 
+	 " turns on statistics");
 	("--smtprinttrace", Arg.Unit (fun x -> printTraceSMT := true), 
 	 " prints the origional trace to smt");
 	("--smtprintreduced", Arg.Unit (fun x -> printReducedSMT := true), 
