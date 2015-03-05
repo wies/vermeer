@@ -55,14 +55,6 @@ type clauseType = ProgramStmt of Cil.instr * int option
 		  | Interpolant | Constant | EqTest  
 		  | Summary of  (Cil.instr * int option ) list
 
-type sexpType = | Sexp 
-		| SexpRel 
-		| SexpLet
-		| SexpIntConst 
-		| SexpBoolConst
-		| SexpSsaVar of smtSsaVar 
-		| SexpLetVar 
-		| SexpFlagVar 
 
 type ifContextElem = {iformula : term; istmt : Cil.stmt}
 type ifContextList = ifContextElem list

@@ -24,8 +24,15 @@ let calcStats = ref false
 (* keep around the vars for a partition
 *)
 
-
-
+(*******************************TYPES *************************************)
+type sexpType = | Sexp 
+		| SexpRel 
+		| SexpLet
+		| SexpIntConst 
+		| SexpBoolConst
+		| SexpSsaVar of smtSsaVar 
+		| SexpLetVar 
+		| SexpFlagVar 
 
 (******************** Defs *************************)
 let smtDir = "./smt/"

@@ -33,7 +33,7 @@ end
 module ClauseVertex = struct 
   type t = clause
   let compare a b = 
-    match Dsnsmtdefs.compare_tid_opt a b with
+    match compare_tid_opt a b with
     | Some c -> c
     | None -> compare a.idx b.idx
   let equal = (=)
