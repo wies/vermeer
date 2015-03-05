@@ -16,7 +16,8 @@ open Dsnsmtdefs
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
 
 let smtCallTime = ref []
-let calcStats = ref false
+
+module HazardSet = Dsngraph.HazardSet
 
 
 
@@ -188,13 +189,37 @@ let identityEncoding = {
   makeHazards = identityEncodingFn;
 }
 
-let get_flag_var c = SMTFlagVar ("flag_" ^ clause_name c)
+let flag_var_string c = "flag_" ^ clause_name c
+let get_flag_var c = SMTFlagVar (flag_var_string c)
+
 let make_dependent_on (dependencyList: term list) (formula : term) = 
   match dependencyList with
   | [] -> formula
   | [x] -> SMTRelation ("=>", [x;formula])
   | _ -> let dependency = SMTRelation("and", dependencyList) in
 	 SMTRelation("=>", [dependency; formula]) 
+
+let make_flowsensitive clause formula = 
+  make_dependent_on (List.map (fun x -> x.iformula) clause.ifContext) formula
+
+let make_flowsensitive_this_tid tid clause formula = 
+  match clause.typ with
+  | ProgramStmt(_,None) -> failwith "expected a tid here"
+  | ProgramStmt(instr, Some thatTid) when thatTid <> tid ->
+    identityEncodingFn clause formula
+  | _ ->
+    make_flowsensitive clause formula
+
+
+let make_hazards graph hazards clause formula = 
+  if HazardSet.is_empty hazards then 
+    formula 
+  else begin
+    let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
+    let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
+    make_dependent_on pred_flags formula
+  end
+
 
 (* Important that we make the flag first, cause it has to go inside the dependency *)
 let encode_formula opts clause = 
@@ -212,6 +237,9 @@ let encodeFormulaOpts = ref identityEncoding
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in
   "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
+let make_flag_decl c = 
+  "(declare-fun " ^ (flag_var_string c)  ^" () Bool )\n" 
+
 let print_linenum c = 
   match c.typ with 
   | ProgramStmt (i,_) -> d_string "%a" d_loc (get_instrLoc i)
@@ -842,6 +870,8 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   (*write the declerations *)
   let allVars = all_vars clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
+  (* declare the flags vars *)
+  List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) clauses;
   (* write the program clauses *)
   List.iter (fun x -> write_line_to_solver solver (encode_formula !encodeFormulaOpts x)) clauses;
   (* write the commands *)
@@ -974,23 +1004,19 @@ let count_statements clauses =
 let count_statements_at at = do_on_trace count_statements at
 
 let calculate_stats (description : string) (trace : clause list)  = 
-  if !calcStats then begin
     let switches = count_contextswitches trace in
     let stmts = count_statements trace in
     let numvars = count_basevars trace in
     Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
       description switches stmts numvars
-  end
-
+  
 let calculate_thread_stats seenThreads (trace : clause list) = 
-  if !calcStats then begin
-    TIDSet.iter (fun tid -> 
-      let tidStmts = List.filter 
-	(fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) 
-	trace in
-      calculate_stats ("Init" ^ string_of_int tid) tidStmts ) seenThreads
-  end
-
+  TIDSet.iter (fun tid -> 
+    let tidStmts = List.filter 
+      (fun c -> match c.typ with | ProgramStmt _ -> (extract_tid c) = tid | _ -> false) 
+      trace in
+    calculate_stats ("Init" ^ string_of_int tid) tidStmts ) seenThreads
+    
 let calculate_stats_at  description at = 
   calculate_stats description (trace_from_at at)
 

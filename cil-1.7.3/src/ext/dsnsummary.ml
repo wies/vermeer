@@ -12,36 +12,28 @@ let analysis = ref UNSATCORE (*default *)
 let summarizeThread = ref false
 type multithreadAnalysis = 
   ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI | PARTITIONTID | PARTITIONGROUP
-let multithread = ref NOMULTI
-let printTraceSMT = ref false
-let printReducedSMT = ref false
-let toposortInput = ref false
 
+type summaryOpts = 
+  {
+    mutable multithread : multithreadAnalysis;
+    mutable printTraceSMT : bool;
+    mutable printReducedSMT : bool;
+    mutable toposortInput : bool ;
+    mutable trackedHazards : HazardSet.t;
+    mutable calcStats : bool;
+  }
+let opts = {
+  multithread = NOMULTI;
+  printTraceSMT = false;
+  printReducedSMT = false;
+  toposortInput = false;
+  trackedHazards = HazardSet.empty;
+  calcStats = false;
+}
+
+let addTrackedHazard hazard = opts.trackedHazards <- HazardSet.add hazard opts.trackedHazards
 
 (****************************** encoding rules ******************************)
-let make_flowsensitive clause formula = 
-  make_dependent_on (List.map (fun x -> x.iformula) clause.ifContext) formula
-
-let make_flowsensitive_this_tid tid clause formula = 
-  match clause.typ with
-  | ProgramStmt(_,None) -> failwith "expected a tid here"
-  | ProgramStmt(instr, Some thatTid) when thatTid <> tid ->
-    identityEncodingFn clause formula
-  | _ ->
-    make_flowsensitive clause formula
-
-module HazardSet = Dsngraph.HazardSet
-let trackedHazards = ref HazardSet.empty
-let addTrackedHazard hazard = trackedHazards := HazardSet.add hazard !trackedHazards
-
-let make_hazards graph hazards clause formula = 
-  if HazardSet.is_empty hazards then 
-    formula 
-  else begin
-    let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
-    let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
-    make_dependent_on pred_flags formula
-  end
 
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
 let try_interpolant_forward_k k currentState interpolant suffix  =
@@ -277,15 +269,15 @@ let annotated_trace_to_smtfile at filename =
     
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
-  calculate_stats_at "Reduced" reduced;
+  if opts.calcStats then calculate_stats_at "Reduced" reduced;
   print_annotated_trace_to_file filename reduced;
-  if(!printReducedSMT) then 
+  if(opts.printReducedSMT) then 
     annotated_trace_to_smtfile reduced filename;
   reduced
 
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
-  calculate_stats_at ("Slice" ^ string_of_int id) summarized;
+  if opts.calcStats then calculate_stats_at ("Slice" ^ string_of_int id) summarized;
   print_annotated_trace_to_file ("summary" ^ string_of_int id) summarized
     
 let partition_to_file technique reduced id = 
@@ -297,14 +289,24 @@ let partition_to_file technique reduced id =
 (******************** Actually do the pass over the code ********************)
 
 let dsnsmt (f: file) : unit =
-  let parsed = Dsnctosmt.parse_file f in
+  (* check that we are only sorting if we are using multithreaded analysis *)
+  let _ = if (opts.multithread = NOMULTI) then begin
+    assert(not opts.toposortInput);
+    assert(HazardSet.is_empty opts.trackedHazards)
+  end in
+  let make_graph = opts.toposortInput || not (HazardSet.is_empty opts.trackedHazards) in
+  let parsed = Dsnctosmt.parse_file f make_graph in
   let clauses = parsed.clauses in
-  let clauses = if (!toposortInput) then Dsngraph.topo_sort clauses else clauses in
+  let clauses = if (opts.toposortInput) then 
+      match parsed.graph with
+      |Some g -> Dsngraph.topo_sort_graph g 
+      |None -> failwith "how is there no graph here"
+    else clauses in
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
-  calculate_stats "Initial" clauses;
-  if !printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
-  begin match !multithread with
+  if opts.calcStats then calculate_stats "Initial" clauses;
+  if opts.printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
+  begin match opts.multithread with
   | PARTITIONTID -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
     TIDSet.iter (partition_to_file extract_tid reducedClauses) parsed.seenThreads
@@ -332,12 +334,12 @@ let dsnsmt (f: file) : unit =
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;
-  let clause_graph = Dsngraph.make_dependency_graph (clauses) in
+  (*let clause_graph = Dsngraph.make_dependency_graph (clauses) in
   Dsngraph.make_dotty_file "myfile" clause_graph;
   let sorted = Dsngraph.topo_sort_graph clause_graph in
   (*print_clauses sorted;
     print_cprogram sorted;*)
-  Printf.printf "%d\n" (count_contextswitches sorted);
+  Printf.printf "%d\n" (count_contextswitches sorted);*)
   (*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
   exit_all_solvers() 
     
@@ -360,17 +362,22 @@ let feature : featureDescr =
 	 " the analysis to use unsatcore linearsearch binarysearch");
 	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
 	 " turns on printing debug messages");
-	("--smtcalcstats", Arg.Unit (fun x -> calcStats := true), 
+	("--smtcalcstats", Arg.Unit (fun x -> opts.calcStats <- true), 
 	 " turns on statistics");
-	("--smtprinttrace", Arg.Unit (fun x -> printTraceSMT := true), 
+	("--smtprinttrace", Arg.Unit (fun x -> opts.printTraceSMT <- true), 
 	 " prints the origional trace to smt");
-	("--smtprintreduced", Arg.Unit (fun x -> printReducedSMT := true), 
+	("--smtprintreduced", Arg.Unit (fun x -> opts.printReducedSMT <- true), 
 	 " prints the reduced code to smt");
-	("--toposortinput", Arg.Unit (fun x -> toposortInput := true), 
+	("--toposortinput", Arg.Unit (fun x -> opts.toposortInput <- true), 
 	 " Topologically Sorts the input before processing it");
 	("--flowsensitive", Arg.Unit (fun x -> encodeFormulaOpts := 
 	  {!encodeFormulaOpts with makeFlowSensitive = make_flowsensitive}), 
 	 " Makes the encoding flow sensitive");
+	("--hazardsensitiveall", Arg.Unit (fun x -> 
+	  addTrackedHazard Dsngraph.HAZARD_RAW;
+	  addTrackedHazard Dsngraph.HAZARD_WAR;
+	  addTrackedHazard Dsngraph.HAZARD_WAW),  
+	  " Makes the encoding RAW, WAR, and WAW hazard sensitive");
 	("--hazardsensitiveraw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_RAW),  
 	  " Makes the encoding raw hazard sensitive");
 	("--hazardsensitivewar", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAR),  
@@ -379,12 +386,12 @@ let feature : featureDescr =
 	  " Makes the encoding raw hazard sensitive");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
-	  | "partitionTID" -> multithread := PARTITIONTID
-	  | "partitionGroup" -> multithread := PARTITIONGROUP
-	  | "allgroups" -> multithread := ALLGROUPS
-	  | "allthreads" -> multithread := ALLTHREADS
-	  | "abstractenv" -> multithread := ABSTRACTENV
-	  | "nomulti" -> multithread := NOMULTI
+	  | "partitionTID" -> opts.multithread <- PARTITIONTID
+	  | "partitionGroup" -> opts.multithread <- PARTITIONGROUP
+	  | "allgroups" -> opts.multithread <- ALLGROUPS
+	  | "allthreads" -> opts.multithread <- ALLTHREADS
+	  | "abstractenv" -> opts.multithread <- ABSTRACTENV
+	  | "nomulti" -> opts.multithread <- NOMULTI
 	  | x -> failwith (x ^ " is not a valid multithread analysis type")), 
 	 " turns on multithreaded analysis");
       ];
