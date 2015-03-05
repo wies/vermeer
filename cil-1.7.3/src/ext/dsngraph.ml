@@ -20,7 +20,6 @@ module HazardM = struct
 end   
 
 module HazardSet = Set.Make(HazardM)
-
 module HazardEdge = HazardM
 
 module ClauseM = struct

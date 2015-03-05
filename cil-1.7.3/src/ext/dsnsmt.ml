@@ -129,6 +129,21 @@ let smtOne = SMTConstant(1L)
 let emptyIfContext = []
 
 (******************** Globals *************************)
+
+(* DSN TODO just pass this around *)
+type smtParsedFile = 
+  {mutable count : int;
+   mutable currentFunc: string;
+   mutable revProgram: clause list;
+   mutable typeMap: varTypeMap;
+   mutable currentIfContext : ifContextList;
+   mutable currentThread : int option;
+   mutable currentLabel : string option;
+   mutable currentGroup : int option;
+   mutable seenThreads : TIDSet.t;
+   mutable seenGroups : GroupSet.t;
+  }
+
 let count = ref 1
 let currentFunc: string ref = ref ""
 (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)

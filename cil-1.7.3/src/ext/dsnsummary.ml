@@ -28,10 +28,18 @@ let make_flowsensitive_this_tid tid clause formula =
   | _ ->
     make_flowsensitive clause formula
 
+module HazardSet = Dsngraph.HazardSet
+let trackedHazards = ref HazardSet.empty
+let addTrackedHazard hazard = trackedHazards := HazardSet.add hazard !trackedHazards
+
 let make_hazards graph hazards clause formula = 
-  let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
-  let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
-  make_dependent_on pred_flags formula
+  if HazardSet.is_empty hazards then 
+    formula 
+  else begin
+    let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
+    let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
+    make_dependent_on pred_flags formula
+  end
 
 (* requires that the interpolant be mapped into the ssa betweren before and after *)
 let try_interpolant_forward_k k currentState interpolant suffix  =
@@ -367,6 +375,12 @@ let feature : featureDescr =
 	("--flowsensitive", Arg.Unit (fun x -> encodeFormulaOpts := 
 	  {!encodeFormulaOpts with makeFlowSensitive = make_flowsensitive}), 
 	 " Makes the encoding flow sensitive");
+	("--hazardsensitiveraw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_RAW),  
+	  " Makes the encoding raw hazard sensitive");
+	("--hazardsensitivewar", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAR),  
+	  " Makes the encoding raw hazard sensitive");
+	("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
+	  " Makes the encoding raw hazard sensitive");
 	("--smtmultithread", Arg.String 
 	  (fun x -> match x with
 	  | "partitionTID" -> multithread := PARTITIONTID
