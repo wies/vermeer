@@ -328,7 +328,7 @@ let dsnsmt (f: file) : unit =
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
 	summarize_to_file extract_tid reduced tid 
       ) 
-      !seenThreads
+      parsed.seenThreads
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;

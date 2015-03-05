@@ -10,31 +10,47 @@ type smtParsedResults =
     seenThreads : TIDSet.t;
     seenGroups : GroupSet.t;
     clauses : clause list;
-    (*mutable graph : Dsngraph.G.t option;*)
+    mutable graph : Dsngraph.G.t option;
   }
 
 type smtParseInternal = {
   mutable currentFunc: string;
-  mutable revProgram: clause list;
+  (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
+  mutable currentRevProgram: clause list;
   mutable currentIfContext : ifContextList;
   mutable currentThread : int option;
   mutable currentLabel : string option;
   mutable currentGroup : int option;
+  mutable currentSeenThreads : TIDSet.t;
+  mutable currentSeenGroups : TIDSet.t;
 }
 
+let initialCtoSMT () = {
+  currentFunc = "";
+  currentRevProgram = [];
+  currentIfContext = [];
+  currentThread = None;
+  currentLabel = None; 
+  currentGroup = None;
+  currentSeenThreads = TIDSet.empty;
+  currentSeenGroups = TIDSet.empty;
+}
+
+(* internal globals *)
+let ig = initialCtoSMT ()
+
 (******************** Globals *************************)
-let currentFunc: string ref = ref ""
-(*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
-let revProgram : clause list ref = ref [] 
-let currentIfContext : ifContextList ref = ref Dsnsmt.emptyIfContext
-let currentThread : int option ref = ref None
-let currentLabel : string option ref = ref None
-let currentGroup : int option ref = ref None
-let seenThreads = ref TIDSet.empty
-let seenGroups = ref GroupSet.empty
+(* let currentFunc: string ref = ref "" *)
+(* let revProgram : clause list ref = ref []  *)
+(* let currentIfContext : ifContextList ref = ref Dsnsmt.emptyIfContext *)
+(* let currentThread : int option ref = ref None *)
+(* let currentLabel : string option ref = ref None *)
+(* let currentGroup : int option ref = ref None *)
+(* let seenThreads = ref TIDSet.empty *)
+(* let seenGroups = ref GroupSet.empty *)
 
 let get_ssa_before () = 
-  match !revProgram with
+  match ig.currentRevProgram with
   | [] -> emptySSAMap
   | x::xs -> x.ssaIdxs
 
@@ -92,11 +108,11 @@ let parseLabel s =
 	if prefix <> "T" then failwith ("invalid label prefix " ^ prefix);
 	let newThread = int_of_string tid in
 	let newGroup = int_of_string group in
-	seenThreads := TIDSet.add newThread !seenThreads;
-	currentThread := Some (newThread);
-	currentLabel := Some(s);
-	seenGroups := GroupSet.add newThread !seenThreads;
-	currentGroup := Some(newGroup)
+	ig.currentSeenThreads <- TIDSet.add newThread ig.currentSeenThreads;
+	ig.currentThread <- Some (newThread);
+	ig.currentLabel <- Some(s);
+	ig.currentSeenThreads <- GroupSet.add newGroup ig.currentSeenGroups;
+	ig.currentGroup <- Some(newGroup)
       | _ -> failwith ("bad label string " ^ s)
     end
   end
@@ -104,27 +120,28 @@ let parseLabel s =
 
 (* Future work - capture the global variables inside an object. then
  * we can just pass that around *)
-class dsnsmtVisitorClass = object
+class dsnsmtVisitorClass ig = object (self)
   inherit Cil.nopCilVisitor
 
   method vinst i = begin
-    let tags = match !currentThread with
+    let tags = match ig.currentThread with
       | Some (tid) -> [ThreadTag tid]
       | None -> [] in
-    let tags = match !currentLabel with
+    let tags = match ig.currentLabel with
       | Some l -> (LabelTag l)::tags
       | None -> tags in
-    let tags = match !currentGroup with
+    let tags = match ig.currentGroup with
       | Some g -> SummaryGroupTag g :: tags
       | None -> tags in
-    let ssaBefore = get_ssa_before() in
+    let ssaBefore = get_ssa_before () in
     match i with
     |  Set(lv, e, l) -> 
       let lvForm = formula_from_lval lv in
       let eForm = formula_from_exp e in
       let assgt = SMTRelation("=",[lvForm;eForm]) in
-      let cls = Dsnsmt.make_clause assgt ssaBefore !currentIfContext (ProgramStmt (i,!currentThread)) tags in
-      revProgram := cls :: !revProgram;
+      let cls = Dsnsmt.make_clause assgt ssaBefore ig.currentIfContext 
+	(ProgramStmt (i,ig.currentThread)) tags in
+      ig.currentRevProgram <- cls :: ig.currentRevProgram;
       DoChildren
     | Call(lo,e,al,l) ->
       assert_is_assert i;
@@ -132,8 +149,9 @@ class dsnsmtVisitorClass = object
 	| [x] -> formula_from_exp x
 	| _ -> failwith "assert should have exactly one element"
       in
-      let cls = Dsnsmt.make_clause form ssaBefore !currentIfContext (ProgramStmt (i,!currentThread)) tags in
-      revProgram := cls :: !revProgram;
+      let cls = Dsnsmt.make_clause form ssaBefore ig.currentIfContext 
+	(ProgramStmt (i,ig.currentThread)) tags in
+      ig.currentRevProgram <- cls :: ig.currentRevProgram;
       DoChildren
     | _ -> DoChildren
   end
@@ -143,10 +161,10 @@ class dsnsmtVisitorClass = object
     | If(i,t,e,l) ->
       if e.bstmts <> [] then failwith "else block not handeled";
       let cond = Dsnsmt.type_check_and_cast_to_bool (formula_from_exp i) in
-      currentIfContext := {iformula = cond; istmt = s} :: !currentIfContext;
+      ig.currentIfContext <- {iformula = cond; istmt = s} :: ig.currentIfContext;
       ChangeDoChildrenPost (s,
 			    fun x -> 
-			      currentIfContext := List.tl !currentIfContext;
+			      ig.currentIfContext <- List.tl ig.currentIfContext;
 			      x)
     | Block _ -> DoChildren
     | _ -> DoChildren
@@ -154,19 +172,20 @@ class dsnsmtVisitorClass = object
 end
 
 let parse_file (file: file) = 
-  let dsnsmtVisitor = new dsnsmtVisitorClass in
+  let dsnsmtVisitor = new dsnsmtVisitorClass ig in
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
     | GFun (fdec, loc) ->
-      currentFunc := fdec.svar.vname;
+      ig.currentFunc <- fdec.svar.vname;
       (* do the body *)
       ignore (visitCilFunction dsnsmtVisitor fdec);
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals file) doGlobal in
-  let clauses = List.rev !revProgram in
+  let clauses = List.rev ig.currentRevProgram in
   {count = !Dsnsmt.count;
    typeMap = !Dsnsmt.typeMap;
-   seenGroups = !seenGroups;
-   seenThreads = !seenThreads;
+   seenGroups = ig.currentSeenGroups;
+   seenThreads = ig.currentSeenThreads;
    clauses = clauses;
+   graph = None;
   }
