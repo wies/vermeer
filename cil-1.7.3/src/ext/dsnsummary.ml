@@ -3,6 +3,7 @@ open Graph
 open Dsnutils
 open Cil
 open Dsnsmtdefs
+open Dsnctosmt
 
 (****************************** Globals and types ******************************)
 type analysis = 
@@ -296,7 +297,7 @@ let partition_to_file technique reduced id =
 (******************** Actually do the pass over the code ********************)
 
 let dsnsmt (f: file) : unit =
-  let parsed = parse_file f in
+  let parsed = Dsnctosmt.parse_file f in
   let clauses = parsed.clauses in
   let clauses = if (!toposortInput) then Dsngraph.topo_sort clauses else clauses in
   (* add a true assertion at the begining of the program *)
@@ -315,7 +316,7 @@ let dsnsmt (f: file) : unit =
     GroupSet.iter (summarize_to_file extract_group reduced) parsed.seenGroups
   | ALLTHREADS ->
     let reduced = reduce_to_file !analysis "reduced" clauses in
-    calculate_thread_stats clauses;
+    calculate_thread_stats parsed.seenThreads clauses;
     TIDSet.iter (summarize_to_file extract_tid reduced) parsed.seenThreads
   | ABSTRACTENV -> 
     TIDSet.iter 

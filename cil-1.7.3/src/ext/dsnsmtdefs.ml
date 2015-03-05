@@ -12,6 +12,18 @@ type smtSsaVar =
    owner : int; 
    ssaIdx : int}
 
+(* canonical format: x_vidx_ssaidx *)
+let smtSsaVarFromString str = 
+  match split_on_underscore str with
+  | [prefix;vidxStr;ssaIdxStr] -> 
+    if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
+    {fullname = str; 
+     vidx = (int_of_string vidxStr);
+     ssaIdx =  (int_of_string ssaIdxStr);
+     owner = -1
+    }
+  | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
+
     
 module VarM = struct 
   type t = smtSsaVar
