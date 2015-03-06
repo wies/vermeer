@@ -3,16 +3,6 @@ open Dsnsmtdefs
 open Cil
 open Dsnutils
 
-(* DSN TODO just pass this around *)
-type smtParsedResults = 
-  {
-    typeMap: varTypeMap;
-    seenThreads : TIDSet.t;
-    seenGroups : GroupSet.t;
-    clauses : clause list;
-    graph : Dsngraph.G.t option;
-  }
-
 type smtParseInternal = {
   mutable currentFunc: string;
   (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
@@ -40,14 +30,6 @@ let initialCtoSMT () = {
 let ig = initialCtoSMT ()
 
 (******************** Globals *************************)
-(* let currentFunc: string ref = ref "" *)
-(* let revProgram : clause list ref = ref []  *)
-(* let currentIfContext : ifContextList ref = ref Dsnsmt.emptyIfContext *)
-(* let currentThread : int option ref = ref None *)
-(* let currentLabel : string option ref = ref None *)
-(* let currentGroup : int option ref = ref None *)
-(* let seenThreads = ref TIDSet.empty *)
-(* let seenGroups = ref GroupSet.empty *)
 
 let get_ssa_before () = 
   match ig.currentRevProgram with
@@ -185,6 +167,7 @@ let parse_file (file: file) ?(dottyFileName = None) makeGraph =
   let graph = if makeGraph 
     then Some (Dsngraph.make_dependency_graph ~dottyFileName:dottyFileName clauses) 
     else None in
+  let open Dsnsmt in
   {
     typeMap = !Dsnsmt.typeMap;
     seenGroups = ig.currentSeenGroups;

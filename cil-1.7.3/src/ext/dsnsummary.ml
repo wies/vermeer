@@ -296,6 +296,13 @@ let dsnsmt (f: file) : unit =
   end in
   let make_graph = opts.toposortInput || not (HazardSet.is_empty opts.trackedHazards) in
   let parsed = Dsnctosmt.parse_file f make_graph in
+  smtContext := parsed;
+  (* add the hazard tracking if needed *)
+  if not (HazardSet.is_empty opts.trackedHazards) then begin
+    match parsed.graph with
+    | Some g -> encode_hazards g opts.trackedHazards
+    | None -> failwith "adding hazards but didn't create graph"
+  end;
   let clauses = parsed.clauses in
   let clauses = if (opts.toposortInput) then 
       match parsed.graph with
@@ -324,8 +331,7 @@ let dsnsmt (f: file) : unit =
     TIDSet.iter 
       (fun tid  -> 
 	print_string ("\n\n***Processing abstract thread: " ^ string_of_int tid);
-	encodeFormulaOpts := 
-	  {!encodeFormulaOpts with makeFlowSensitive = make_flowsensitive_this_tid tid};
+	encode_flowsensitive_this_tid tid;
 	let reduced = reduce_to_file 
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
 	summarize_to_file extract_tid reduced tid 
@@ -334,6 +340,7 @@ let dsnsmt (f: file) : unit =
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;
+
   (*let clause_graph = Dsngraph.make_dependency_graph (clauses) in
   Dsngraph.make_dotty_file "myfile" clause_graph;
   let sorted = Dsngraph.topo_sort_graph clause_graph in
@@ -370,8 +377,7 @@ let feature : featureDescr =
 	 " prints the reduced code to smt");
 	("--toposortinput", Arg.Unit (fun x -> opts.toposortInput <- true), 
 	 " Topologically Sorts the input before processing it");
-	("--flowsensitive", Arg.Unit (fun x -> encodeFormulaOpts := 
-	  {!encodeFormulaOpts with makeFlowSensitive = make_flowsensitive}), 
+	("--flowsensitive", Arg.Unit (fun x -> encode_flowsensitive ()), 
 	 " Makes the encoding flow sensitive");
 	("--hazardsensitiveall", Arg.Unit (fun x -> 
 	  addTrackedHazard Dsngraph.HAZARD_RAW;

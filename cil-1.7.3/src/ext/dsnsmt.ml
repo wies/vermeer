@@ -19,7 +19,25 @@ let smtCallTime = ref []
 
 module HazardSet = Dsngraph.HazardSet
 
+(* DSN TODO just pass this around *)
+type smtContext = 
+  {
+    typeMap: varTypeMap;
+    seenThreads : TIDSet.t;
+    seenGroups : GroupSet.t;
+    clauses : clause list;
+    graph : Dsngraph.G.t option;
+  }
 
+(* a bit of a hack - yet another global :( *)
+(* typemap should go in here too *)
+let smtContext = ref {
+  typeMap = emptyTypeMap;
+  seenThreads = TIDSet.empty;
+  seenGroups = GroupSet.empty;
+  clauses = [];
+  graph = None
+}
 
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
@@ -178,20 +196,22 @@ let debug_typemap () =
  * curried variables *)
 type encodingFn = clause -> term -> term
 type encodingFunctions = 
-  {makeFlowSensitive : encodingFn;
-   makeFlag : encodingFn;
-   makeHazards : encodingFn;
+  {mutable makeFlowSensitive : encodingFn;
+   mutable makeFlag : encodingFn;
+   mutable makeHazards : encodingFn;
   }
 let identityEncodingFn clause formula = formula
-let identityEncoding = {
+
+let identityEncoding () = {
   makeFlowSensitive = identityEncodingFn;
   makeFlag =  identityEncodingFn;
   makeHazards = identityEncodingFn;
 }
 
-let flag_var_string c = "flag_" ^ clause_name c
-let get_flag_var c = SMTFlagVar (flag_var_string c)
+(*this is mutable, so we can change the default encoding *)
+let currentEncoding = identityEncoding()
 
+(* useful encoding functions *)
 let make_dependent_on (dependencyList: term list) (formula : term) = 
   match dependencyList with
   | [] -> formula
@@ -202,6 +222,9 @@ let make_dependent_on (dependencyList: term list) (formula : term) =
 let make_flowsensitive clause formula = 
   make_dependent_on (List.map (fun x -> x.iformula) clause.ifContext) formula
 
+let encode_flowsensitive () = 
+  currentEncoding.makeFlowSensitive <- make_flowsensitive
+
 let make_flowsensitive_this_tid tid clause formula = 
   match clause.typ with
   | ProgramStmt(_,None) -> failwith "expected a tid here"
@@ -210,16 +233,36 @@ let make_flowsensitive_this_tid tid clause formula =
   | _ ->
     make_flowsensitive clause formula
 
+let encode_flowsensitive_this_tid tid = 
+  currentEncoding.makeFlowSensitive <- make_flowsensitive_this_tid tid
 
+let flag_var_string c = "flag_" ^ clause_name c
+let get_flag_var c = SMTFlagVar (flag_var_string c)
+
+let make_flag clause formula = 
+  match clause.typ with 
+  | ProgramStmt _ ->   
+    SMTRelation("and", [formula;get_flag_var clause])
+  | _ -> formula
+
+let encode_flag () = 
+  currentEncoding.makeFlag <- make_flag
+
+(* make sure that make_flags is set if we use this!*)
 let make_hazards graph hazards clause formula = 
   if HazardSet.is_empty hazards then 
     formula 
-  else begin
+  else match clause.typ with 
+  | ProgramStmt _ ->   
     let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
-    let pred_flags = Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
+    let pred_flags = 
+      Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
     make_dependent_on pred_flags formula
-  end
+  | _ -> formula
 
+let encode_hazards graph hazards = 
+  encode_flag ();
+  currentEncoding.makeHazards <- make_hazards graph hazards
 
 (* Important that we make the flag first, cause it has to go inside the dependency *)
 let encode_formula opts clause = 
@@ -232,7 +275,6 @@ let encode_formula opts clause =
   ^ " :named " ^ clause_name clause
   ^ "))\n"
     
-let encodeFormulaOpts = ref identityEncoding
   
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in
@@ -566,7 +608,8 @@ let print_annotated_trace_to_file filename trace =
 
 let getFirstArgType str = 
   let is_cse_var s = Str.string_match (Str.regexp ".cse[0-9]+") s 0 in
-  let is_flag_var s = begins_with "flag_" s in
+  let is_flag_var s = begins_with  s "flag_" 
+  in
   let str = trim str in
   match str.[0] with
   | '(' 
@@ -871,9 +914,10 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   let allVars = all_vars clauses in
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* declare the flags vars *)
-  List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) clauses;
+  (*this is a bit of a hack.  We should really only do this for the ones we need *)
+  List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) !smtContext.clauses;
   (* write the program clauses *)
-  List.iter (fun x -> write_line_to_solver solver (encode_formula !encodeFormulaOpts x)) clauses;
+  List.iter (fun x -> write_line_to_solver solver (encode_formula currentEncoding x)) clauses;
   (* write the commands *)
   let cmds = match pt with
     | CheckSat -> 
