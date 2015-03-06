@@ -60,3 +60,4 @@ test/output.tcas.unsatcore.txt
 *.a
 *.cmxa
 *.cmxs
+*~

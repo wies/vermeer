@@ -1,0 +1,6 @@
+../apache1-traces
+../apache2-traces
+../bankaccount-traces
+../bluetooth-traces
+../pool-traces
+../deadlock-traces
