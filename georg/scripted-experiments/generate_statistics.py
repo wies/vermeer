@@ -43,5 +43,17 @@ with open("directories.txt", "r") as f:
       subprocess.call(["rm", "-f", "*.o"])
     sys.stdout.write("\n")
     os.chdir(cwd)
+  sys.stdout.write("# Benchmark,Trace,")
+  for data_entry in data_set_list[0].data_entry_list:
+    sys.stdout.write("," + data_entry.category + "-CSs")
+    sys.stdout.write("," + data_entry.category + "-Stmts")
+    sys.stdout.write("," + data_entry.category + "-Vars")
+  sys.stdout.write("\n")
   for data_set in data_set_list:
-    print(data_set.benchmark + " & " + data_set.trace_file + " & " + data_set.data_entry_list[0].nr_context_switches + " & " + data_set.data_entry_list[0].nr_statements + " & " + data_set.data_entry_list[0].nr_variables + " & " + data_set.data_entry_list[1].nr_context_switches + " & " + data_set.data_entry_list[1].nr_statements + " & " + data_set.data_entry_list[1].nr_variables + " & " + data_set.data_entry_list[2].nr_context_switches + " & " + data_set.data_entry_list[2].nr_statements + " & " + data_set.data_entry_list[2].nr_variables)
+    sys.stdout.write(data_set.benchmark + "," + data_set.trace_file)
+    for data_entry in data_set.data_entry_list:
+      sys.stdout.write("," + data_entry.nr_context_switches)
+      sys.stdout.write("," + data_entry.nr_statements)
+      sys.stdout.write("," + data_entry.nr_variables)
+    sys.stdout.write("\n")
+
