@@ -93,7 +93,7 @@ let parseLabel s =
 	ig.currentSeenThreads <- TIDSet.add newThread ig.currentSeenThreads;
 	ig.currentThread <- Some (newThread);
 	ig.currentLabel <- Some(s);
-	ig.currentSeenThreads <- GroupSet.add newGroup ig.currentSeenGroups;
+	ig.currentSeenGroups <- GroupSet.add newGroup ig.currentSeenGroups;
 	ig.currentGroup <- Some(newGroup)
       | _ -> failwith ("bad label string " ^ s)
     end
