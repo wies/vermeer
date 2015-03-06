@@ -275,7 +275,7 @@ let encode_formula opts clause =
   ^ " :named " ^ clause_name clause
   ^ "))\n"
     
-  
+    
 let make_var_decl v =
   let ts = string_of_vartype (get_var_type v) in
   "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
@@ -603,9 +603,6 @@ let print_annotated_trace_to_file filename trace =
   close_out oc
 
 (******************** Input functions *************************)
-
-
-
 let getFirstArgType str = 
   let is_cse_var s = Str.string_match (Str.regexp ".cse[0-9]+") s 0 in
   let is_flag_var s = begins_with  s "flag_" 
@@ -1048,12 +1045,12 @@ let count_statements clauses =
 let count_statements_at at = do_on_trace count_statements at
 
 let calculate_stats (description : string) (trace : clause list)  = 
-    let switches = count_contextswitches trace in
-    let stmts = count_statements trace in
-    let numvars = count_basevars trace in
-    Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
-      description switches stmts numvars
-  
+  let switches = count_contextswitches trace in
+  let stmts = count_statements trace in
+  let numvars = count_basevars trace in
+  Printf.printf "%s\tSwitches: %d\tStmts: %d\tVars: %d\n"
+    description switches stmts numvars
+    
 let calculate_thread_stats seenThreads (trace : clause list) = 
   TIDSet.iter (fun tid -> 
     let tidStmts = List.filter 

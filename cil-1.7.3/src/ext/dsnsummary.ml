@@ -19,6 +19,7 @@ type summaryOpts =
     mutable printTraceSMT : bool;
     mutable printReducedSMT : bool;
     mutable toposortInput : bool ;
+    mutable toposortOutput : bool ;
     mutable trackedHazards : HazardSet.t;
     mutable calcStats : bool;
   }
@@ -27,6 +28,7 @@ let opts = {
   printTraceSMT = false;
   printReducedSMT = false;
   toposortInput = false;
+  toposortOutput = false;
   trackedHazards = HazardSet.empty;
   calcStats = false;
 }
@@ -277,6 +279,9 @@ let reduce_to_file technique filename clauses =
 
 let summarize_to_file technique reduced id = 
   let summarized = summerize_annotated_trace technique reduced id  in
+  let summarized = if opts.toposortOutput 
+    then failwith "not quite supporting this yet"
+    else summarized in
   if opts.calcStats then calculate_stats_at ("Slice" ^ string_of_int id) summarized;
   print_annotated_trace_to_file ("summary" ^ string_of_int id) summarized
     
@@ -340,68 +345,69 @@ let dsnsmt (f: file) : unit =
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;
-
   (*let clause_graph = Dsngraph.make_dependency_graph (clauses) in
-  Dsngraph.make_dotty_file "myfile" clause_graph;
-  let sorted = Dsngraph.topo_sort_graph clause_graph in
+    Dsngraph.make_dotty_file "myfile" clause_graph;
+    let sorted = Dsngraph.topo_sort_graph clause_graph in
   (*print_clauses sorted;
     print_cprogram sorted;*)
-  Printf.printf "%d\n" (count_contextswitches sorted);*)
+    Printf.printf "%d\n" (count_contextswitches sorted);*)
   (*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
-  exit_all_solvers() 
-    
+    exit_all_solvers() 
+      
 
-let feature : featureDescr = 
-  { fd_name = "dsnsmt";
-    fd_enabled = Cilutil.dsnSmt;
-    fd_description = "Converts linearized concrete c program to SMT";
-    fd_extraopt = 
-      [ ("--runsmtanalysistype", 
-	 Arg.String 
-	   (fun x -> match x with 
-	   | "noreduction" -> analysis := NOREDUCTION
-	   | "unsatcore" -> analysis := UNSATCORE
-	   | "linearsearch" -> analysis := LINEARSEARCH
-	   | "binarysearch" -> analysis := BINARYSEARCH
-	   | "window" -> analysis := WINDOW
-	   | "noninductive" -> analysis := NONINDUCTIVE
-	   | x -> failwith (x ^ " is not a valid analysis type")),
-	 " the analysis to use unsatcore linearsearch binarysearch");
-	("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
-	 " turns on printing debug messages");
-	("--smtcalcstats", Arg.Unit (fun x -> opts.calcStats <- true), 
-	 " turns on statistics");
-	("--smtprinttrace", Arg.Unit (fun x -> opts.printTraceSMT <- true), 
-	 " prints the origional trace to smt");
-	("--smtprintreduced", Arg.Unit (fun x -> opts.printReducedSMT <- true), 
-	 " prints the reduced code to smt");
-	("--toposortinput", Arg.Unit (fun x -> opts.toposortInput <- true), 
-	 " Topologically Sorts the input before processing it");
-	("--flowsensitive", Arg.Unit (fun x -> encode_flowsensitive ()), 
-	 " Makes the encoding flow sensitive");
-	("--hazardsensitiveall", Arg.Unit (fun x -> 
-	  addTrackedHazard Dsngraph.HAZARD_RAW;
-	  addTrackedHazard Dsngraph.HAZARD_WAR;
-	  addTrackedHazard Dsngraph.HAZARD_WAW),  
-	  " Makes the encoding RAW, WAR, and WAW hazard sensitive");
-	("--hazardsensitiveraw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_RAW),  
-	  " Makes the encoding raw hazard sensitive");
-	("--hazardsensitivewar", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAR),  
-	  " Makes the encoding raw hazard sensitive");
-	("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
-	  " Makes the encoding raw hazard sensitive");
-	("--smtmultithread", Arg.String 
-	  (fun x -> match x with
-	  | "partitionTID" -> opts.multithread <- PARTITIONTID
-	  | "partitionGroup" -> opts.multithread <- PARTITIONGROUP
-	  | "allgroups" -> opts.multithread <- ALLGROUPS
-	  | "allthreads" -> opts.multithread <- ALLTHREADS
-	  | "abstractenv" -> opts.multithread <- ABSTRACTENV
-	  | "nomulti" -> opts.multithread <- NOMULTI
-	  | x -> failwith (x ^ " is not a valid multithread analysis type")), 
-	 " turns on multithreaded analysis");
-      ];
-    fd_doit = dsnsmt;
-    fd_post_check = true
-  } 
+  let feature : featureDescr = 
+    { fd_name = "dsnsmt";
+      fd_enabled = Cilutil.dsnSmt;
+      fd_description = "Converts linearized concrete c program to SMT";
+      fd_extraopt = 
+	[ ("--runsmtanalysistype", 
+	   Arg.String 
+	     (fun x -> match x with 
+	     | "noreduction" -> analysis := NOREDUCTION
+	     | "unsatcore" -> analysis := UNSATCORE
+	     | "linearsearch" -> analysis := LINEARSEARCH
+	     | "binarysearch" -> analysis := BINARYSEARCH
+	     | "window" -> analysis := WINDOW
+	     | "noninductive" -> analysis := NONINDUCTIVE
+	     | x -> failwith (x ^ " is not a valid analysis type")),
+	   " the analysis to use unsatcore linearsearch binarysearch");
+	  ("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
+	   " turns on printing debug messages");
+	  ("--smtcalcstats", Arg.Unit (fun x -> opts.calcStats <- true), 
+	   " turns on statistics");
+	  ("--smtprinttrace", Arg.Unit (fun x -> opts.printTraceSMT <- true), 
+	   " prints the origional trace to smt");
+	  ("--smtprintreduced", Arg.Unit (fun x -> opts.printReducedSMT <- true), 
+	   " prints the reduced code to smt");
+	  ("--toposortinput", Arg.Unit (fun x -> opts.toposortInput <- true), 
+	   " Topologically Sorts the input before processing it");
+	  ("--toposortoutput", Arg.Unit (fun x -> opts.toposortInput <- true), 
+	   " Topologically Sorts the reduced trace before outputting it");
+	  ("--flowsensitive", Arg.Unit (fun x -> encode_flowsensitive ()), 
+	   " Makes the encoding flow sensitive");
+	  ("--hazardsensitiveall", Arg.Unit (fun x -> 
+	    addTrackedHazard Dsngraph.HAZARD_RAW;
+	    addTrackedHazard Dsngraph.HAZARD_WAR;
+	    addTrackedHazard Dsngraph.HAZARD_WAW),  
+	   " Makes the encoding RAW, WAR, and WAW hazard sensitive");
+	  ("--hazardsensitiveraw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_RAW),  
+	   " Makes the encoding raw hazard sensitive");
+	  ("--hazardsensitivewar", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAR),  
+	   " Makes the encoding raw hazard sensitive");
+	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
+	   " Makes the encoding raw hazard sensitive");
+	  ("--smtmultithread", Arg.String 
+	    (fun x -> match x with
+	    | "partitionTID" -> opts.multithread <- PARTITIONTID
+	    | "partitionGroup" -> opts.multithread <- PARTITIONGROUP
+	    | "allgroups" -> opts.multithread <- ALLGROUPS
+	    | "allthreads" -> opts.multithread <- ALLTHREADS
+	    | "abstractenv" -> opts.multithread <- ABSTRACTENV
+	    | "nomulti" -> opts.multithread <- NOMULTI
+	    | x -> failwith (x ^ " is not a valid multithread analysis type")), 
+	   " turns on multithreaded analysis");
+	];
+      fd_doit = dsnsmt;
+      fd_post_check = true
+    } 
 
