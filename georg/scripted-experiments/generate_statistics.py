@@ -18,6 +18,7 @@ class DataSet:
 
 cwd = os.getcwd()
 vermeer = os.environ['VERMEER_PATH'] + "/cil-1.7.3/bin/cilly"
+options = "--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive"
 
 with open("directories.txt", "r") as f:
   data_set_list = []
@@ -29,7 +30,7 @@ with open("directories.txt", "r") as f:
       name = trace_file[:-2]
       trace_index = trace_file[23:-2]
       sys.stdout.write("\n# process " + name + "\n\n")
-      proc = subprocess.Popen([vermeer + " -c --keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive \"" + trace_file + "\" -lm"], stdout=subprocess.PIPE, shell=True)
+      proc = subprocess.Popen([vermeer + " -c " + options + " \"" + trace_file + "\" -lm"], stdout=subprocess.PIPE, shell=True)
       proc.wait()
       data_entry_list = []
       while True:
@@ -44,6 +45,7 @@ with open("directories.txt", "r") as f:
     sys.stdout.write("\n")
     os.chdir(cwd)
   data_file = open("data.txt", "w")
+  data_file.write("# Options: " + options + "\n")
   data_file.write("# Benchmark,Trace,")
   for data_entry in data_set_list[0].data_entry_list:
     data_file.write("," + data_entry.category + "-CSs")
