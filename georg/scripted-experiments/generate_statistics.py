@@ -46,7 +46,7 @@ with open("directories.txt", "r") as f:
     os.chdir(cwd)
   data_file = open("data.txt", "w")
   data_file.write("# Options: " + options + "\n")
-  data_file.write("# Benchmark,Trace,")
+  data_file.write("# Format: Benchmark,Trace,")
   for data_entry in data_set_list[0].data_entry_list:
     data_file.write("," + data_entry.category + "-CSs")
     data_file.write("," + data_entry.category + "-Stmts")
