@@ -22,7 +22,7 @@ plot "data_option1.cleanedup.txt" using (hist($4,$7)):(1.0) smooth freq w boxes
 set term png
 set output "histogram_plot_statements.png"
 
-set yrange[0:(GPVAL_Y_MAX+1)]
+set yrange[0:(GPVAL_Y_MAX+0.1*GPVAL_Y_MAX)]
 
 plot "data_option1.cleanedup.txt" using (hist($4,$7)):(1.0) smooth freq w boxes
 
