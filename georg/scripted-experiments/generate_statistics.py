@@ -73,7 +73,21 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive")
 
-for option_index in range(0,len(options)):
+if len(sys.argv) <= 1:
+  option_index_range = range(0, len(options))
+else:
+  try:
+    option_index_value = int(sys.argv[1])
+    option_index_range = [ option_index_value ]
+  except ValueError:
+    sys.stdout.write("Usage: " + sys.argv[0] + " <n>\n\nwhere n is an option index in the range [0," + str(len(options) - 1) + "] or is omitted:\n")
+    for i in range(0, len(options)):
+      sys.stdout.write("Option " + str(i) + ": " + options[i] + "\n")
+    sys.stdout.write("\n")
+    exit(-1)
+
+for option_index in option_index_range:
+  sys.stdout.write("\n########## Processing option \"" + options[option_index] + "\" ##########\n\n")
   with open("directories.txt", "r") as f:
     data_set_list = []
     for line in f:
