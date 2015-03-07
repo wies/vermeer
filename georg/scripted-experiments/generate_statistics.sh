@@ -1,1 +1,2 @@
-time python ./generate_statistics.py &> generate_statistics.out
+OUTPUTFILE=generate_statistics.all.out
+\time -o $OUTPUTFILE -a -p python ./generate_statistics.py >$OUTPUTFILE 2>&1

@@ -98,7 +98,8 @@ for option_index in option_index_range:
         name = trace_file[:-2]
         trace_index = trace_file[23:-2]
         sys.stdout.write("\n# process " + name + "\n\n")
-        proc = subprocess.Popen([vermeer + " -c " + options[option_index] + " \"" + trace_file + "\" -lm"], stdout=subprocess.PIPE, shell=True)
+        sys.stdout.flush()
+        proc = subprocess.Popen([vermeer + " -c " + options[option_index] + " \"" + trace_file + "\" -lm"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
         proc.wait()
         data_entry_list = []
         while True:
