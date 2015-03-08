@@ -28,6 +28,10 @@ option6:
 option7:
 	./generate_statistics_for_index.sh 7
 
+eval7:
+	python check_data_file.py 7
+	./histogram_plot_time.sh data_option7.filtered.dat histogram_time.data_option7.filtered.pdf
+
 option8:
 	./generate_statistics_for_index.sh 8
 
