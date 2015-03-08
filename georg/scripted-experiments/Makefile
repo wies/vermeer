@@ -49,6 +49,14 @@ option5:
 option6:
 	./generate_statistics_for_index.sh 6
 
+eval6:
+	python check_data_file.py 6
+	./histogram_plot_time.sh data_option6.filtered.dat histogram_time.data_option6.filtered.pdf
+	./histogram_plot_statements.sh data_option6.filtered.dat histogram_statements.data_option6.filtered.pdf
+	./scatter_plot_statements.sh data_option6.filtered.dat scatter_plot_statements.data_option6.filtered.pdf
+	./scatter_plot_context_switches.sh data_option6.filtered.dat scatter_plot_context_switches.data_option6.filtered.pdf
+	./scatter_plot_variables.sh data_option6.filtered.dat scatter_plot_variables.data_option6.filtered.pdf
+
 option7:
 	./generate_statistics_for_index.sh 7
 
