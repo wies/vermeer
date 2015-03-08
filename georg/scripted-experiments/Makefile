@@ -31,6 +31,10 @@ option7:
 eval7:
 	python check_data_file.py 7
 	./histogram_plot_time.sh data_option7.filtered.dat histogram_time.data_option7.filtered.pdf
+	./histogram_plot_statements.sh data_option7.filtered.dat histogram_statements.data_option7.filtered.pdf
+	./scatter_plot_statements.sh data_option7.filtered.dat scatter_plot_statements.data_option7.filtered.pdf
+	./scatter_plot_context_switches.sh data_option7.filtered.dat scatter_plot_context_switches.data_option7.filtered.pdf
+	./scatter_plot_variables.sh data_option7.filtered.dat scatter_plot_variables.data_option7.filtered.pdf
 
 option8:
 	./generate_statistics_for_index.sh 8

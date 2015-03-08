@@ -10,17 +10,15 @@ set ylabel "Frequency"
 
 set yrange[0:]
 
-#set format x "%10.0f%%"
-
 set datafile separator ","
 
 set term unknown
-plot datafile using (hist($27)):(1.0) smooth freq w boxes
+plot data_file using (hist($27)):(1.0) smooth freq w boxes
 
 set term pdf
-set output outputfile
+set output output_file
 
 set yrange[0:(GPVAL_Y_MAX+0.1*GPVAL_Y_MAX)]
 
-plot datafile using (hist($27)):(1.0) smooth freq w boxes
+plot data_file using (hist($27)):(1.0) smooth freq w boxes
 
