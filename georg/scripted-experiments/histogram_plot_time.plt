@@ -1,8 +1,8 @@
-hist(x)=floor(x*10)*0.1
+hist(x)=floor(x+0.5)
 
 set nokey
 
-set boxwidth .1 
+set boxwidth .9 
 
 set title "Processing Time per Trace"
 set xlabel "Processing Time per Trace [in seconds]"
