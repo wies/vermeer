@@ -66,6 +66,7 @@ and
   | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
   | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
   | EQ(Value(v), Variable(x)) -> EQ(Variable(x), Value(v))
+  | EQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> EQ(t1, Value(v2 - v1))
   | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
   | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
   | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
