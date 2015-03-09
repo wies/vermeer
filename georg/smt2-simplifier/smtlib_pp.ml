@@ -80,9 +80,51 @@ and
       in
         (
           match fs_simple with
-          | [ LEQ(t1, t2); LEQ(t3, t4) ] when (t1 = t4 && t2 = t3) -> EQ(t1, t2)
-          | [ LEQ(t1, Value(c1)); LEQ(Value(0), Sum([ t2; Value(c2) ])) ] when (t1 = t2 && c1 = -1 * c2) -> EQ(t1, Value(c1))
-          | _ -> And(fs_simple)
+          (* generalize *)
+          | LEQ(t1, t2) :: (LEQ(t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
+              (
+                let 
+                  g = simplify_formula (And(gs))
+                in
+                  match g with
+                  | False -> False
+                  | True -> EQ(t1, t2)
+                  | And(hs) -> let hs2 = (EQ(t1, t2) :: hs) in And(hs2)
+                  | _ -> And([ EQ(t1, t2) ; g ])
+              )
+          | LEQ(t1, Value(c1)) :: (LEQ(Value(0), Sum([ t2; Value(c2) ])) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
+              (
+                let phi = EQ(t1, Value(c1)) in
+                let g = simplify_formula (And(gs)) in
+                  match g with
+                  | False -> False
+                  | True -> phi
+                  | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
+                  | _ -> And([ phi ; g ])
+              )
+          | LEQ(Value(0), Sum([ t2; Value(c2) ])) :: (LEQ(t1, Value(c1)) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
+              (
+                let phi = EQ(t1, Value(c1)) in
+                let g = simplify_formula (And(gs)) in
+                  match g with
+                  | False -> False
+                  | True -> phi
+                  | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
+                  | _ -> And([ phi ; g ])
+              )
+          | [ g ] -> g
+          | [] -> True
+          | g :: gs -> 
+              (
+                let
+                  h = simplify_formula (And(gs))
+                in
+                  match h with
+                  | False -> False
+                  | True -> g
+                  | And(hs) -> let hs2 = (g :: hs) in And(hs2)
+                  | _ -> And([ g ; h ])
+              )
         )
   | Or([]) -> False
   | Or([ f1 ]) -> simplify_formula f1
