@@ -277,13 +277,16 @@ let reduce_to_file technique filename clauses =
     annotated_trace_to_smtfile reduced filename;
   reduced
 
-let summarize_to_file technique reduced id = 
+let summarize_to_file ?(filenameOpt = None) technique reduced id = 
+  let filename = match filenameOpt with
+    | Some filename -> filename
+    | None -> ("threadSlice" ^ string_of_int id) in
   let summarized = summerize_annotated_trace technique reduced id  in
   let summarized = if opts.toposortOutput 
     then failwith "not quite supporting this yet"
     else summarized in
-  if opts.calcStats then calculate_stats_at ("Slice" ^ string_of_int id) summarized;
-  print_annotated_trace_to_file ("summary" ^ string_of_int id) summarized
+  if opts.calcStats then calculate_stats_at ("slice" ^ string_of_int id) summarized;
+  print_annotated_trace_to_file filename summarized
     
 let partition_to_file technique reduced id = 
   print_endline ("Partitioning. A group is " ^ string_of_int id);
@@ -335,24 +338,20 @@ let dsnsmt (f: file) : unit =
   | ABSTRACTENV -> 
     TIDSet.iter 
       (fun tid  -> 
-	print_string ("\n\n***Processing abstract thread: " ^ string_of_int tid);
+	print_endline ("\n\n***Processing abstract thread: " ^ string_of_int tid);
 	encode_flowsensitive_this_tid tid;
 	let reduced = reduce_to_file 
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
-	summarize_to_file extract_tid reduced tid 
-      ) 
-      parsed.seenThreads
+	TIDSet.iter (fun sliceTid -> 
+	  summarize_to_file extract_tid 
+	    ~filenameOpt:(Some("slice" ^ string_of_int tid 
+			       ^"_" ^ string_of_int sliceTid))
+	    reduced sliceTid) parsed.seenThreads
+      )parsed.seenThreads
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;
-  (*let clause_graph = Dsngraph.make_dependency_graph (clauses) in
-    Dsngraph.make_dotty_file "myfile" clause_graph;
-    let sorted = Dsngraph.topo_sort_graph clause_graph in
-  (*print_clauses sorted;
-    print_cprogram sorted;*)
-    Printf.printf "%d\n" (count_contextswitches sorted);*)
-  (*  List.iter (fun c -> print_endline (string_of_clause c)) (Dsngraph.topo_sort clause_graph);*)
-    exit_all_solvers() 
+  exit_all_solvers() 
       
 
   let feature : featureDescr = 
