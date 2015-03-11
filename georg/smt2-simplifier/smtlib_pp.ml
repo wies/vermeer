@@ -32,6 +32,7 @@ type formula =
   | NEQ of term * term
   | LT of term * term
   | GT of term * term
+  | ITE of formula * formula * formula
   | UnsupportedFormula of string
 ;; 
 
@@ -50,6 +51,14 @@ let rec
   | NEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" != "); print_term t2; print_string("\n")
   | LT(t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
   | GT(t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
+  | ITE(f_cond, f_then, f_else) -> 
+      print_string(indentation ^ "IF (\n");
+      print_formula f_cond (indentation ^ "  ");
+      print_string(indentation ^ ") THEN (\n");
+      print_formula f_then (indentation ^ "  ");
+      print_string(indentation ^ ") ELSE (\n");
+      print_formula f_else (indentation ^ "  ");
+      print_string(indentation ^ ")\n")
   | UnsupportedFormula(s) -> print_string(indentation ^ "UNSUPPORTED FORMULA: " ^ s ^ "\n")
 and
   print_term t = 
@@ -351,6 +360,9 @@ and
         f2_trans = translate_to_formula f2
       in 
         Implication(f1_trans, f2_trans)
+
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "ite"))), (p2, ts)) -> 
+    ITE(translate_to_formula (List.nth ts 0), translate_to_formula (List.nth ts 1), translate_to_formula (List.nth ts 2))
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (p2, ts)) -> 
     UnsupportedFormula("TermQualIdTerm1! " ^ s ^ "\n")
