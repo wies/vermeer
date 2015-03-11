@@ -364,6 +364,9 @@ and
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "ite"))), (p2, ts)) -> 
     ITE(translate_to_formula (List.nth ts 0), translate_to_formula (List.nth ts 1), translate_to_formula (List.nth ts 2))
 
+  |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "not"))), (p2, ts)) -> 
+    Not(translate_to_formula (List.nth ts 0))
+
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (p2, ts)) -> 
     UnsupportedFormula("TermQualIdTerm1! " ^ s ^ "\n")
 
