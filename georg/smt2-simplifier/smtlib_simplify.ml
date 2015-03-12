@@ -317,10 +317,14 @@ let rec simplify_formula_2 f =
   match f with
   (* Logical operators *)
   | And(fs) -> begin match fs with 
-      | Relation(LEQ,t1, Value(c1)) :: Relation(LEQ,t2, Value(c2)) :: gs
+      | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, t2, Value(c2)) :: gs
           when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
         simplify_formula_2 (And(Relation(LEQ,t1, Value(c)) :: gs))
+      | Relation(LEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
+      | Relation(EQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
+        when t1 = t2 && c1 < c2 ->
+          False
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
       | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
         when t1 = t4 && t2 = t3 ->
@@ -336,19 +340,20 @@ let rec simplify_formula_2 f =
       | [ g ] -> g
       | [] -> True
       | g :: gs -> 
+          let g1 = simplify_formula_2 g in
           let
               h = simplify_formula_2 (And(gs))
           in
           match h with
           | False -> False
-          | True -> g
-          | And(hs) -> let hs2 = (g :: hs) in And(hs2)
-          | _ -> And([ g ; h ])
+          | True -> g1
+          | And(hs) -> And(g1 :: hs)
+          | _ -> And([g1; h]) 
   end
   | Or(fs) -> begin match fs with  
     | [ Relation(LEQ,Value(c1), t1) ; Relation(LEQ,t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
     | [ Relation(LEQ,t2, Value(c2)) ; Relation(LEQ,Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
-      | _ -> Or(fs)
+      | _ -> Or(List.map simplify_formula_2 fs)
   end
   | _ -> f
 
