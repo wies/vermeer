@@ -211,32 +211,35 @@ let rec normalize_formula f =
   (* For two vars, put them in lex order *)
   | EQ(Variable x,Variable y) -> 
     if x < y then EQ(Variable x, Variable y) else EQ(Variable y, Variable x)
-  | LEQ(Variable x,Variable y) ->
-    if x < y then LEQ(Variable x, Variable y) else LEQ(Variable y, Variable x)
-  | LT(Variable x,Variable y) ->
-    if x < y then LT(Variable x, Variable y) else LT(Variable y, Variable x)
-  | GEQ(Variable x,Variable y) ->
-    if x < y then GEQ(Variable x, Variable y) else GEQ(Variable y, Variable x)
-  | GT(Variable x,Variable y) ->
-    if x < y then GT(Variable x, Variable y) else GT(Variable y, Variable x)
   | NEQ(Variable x,Variable y) ->
     if x < y then NEQ(Variable x, Variable y) else NEQ(Variable y, Variable x)
+  (* This requires switching the operator from leq to geq and so on *)
+  | LEQ(Variable x,Variable y) ->
+    if x < y then LEQ(Variable x, Variable y) else GEQ(Variable y, Variable x)
+  | LT(Variable x,Variable y) ->
+    if x < y then LT(Variable x, Variable y) else GT(Variable y, Variable x)
+  | GEQ(Variable x,Variable y) ->
+    if x < y then GEQ(Variable x, Variable y) else LEQ(Variable y, Variable x)
+  | GT(Variable x,Variable y) ->
+    if x < y then GT(Variable x, Variable y) else LT(Variable y, Variable x)
 
   (* move the variable to the left *)
-  | EQ(y,Variable(x)) -> EQ(Variable(x),y)
-  | LEQ(y,Variable(x)) -> LEQ(Variable(x),y)
-  | LT(y,Variable(x)) -> LT(Variable(x),y)
-  | GEQ(y,Variable(x)) -> GEQ(Variable(x),y)
-  | GT(y,Variable(x)) -> GT(Variable(x),y)
   | NEQ(y,Variable(x)) -> NEQ(Variable(x),y)
+  | EQ(y,Variable(x)) -> EQ(Variable(x),y)
+  (* This requires switching the operator from leq to geq and so on *)
+  | LEQ(y,Variable(x)) -> GEQ(Variable(x),y)
+  | LT(y,Variable(x)) -> GT(Variable(x),y)
+  | GEQ(y,Variable(x)) -> LEQ(Variable(x),y)
+  | GT(y,Variable(x)) -> LT(Variable(x),y)
 
   (* move the value to the right *)
   | EQ(Value v,x) -> EQ(x,Value v)
-  | LEQ(Value v,x) -> LEQ(x,Value v)
-  | LT(Value v,x) -> LT(x,Value v)
-  | GEQ(Value v,x) -> GEQ(x,Value v)
-  | GT(Value v,x) -> GT(x,Value v)
   | NEQ(Value v,x) -> NEQ(x,Value v)
+  (* This requires switching the operator from leq to geq and so on *)
+  | LEQ(Value v,x) -> GEQ(x,Value v)
+  | LT(Value v,x) -> GT(x,Value v)
+  | GEQ(Value v,x) -> LEQ(x,Value v)
+  | GT(Value v,x) -> LT(x,Value v)
 
   (* Deeper look into relations - move constants out of sums *)
   (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
