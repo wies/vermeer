@@ -358,10 +358,22 @@ let rec simplify_formula_2 f =
           | _ -> And([g1; h]) 
   end
   | Or(fs) -> begin match fs with  
-    | [ Relation(LEQ,Value(c1), t1) ; Relation(LEQ,t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
-    | [ Relation(LEQ,t2, Value(c2)) ; Relation(LEQ,Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
-      | _ -> Or(List.map simplify_formula_2 fs)
+    | [ Relation(LEQ, Value(c1), t1) ; Relation(LEQ, t2, Value(c2)) ]
+      when (t1 = t2 && c1 = c2 + 2) ->
+        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+    | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
+      when (t1 = t2 && c1 = c2 + 2) ->
+        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+    | _ -> Or(List.map simplify_formula_2 fs)
   end
+  | ITE (f1, f2, f3) ->
+      let f11 = simplify_formula_2 f1 in
+      let f12 = simplify_formula_2 f2 in
+      let f13 = simplify_formula_2 f3 in
+      (match f11 with
+      | True -> f2
+      | False -> f3
+      | _ -> ITE (f11, f12, f13))
   | _ -> f
 
 let simplify_formula f = 
