@@ -251,11 +251,21 @@ let normalize_formula f =
       Relation(op,t1, Value(v2 - v1))
 
     (*convert  (x_156_1 +  (x_157_1 * -1)) <= 0 to x_156_1 <= x_157_1 *)
-    | Relation(op,Sum[Variable x; Mult[Variable y; Value v1]], Value v2) -> 
-      Relation(op,Variable x,Sum[Mult[Variable y; Value (v1 * (-1))];Value v2])
+    | Relation(op,
+	       Sum[Variable x; Mult[Variable y; Value v1]], 
+	       Value v2) -> 
+      Relation(op,
+	       Variable x,
+	       Sum[Mult[Variable y; Value (v1 * (-1))];Value v2])
 
-
-    (*convert  (x_156_1 + (0 + (x_157_1 * -1))) <= 0 to x_156_1 <= x_157_1 *)
+    (* convert (x_47_1 + (1 + (x_48_1 * -1))) <= 0 to x_47_1 <= x_48_1 - 1 *) 
+    | Relation(op,
+	       Sum[Variable x; Sum[Value v0; Mult[Variable y; Value v1]]], 
+	       Value v2) -> 
+      Relation(op,
+	       Variable x, 
+	       Sum[Mult [Sum[Value v0; Mult[Variable y; Value v1]]; Value (-1)];
+		   Value v2]) 
 
 	       
 
@@ -343,14 +353,15 @@ let simplify_terms f =
   in
   aux f
 
-let rec simplify_formula_2 f =
+let simplify_formula_2 f =
+  let rec aux f = 
   match f with
   (* Logical operators *)
   | And(fs) -> begin match fs with 
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, t2, Value(c2)) :: gs
           when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
-        simplify_formula_2 (And(Relation(LEQ,t1, Value(c)) :: gs))
+        aux (And(Relation(LEQ,t1, Value(c)) :: gs))
       | Relation(LEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
       | Relation(EQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
         when t1 = t2 && c1 < c2 ->
@@ -358,21 +369,21 @@ let rec simplify_formula_2 f =
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
       | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
         when t1 = t4 && t2 = t3 ->
-          simplify_formula_2 (And (Relation(EQ, t1, t2) :: gs))
+          aux (And (Relation(EQ, t1, t2) :: gs))
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: gs
         when t1 = t2 && c1 = -1 * c2 -> 
           let phi = Relation(EQ,t1, Value(c1)) in
-          simplify_formula_2 (And (phi :: gs))
+          aux (And (phi :: gs))
       | Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: Relation(LEQ, t1, Value(c1)) :: gs
         when t1 = t2 && c1 = -1 * c2 -> 
           let phi = Relation(EQ,t1, Value(c1)) in
-          simplify_formula_2 (And(phi :: gs))
+          aux (And(phi :: gs))
       | [ g ] -> g
       | [] -> True
       | g :: gs -> 
-          let g1 = simplify_formula_2 g in
+          let g1 = aux g in
           let
-              h = simplify_formula_2 (And(gs))
+              h = aux (And(gs))
           in
           match h with
           | False -> False
@@ -387,17 +398,16 @@ let rec simplify_formula_2 f =
     | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
       when (t1 = t2 && c1 = c2 + 2) ->
         Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-    | _ -> Or(List.map simplify_formula_2 fs)
+    | _ -> Or(List.map aux fs)
   end
-  | ITE (f1, f2, f3) ->
-      let f11 = simplify_formula_2 f1 in
-      let f12 = simplify_formula_2 f2 in
-      let f13 = simplify_formula_2 f3 in
-      (match f11 with
-      | True -> f2
-      | False -> f3
-      | _ -> ITE (f11, f12, f13))
-  | _ -> f
+
+  (* recurse *)
+  | Not f -> Not (aux f)
+  | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
+  | Implication (f1,f2) -> Implication (aux f1,aux f2)
+  | True | False | Relation _ | UnsupportedFormula _ -> f
+  in
+  aux f
 
 let simplify_formula f = 
   let f = simplify_constants f in
