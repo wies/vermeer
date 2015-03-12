@@ -143,8 +143,8 @@ let propegate_truth_context f =
   let isTrue trueHere f =  FormulaSet.mem f trueHere  in
   let isFalse trueHere f = 
     match f with 
-    | Not f -> not (FormulaSet.mem f trueHere)
-    | _ -> not (FormulaSet.mem (Not f) trueHere) in
+    | Not f -> FormulaSet.mem f trueHere
+    | _ -> FormulaSet.mem (Not f) trueHere in
   let rec aux trueHere trueChildren f = 
     if isTrue trueHere f then True
     else if isFalse trueHere f then False 
