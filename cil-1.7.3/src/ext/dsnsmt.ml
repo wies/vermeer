@@ -249,20 +249,26 @@ let encode_flag () =
   currentEncoding.makeFlag <- make_flag
 
 (* make sure that make_flags is set if we use this!*)
-let make_hazards graph hazards clause formula = 
+let make_hazards graph hazards intrathreadHazards clause formula = 
   if HazardSet.is_empty hazards then 
     formula 
   else match clause.typ with 
   | ProgramStmt _ ->   
     let hazard_preds = Dsngraph.get_hazard_preds graph hazards clause in
+    let hazard_preds = 
+      if intrathreadHazards then hazard_preds 
+      else 
+	let clstid = extract_tid clause in
+	Dsngraph.ClauseSet.filter 
+	  (fun x -> (extract_tid x) <> clstid) hazard_preds in
     let pred_flags = 
       Dsngraph.ClauseSet.fold (fun e a -> (get_flag_var e)::a) hazard_preds [] in
     make_dependent_on pred_flags formula
   | _ -> formula
 
-let encode_hazards graph hazards = 
+let encode_hazards graph hazards intrathreadHazards = 
   encode_flag ();
-  currentEncoding.makeHazards <- make_hazards graph hazards
+  currentEncoding.makeHazards <- make_hazards graph hazards intrathreadHazards
 
 (* Important that we make the flag first, cause it has to go inside the dependency *)
 let encode_formula opts clause = 
