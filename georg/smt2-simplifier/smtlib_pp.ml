@@ -246,6 +246,10 @@ let rec simplify_formula_2 f =
     (
       match fs_simple with
       (* generalize *)
+      | LEQ(t1, Value(c1)) :: LEQ(t2, Value(c2)) :: gs
+        when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
+          let c = min c1 c2 in
+          simplify_formula (And(LEQ(t1, Value(c)) :: gs))
       | LEQ(t1, t2) :: (LEQ(t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
         (
           let 
