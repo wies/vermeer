@@ -206,6 +206,7 @@ let  simplify_constants  f  =
     | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
     | Implication(False,_) -> True
     | Implication(_,True) -> True
+    | Implication(True,x) -> x
     | Not(False) -> True
     | Not(True) -> False
     | ITE(True,t,e) -> t
@@ -347,18 +348,11 @@ and simplify_vals vals op init =
       ) init vals
   )]
 
+
 let rec simplify_formula_2 f =
   match f with
   (* Logical operators *)
-  | And([]) -> True
-  | And([ f1 ]) -> simplify_formula f1
-  | And(fs) -> 
-    let
-        fs_simple = remove_duplicates (flatten_nested_and (simplify_and fs))
-    in
-    (
-      match fs_simple with
-      (* generalize *)
+  | And(fs) -> begin match fs with 
       | Relation(LEQ,t1, Value(c1)) :: Relation(LEQ,t2, Value(c2)) :: gs
           when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
@@ -366,7 +360,7 @@ let rec simplify_formula_2 f =
       | Relation(LEQ,t1, t2) :: (Relation(LEQ,t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
         (
           let 
-              g = simplify_formula (And(gs))
+              g = simplify_formula_2 (And(gs))
           in
           match g with
           | False -> False
@@ -387,7 +381,7 @@ let rec simplify_formula_2 f =
       | Relation(LEQ,Value(0), Sum([ t2; Value(c2) ])) :: (Relation(LEQ,t1, Value(c1)) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
         (
           let phi = Relation(EQ,t1, Value(c1)) in
-          let g = simplify_formula (And(gs)) in
+          let g = simplify_formula_2 (And(gs)) in
           match g with
           | False -> False
           | True -> phi
@@ -407,84 +401,23 @@ let rec simplify_formula_2 f =
           | And(hs) -> let hs2 = (g :: hs) in And(hs2)
           | _ -> And([ g ; h ])
         )
-    )
-  | Or([]) -> False
-  | Or([ f1 ]) -> simplify_formula_2 f1
-  | Or(fs) ->
-    let
-        fs_simple = remove_duplicates (flatten_nested_or (simplify_or fs))
-    in
-    (
-      match fs_simple with
-      | [ Relation(LEQ,Value(c1), t1) ; Relation(LEQ,t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
-      | [ Relation(LEQ,t2, Value(c2)) ; Relation(LEQ,Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
-      | _ -> Or(fs_simple)
-    )
-  | Implication(f1, f2) ->
-    let
-        f1_simple = simplify_formula_2 f1
-    in
-    let
-        f2_simple = simplify_formula_2 f2
-    in
-    (
-      match f1_simple with
-      | True -> f2_simple
-      | False -> True         
-      | _ -> 
-        (
-          match f2_simple with
-          | True -> True
-          | False -> Not(f1_simple)
-          | _ -> Implication(f1_simple, f2_simple)
-        )
-    )
+  end
+  | Or(fs) -> begin match fs with  
+    | [ Relation(LEQ,Value(c1), t1) ; Relation(LEQ,t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
+    | [ Relation(LEQ,t2, Value(c2)) ; Relation(LEQ,Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
+      | _ -> Or(fs)
+  end
   | _ -> f
-and
-    simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula_2 fs)
-and
-    simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula_2 fs)
-(* this should really just use List.sort_uniq *)
-and remove_duplicates fs = 
-  let rec uniq = function
-    | [] -> []
-    | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
-    | hd :: tl -> hd :: uniq tl
-  in
-  let sorted = List.sort compare fs in
-  uniq sorted
-and flatten_nested_or fs = 
-  let
-      fs_simple = List.map simplify_formula_2 fs
-  in
-  let has_true = List.exists (function True -> true | _ -> false) in
-  if has_true fs_simple then [True] else 
-    let 
-	fs1, fs2 = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
-    in
-    let 
-	fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
-    in
-    List.append fs1 (List.concat fs2_extracted)
-and flatten_nested_and fs = 
-  let
-      fs_simple = List.map simplify_formula_2 fs
-  in
-  let 
-      (fs1, fs2) = List.partition (fun (f) -> match f with | And(_) -> false | _ -> true) fs_simple
-  in
-  let 
-      fs2_extracted = List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
-  in
-  List.append fs1 (List.concat fs2_extracted)
-and simplify_formula f = 
+
+let simplify_formula f = 
   let f = simplify_constants f in
   let f = normalize_formula f in 
   let f = simplify_terms f in
   let f = simplify_formula_2 f in
   let f = propegate_truth_context f in
   f
-and beautify_formula f =
+
+let rec beautify_formula f =
   let f_simple = simplify_formula f in
   if f = f_simple then
     f_simple
