@@ -139,7 +139,7 @@ and
  * A ==> (A && B)  ~~~ A ===> B
  *)
 
-let propegate_and_context f = 
+let propegate_truth_context f = 
   let rec aux trueHere trueChildren f = 
     if FormulaSet.mem f trueHere then True 
     else 
@@ -152,16 +152,22 @@ let propegate_and_context f =
 	  List.fold_left (fun a e -> FormulaSet.add e a) FormulaSet.empty fl in
 	And (List.map (aux trueHere trueChildren) fl)
 	
+      | Implication (f1,f2) -> 
+	let lhs = aux trueHere trueChildren f1 in
+	let rhs = aux (FormulaSet.add lhs trueHere) trueChildren f2 in
+	Implication(lhs,rhs) 
+
+      | ITE(i,t,e) -> 
+	let i = aux trueHere trueChildren i in
+	let t = aux (FormulaSet.add i trueHere) trueChildren t in
+	(* TODO there ought to be a better way to handle the else case *)
+	let e = aux (FormulaSet.add (Not i) trueHere) trueChildren e in
+	ITE(i,t,e)
+
       (* recurse into the tree *)
       | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
       | Not f1 -> aux trueHere trueChildren f1
       | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
-      | Implication (f1,f2) -> 
-	Implication(aux trueHere trueChildren f1,aux trueHere trueChildren f2) 
-      | ITE(f1,f2,f3) -> 
-	ITE(aux trueHere trueChildren f1,
-	    aux trueHere trueChildren f2, 
-	    aux trueHere trueChildren f3)
       | True|False|UnsupportedFormula _ -> f
   in
   aux FormulaSet.empty FormulaSet.empty f
