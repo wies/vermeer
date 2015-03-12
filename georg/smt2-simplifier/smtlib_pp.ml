@@ -36,6 +36,13 @@ type formula =
 | UnsupportedFormula of string
 ;; 
 
+module FormulaSet = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = formula
+  end
+);;
+
 let sort_vars = List.sort 
   (fun x y -> match x,y with 
   | Variable x, Variable y -> compare x y
@@ -96,8 +103,10 @@ and
   | _ -> print_string("*print_term_TODO*")  
 
 
-let rec simplify_constants f = 
+(* trueSet is the set of formulas that are true *)
+let rec simplify_constants f trueSet = 
   match f with
+    f when FormulaSet.mem f -> True
   (*constants remain constant *)
   | True | False | UnsupportedFormula _ -> f
 
