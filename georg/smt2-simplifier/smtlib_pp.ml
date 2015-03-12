@@ -418,8 +418,10 @@ and flatten_nested_or fs =
   let
       fs_simple = List.map simplify_formula_2 fs
   in
+  let has_true = List.exists (function True -> true | _ -> false) in
+  if has_true fs_simple then [True] else 
   let 
-      (fs1, fs2) = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
+      fs1, fs2 = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
   in
   let 
       fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
