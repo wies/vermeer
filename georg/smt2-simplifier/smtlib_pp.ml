@@ -449,6 +449,8 @@ and flatten_nested_and fs =
   let
       fs_simple = List.map simplify_formula_2 fs
   in
+  let has_false = List.exists (function False -> true | _ -> false) in
+  if has_false fs_simple then [False] else 
   let 
       (fs1, fs2) = List.partition (fun (f) -> match f with | And(_) -> false | _ -> true) fs_simple
   in
