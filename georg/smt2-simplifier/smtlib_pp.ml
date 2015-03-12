@@ -155,7 +155,7 @@ let propegate_truth_context f =
 	let trueChildren = 
 	  List.fold_left (fun a e -> FormulaSet.add e a) FormulaSet.empty fl in
 	And (List.map (aux trueHere trueChildren) fl)
-	
+	  
       | Implication (f1,f2) -> 
 	(* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
 	 * any of a,b,c *)
@@ -213,78 +213,57 @@ let rec simplify_constants  f  =
 	simplify_constants f2, 
 	simplify_constants f3)
 
-let rec normalize_formula f = 
-  (* Normalize relations.  We want the precendence 
-   * variable (in sorted order), 
-   * non-variable expression,
-   * value
-   *)
+let op_after_swap oldop = match oldop with
+  | EQ  -> EQ 
+  | LEQ -> GEQ
+  | LT  -> GT
+  | GEQ -> LEQ
+  | GT  -> LT
+  | NEQ -> NEQ
 
-  match f with 
-  (* For two vars, put them in lex order *)
-  | Relation(EQ,Variable x,Variable y) -> 
-    if x < y then Relation(EQ,Variable x, Variable y) else Relation(EQ,Variable y, Variable x)
-  | Relation(NEQ,Variable x,Variable y) ->
-    if x < y then Relation(NEQ,Variable x, Variable y) else Relation(NEQ,Variable y, Variable x)
-  (* This requires switching the operator from leq to geq and so on *)
-  | Relation(LEQ,Variable x,Variable y) ->
-    if x < y then Relation(LEQ,Variable x, Variable y) else Relation(GEQ,Variable y, Variable x)
-  | Relation(LT,Variable x,Variable y) ->
-    if x < y then Relation(LT,Variable x, Variable y) else Relation(GT,Variable y, Variable x)
-  | Relation(GEQ,Variable x,Variable y) ->
-    if x < y then Relation(GEQ,Variable x, Variable y) else Relation(LEQ,Variable y, Variable x)
-  | Relation(GT,Variable x,Variable y) ->
-    if x < y then Relation(GT,Variable x, Variable y) else Relation(LT,Variable y, Variable x)
+let normalize_formula f = 
+  let rec aux f = 
+    (* Normalize relations.  We want the precendence 
+     * variable (in sorted order), 
+     * non-variable expression,
+     * value
+     *)
+    
+    match f with 
+    (* For two vars, put them in lex order *)
+    | Relation(oldOp, Variable x, Variable y) ->
+      if x < y then f else Relation(op_after_swap oldOp,Variable y, Variable x)
+	
+    (* move the variable to the left *)
+    | Relation(op,y,Variable x) -> Relation(op_after_swap op,Variable(x),y)
 
-  (* move the variable to the left *)
-  | Relation(NEQ,y,Variable(x)) -> Relation(NEQ,Variable(x),y)
-  | Relation(EQ,y,Variable(x)) -> Relation(EQ,Variable(x),y)
-  (* This requires switching the operator from leq to geq and so on *)
-  | Relation(LEQ,y,Variable(x)) -> Relation(GEQ,Variable(x),y)
-  | Relation(LT,y,Variable(x)) -> Relation(GT,Variable(x),y)
-  | Relation(GEQ,y,Variable(x)) -> Relation(LEQ,Variable(x),y)
-  | Relation(GT,y,Variable(x)) -> Relation(LT,Variable(x),y)
-
-  (* move the value to the right *)
-  | Relation(EQ,Value v,x) -> Relation(EQ,x,Value v)
-  | Relation(NEQ,Value v,x) -> Relation(NEQ,x,Value v)
-  (* This requires switching the operator from leq to geq and so on *)
-  | Relation(LEQ,Value v,x) -> Relation(GEQ,x,Value v)
-  | Relation(LT,Value v,x) -> Relation(GT,x,Value v)
-  | Relation(GEQ,Value v,x) -> Relation(LEQ,x,Value v)
-  | Relation(GT,Value v,x) -> Relation(LT,x,Value v)
+    (* move the value to the right *)
+    | Relation(op,Value v,x) -> Relation(op_after_swap op,x,Value v)
 
   (* Deeper look into relations - move constants out of sums *)
   (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
-  (* DSN TODO - should be able to make this general!*)
-  | Relation(EQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(EQ,t1, Value(v2 - v1))
-  | Relation(LEQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(LEQ,t1, Value(v2 - v1))
-  | Relation(LT,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(LT,t1, Value(v2 - v1))
-  | Relation(GEQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(GEQ,t1, Value(v2 - v1))
-  | Relation(GT,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(GT,t1, Value(v2 - v1))
-  | Relation(NEQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(NEQ,t1, Value(v2 - v1))
+  (* DSN TODO - should be able to make this more general *)
+    | Relation(op,Sum([ t1 ; Value(v1) ]), Value(v2)) -> 
+      Relation(op,t1, Value(v2 - v1))
 
   (* recurse down the tree *)
-  | Relation _ -> f
-  | Not Not f1 -> normalize_formula f1
-  | Not f1 -> Not (normalize_formula f1)
-  | And fl -> And (List.map normalize_formula fl)
-  | Or  fl -> Or (List.map normalize_formula fl)
-  | Implication (f1,f2) -> 
-    Implication(normalize_formula f1,normalize_formula f2) 
-  | ITE(f1,f2,f3) -> 
-    ITE(normalize_formula f1,normalize_formula f2, normalize_formula f3)
-  | True|False|UnsupportedFormula _ -> f
+    | Relation _ -> f
+    | Not Not f1 -> aux f1
+    | Not f1 -> Not (aux f1)
+    | And fl -> And (List.map aux fl)
+    | Or  fl -> Or (List.map aux fl)
+    | Implication (f1,f2) -> 
+      Implication(aux f1,aux f2) 
+    | ITE(f1,f2,f3) -> 
+      ITE(aux f1,aux f2, aux f3)
+    | True|False|UnsupportedFormula _ -> f
+  in
+  aux f
 
 let rec simplify_terms f = 
   match f with 
   (* base case: something with terms *)
-  | Relation(EQ,t1,t2) -> Relation(EQ,simplify_term t1,simplify_term t2)
-  | Relation (LEQ, t1,t2) -> Relation(LEQ,simplify_term t1,simplify_term t2)
-  | Relation(LT,t1,t2) -> Relation(LT,simplify_term t1,simplify_term t2)
-  | Relation(GEQ,t1,t2) -> Relation(GEQ,simplify_term t1,simplify_term t2)
-  | Relation(GT,t1,t2) -> Relation(GT,simplify_term t1,simplify_term t2)
-  | Relation(NEQ,t1,t2) -> Relation(NEQ,simplify_term t1,simplify_term t2)
+  | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
 
   (* recurse down the tree *)
   | True|False|UnsupportedFormula _ -> f
@@ -335,9 +314,9 @@ let rec simplify_formula_2 f =
       match fs_simple with
       (* generalize *)
       | Relation(LEQ,t1, Value(c1)) :: Relation(LEQ,t2, Value(c2)) :: gs
-        when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
-          let c = min c1 c2 in
-          simplify_formula_2 (And(Relation(LEQ,t1, Value(c)) :: gs))
+          when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
+        let c = min c1 c2 in
+        simplify_formula_2 (And(Relation(LEQ,t1, Value(c)) :: gs))
       | Relation(LEQ,t1, t2) :: (Relation(LEQ,t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
         (
           let 
@@ -434,13 +413,13 @@ and flatten_nested_or fs =
   in
   let has_true = List.exists (function True -> true | _ -> false) in
   if has_true fs_simple then [True] else 
-  let 
-      fs1, fs2 = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
-  in
-  let 
-      fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
-  in
-  List.append fs1 (List.concat fs2_extracted)
+    let 
+	fs1, fs2 = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
+    in
+    let 
+	fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
+    in
+    List.append fs1 (List.concat fs2_extracted)
 and flatten_nested_and fs = 
   let
       fs_simple = List.map simplify_formula_2 fs
@@ -511,10 +490,10 @@ let rec
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (_, [ TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s2)))) ])) ->
     let
-      term1 = Value(-1)
+	term1 = Value(-1)
     in
     let
-      term2 = Variable(s2)
+	term2 = Variable(s2)
     in
     Mult([ term1; term2 ])
 
