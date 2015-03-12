@@ -140,8 +140,14 @@ and
  *)
 
 let propegate_truth_context f = 
+  let isTrue trueHere f =  FormulaSet.mem f trueHere  in
+  let isFalse trueHere f = 
+    match f with 
+    | Not f -> not (FormulaSet.mem f trueHere)
+    | _ -> not (FormulaSet.mem (Not f) trueHere) in
   let rec aux trueHere trueChildren f = 
-    if FormulaSet.mem f trueHere then True 
+    if isTrue trueHere f then True
+    else if isFalse trueHere f then False 
     else 
       let trueHere = FormulaSet.union trueHere trueChildren in
       let trueChildren = FormulaSet.empty in
@@ -153,6 +159,8 @@ let propegate_truth_context f =
 	And (List.map (aux trueHere trueChildren) fl)
 	
       | Implication (f1,f2) -> 
+	(* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
+	 * any of a,b,c *)
 	let lhs = aux trueHere trueChildren f1 in
 	let rhs = aux (FormulaSet.add lhs trueHere) trueChildren f2 in
 	Implication(lhs,rhs) 
