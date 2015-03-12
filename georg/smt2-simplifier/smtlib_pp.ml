@@ -135,6 +135,8 @@ and
  * So, maintain a set of things that are known to be contextually "true"
  * I keep two sets, one which is things which are true here, and one which is 
  * only true for the children.
+ * This also holds for implications.
+ * A ==> (A && B)  ~~~ A ===> B
  *)
 
 let propegate_and_context f = 
@@ -176,6 +178,8 @@ let rec simplify_constants  f  =
   | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
   | GT(Value(v1), Value(v2)) -> if v1 > v2 then True else False
   | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
+  | Implication(False,_) -> True
+  | Implication(_,True) -> True
   | Not(False) -> True
   | Not(True) -> False
   | ITE(True,t,e) -> t
@@ -196,9 +200,6 @@ let rec simplify_constants  f  =
     ITE(simplify_constants f1,
 	simplify_constants f2, 
 	simplify_constants f3)
-
-
-
 
 let rec normalize_formula f = 
   (* Normalize relations.  We want the precendence 
