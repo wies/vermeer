@@ -10,34 +10,52 @@ module LetMappings = Map.Make(
 );;
 
 type term = 
-  | Variable of string
-  | Value of int 
-  | Sum of term list
-  | Mult of term list
-  | UnsupportedTerm of string
-  (* division, subtraction? *)
+| Variable of string
+| Value of int 
+| Sum of term list
+| Mult of term list
+| UnsupportedTerm of string
+(* division, subtraction? *)
 ;;
 
 type formula = 
-  | True
-  | False
-  | Not of formula
-  | And of formula list
-  | Or of formula list
-  | Implication of formula * formula
-  (* relations: *)
-  | LEQ of term * term
-  | EQ of term * term
-  | GEQ of term * term
-  | NEQ of term * term
-  | LT of term * term
-  | GT of term * term
-  | ITE of formula * formula * formula
-  | UnsupportedFormula of string
+| True
+| False
+| Not of formula
+| And of formula list
+| Or of formula list
+| Implication of formula * formula
+(* relations: *)
+| LEQ of term * term
+| EQ of term * term
+| GEQ of term * term
+| NEQ of term * term
+| LT of term * term
+| GT of term * term
+| ITE of formula * formula * formula
+| UnsupportedFormula of string
 ;; 
 
-let rec
-  print_formula f indentation =
+(*Could make this slightly faster but who cares *)
+let split_term_list tl = 
+  let (vars,rest) = List.partition 
+    (fun x -> match x with | Variable _ -> true | _ -> false) tl in
+  let (vals,rest) = List.partition
+    (fun x -> match x with  Value _ -> true | _ -> false) rest in
+  let (sums,rest)  = List.partition
+    (fun x -> match x with  Sum _ -> true | _ -> false) rest in
+  let (mults,rest)  = List.partition
+    (fun x -> match x with  Mult _ -> true | _ -> false) rest in
+  (vars,vals,sums,mults,rest)
+
+let split_vars_vals tl : (term list * term list * term list)= 
+  let (vars,rest) = List.partition 
+    (fun x -> match x with | Variable _ -> true | _ -> false) tl in
+  let (vals,rest) = List.partition
+    (fun x -> match x with  Value _ -> true | _ -> false) rest in
+  (vars,vals,rest)
+
+let rec print_formula f indentation =
   match f with
   | True -> print_string(indentation ^ "TRUE\n")
   | False -> print_string(indentation ^ "FALSE\n")
@@ -52,16 +70,16 @@ let rec
   | LT(t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
   | GT(t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
   | ITE(f_cond, f_then, f_else) -> 
-      print_string(indentation ^ "IF (\n");
-      print_formula f_cond (indentation ^ "  ");
-      print_string(indentation ^ ") THEN (\n");
-      print_formula f_then (indentation ^ "  ");
-      print_string(indentation ^ ") ELSE (\n");
-      print_formula f_else (indentation ^ "  ");
-      print_string(indentation ^ ")\n")
+    print_string(indentation ^ "IF (\n");
+    print_formula f_cond (indentation ^ "  ");
+    print_string(indentation ^ ") THEN (\n");
+    print_formula f_then (indentation ^ "  ");
+    print_string(indentation ^ ") ELSE (\n");
+    print_formula f_else (indentation ^ "  ");
+    print_string(indentation ^ ")\n")
   | UnsupportedFormula(s) -> print_string(indentation ^ "UNSUPPORTED FORMULA: " ^ s ^ "\n")
 and
-  print_term t = 
+    print_term t = 
   match t with
   | Variable(s) -> print_string(s)
   | Value(v) -> print_int(v)
@@ -69,201 +87,242 @@ and
   | Sum(t1 :: ts) -> print_string("("); print_term t1; print_string(" + "); print_term (Sum(ts)); print_string(")")
   | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
   | _ -> print_string("*print_term_TODO*")  
-and
-  simplify_formula f =
+
+let rec simplify_formula f =
   match f with
-  | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
+  (* Simplify Constants *) 
   | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
-  | EQ(Value(v), Variable(x)) -> EQ(Variable(x), Value(v))
-  | EQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> EQ(t1, Value(v2 - v1))
-  | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
-  | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
+  | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
   | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
+  | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
   | GT(Value(v1), Value(v2)) -> if v1 > v2 then True else False
+  | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
   | Not(False) -> True
   | Not(True) -> False
+
+  (*normalize so that the variable always goes on the left *)
+  | EQ(Value(v),Variable(x)) -> EQ(Variable(x),Value(v))
+  | LEQ(Value(v),Variable(x)) -> LEQ(Variable(x),Value(v))
+  | LT(Value(v),Variable(x)) -> LT(Variable(x),Value(v))
+  | GEQ(Value(v),Variable(x)) -> GEQ(Variable(x),Value(v))
+  | GT(Value(v),Variable(x)) -> GT(Variable(x),Value(v))
+  | NEQ(Value(v),Variable(x)) -> NEQ(Variable(x),Value(v))
+    
+
+  (* Deeper look into relations - move constants out of sums *)
+  | EQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> EQ(t1, Value(v2 - v1))
+
+
+  (* at this point we don't know what to do with relations any more
+   * so try to just simplify their terms and hope for the best on the 
+   * next pass *)
+  | EQ (t1,t2) -> EQ(simplify_term t1,simplify_term t2)
+  | LEQ (t1,t2) -> LEQ(simplify_term t1,simplify_term t2)
+  | LT (t1,t2) -> LT(simplify_term t1,simplify_term t2)
+  | GEQ (t1,t2) -> GEQ(simplify_term t1,simplify_term t2)
+  | GT (t1,t2) -> GT(simplify_term t1,simplify_term t2)
+  | NEQ (t1,t2) -> NEQ(simplify_term t1,simplify_term t2)
+
+
+
   | And([]) -> True
   | And([ f1 ]) -> simplify_formula f1
   | And(fs) -> 
-      let
+    let
         fs_simple = remove_duplicates (flatten_nested_and (simplify_and fs))
-      in
+    in
+    (
+      match fs_simple with
+      (* generalize *)
+      | LEQ(t1, t2) :: (LEQ(t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
         (
-          match fs_simple with
-          (* generalize *)
-          | LEQ(t1, t2) :: (LEQ(t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
-              (
-                let 
-                  g = simplify_formula (And(gs))
-                in
-                  match g with
-                  | False -> False
-                  | True -> EQ(t1, t2)
-                  | And(hs) -> let hs2 = (EQ(t1, t2) :: hs) in And(hs2)
-                  | _ -> And([ EQ(t1, t2) ; g ])
-              )
-          | LEQ(t1, Value(c1)) :: (LEQ(Value(0), Sum([ t2; Value(c2) ])) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
-              (
-                let phi = EQ(t1, Value(c1)) in
-                let g = simplify_formula (And(gs)) in
-                  match g with
-                  | False -> False
-                  | True -> phi
-                  | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
-                  | _ -> And([ phi ; g ])
-              )
-          | LEQ(Value(0), Sum([ t2; Value(c2) ])) :: (LEQ(t1, Value(c1)) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
-              (
-                let phi = EQ(t1, Value(c1)) in
-                let g = simplify_formula (And(gs)) in
-                  match g with
-                  | False -> False
-                  | True -> phi
-                  | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
-                  | _ -> And([ phi ; g ])
-              )
-          | [ g ] -> g
-          | [] -> True
-          | g :: gs -> 
-              (
-                let
-                  h = simplify_formula (And(gs))
-                in
-                  match h with
-                  | False -> False
-                  | True -> g
-                  | And(hs) -> let hs2 = (g :: hs) in And(hs2)
-                  | _ -> And([ g ; h ])
-              )
+          let 
+              g = simplify_formula (And(gs))
+          in
+          match g with
+          | False -> False
+          | True -> EQ(t1, t2)
+          | And(hs) -> let hs2 = (EQ(t1, t2) :: hs) in And(hs2)
+          | _ -> And([ EQ(t1, t2) ; g ])
         )
+      | LEQ(t1, Value(c1)) :: (LEQ(Value(0), Sum([ t2; Value(c2) ])) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
+        (
+          let phi = EQ(t1, Value(c1)) in
+          let g = simplify_formula (And(gs)) in
+          match g with
+          | False -> False
+          | True -> phi
+          | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
+          | _ -> And([ phi ; g ])
+        )
+      | LEQ(Value(0), Sum([ t2; Value(c2) ])) :: (LEQ(t1, Value(c1)) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
+        (
+          let phi = EQ(t1, Value(c1)) in
+          let g = simplify_formula (And(gs)) in
+          match g with
+          | False -> False
+          | True -> phi
+          | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
+          | _ -> And([ phi ; g ])
+        )
+      | [ g ] -> g
+      | [] -> True
+      | g :: gs -> 
+        (
+          let
+              h = simplify_formula (And(gs))
+          in
+          match h with
+          | False -> False
+          | True -> g
+          | And(hs) -> let hs2 = (g :: hs) in And(hs2)
+          | _ -> And([ g ; h ])
+        )
+    )
   | Or([]) -> False
   | Or([ f1 ]) -> simplify_formula f1
   | Or(fs) ->
-      let
+    let
         fs_simple = remove_duplicates (flatten_nested_or (simplify_or fs))
-      in
-        (
-          match fs_simple with
-          | [ LEQ(Value(c1), t1) ; LEQ(t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
-          | [ LEQ(t2, Value(c2)) ; LEQ(Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
-          | _ -> Or(fs_simple)
-        )
+    in
+    (
+      match fs_simple with
+      | [ LEQ(Value(c1), t1) ; LEQ(t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
+      | [ LEQ(t2, Value(c2)) ; LEQ(Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
+      | _ -> Or(fs_simple)
+    )
   | Implication(f1, f2) ->
-      let
+    let
         f1_simple = simplify_formula f1
-      in
-        let
-          f2_simple = simplify_formula f2
-        in
-          (
-            match f1_simple with
-            | True -> f2_simple
-            | False -> True         
-            | _ -> 
-                (
-                  match f2_simple with
-                  | True -> True
-                  | False -> Not(f1_simple)
-                  | _ -> Implication(f1_simple, f2_simple)
-                )
-          )
+    in
+    let
+        f2_simple = simplify_formula f2
+    in
+    (
+      match f1_simple with
+      | True -> f2_simple
+      | False -> True         
+      | _ -> 
+        (
+          match f2_simple with
+          | True -> True
+          | False -> Not(f1_simple)
+          | _ -> Implication(f1_simple, f2_simple)
+        )
+    )
   | _ -> f
 and
-  simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula fs)
+    simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula fs)
 and
-  simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula fs)
-and
-  remove_duplicates fs =
+    simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula fs)
+and remove_duplicates fs =
   match fs with
   | [] -> []
   | f :: fs -> f :: (remove_duplicates (List.filter (fun (f1) -> f1 <> f) fs))
-and 
-  flatten_nested_or fs = 
-    let
+and flatten_nested_or fs = 
+  let
       fs_simple = List.map simplify_formula fs
-    in
-      let 
-        (fs1, fs2) = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
-      in
-        let 
-          fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
-        in
-          List.append fs1 (List.concat fs2_extracted)
-and 
-  flatten_nested_and fs = 
-    let
+  in
+  let 
+      (fs1, fs2) = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
+  in
+  let 
+      fs2_extracted = List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
+  in
+  List.append fs1 (List.concat fs2_extracted)
+and flatten_nested_and fs = 
+  let
       fs_simple = List.map simplify_formula fs
-    in
-      let 
-        (fs1, fs2) = List.partition (fun (f) -> match f with | And(_) -> false | _ -> true) fs_simple
-      in
-        let 
-          fs2_extracted = List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
-        in
-          List.append fs1 (List.concat fs2_extracted)
-and
-  simplify_term t = 
+  in
+  let 
+      (fs1, fs2) = List.partition (fun (f) -> match f with | And(_) -> false | _ -> true) fs_simple
+  in
+  let 
+      fs2_extracted = List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
+  in
+  List.append fs1 (List.concat fs2_extracted)
+and simplify_vals vals op init = 
+  [Value(
+    List.fold_left 
+      (fun a x -> match x with 
+      | Value v -> op a v
+      | _ -> failwith "should be only values here"
+      ) init vals
+  )]
+and simplify_term t = 
   match t with
+  (* Handle constants *)
+  | Sum([Value v]) -> Value v
+  | Mult([Value v]) -> Value v
+
+  (* Normalize so that sums and mults always have the variable(s) on the left *)
+  | Sum(lst) -> 
+    let lst = List.map simplify_term lst in
+    let (vars,vals,rest) = split_vars_vals lst in
+    let vals = simplify_vals vals (+) 0 in
+    Sum(vars @ vals  @ rest)
+  | Mult(lst) -> 
+    let lst = List.map simplify_term lst in
+    let (vars,vals,rest) = split_vars_vals lst in
+    let vals = simplify_vals vals ( * ) 1 in
+    Mult(vars @ vals  @ rest)
   | _ -> t
-and
-  beautify_formula f =
-    let
-      f_simple = simplify_formula f
-    in
-      if f = f_simple then
-        f_simple
-      else
-        beautify_formula f_simple
+and beautify_formula f =
+  let f_simple = simplify_formula f in
+  if f = f_simple then
+    f_simple
+  else
+    beautify_formula f_simple
 ;;
 
 let rec
-  translate_to_term smt_term = 
+    translate_to_term smt_term = 
   match smt_term with
   | TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s)))) ->
-      Variable(s)
+    Variable(s)
 
   | TermSpecConst (_, SpecConstNum(_, c)) -> 
-      let
+    let
         v = int_of_string c
-      in
-        Value(v)
+    in
+    Value(v)
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, [ t1 ])) ->
-      let 
+    let 
         t1_trans = translate_to_term t1
-      in
-        t1_trans
+    in
+    t1_trans
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, ts)) ->
-      let 
+    let 
         ts_trans = List.map translate_to_term ts
-      in
-        Sum( ts_trans )
+    in
+    Sum( ts_trans )
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "-"))), (_, [ TermSpecConst (_, SpecConstNum(_, c)) ])) ->
-      let
+    let
         v = int_of_string c
-      in
-        let
-          v2 = -1 * v
-        in
-          Value(v2)
+    in
+    let
+        v2 = -1 * v
+    in
+    Value(v2)
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "*"))), (_, [ t1; t2 ])) ->
-      let 
+    let 
         t1_trans = translate_to_term t1
-      in
-        let
-          t2_trans = translate_to_term t2
-        in
-          Mult([ t1_trans; t2_trans ])
+    in
+    let
+        t2_trans = translate_to_term t2
+    in
+    Mult([ t1_trans; t2_trans ])
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), _) ->
-      UnsupportedTerm("Case#1_" ^ s)
+    UnsupportedTerm("Case#1_" ^ s)
 
   | _ -> UnsupportedTerm("Case#2")
 and
-  translate_to_formula smt_term =
+    translate_to_formula smt_term =
   match smt_term with 
   |TermSpecConst (p , specconstant1) -> 
     UnsupportedFormula("TermSpecConst")
@@ -288,78 +347,78 @@ and
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "<="))), (_, [ t1; t2 ])) -> 
     let
-      t1_trans = translate_to_term t1
+	t1_trans = translate_to_term t1
     in
-      let
+    let
         t2_trans = translate_to_term t2
-      in 
-        LEQ(t1_trans, t2_trans)
+    in 
+    LEQ(t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, ">="))), (_, [ t1; t2 ])) -> 
     let
-      t1_trans = translate_to_term t1
+	t1_trans = translate_to_term t1
     in
-      let
+    let
         t2_trans = translate_to_term t2
-      in 
-        GEQ(t1_trans, t2_trans)
+    in 
+    GEQ(t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "="))), (_, [ t1; t2 ])) -> 
     let
-      t1_trans = translate_to_term t1
+	t1_trans = translate_to_term t1
     in
-      let
+    let
         t2_trans = translate_to_term t2
-      in 
-        EQ(t1_trans, t2_trans)
+    in 
+    EQ(t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "distinct"))), (_, [ t1; t2 ])) -> 
     let
-      t1_trans = translate_to_term t1
+	t1_trans = translate_to_term t1
     in
-      let
+    let
         t2_trans = translate_to_term t2
-      in 
-        NEQ(t1_trans, t2_trans)
+    in 
+    NEQ(t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, ">"))), (_, [ t1; t2 ])) -> 
     let
-      t1_trans = translate_to_term t1
+	t1_trans = translate_to_term t1
     in
-      let
+    let
         t2_trans = translate_to_term t2
-      in 
-        GT(t1_trans, t2_trans)
+    in 
+    GT(t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "<"))), (_, [ t1; t2 ])) -> 
     let
-      t1_trans = translate_to_term t1
+	t1_trans = translate_to_term t1
     in
-      let
+    let
         t2_trans = translate_to_term t2
-      in 
-        LT(t1_trans, t2_trans)
+    in 
+    LT(t1_trans, t2_trans)
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "or"))), (_, ts)) ->
     let
-      ts2 = List.map translate_to_formula ts
+	ts2 = List.map translate_to_formula ts
     in
-      Or( ts2 )
+    Or( ts2 )
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "and"))), (_, ts)) ->
     let
-      ts2 = List.map translate_to_formula ts
+	ts2 = List.map translate_to_formula ts
     in
-      And( ts2 )
+    And( ts2 )
 
   | TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "=>"))), (_, [ f1; f2 ])) -> 
     let
-      f1_trans = translate_to_formula f1
+	f1_trans = translate_to_formula f1
     in
-      let
+    let
         f2_trans = translate_to_formula f2
-      in 
-        Implication(f1_trans, f2_trans)
+    in 
+    Implication(f1_trans, f2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "ite"))), (p2, ts)) -> 
     ITE(translate_to_formula (List.nth ts 0), translate_to_formula (List.nth ts 1), translate_to_formula (List.nth ts 2))
@@ -390,42 +449,42 @@ and
 ;;
 
 let rec 
-  to_let_mapping bindings m = 
+    to_let_mapping bindings m = 
   match bindings with
-    | [] -> LetMappings.empty
-    | (VarBindingSymTerm (_ , s , t))::ts -> LetMappings.add s (eliminate_let_terms t m) (to_let_mapping ts m)
+  | [] -> LetMappings.empty
+  | (VarBindingSymTerm (_ , s , t))::ts -> LetMappings.add s (eliminate_let_terms t m) (to_let_mapping ts m)
 and
-  create_let_mapping p m =
+    create_let_mapping p m =
   match p with
-    | (_, ls) -> to_let_mapping ls m
+  | (_, ls) -> to_let_mapping ls m
 and
-  print_let_mapping s t =
+    print_let_mapping s t =
   match s with
-    | Symbol (_, name) -> print_string(name ^ "\n")
-    | SymbolWithOr (_, name) -> print_string(name ^ "\n")
+  | Symbol (_, name) -> print_string(name ^ "\n")
+  | SymbolWithOr (_, name) -> print_string(name ^ "\n")
 and 
-  apply_let_mapping t m = 
+    apply_let_mapping t m = 
   match t with
-    |TermSpecConst (_ , specconstant1) -> ()
-    |TermQualIdentifier (_ , qualidentifier1) -> ()
-    |TermQualIdTerm (_ , qualidentifier2 , termqualidterm_term_term563) -> ()
-    |TermLetTerm (_ , termletterm_term_varbinding584 , term6) -> ()
-    |TermForAllTerm (_ , termforallterm_term_sortedvar604 , term6) -> ()
-    |TermExistsTerm (_ , termexiststerm_term_sortedvar624 , term6) -> ()
-    |TermExclimationPt (_ , term3 , termexclimationpt_term_attribute644) -> ()
+  |TermSpecConst (_ , specconstant1) -> ()
+  |TermQualIdentifier (_ , qualidentifier1) -> ()
+  |TermQualIdTerm (_ , qualidentifier2 , termqualidterm_term_term563) -> ()
+  |TermLetTerm (_ , termletterm_term_varbinding584 , term6) -> ()
+  |TermForAllTerm (_ , termforallterm_term_sortedvar604 , term6) -> ()
+  |TermExistsTerm (_ , termexiststerm_term_sortedvar624 , term6) -> ()
+  |TermExclimationPt (_ , term3 , termexclimationpt_term_attribute644) -> ()
 and
-eliminate_let_terms t m =
-match t with
+    eliminate_let_terms t m =
+  match t with
   |TermSpecConst (p , specconstant1) -> t
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, sym))) -> 
     (try
-      let 
-        t_new = LetMappings.find sym m 
-      in
-        t_new
-    with 
-      Not_found -> t)
+       let 
+           t_new = LetMappings.find sym m 
+       in
+       t_new
+     with 
+       Not_found -> t)
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdUnderscoreSymNum (p3, sym, n))) -> t
 
@@ -433,178 +492,178 @@ match t with
 
   |TermQualIdTerm (p , qualidentifier2 , (p2, ts)) -> 
     let
-      ts2 = List.map (fun t2 -> eliminate_let_terms t2 m) ts
+	ts2 = List.map (fun t2 -> eliminate_let_terms t2 m) ts
     in 
-      TermQualIdTerm (p, qualidentifier2, (p2, ts2))
+    TermQualIdTerm (p, qualidentifier2, (p2, ts2))
 
   |TermLetTerm (p , termletterm_term_varbinding584 , t2) -> 
     let 
-      m2 = create_let_mapping termletterm_term_varbinding584 m
+	m2 = create_let_mapping termletterm_term_varbinding584 m
     in 
-      eliminate_let_terms t2 (LetMappings.merge (fun k v1 v2 -> match v1, v2 with | _, Some v -> Some v | Some v, None -> Some v | None, None -> None) m m2)
+    eliminate_let_terms t2 (LetMappings.merge (fun k v1 v2 -> match v1, v2 with | _, Some v -> Some v | Some v, None -> Some v | None, None -> None) m m2)
 
   |TermForAllTerm (p , t_var , t2) -> 
     let
-      t2_prime = eliminate_let_terms t2 m
+	t2_prime = eliminate_let_terms t2 m
     in
-      TermForAllTerm (p, t_var, t2_prime)
+    TermForAllTerm (p, t_var, t2_prime)
 
   |TermExistsTerm (p , t_var , t2) -> 
     let
-      t2_prime = eliminate_let_terms t2 m
+	t2_prime = eliminate_let_terms t2 m
     in
-      TermExistsTerm (p, t_var, t2_prime)
+    TermExistsTerm (p, t_var, t2_prime)
 
   |TermExclimationPt (p , t2 , termexclimationpt_term_attribute644) -> 
     let 
-      t2_prime = eliminate_let_terms t2 m 
+	t2_prime = eliminate_let_terms t2 m 
     in 
-      TermExclimationPt (p, t2_prime, termexclimationpt_term_attribute644)
+    TermExclimationPt (p, t2_prime, termexclimationpt_term_attribute644)
 ;;
 
 
 
 let rec dummy () = () 
 and pp_an_option = function 
-   |AnOptionAttribute (_ , attribute1) ->  pp_attribute attribute1; () 
+  |AnOptionAttribute (_ , attribute1) ->  pp_attribute attribute1; () 
 and pp_attribute = function 
-   |AttributeKeyword (_ , str1) ->  print_string str1; () 
-   |AttributeKeywordValue (_ , str1 , attributevalue2) ->  print_string str1;print_string " "; pp_attributevalue attributevalue2; () 
+  |AttributeKeyword (_ , str1) ->  print_string str1; () 
+  |AttributeKeywordValue (_ , str1 , attributevalue2) ->  print_string str1;print_string " "; pp_attributevalue attributevalue2; () 
 and pp_attributevalue = function 
-   |AttributeValSpecConst (_ , specconstant1) ->  pp_specconstant specconstant1; () 
-   |AttributeValSymbol (_ , symbol1) ->  pp_symbol symbol1; () 
-   |AttributeValSexpr (_ , attributevalsexpr_attributevalue_sexpr52) ->  print_string "(";print_string " "; pp_attributevalsexpr_attributevalue_sexpr5 attributevalsexpr_attributevalue_sexpr52;print_string " "; print_string ")"; () 
+  |AttributeValSpecConst (_ , specconstant1) ->  pp_specconstant specconstant1; () 
+  |AttributeValSymbol (_ , symbol1) ->  pp_symbol symbol1; () 
+  |AttributeValSexpr (_ , attributevalsexpr_attributevalue_sexpr52) ->  print_string "(";print_string " "; pp_attributevalsexpr_attributevalue_sexpr5 attributevalsexpr_attributevalue_sexpr52;print_string " "; print_string ")"; () 
 and pp_command = function 
-   |CommandSetLogic (_ , symbol3) ->  print_string "(";print_string " "; print_string "set-logic";print_string " "; pp_symbol symbol3;print_string " "; print_string ")"; () 
-   |CommandSetOption (_ , an_option3) ->  print_string "(";print_string " "; print_string "set-option";print_string " "; pp_an_option an_option3;print_string " "; print_string ")"; () 
-   |CommandSetInfo (_ , attribute3) ->  print_string "(";print_string " "; print_string "set-info";print_string " "; pp_attribute attribute3;print_string " "; print_string ")"; () 
-   |CommandDeclareSort (_ , symbol3 , str4) ->  print_string "(";print_string " "; print_string "declare-sort";print_string " "; pp_symbol symbol3;print_string " "; print_string str4;print_string " "; print_string ")"; () 
-   |CommandDefineSort (_ , symbol3 , commanddefinesort_command_symbol115 , sort7) ->  print_string "(";print_string " "; print_string "define-sort";print_string " "; pp_symbol symbol3;print_string " "; print_string "(";print_string " "; pp_commanddefinesort_command_symbol11 commanddefinesort_command_symbol115;print_string " "; print_string ")";print_string " "; pp_sort sort7;print_string " "; print_string ")"; () 
-   |CommandDeclareFun (_ , symbol3 , commanddeclarefun_command_sort135 , sort7) ->  print_string "(";print_string " "; print_string "declare-fun";print_string " "; pp_symbol symbol3;print_string " "; print_string "(";print_string " "; pp_commanddeclarefun_command_sort13 commanddeclarefun_command_sort135;print_string " "; print_string ")";print_string " "; pp_sort sort7;print_string " "; print_string ")"; () 
-   |CommandDefineFun (_ , symbol3 , commanddefinefun_command_sortedvar155 , sort7 , term8) ->  print_string "(";print_string " "; print_string "define-fun";print_string " "; pp_symbol symbol3;print_string " "; print_string "(";print_string " "; pp_commanddefinefun_command_sortedvar15 commanddefinefun_command_sortedvar155;print_string " "; print_string ")";print_string " "; pp_sort sort7;print_string " "; pp_term term8;print_string " "; print_string ")"; () 
-   |CommandPush (_ , str3) ->  print_string "(";print_string " "; print_string "push";print_string " "; print_string str3;print_string " "; print_string ")"; () 
-   |CommandPop (_ , str3) ->  print_string "(";print_string " "; print_string "pop";print_string " "; print_string str3;print_string " "; print_string ")"; () 
+  |CommandSetLogic (_ , symbol3) ->  print_string "(";print_string " "; print_string "set-logic";print_string " "; pp_symbol symbol3;print_string " "; print_string ")"; () 
+  |CommandSetOption (_ , an_option3) ->  print_string "(";print_string " "; print_string "set-option";print_string " "; pp_an_option an_option3;print_string " "; print_string ")"; () 
+  |CommandSetInfo (_ , attribute3) ->  print_string "(";print_string " "; print_string "set-info";print_string " "; pp_attribute attribute3;print_string " "; print_string ")"; () 
+  |CommandDeclareSort (_ , symbol3 , str4) ->  print_string "(";print_string " "; print_string "declare-sort";print_string " "; pp_symbol symbol3;print_string " "; print_string str4;print_string " "; print_string ")"; () 
+  |CommandDefineSort (_ , symbol3 , commanddefinesort_command_symbol115 , sort7) ->  print_string "(";print_string " "; print_string "define-sort";print_string " "; pp_symbol symbol3;print_string " "; print_string "(";print_string " "; pp_commanddefinesort_command_symbol11 commanddefinesort_command_symbol115;print_string " "; print_string ")";print_string " "; pp_sort sort7;print_string " "; print_string ")"; () 
+  |CommandDeclareFun (_ , symbol3 , commanddeclarefun_command_sort135 , sort7) ->  print_string "(";print_string " "; print_string "declare-fun";print_string " "; pp_symbol symbol3;print_string " "; print_string "(";print_string " "; pp_commanddeclarefun_command_sort13 commanddeclarefun_command_sort135;print_string " "; print_string ")";print_string " "; pp_sort sort7;print_string " "; print_string ")"; () 
+  |CommandDefineFun (_ , symbol3 , commanddefinefun_command_sortedvar155 , sort7 , term8) ->  print_string "(";print_string " "; print_string "define-fun";print_string " "; pp_symbol symbol3;print_string " "; print_string "(";print_string " "; pp_commanddefinefun_command_sortedvar15 commanddefinefun_command_sortedvar155;print_string " "; print_string ")";print_string " "; pp_sort sort7;print_string " "; pp_term term8;print_string " "; print_string ")"; () 
+  |CommandPush (_ , str3) ->  print_string "(";print_string " "; print_string "push";print_string " "; print_string str3;print_string " "; print_string ")"; () 
+  |CommandPop (_ , str3) ->  print_string "(";print_string " "; print_string "pop";print_string " "; print_string str3;print_string " "; print_string ")"; () 
 
-   (* this is the important command case *)
-   |CommandAssert (_ , term3) ->  (* pp_term term3; () *)
-      let 
+  (* this is the important command case *)
+  |CommandAssert (_ , term3) ->  (* pp_term term3; () *)
+    let 
         t = eliminate_let_terms term3 LetMappings.empty
-      in 
-        let 
-          f = translate_to_formula t
-        in 
-          let
-            f_simple = beautify_formula f
-          in
-            print_formula f_simple ""; () 
+    in 
+    let 
+        f = translate_to_formula t
+    in 
+    let
+        f_simple = beautify_formula f
+    in
+    print_formula f_simple ""; () 
 
-   |CommandCheckSat (_) ->  print_string "(";print_string " "; print_string "check-sat";print_string " "; print_string ")"; () 
-   |CommandGetAssert (_) ->  print_string "(";print_string " "; print_string "get-assertions";print_string " "; print_string ")"; () 
-   |CommandGetProof (_) ->  print_string "(";print_string " "; print_string "get-proof";print_string " "; print_string ")"; () 
-   |CommandGetUnsatCore (_) ->  print_string "(";print_string " "; print_string "get-unsat-core";print_string " "; print_string ")"; () 
-   |CommandGetValue (_ , commandgetvalue_command_term244) ->  print_string "(";print_string " "; print_string "get-value";print_string " "; print_string "(";print_string " "; pp_commandgetvalue_command_term24 commandgetvalue_command_term244;print_string " "; print_string ")";print_string " "; print_string ")"; () 
-   |CommandGetAssign (_) ->  print_string "(";print_string " "; print_string "get-assignment";print_string " "; print_string ")"; () 
-   |CommandGetOption (_ , str3) ->  print_string "(";print_string " "; print_string "get-option";print_string " "; print_string str3;print_string " "; print_string ")"; () 
-   |CommandGetInfo (_ , infoflag3) ->  print_string "(";print_string " "; print_string "get-info";print_string " "; pp_infoflag infoflag3;print_string " "; print_string ")"; () 
-   |CommandExit (_) ->  print_string "(";print_string " "; print_string "exit";print_string " "; print_string ")"; () 
+  |CommandCheckSat (_) ->  print_string "(";print_string " "; print_string "check-sat";print_string " "; print_string ")"; () 
+  |CommandGetAssert (_) ->  print_string "(";print_string " "; print_string "get-assertions";print_string " "; print_string ")"; () 
+  |CommandGetProof (_) ->  print_string "(";print_string " "; print_string "get-proof";print_string " "; print_string ")"; () 
+  |CommandGetUnsatCore (_) ->  print_string "(";print_string " "; print_string "get-unsat-core";print_string " "; print_string ")"; () 
+  |CommandGetValue (_ , commandgetvalue_command_term244) ->  print_string "(";print_string " "; print_string "get-value";print_string " "; print_string "(";print_string " "; pp_commandgetvalue_command_term24 commandgetvalue_command_term244;print_string " "; print_string ")";print_string " "; print_string ")"; () 
+  |CommandGetAssign (_) ->  print_string "(";print_string " "; print_string "get-assignment";print_string " "; print_string ")"; () 
+  |CommandGetOption (_ , str3) ->  print_string "(";print_string " "; print_string "get-option";print_string " "; print_string str3;print_string " "; print_string ")"; () 
+  |CommandGetInfo (_ , infoflag3) ->  print_string "(";print_string " "; print_string "get-info";print_string " "; pp_infoflag infoflag3;print_string " "; print_string ")"; () 
+  |CommandExit (_) ->  print_string "(";print_string " "; print_string "exit";print_string " "; print_string ")"; () 
 and pp_commands = function 
-   |Commands (_ , commands_commands_command301) ->  pp_commands_commands_command30 commands_commands_command301; () 
+  |Commands (_ , commands_commands_command301) ->  pp_commands_commands_command30 commands_commands_command301; () 
 and pp_identifier = function 
-   |IdSymbol (_ , Symbol(_, "<=")) -> print_string "holla"; ()
-   |IdSymbol (_ , symbol1) ->  print_string "&"; pp_symbol symbol1; () 
-   |IdUnderscoreSymNum (_ , symbol3 , idunderscoresymnum_identifier_numeral334) ->  print_string "(";print_string " "; print_string "_";print_string " "; pp_symbol symbol3;print_string " "; pp_idunderscoresymnum_identifier_numeral33 idunderscoresymnum_identifier_numeral334;print_string " "; print_string ")"; () 
+  |IdSymbol (_ , Symbol(_, "<=")) -> print_string "holla"; ()
+  |IdSymbol (_ , symbol1) ->  print_string "&"; pp_symbol symbol1; () 
+  |IdUnderscoreSymNum (_ , symbol3 , idunderscoresymnum_identifier_numeral334) ->  print_string "(";print_string " "; print_string "_";print_string " "; pp_symbol symbol3;print_string " "; pp_idunderscoresymnum_identifier_numeral33 idunderscoresymnum_identifier_numeral334;print_string " "; print_string ")"; () 
 and pp_infoflag = function 
-   |InfoFlagKeyword (_ , str1) ->  print_string str1; () 
+  |InfoFlagKeyword (_ , str1) ->  print_string str1; () 
 and pp_qualidentifier = function 
-   |QualIdentifierId (_ , identifier1) ->  pp_identifier identifier1; () 
-   |QualIdentifierAs (_ , identifier3 , sort4) ->  print_string "(";print_string " "; print_string "as";print_string " "; pp_identifier identifier3;print_string " "; pp_sort sort4;print_string " "; print_string ")"; () 
+  |QualIdentifierId (_ , identifier1) ->  pp_identifier identifier1; () 
+  |QualIdentifierAs (_ , identifier3 , sort4) ->  print_string "(";print_string " "; print_string "as";print_string " "; pp_identifier identifier3;print_string " "; pp_sort sort4;print_string " "; print_string ")"; () 
 and pp_sexpr = function 
-   |SexprSpecConst (_ , specconstant1) ->  pp_specconstant specconstant1; () 
-   |SexprSymbol (_ , symbol1) ->  pp_symbol symbol1; () 
-   |SexprKeyword (_ , str1) ->  print_string str1; () 
-   |SexprInParen (_ , sexprinparen_sexpr_sexpr412) ->  print_string "(";print_string " "; pp_sexprinparen_sexpr_sexpr41 sexprinparen_sexpr_sexpr412;print_string " "; print_string ")"; () 
+  |SexprSpecConst (_ , specconstant1) ->  pp_specconstant specconstant1; () 
+  |SexprSymbol (_ , symbol1) ->  pp_symbol symbol1; () 
+  |SexprKeyword (_ , str1) ->  print_string str1; () 
+  |SexprInParen (_ , sexprinparen_sexpr_sexpr412) ->  print_string "(";print_string " "; pp_sexprinparen_sexpr_sexpr41 sexprinparen_sexpr_sexpr412;print_string " "; print_string ")"; () 
 and pp_sort = function 
-   |SortIdentifier (_ , identifier1) ->  pp_identifier identifier1; () 
-   |SortIdSortMulti (_ , identifier2 , sortidsortmulti_sort_sort443) ->  print_string "(";print_string " "; pp_identifier identifier2;print_string " "; pp_sortidsortmulti_sort_sort44 sortidsortmulti_sort_sort443;print_string " "; print_string ")"; () 
+  |SortIdentifier (_ , identifier1) ->  pp_identifier identifier1; () 
+  |SortIdSortMulti (_ , identifier2 , sortidsortmulti_sort_sort443) ->  print_string "(";print_string " "; pp_identifier identifier2;print_string " "; pp_sortidsortmulti_sort_sort44 sortidsortmulti_sort_sort443;print_string " "; print_string ")"; () 
 and pp_sortedvar = function 
-   |SortedVarSymSort (_ , symbol2 , sort3) ->  print_string "(";print_string " "; pp_symbol symbol2;print_string " "; pp_sort sort3;print_string " "; print_string ")"; () 
+  |SortedVarSymSort (_ , symbol2 , sort3) ->  print_string "(";print_string " "; pp_symbol symbol2;print_string " "; pp_sort sort3;print_string " "; print_string ")"; () 
 and pp_specconstant = function 
-   |SpecConstsDec (_ , str1) ->  print_string str1; () 
-   |SpecConstNum (_ , str1) ->  print_string str1; () 
-   |SpecConstString (_ , str1) ->  print_string str1; () 
-   |SpecConstsHex (_ , str1) ->  print_string str1; () 
-   |SpecConstsBinary (_ , str1) ->  print_string str1; () 
+  |SpecConstsDec (_ , str1) ->  print_string str1; () 
+  |SpecConstNum (_ , str1) ->  print_string str1; () 
+  |SpecConstString (_ , str1) ->  print_string str1; () 
+  |SpecConstsHex (_ , str1) ->  print_string str1; () 
+  |SpecConstsBinary (_ , str1) ->  print_string str1; () 
 and pp_symbol = function 
-   |Symbol (_ , str1) ->  print_string str1; () 
-   |SymbolWithOr (_ , str1) ->  print_string str1; () 
+  |Symbol (_ , str1) ->  print_string str1; () 
+  |SymbolWithOr (_ , str1) ->  print_string str1; () 
 
 
 and pp_term = function (* simplification is done here *)
 
-   |TermSpecConst (_ , specconstant1) ->  print_string "#"; pp_specconstant specconstant1; () 
+  |TermSpecConst (_ , specconstant1) ->  print_string "#"; pp_specconstant specconstant1; () 
 
-   |TermQualIdentifier (_ , qualidentifier1) ->  print_string "@"; pp_qualidentifier qualidentifier1; () 
+  |TermQualIdentifier (_ , qualidentifier1) ->  print_string "@"; pp_qualidentifier qualidentifier1; () 
 
-   |TermQualIdTerm (_ , qualidentifier2 , termqualidterm_term_term563) ->  print_string "(";print_string " "; pp_qualidentifier qualidentifier2;print_string " "; pp_termqualidterm_term_term56 termqualidterm_term_term563;print_string " "; print_string ")"; () 
+  |TermQualIdTerm (_ , qualidentifier2 , termqualidterm_term_term563) ->  print_string "(";print_string " "; pp_qualidentifier qualidentifier2;print_string " "; pp_termqualidterm_term_term56 termqualidterm_term_term563;print_string " "; print_string ")"; () 
 
-   |TermLetTerm (p , termletterm_term_varbinding584 , term6) ->  
-	let 
-		t = eliminate_let_terms (TermLetTerm (p , termletterm_term_varbinding584 , term6)) LetMappings.empty 
-	in 
-		pp_term t; () 
+  |TermLetTerm (p , termletterm_term_varbinding584 , term6) ->  
+    let 
+	t = eliminate_let_terms (TermLetTerm (p , termletterm_term_varbinding584 , term6)) LetMappings.empty 
+    in 
+    pp_term t; () 
 
-   |TermForAllTerm (_ , termforallterm_term_sortedvar604 , term6) ->  
-print_string "(";print_string " "; print_string "forall";print_string " "; print_string "(";print_string " "; pp_termforallterm_term_sortedvar60 termforallterm_term_sortedvar604;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
+  |TermForAllTerm (_ , termforallterm_term_sortedvar604 , term6) ->  
+    print_string "(";print_string " "; print_string "forall";print_string " "; print_string "(";print_string " "; pp_termforallterm_term_sortedvar60 termforallterm_term_sortedvar604;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
 
-   |TermExistsTerm (_ , termexiststerm_term_sortedvar624 , term6) ->  print_string "(";print_string " "; print_string "exists";print_string " "; print_string "(";print_string " "; pp_termexiststerm_term_sortedvar62 termexiststerm_term_sortedvar624;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
+  |TermExistsTerm (_ , termexiststerm_term_sortedvar624 , term6) ->  print_string "(";print_string " "; print_string "exists";print_string " "; print_string "(";print_string " "; pp_termexiststerm_term_sortedvar62 termexiststerm_term_sortedvar624;print_string " "; print_string ")";print_string " "; pp_term term6;print_string " "; print_string ")"; () 
 
-   |TermExclimationPt (_ , term3 , termexclimationpt_term_attribute644) ->  print_string "(";print_string " "; print_string "!";print_string " "; pp_term term3;print_string " "; pp_termexclimationpt_term_attribute64 termexclimationpt_term_attribute644;print_string " "; print_string ")"; () 
+  |TermExclimationPt (_ , term3 , termexclimationpt_term_attribute644) ->  print_string "(";print_string " "; print_string "!";print_string " "; pp_term term3;print_string " "; pp_termexclimationpt_term_attribute64 termexclimationpt_term_attribute644;print_string " "; print_string ")"; () 
 
 
 and pp_varbinding = function 
-   |VarBindingSymTerm (_ , symbol2 , term3) ->  print_string "(";print_string " "; pp_symbol symbol2;print_string " represents "; pp_term term3;print_string " "; print_string ")"; () 
+  |VarBindingSymTerm (_ , symbol2 , term3) ->  print_string "(";print_string " "; pp_symbol symbol2;print_string " represents "; pp_term term3;print_string " "; print_string ")"; () 
 and pp_termexclimationpt_term_attribute64 = function 
-   |(_,[]) ->   () 
-   | (d , (attribute1)::termexclimationpt_term_attribute642) ->  pp_attribute attribute1;print_string " "; pp_termexclimationpt_term_attribute64 (d,termexclimationpt_term_attribute642); () 
+  |(_,[]) ->   () 
+  | (d , (attribute1)::termexclimationpt_term_attribute642) ->  pp_attribute attribute1;print_string " "; pp_termexclimationpt_term_attribute64 (d,termexclimationpt_term_attribute642); () 
 and pp_termexiststerm_term_sortedvar62 = function 
-   |(_,[]) ->   () 
-   | (d , (sortedvar1)::termexiststerm_term_sortedvar622) ->  pp_sortedvar sortedvar1;print_string " "; pp_termexiststerm_term_sortedvar62 (d,termexiststerm_term_sortedvar622); () 
+  |(_,[]) ->   () 
+  | (d , (sortedvar1)::termexiststerm_term_sortedvar622) ->  pp_sortedvar sortedvar1;print_string " "; pp_termexiststerm_term_sortedvar62 (d,termexiststerm_term_sortedvar622); () 
 and pp_termforallterm_term_sortedvar60 = function 
-   |(_,[]) ->   () 
-   | (d , (sortedvar1)::termforallterm_term_sortedvar602) ->  pp_sortedvar sortedvar1;print_string " "; pp_termforallterm_term_sortedvar60 (d,termforallterm_term_sortedvar602); () 
+  |(_,[]) ->   () 
+  | (d , (sortedvar1)::termforallterm_term_sortedvar602) ->  pp_sortedvar sortedvar1;print_string " "; pp_termforallterm_term_sortedvar60 (d,termforallterm_term_sortedvar602); () 
 and pp_termletterm_term_varbinding58 = function 
-   |(_,[]) ->   () 
-   | (d , (varbinding1)::termletterm_term_varbinding582) ->  pp_varbinding varbinding1;print_string " "; pp_termletterm_term_varbinding58 (d,termletterm_term_varbinding582); () 
+  |(_,[]) ->   () 
+  | (d , (varbinding1)::termletterm_term_varbinding582) ->  pp_varbinding varbinding1;print_string " "; pp_termletterm_term_varbinding58 (d,termletterm_term_varbinding582); () 
 and pp_termqualidterm_term_term56 = function 
-   |(_,[]) ->   () 
-   | (d , (term1)::termqualidterm_term_term562) ->  pp_term term1;print_string " "; pp_termqualidterm_term_term56 (d,termqualidterm_term_term562); () 
+  |(_,[]) ->   () 
+  | (d , (term1)::termqualidterm_term_term562) ->  pp_term term1;print_string " "; pp_termqualidterm_term_term56 (d,termqualidterm_term_term562); () 
 and pp_sortidsortmulti_sort_sort44 = function 
-   |(_,[]) ->   () 
-   | (d , (sort1)::sortidsortmulti_sort_sort442) ->  pp_sort sort1;print_string " "; pp_sortidsortmulti_sort_sort44 (d,sortidsortmulti_sort_sort442); () 
+  |(_,[]) ->   () 
+  | (d , (sort1)::sortidsortmulti_sort_sort442) ->  pp_sort sort1;print_string " "; pp_sortidsortmulti_sort_sort44 (d,sortidsortmulti_sort_sort442); () 
 and pp_sexprinparen_sexpr_sexpr41 = function 
-   |(_,[]) ->   () 
-   | (d , (sexpr1)::sexprinparen_sexpr_sexpr412) ->  pp_sexpr sexpr1;print_string " "; pp_sexprinparen_sexpr_sexpr41 (d,sexprinparen_sexpr_sexpr412); () 
+  |(_,[]) ->   () 
+  | (d , (sexpr1)::sexprinparen_sexpr_sexpr412) ->  pp_sexpr sexpr1;print_string " "; pp_sexprinparen_sexpr_sexpr41 (d,sexprinparen_sexpr_sexpr412); () 
 and pp_idunderscoresymnum_identifier_numeral33 = function 
-   |(_,[]) ->   () 
-   | (d , (str1)::idunderscoresymnum_identifier_numeral332) ->  print_string str1;print_string " "; pp_idunderscoresymnum_identifier_numeral33 (d,idunderscoresymnum_identifier_numeral332); () 
+  |(_,[]) ->   () 
+  | (d , (str1)::idunderscoresymnum_identifier_numeral332) ->  print_string str1;print_string " "; pp_idunderscoresymnum_identifier_numeral33 (d,idunderscoresymnum_identifier_numeral332); () 
 and pp_commands_commands_command30 = function 
-   |(_,[]) ->   () 
-   | (d , (command1)::commands_commands_command302) ->  pp_command command1;print_string " "; pp_commands_commands_command30 (d,commands_commands_command302); () 
+  |(_,[]) ->   () 
+  | (d , (command1)::commands_commands_command302) ->  pp_command command1;print_string " "; pp_commands_commands_command30 (d,commands_commands_command302); () 
 and pp_commandgetvalue_command_term24 = function 
-   |(_,[]) ->   () 
-   | (d , (term1)::commandgetvalue_command_term242) ->  pp_term term1;print_string " "; pp_commandgetvalue_command_term24 (d,commandgetvalue_command_term242); () 
+  |(_,[]) ->   () 
+  | (d , (term1)::commandgetvalue_command_term242) ->  pp_term term1;print_string " "; pp_commandgetvalue_command_term24 (d,commandgetvalue_command_term242); () 
 and pp_commanddefinefun_command_sortedvar15 = function 
-   |(_,[]) ->   () 
-   | (d , (sortedvar1)::commanddefinefun_command_sortedvar152) ->  pp_sortedvar sortedvar1;print_string " "; pp_commanddefinefun_command_sortedvar15 (d,commanddefinefun_command_sortedvar152); () 
+  |(_,[]) ->   () 
+  | (d , (sortedvar1)::commanddefinefun_command_sortedvar152) ->  pp_sortedvar sortedvar1;print_string " "; pp_commanddefinefun_command_sortedvar15 (d,commanddefinefun_command_sortedvar152); () 
 and pp_commanddeclarefun_command_sort13 = function 
-   |(_,[]) ->   () 
-   | (d , (sort1)::commanddeclarefun_command_sort132) ->  pp_sort sort1;print_string " "; pp_commanddeclarefun_command_sort13 (d,commanddeclarefun_command_sort132); () 
+  |(_,[]) ->   () 
+  | (d , (sort1)::commanddeclarefun_command_sort132) ->  pp_sort sort1;print_string " "; pp_commanddeclarefun_command_sort13 (d,commanddeclarefun_command_sort132); () 
 and pp_commanddefinesort_command_symbol11 = function 
-   |(_,[]) ->   () 
-   | (d , (symbol1)::commanddefinesort_command_symbol112) ->  pp_symbol symbol1;print_string " "; pp_commanddefinesort_command_symbol11 (d,commanddefinesort_command_symbol112); () 
+  |(_,[]) ->   () 
+  | (d , (symbol1)::commanddefinesort_command_symbol112) ->  pp_symbol symbol1;print_string " "; pp_commanddefinesort_command_symbol11 (d,commanddefinesort_command_symbol112); () 
 and pp_attributevalsexpr_attributevalue_sexpr5 = function 
-   |(_,[]) ->   () 
-   | (d , (sexpr1)::attributevalsexpr_attributevalue_sexpr52) ->  pp_sexpr sexpr1;print_string " "; pp_attributevalsexpr_attributevalue_sexpr5 (d,attributevalsexpr_attributevalue_sexpr52); () ;;
+  |(_,[]) ->   () 
+  | (d , (sexpr1)::attributevalsexpr_attributevalue_sexpr52) ->  pp_sexpr sexpr1;print_string " "; pp_attributevalsexpr_attributevalue_sexpr5 (d,attributevalsexpr_attributevalue_sexpr52); () ;;
 let pp e = pp_commands e;;
 
 
