@@ -225,6 +225,7 @@ let normalize_formula f =
     in
     List.append fs1 (List.concat fs2_extracted)
   in
+
   let rec aux f = 
     (* Normalize relations.  We want the precendence 
      * variable (in sorted order), 
@@ -274,51 +275,73 @@ let normalize_formula f =
       Implication(aux f1,aux f2) 
     | ITE(f1,f2,f3) -> 
       ITE(aux f1,aux f2, aux f3)
-    | True|False|UnsupportedFormula _ -> f
-  in
+    | True|False|UnsupportedFormula _ -> f  
+  in  
   aux f
 
-let rec simplify_terms f = 
+let simplify_terms f = 
+  let flatten_nested_mults lst = 
+    let fs1, fs2 =  List.partition 
+      (fun (f) -> match f with | Mult(_) -> false | _ -> true) lst in
+    let fs2_extracted =
+      List.map (fun (f) -> match f with | Mult(gs) -> gs | _ -> []) fs2
+    in
+    List.append fs1 (List.concat fs2_extracted)
+  in
+  let flatten_nested_sums lst = 
+    let fs1, fs2 =  List.partition 
+      (fun (f) -> match f with | Sum(_) -> false | _ -> true) lst in
+    let fs2_extracted =
+      List.map (fun (f) -> match f with | Sum(gs) -> gs | _ -> []) fs2
+    in
+    List.append fs1 (List.concat fs2_extracted)
+  in
+
+  let rec aux f = 
   match f with 
   (* base case: something with terms *)
   | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
 
   (* recurse down the tree *)
   | True|False|UnsupportedFormula _ -> f
-  | Not f1 -> Not (simplify_terms f1)
-  | And fl -> And (List.map simplify_terms fl)
-  | Or  fl -> Or (List.map simplify_terms fl)
-  | Implication (f1,f2) -> 
-    Implication(simplify_terms f1,simplify_terms f2) 
-  | ITE(f1,f2,f3) -> 
-    ITE(simplify_terms f1,simplify_terms f2, simplify_terms f3)
-and simplify_term t = 
-  match t with
+  | Not f1 -> Not (aux f1)
+  | And fl -> And (List.map aux fl)
+  | Or  fl -> Or (List.map aux fl)
+  | Implication (f1,f2) -> Implication(aux f1,aux f2) 
+  | ITE(f1,f2,f3) -> ITE(aux f1,aux f2, aux f3)
+  and simplify_term t = 
+    match t with
   (* Handle constants *)
-  | Sum([Value v]) -> Value v
-  | Mult([Value v]) -> Value v
+    | Sum([Value v]) -> Value v
+    | Mult([Value v]) -> Value v
 
+    (* do we want to distribute mults across sums ??? *)
+      
   (* Normalize so that sums and mults always have the variable(s) on the left *)
-  | Sum(lst) -> 
-    let lst = List.map simplify_term lst in
-    let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals (+) 0 in
-    Sum(vars @ vals  @ rest)
-  | Mult(lst) -> 
-    let lst = List.map simplify_term lst in
-    let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals ( * ) 1 in
-    Mult(vars @ vals  @ rest)
-  | _ -> t
-and simplify_vals vals op identity =
-  let v = List.fold_left 
+    | Sum(lst) -> 
+      let lst = List.map simplify_term lst in
+      let (vars,vals,rest) = split_vars_vals lst in
+      let vals = simplify_vals vals (+) 0 in
+      let rest = flatten_nested_sums rest in
+      Sum(vars @ vals  @ rest)
+    | Mult(lst) -> 
+      let lst = List.map simplify_term lst in
+      let (vars,vals,rest) = split_vars_vals lst in
+      let vals = simplify_vals vals ( * ) 1 in
+      let rest = flatten_nested_mults rest in
+      Mult(vars @ vals  @ rest)
+    | _ -> t
+  and simplify_vals vals op identity =
+    let v = List.fold_left 
       (fun a x -> match x with 
       | Value v -> op a v
       | _ -> failwith "should be only values here"
       ) identity vals in
   (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
-  if v = identity then []
-  else [Value(v)]
+    if v = identity then []
+    else [Value(v)]
+  in
+  aux f
 
 let rec simplify_formula_2 f =
   match f with
