@@ -170,19 +170,30 @@ let rec normalize_formula f =
   | GT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GT(t1, Value(v2 - v1))
   | NEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> NEQ(t1, Value(v2 - v1))
 
-
-
-let rec simplify_formula_2 f =
-match f with
-  (* at this point we don't know what to do with relations any more
-   * so try to just simplify their terms and hope for the best on the 
-   * next pass *)
+let rec simplify_terms f = 
+  match f with 
+  (* base case: something with terms *)
   | EQ (t1,t2) -> EQ(simplify_term t1,simplify_term t2)
   | LEQ (t1,t2) -> LEQ(simplify_term t1,simplify_term t2)
   | LT (t1,t2) -> LT(simplify_term t1,simplify_term t2)
   | GEQ (t1,t2) -> GEQ(simplify_term t1,simplify_term t2)
   | GT (t1,t2) -> GT(simplify_term t1,simplify_term t2)
   | NEQ (t1,t2) -> NEQ(simplify_term t1,simplify_term t2)
+
+  (* recurse down the tree *)
+  | Not formula -> simplify_terms f
+  | And fl -> And (List.map simplify_terms fl)
+  | Or  fl -> Or (List.map simplify_terms fl)
+  | Implication (f1,f2) -> 
+    Implication(simplify_terms f1,simplify_terms f2) 
+  | ITE(f1,f2,f3) -> 
+    ITE(simplify_terms f1,simplify_terms f2, simplify_terms f3)
+
+let rec simplify_formula_2 f =
+match f with
+  (* at this point we don't know what to do with relations any more
+   * so try to just simplify their terms and hope for the best on the 
+   * next pass *)
 
 
   (* Logical operators *)
@@ -331,6 +342,7 @@ and simplify_term t =
 and simplify_formula f = 
   let f = simplify_constants f in
   let f = normalize_formula f in 
+  let f = simplify_terms f in
   let f = simplify_formula_2 f in
   f
 and beautify_formula f =
