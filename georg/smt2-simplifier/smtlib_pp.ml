@@ -98,7 +98,9 @@ and
 
 let rec simplify_constants f = 
   match f with
-  (* Simplify Constants *) 
+  (*constants remain constant *)
+  | True | False | UnsupportedFormula _ -> f
+
   | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
   | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
   | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
@@ -121,6 +123,9 @@ let rec simplify_constants f =
   | LEQ _ | EQ _ | GEQ _ | NEQ _ | LT _ | GT _ -> f
   | ITE(f1,f2,f3) -> 
     ITE(simplify_constants f1,simplify_constants f2, simplify_constants f3)
+
+
+
 
 let rec normalize_formula f = 
   (* Normalize relations.  We want the precendence 
@@ -170,6 +175,17 @@ let rec normalize_formula f =
   | GT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GT(t1, Value(v2 - v1))
   | NEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> NEQ(t1, Value(v2 - v1))
 
+  (* recurse down the tree *)
+  | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
+  | Not formula -> normalize_formula f
+  | And fl -> And (List.map normalize_formula fl)
+  | Or  fl -> Or (List.map normalize_formula fl)
+  | Implication (f1,f2) -> 
+    Implication(normalize_formula f1,normalize_formula f2) 
+  | ITE(f1,f2,f3) -> 
+    ITE(normalize_formula f1,normalize_formula f2, normalize_formula f3)
+  | True|False|UnsupportedFormula _ -> f
+
 let rec simplify_terms f = 
   match f with 
   (* base case: something with terms *)
@@ -181,6 +197,7 @@ let rec simplify_terms f =
   | NEQ (t1,t2) -> NEQ(simplify_term t1,simplify_term t2)
 
   (* recurse down the tree *)
+  | True|False|UnsupportedFormula _ -> f
   | Not formula -> simplify_terms f
   | And fl -> And (List.map simplify_terms fl)
   | Or  fl -> Or (List.map simplify_terms fl)
@@ -188,13 +205,36 @@ let rec simplify_terms f =
     Implication(simplify_terms f1,simplify_terms f2) 
   | ITE(f1,f2,f3) -> 
     ITE(simplify_terms f1,simplify_terms f2, simplify_terms f3)
+and simplify_term t = 
+  match t with
+  (* Handle constants *)
+  | Sum([Value v]) -> Value v
+  | Mult([Value v]) -> Value v
+
+  (* Normalize so that sums and mults always have the variable(s) on the left *)
+  | Sum(lst) -> 
+    let lst = List.map simplify_term lst in
+    let (vars,vals,rest) = split_vars_vals lst in
+    let vals = simplify_vals vals (+) 0 in
+    Sum(vars @ vals  @ rest)
+  | Mult(lst) -> 
+    let lst = List.map simplify_term lst in
+    let (vars,vals,rest) = split_vars_vals lst in
+    let vals = simplify_vals vals ( * ) 1 in
+    Mult(vars @ vals  @ rest)
+  | _ -> t
+and simplify_vals vals op init = 
+  [Value(
+    List.fold_left 
+      (fun a x -> match x with 
+      | Value v -> op a v
+      | _ -> failwith "should be only values here"
+      ) init vals
+  )]
+
 
 let rec simplify_formula_2 f =
-match f with
-  (* at this point we don't know what to do with relations any more
-   * so try to just simplify their terms and hope for the best on the 
-   * next pass *)
-
+  match f with
 
   (* Logical operators *)
   | And([]) -> True
@@ -287,10 +327,15 @@ and
     simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula fs)
 and
     simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula fs)
-and remove_duplicates fs =
-  match fs with
-  | [] -> []
-  | f :: fs -> f :: (remove_duplicates (List.filter (fun (f1) -> f1 <> f) fs))
+(* this should really just use List.sort_uniq *)
+and remove_duplicates fs = 
+  let rec uniq = function
+    | [] -> []
+    | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
+    | hd :: tl -> hd :: uniq tl
+  in
+  let sorted = List.sort compare fs in
+  uniq sorted
 and flatten_nested_or fs = 
   let
       fs_simple = List.map simplify_formula fs
@@ -313,32 +358,6 @@ and flatten_nested_and fs =
       fs2_extracted = List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
   in
   List.append fs1 (List.concat fs2_extracted)
-and simplify_vals vals op init = 
-  [Value(
-    List.fold_left 
-      (fun a x -> match x with 
-      | Value v -> op a v
-      | _ -> failwith "should be only values here"
-      ) init vals
-  )]
-and simplify_term t = 
-  match t with
-  (* Handle constants *)
-  | Sum([Value v]) -> Value v
-  | Mult([Value v]) -> Value v
-
-  (* Normalize so that sums and mults always have the variable(s) on the left *)
-  | Sum(lst) -> 
-    let lst = List.map simplify_term lst in
-    let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals (+) 0 in
-    Sum(vars @ vals  @ rest)
-  | Mult(lst) -> 
-    let lst = List.map simplify_term lst in
-    let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals ( * ) 1 in
-    Mult(vars @ vals  @ rest)
-  | _ -> t
 and simplify_formula f = 
   let f = simplify_constants f in
   let f = normalize_formula f in 
