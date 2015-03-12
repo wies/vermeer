@@ -128,6 +128,7 @@ and
   | Sum([ t1 ]) -> print_term t1
   | Sum(t1 :: ts) -> print_string("("); print_term t1; print_string(" + "); print_term (Sum(ts)); print_string(")")
   | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
+  | UnsupportedTerm(s) -> print_string("UNSUPPORTED TERM: [" ^ s ^ "]")
   | _ -> print_string("*print_term_TODO*")  
 
 (* DSN there is probably a better way to do this.
@@ -136,11 +137,19 @@ and
  * So, maintain a set of things that are known to be contextually "true"
  * I keep two sets, one which is things which are true here, and one which is 
  * only true for the children.
+ * This also holds for implications.
+ * A ==> (A && B)  ~~~ A ===> B
  *)
 
-let propegate_and_context f = 
+let propegate_truth_context f = 
+  let isTrue trueHere f =  FormulaSet.mem f trueHere  in
+  let isFalse trueHere f = 
+    match f with 
+    | Not f -> FormulaSet.mem f trueHere
+    | _ -> FormulaSet.mem (Not f) trueHere in
   let rec aux trueHere trueChildren f = 
-    if FormulaSet.mem f trueHere then True 
+    if isTrue trueHere f then True
+    else if isFalse trueHere f then False 
     else 
       let trueHere = FormulaSet.union trueHere trueChildren in
       let trueChildren = FormulaSet.empty in
@@ -151,16 +160,24 @@ let propegate_and_context f =
 	  List.fold_left (fun a e -> FormulaSet.add e a) FormulaSet.empty fl in
 	And (List.map (aux trueHere trueChildren) fl)
 	
+      | Implication (f1,f2) -> 
+	(* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
+	 * any of a,b,c *)
+	let lhs = aux trueHere trueChildren f1 in
+	let rhs = aux (FormulaSet.add lhs trueHere) trueChildren f2 in
+	Implication(lhs,rhs) 
+
+      | ITE(i,t,e) -> 
+	let i = aux trueHere trueChildren i in
+	let t = aux (FormulaSet.add i trueHere) trueChildren t in
+	(* TODO there ought to be a better way to handle the else case *)
+	let e = aux (FormulaSet.add (Not i) trueHere) trueChildren e in
+	ITE(i,t,e)
+
       (* recurse into the tree *)
       | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
-      | Not f1 -> aux trueHere trueChildren f1
+      | Not f1 -> Not (aux trueHere trueChildren f1)
       | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
-      | Implication (f1,f2) -> 
-	Implication(aux trueHere trueChildren f1,aux trueHere trueChildren f2) 
-      | ITE(f1,f2,f3) -> 
-	ITE(aux trueHere trueChildren f1,
-	    aux trueHere trueChildren f2, 
-	    aux trueHere trueChildren f3)
       | True|False|UnsupportedFormula _ -> f
   in
   aux FormulaSet.empty FormulaSet.empty f
@@ -177,6 +194,8 @@ let rec simplify_constants  f  =
   | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
   | GT(Value(v1), Value(v2)) -> if v1 > v2 then True else False
   | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
+  | Implication(False,_) -> True
+  | Implication(_,True) -> True
   | Not(False) -> True
   | Not(True) -> False
   | ITE(True,t,e) -> t
@@ -186,7 +205,7 @@ let rec simplify_constants  f  =
   | EQ(a,b) when a = b -> True
 
   (* recurse down the tree *)
-  | Not f1 -> simplify_constants f1
+  | Not f1 -> Not (simplify_constants f1)
   | And fl -> And (List.map simplify_constants fl)
   | Or  fl -> Or (List.map simplify_constants fl)
   | Implication (f1,f2) -> 
@@ -197,9 +216,6 @@ let rec simplify_constants  f  =
     ITE(simplify_constants f1,
 	simplify_constants f2, 
 	simplify_constants f3)
-
-
-
 
 let rec normalize_formula f = 
   (* Normalize relations.  We want the precendence 
@@ -255,7 +271,7 @@ let rec normalize_formula f =
   (* recurse down the tree *)
   | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
   | Not Not f1 -> normalize_formula f1
-  | Not f1 -> normalize_formula f1
+  | Not f1 -> Not (normalize_formula f1)
   | And fl -> And (List.map normalize_formula fl)
   | Or  fl -> Or (List.map normalize_formula fl)
   | Implication (f1,f2) -> 
@@ -276,7 +292,7 @@ let rec simplify_terms f =
 
   (* recurse down the tree *)
   | True|False|UnsupportedFormula _ -> f
-  | Not f1 -> simplify_terms f1
+  | Not f1 -> Not (simplify_terms f1)
   | And fl -> And (List.map simplify_terms fl)
   | Or  fl -> Or (List.map simplify_terms fl)
   | Implication (f1,f2) -> 
@@ -441,11 +457,14 @@ and flatten_nested_and fs =
   in
   List.append fs1 (List.concat fs2_extracted)
 and simplify_formula f = 
+  print_string "\n\n";
+  print_formula f "";
+  print_string "\n\n";
   let f = simplify_constants f in
   let f = normalize_formula f in 
   let f = simplify_terms f in
   let f = simplify_formula_2 f in
-  let f = propegate_and_context f in
+  let f = propegate_truth_context f in
   f
 and beautify_formula f =
   let f_simple = simplify_formula f in
@@ -496,6 +515,15 @@ let rec
         t2_trans = translate_to_term t2
     in
     Mult([ t1_trans; t2_trans ])
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (_, [ TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s2)))) ])) ->
+    let
+      term1 = Value(-1)
+    in
+    let
+      term2 = Variable(s2)
+    in
+    Mult([ term1; term2 ])
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), _) ->
     UnsupportedTerm("Case#1_" ^ s)
