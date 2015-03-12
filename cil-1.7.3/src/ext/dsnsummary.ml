@@ -22,6 +22,8 @@ type summaryOpts =
     mutable toposortOutput : bool ;
     mutable trackedHazards : HazardSet.t;
     mutable calcStats : bool;
+    mutable intrathreadHazards : bool;
+
   }
 let opts = {
   multithread = NOMULTI;
@@ -31,6 +33,7 @@ let opts = {
   toposortOutput = false;
   trackedHazards = HazardSet.empty;
   calcStats = false;
+  intrathreadHazards = true;
 }
 
 let addTrackedHazard hazard = opts.trackedHazards <- HazardSet.add hazard opts.trackedHazards
@@ -308,7 +311,7 @@ let dsnsmt (f: file) : unit =
   (* add the hazard tracking if needed *)
   if not (HazardSet.is_empty opts.trackedHazards) then begin
     match parsed.graph with
-    | Some g -> encode_hazards g opts.trackedHazards
+    | Some g -> encode_hazards g opts.trackedHazards opts.intrathreadHazards
     | None -> failwith "adding hazards but didn't create graph"
   end;
   let clauses = parsed.clauses in
@@ -384,6 +387,9 @@ let dsnsmt (f: file) : unit =
 	   " Topologically Sorts the reduced trace before outputting it");
 	  ("--flowsensitive", Arg.Unit (fun x -> encode_flowsensitive ()), 
 	   " Makes the encoding flow sensitive");
+	  ("--nointrathreadhazard", 
+	   Arg.Unit (fun x -> opts.intrathreadHazards <- false),  
+	   " Only considers data-hazards that are between threads ");
 	  ("--hazardsensitiveall", Arg.Unit (fun x -> 
 	    addTrackedHazard Dsngraph.HAZARD_RAW;
 	    addTrackedHazard Dsngraph.HAZARD_WAR;

@@ -136,6 +136,7 @@ let  simplify_constants  f  =
     | Implication(False,_) -> True
     | Implication(_,True) -> True
     | Implication(True,x) -> x
+    | Implication(x,False) -> Not x
     | Not(False) -> True
     | Not(True) -> False
     | ITE(True,t,e) -> t
