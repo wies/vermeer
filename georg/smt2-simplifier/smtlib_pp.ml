@@ -109,6 +109,8 @@ let rec simplify_constants f =
   | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
   | Not(False) -> True
   | Not(True) -> False
+  | ITE(True,t,e) -> t
+  | ITE(False,t,e) -> e
 
   (* We can special case a = a, which is always true *)
   | EQ(a,b) when a = b -> True
@@ -233,9 +235,10 @@ and simplify_vals vals op init =
   )]
 
 
+
+
 let rec simplify_formula_2 f =
   match f with
-
   (* Logical operators *)
   | And([]) -> True
   | And([ f1 ]) -> simplify_formula f1
