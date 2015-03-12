@@ -11,12 +11,7 @@ let formula_size f =
     | Or fl -> List.iter aux fl
     | Implication (f1,f2) -> aux f1;aux f2
     | ITE(f1,f2,f3) -> aux f1;aux f2; aux f3
-    | Relation (LEQ, t1,t2) -> term_aux t1; term_aux t2
-    | Relation(EQ, t1,t2) -> term_aux t1; term_aux t2
-    | Relation(GEQ,t1,t2) -> term_aux t1; term_aux t2
-    | Relation(NEQ,t1,t2) -> term_aux t1; term_aux t2
-    | Relation(LT,t1,t2) -> term_aux t1; term_aux t2 
-    | Relation(GT,t1,t2) -> term_aux t1; term_aux t2
+    | Relation (_, t1,t2) -> term_aux t1; term_aux t2
   and term_aux t = 
     incr size;
     match t with
@@ -273,15 +268,15 @@ and simplify_term t =
     let vals = simplify_vals vals ( * ) 1 in
     Mult(vars @ vals  @ rest)
   | _ -> t
-and simplify_vals vals op init = 
-  [Value(
-    List.fold_left 
+and simplify_vals vals op identity =
+  let v = List.fold_left 
       (fun a x -> match x with 
       | Value v -> op a v
       | _ -> failwith "should be only values here"
-      ) init vals
-  )]
-
+      ) identity vals in
+  (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
+  if v = identity then []
+  else [Value(v)]
 
 let rec simplify_formula_2 f =
   match f with
