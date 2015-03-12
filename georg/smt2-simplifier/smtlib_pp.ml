@@ -39,7 +39,7 @@ type formula =
 let formula_size f = 
   let size = ref 0 in
   let rec aux f = 
-    inc size;
+    incr size;
     match f with 
     | True | False | UnsupportedFormula _ -> ()
     | Not f -> aux f
@@ -51,10 +51,10 @@ let formula_size f =
     | EQ (t1,t2) -> term_aux t1; term_aux t2
     | GEQ (t1,t2) -> term_aux t1; term_aux t2
     | NEQ (t1,t2) -> term_aux t1; term_aux t2
-    | LT (t1,t2) -> term_aux t1; term_aux t2
+    | LT (t1,t2) -> term_aux t1; term_aux t2 
     | GT (t1,t2) -> term_aux t1; term_aux t2
   and term_aux t = 
-    int size;
+    incr size;
     match t with
     | Variable _ | Value _ | UnsupportedTerm _ -> ()
     | Sum tl -> List.iter term_aux tl
