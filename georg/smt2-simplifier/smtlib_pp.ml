@@ -18,6 +18,8 @@ type term =
 (* division, subtraction? *)
 ;;
 
+type binop = | EQ | LEQ | LT  | GEQ | GT | NEQ 
+
 type formula = 
 | True
 | False
@@ -26,12 +28,7 @@ type formula =
 | Or of formula list
 | Implication of formula * formula
 (* relations: *)
-| LEQ of term * term
-| EQ of term * term
-| GEQ of term * term
-| NEQ of term * term
-| LT of term * term
-| GT of term * term
+| Relation of binop * term * term
 | ITE of formula * formula * formula
 | UnsupportedFormula of string
 ;; 
@@ -47,12 +44,12 @@ let formula_size f =
     | Or fl -> List.iter aux fl
     | Implication (f1,f2) -> aux f1;aux f2
     | ITE(f1,f2,f3) -> aux f1;aux f2; aux f3
-    | LEQ (t1,t2) -> term_aux t1; term_aux t2
-    | EQ (t1,t2) -> term_aux t1; term_aux t2
-    | GEQ (t1,t2) -> term_aux t1; term_aux t2
-    | NEQ (t1,t2) -> term_aux t1; term_aux t2
-    | LT (t1,t2) -> term_aux t1; term_aux t2 
-    | GT (t1,t2) -> term_aux t1; term_aux t2
+    | Relation (LEQ, t1,t2) -> term_aux t1; term_aux t2
+    | Relation(EQ, t1,t2) -> term_aux t1; term_aux t2
+    | Relation(GEQ,t1,t2) -> term_aux t1; term_aux t2
+    | Relation(NEQ,t1,t2) -> term_aux t1; term_aux t2
+    | Relation(LT,t1,t2) -> term_aux t1; term_aux t2 
+    | Relation(GT,t1,t2) -> term_aux t1; term_aux t2
   and term_aux t = 
     incr size;
     match t with
@@ -104,12 +101,12 @@ let rec print_formula f indentation =
   | And(fs) -> print_string(indentation ^ "AND (\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
   | Or(fs) -> print_string(indentation ^ "OR (\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
   | Implication(f1, f2) -> print_string(indentation ^ "IMPLICATION (\n"); print_formula f1 (indentation ^ "  "); print_formula f2 (indentation ^ "  "); print_string(indentation ^ ")\n")
-  | LEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" <= "); print_term t2; print_string("\n")
-  | EQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" = "); print_term t2; print_string("\n")
-  | GEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" >= "); print_term t2; print_string("\n")
-  | NEQ(t1, t2) -> print_string(indentation); print_term t1; print_string(" != "); print_term t2; print_string("\n")
-  | LT(t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
-  | GT(t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
+  | Relation(LEQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" <= "); print_term t2; print_string("\n")
+  | Relation(EQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" = "); print_term t2; print_string("\n")
+  | Relation(GEQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" >= "); print_term t2; print_string("\n")
+  | Relation(NEQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" != "); print_term t2; print_string("\n")
+  | Relation(LT,t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
+  | Relation(GT,t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
   | ITE(f_cond, f_then, f_else) -> 
     print_string(indentation ^ "IF (\n");
     print_formula f_cond (indentation ^ "  ");
@@ -174,7 +171,7 @@ let propegate_truth_context f =
 	ITE(i,t,e)
 
       (* recurse into the tree *)
-      | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
+      | Relation _ -> f
       | Not f1 -> Not (aux trueHere trueChildren f1)
       | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
       | True|False|UnsupportedFormula _ -> f
@@ -187,12 +184,12 @@ let rec simplify_constants  f  =
   (*constants remain constant *)
   | True | False | UnsupportedFormula _ -> f
     
-  | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
-  | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
-  | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
-  | GEQ(Value(v1), Value(v2)) -> if v1 >= v2 then True else False
-  | GT(Value(v1), Value(v2)) -> if v1 > v2 then True else False
-  | NEQ(Value(v1), Value(v2)) -> if v1 <> v2 then True else False
+  | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
+  | Relation(LEQ,Value(v1), Value(v2)) -> if v1 <= v2 then True else False
+  | Relation(LT,Value(v1), Value(v2)) -> if v1 < v2 then True else False
+  | Relation(GEQ,Value(v1), Value(v2)) -> if v1 >= v2 then True else False
+  | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
+  | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
   | Implication(False,_) -> True
   | Implication(_,True) -> True
   | Not(False) -> True
@@ -201,7 +198,7 @@ let rec simplify_constants  f  =
   | ITE(False,t,e) -> e
     
   (* We can special case a = a, which is always true *)
-  | EQ(a,b) when a = b -> True
+  | Relation(EQ,a,b) when a = b -> True
 
   (* recurse down the tree *)
   | Not f1 -> Not (simplify_constants f1)
@@ -210,7 +207,7 @@ let rec simplify_constants  f  =
   | Implication (f1,f2) -> 
     Implication(simplify_constants f1,simplify_constants f2) 
   (* Don't simplify terms here *)
-  | LEQ _ | EQ _ | GEQ _ | NEQ _ | LT _ | GT _ -> f
+  | Relation _ -> f
   | ITE(f1,f2,f3) -> 
     ITE(simplify_constants f1,
 	simplify_constants f2, 
@@ -225,50 +222,50 @@ let rec normalize_formula f =
 
   match f with 
   (* For two vars, put them in lex order *)
-  | EQ(Variable x,Variable y) -> 
-    if x < y then EQ(Variable x, Variable y) else EQ(Variable y, Variable x)
-  | NEQ(Variable x,Variable y) ->
-    if x < y then NEQ(Variable x, Variable y) else NEQ(Variable y, Variable x)
+  | Relation(EQ,Variable x,Variable y) -> 
+    if x < y then Relation(EQ,Variable x, Variable y) else Relation(EQ,Variable y, Variable x)
+  | Relation(NEQ,Variable x,Variable y) ->
+    if x < y then Relation(NEQ,Variable x, Variable y) else Relation(NEQ,Variable y, Variable x)
   (* This requires switching the operator from leq to geq and so on *)
-  | LEQ(Variable x,Variable y) ->
-    if x < y then LEQ(Variable x, Variable y) else GEQ(Variable y, Variable x)
-  | LT(Variable x,Variable y) ->
-    if x < y then LT(Variable x, Variable y) else GT(Variable y, Variable x)
-  | GEQ(Variable x,Variable y) ->
-    if x < y then GEQ(Variable x, Variable y) else LEQ(Variable y, Variable x)
-  | GT(Variable x,Variable y) ->
-    if x < y then GT(Variable x, Variable y) else LT(Variable y, Variable x)
+  | Relation(LEQ,Variable x,Variable y) ->
+    if x < y then Relation(LEQ,Variable x, Variable y) else Relation(GEQ,Variable y, Variable x)
+  | Relation(LT,Variable x,Variable y) ->
+    if x < y then Relation(LT,Variable x, Variable y) else Relation(GT,Variable y, Variable x)
+  | Relation(GEQ,Variable x,Variable y) ->
+    if x < y then Relation(GEQ,Variable x, Variable y) else Relation(LEQ,Variable y, Variable x)
+  | Relation(GT,Variable x,Variable y) ->
+    if x < y then Relation(GT,Variable x, Variable y) else Relation(LT,Variable y, Variable x)
 
   (* move the variable to the left *)
-  | NEQ(y,Variable(x)) -> NEQ(Variable(x),y)
-  | EQ(y,Variable(x)) -> EQ(Variable(x),y)
+  | Relation(NEQ,y,Variable(x)) -> Relation(NEQ,Variable(x),y)
+  | Relation(EQ,y,Variable(x)) -> Relation(EQ,Variable(x),y)
   (* This requires switching the operator from leq to geq and so on *)
-  | LEQ(y,Variable(x)) -> GEQ(Variable(x),y)
-  | LT(y,Variable(x)) -> GT(Variable(x),y)
-  | GEQ(y,Variable(x)) -> LEQ(Variable(x),y)
-  | GT(y,Variable(x)) -> LT(Variable(x),y)
+  | Relation(LEQ,y,Variable(x)) -> Relation(GEQ,Variable(x),y)
+  | Relation(LT,y,Variable(x)) -> Relation(GT,Variable(x),y)
+  | Relation(GEQ,y,Variable(x)) -> Relation(LEQ,Variable(x),y)
+  | Relation(GT,y,Variable(x)) -> Relation(LT,Variable(x),y)
 
   (* move the value to the right *)
-  | EQ(Value v,x) -> EQ(x,Value v)
-  | NEQ(Value v,x) -> NEQ(x,Value v)
+  | Relation(EQ,Value v,x) -> Relation(EQ,x,Value v)
+  | Relation(NEQ,Value v,x) -> Relation(NEQ,x,Value v)
   (* This requires switching the operator from leq to geq and so on *)
-  | LEQ(Value v,x) -> GEQ(x,Value v)
-  | LT(Value v,x) -> GT(x,Value v)
-  | GEQ(Value v,x) -> LEQ(x,Value v)
-  | GT(Value v,x) -> LT(x,Value v)
+  | Relation(LEQ,Value v,x) -> Relation(GEQ,x,Value v)
+  | Relation(LT,Value v,x) -> Relation(GT,x,Value v)
+  | Relation(GEQ,Value v,x) -> Relation(LEQ,x,Value v)
+  | Relation(GT,Value v,x) -> Relation(LT,x,Value v)
 
   (* Deeper look into relations - move constants out of sums *)
   (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
   (* DSN TODO - should be able to make this general!*)
-  | EQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> EQ(t1, Value(v2 - v1))
-  | LEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> LEQ(t1, Value(v2 - v1))
-  | LT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> LT(t1, Value(v2 - v1))
-  | GEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GEQ(t1, Value(v2 - v1))
-  | GT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GT(t1, Value(v2 - v1))
-  | NEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> NEQ(t1, Value(v2 - v1))
+  | Relation(EQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(EQ,t1, Value(v2 - v1))
+  | Relation(LEQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(LEQ,t1, Value(v2 - v1))
+  | Relation(LT,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(LT,t1, Value(v2 - v1))
+  | Relation(GEQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(GEQ,t1, Value(v2 - v1))
+  | Relation(GT,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(GT,t1, Value(v2 - v1))
+  | Relation(NEQ,Sum([ t1 ; Value(v1) ]), Value(v2)) -> Relation(NEQ,t1, Value(v2 - v1))
 
   (* recurse down the tree *)
-  | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
+  | Relation _ -> f
   | Not Not f1 -> normalize_formula f1
   | Not f1 -> Not (normalize_formula f1)
   | And fl -> And (List.map normalize_formula fl)
@@ -282,12 +279,12 @@ let rec normalize_formula f =
 let rec simplify_terms f = 
   match f with 
   (* base case: something with terms *)
-  | EQ (t1,t2) -> EQ(simplify_term t1,simplify_term t2)
-  | LEQ (t1,t2) -> LEQ(simplify_term t1,simplify_term t2)
-  | LT (t1,t2) -> LT(simplify_term t1,simplify_term t2)
-  | GEQ (t1,t2) -> GEQ(simplify_term t1,simplify_term t2)
-  | GT (t1,t2) -> GT(simplify_term t1,simplify_term t2)
-  | NEQ (t1,t2) -> NEQ(simplify_term t1,simplify_term t2)
+  | Relation(EQ,t1,t2) -> Relation(EQ,simplify_term t1,simplify_term t2)
+  | Relation (LEQ, t1,t2) -> Relation(LEQ,simplify_term t1,simplify_term t2)
+  | Relation(LT,t1,t2) -> Relation(LT,simplify_term t1,simplify_term t2)
+  | Relation(GEQ,t1,t2) -> Relation(GEQ,simplify_term t1,simplify_term t2)
+  | Relation(GT,t1,t2) -> Relation(GT,simplify_term t1,simplify_term t2)
+  | Relation(NEQ,t1,t2) -> Relation(NEQ,simplify_term t1,simplify_term t2)
 
   (* recurse down the tree *)
   | True|False|UnsupportedFormula _ -> f
@@ -337,24 +334,24 @@ let rec simplify_formula_2 f =
     (
       match fs_simple with
       (* generalize *)
-      | LEQ(t1, Value(c1)) :: LEQ(t2, Value(c2)) :: gs
+      | Relation(LEQ,t1, Value(c1)) :: Relation(LEQ,t2, Value(c2)) :: gs
         when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
           let c = min c1 c2 in
-          simplify_formula_2 (And(LEQ(t1, Value(c)) :: gs))
-      | LEQ(t1, t2) :: (LEQ(t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
+          simplify_formula_2 (And(Relation(LEQ,t1, Value(c)) :: gs))
+      | Relation(LEQ,t1, t2) :: (Relation(LEQ,t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
         (
           let 
               g = simplify_formula (And(gs))
           in
           match g with
           | False -> False
-          | True -> EQ(t1, t2)
-          | And(hs) -> let hs2 = (EQ(t1, t2) :: hs) in And(hs2)
-          | _ -> And([ EQ(t1, t2) ; g ])
+          | True -> Relation(EQ,t1, t2)
+          | And(hs) -> let hs2 = (Relation(EQ,t1, t2) :: hs) in And(hs2)
+          | _ -> And([ Relation(EQ,t1, t2) ; g ])
         )
-      | LEQ(t1, Value(c1)) :: (LEQ(Value(0), Sum([ t2; Value(c2) ])) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
+      | Relation(LEQ,t1, Value(c1)) :: (Relation(LEQ,Value(0), Sum([ t2; Value(c2) ])) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
         (
-          let phi = EQ(t1, Value(c1)) in
+          let phi = Relation(EQ,t1, Value(c1)) in
           let g = simplify_formula_2 (And(gs)) in
           match g with
           | False -> False
@@ -362,9 +359,9 @@ let rec simplify_formula_2 f =
           | And(hs) -> let hs2 = (phi :: hs) in And(hs2)
           | _ -> And([ phi ; g ])
         )
-      | LEQ(Value(0), Sum([ t2; Value(c2) ])) :: (LEQ(t1, Value(c1)) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
+      | Relation(LEQ,Value(0), Sum([ t2; Value(c2) ])) :: (Relation(LEQ,t1, Value(c1)) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
         (
-          let phi = EQ(t1, Value(c1)) in
+          let phi = Relation(EQ,t1, Value(c1)) in
           let g = simplify_formula (And(gs)) in
           match g with
           | False -> False
@@ -394,8 +391,8 @@ let rec simplify_formula_2 f =
     in
     (
       match fs_simple with
-      | [ LEQ(Value(c1), t1) ; LEQ(t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
-      | [ LEQ(t2, Value(c2)) ; LEQ(Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> NEQ(t1, Value(c1 - 1)) (* overflow issues! *)
+      | [ Relation(LEQ,Value(c1), t1) ; Relation(LEQ,t2, Value(c2)) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
+      | [ Relation(LEQ,t2, Value(c2)) ; Relation(LEQ,Value(c1), t1) ] when (t1 = t2 && c1 = c2 + 2) -> Relation(NEQ,t1, Value(c1 - 1)) (* overflow issues! *)
       | _ -> Or(fs_simple)
     )
   | Implication(f1, f2) ->
@@ -456,9 +453,6 @@ and flatten_nested_and fs =
   in
   List.append fs1 (List.concat fs2_extracted)
 and simplify_formula f = 
-  print_string "\n\n";
-  print_formula f "";
-  print_string "\n\n";
   let f = simplify_constants f in
   let f = normalize_formula f in 
   let f = simplify_terms f in
@@ -559,7 +553,7 @@ and
     let
         t2_trans = translate_to_term t2
     in 
-    LEQ(t1_trans, t2_trans)
+    Relation(LEQ,t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, ">="))), (_, [ t1; t2 ])) -> 
     let
@@ -568,7 +562,7 @@ and
     let
         t2_trans = translate_to_term t2
     in 
-    GEQ(t1_trans, t2_trans)
+    Relation(GEQ,t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "="))), (_, [ t1; t2 ])) -> 
     let
@@ -577,7 +571,7 @@ and
     let
         t2_trans = translate_to_term t2
     in 
-    EQ(t1_trans, t2_trans)
+    Relation(EQ,t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "distinct"))), (_, [ t1; t2 ])) -> 
     let
@@ -586,7 +580,7 @@ and
     let
         t2_trans = translate_to_term t2
     in 
-    NEQ(t1_trans, t2_trans)
+    Relation(NEQ,t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, ">"))), (_, [ t1; t2 ])) -> 
     let
@@ -595,7 +589,7 @@ and
     let
         t2_trans = translate_to_term t2
     in 
-    GT(t1_trans, t2_trans)
+    Relation(GT,t1_trans, t2_trans)
 
   |TermQualIdTerm (p , QualIdentifierId(_, IdSymbol (_, Symbol(_, "<"))), (_, [ t1; t2 ])) -> 
     let
@@ -604,7 +598,7 @@ and
     let
         t2_trans = translate_to_term t2
     in 
-    LT(t1_trans, t2_trans)
+    Relation(LT,t1_trans, t2_trans)
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "or"))), (_, ts)) ->
     let
