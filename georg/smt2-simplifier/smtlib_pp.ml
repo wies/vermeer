@@ -166,7 +166,7 @@ let propegate_truth_context f =
 
       (* recurse into the tree *)
       | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
-      | Not f1 -> aux trueHere trueChildren f1
+      | Not f1 -> Not (aux trueHere trueChildren f1)
       | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
       | True|False|UnsupportedFormula _ -> f
   in
@@ -195,7 +195,7 @@ let rec simplify_constants  f  =
   | EQ(a,b) when a = b -> True
 
   (* recurse down the tree *)
-  | Not f1 -> simplify_constants f1
+  | Not f1 -> Not (simplify_constants f1)
   | And fl -> And (List.map simplify_constants fl)
   | Or  fl -> Or (List.map simplify_constants fl)
   | Implication (f1,f2) -> 
@@ -261,7 +261,7 @@ let rec normalize_formula f =
   (* recurse down the tree *)
   | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
   | Not Not f1 -> normalize_formula f1
-  | Not f1 -> normalize_formula f1
+  | Not f1 -> Not (normalize_formula f1)
   | And fl -> And (List.map normalize_formula fl)
   | Or  fl -> Or (List.map normalize_formula fl)
   | Implication (f1,f2) -> 
@@ -282,7 +282,7 @@ let rec simplify_terms f =
 
   (* recurse down the tree *)
   | True|False|UnsupportedFormula _ -> f
-  | Not f1 -> simplify_terms f1
+  | Not f1 -> Not (simplify_terms f1)
   | And fl -> And (List.map simplify_terms fl)
   | Or  fl -> Or (List.map simplify_terms fl)
   | Implication (f1,f2) -> 
