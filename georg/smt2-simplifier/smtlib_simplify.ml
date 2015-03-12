@@ -270,8 +270,6 @@ let normalize_formula f =
     (* recurse down the tree *)
     | Relation _ -> f
     | Not f1 -> Not (aux f1)
-    | And fl -> And (List.map aux fl)
-    | Or  fl -> Or (List.map aux fl)
     | Implication (f1,f2) -> 
       Implication(aux f1,aux f2) 
     | ITE(f1,f2,f3) -> 
