@@ -36,6 +36,7 @@ type formula =
 | UnsupportedFormula of string
 ;; 
 
+
 let formula_size f = 
   let size = ref 0 in
   let rec aux f = 
