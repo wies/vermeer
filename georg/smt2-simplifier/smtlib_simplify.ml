@@ -66,7 +66,7 @@ let split_vars_vals tl : (term list * term list * term list)=
  * A ==> (A && B)  ~~~ A ===> B
  *)
 
-let propegate_truth_context f = 
+let propegate_truth_context fs = 
   let isTrue trueHere f =  FormulaSet.mem f trueHere  in
   let isFalse trueHere f = 
     match f with 
@@ -105,10 +105,11 @@ let propegate_truth_context f =
       | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
       | True|False|UnsupportedFormula _ -> f
   in
-  aux FormulaSet.empty FormulaSet.empty f
+  aux FormulaSet.empty FormulaSet.empty fs
 
 
 let  simplify_constants  f  = 
+  (* should only be called after true/false are folded in *)
   let remove_logical_consts lst = List.filter 
     (fun x -> match x with | True | False -> false | _ -> true) lst in
   let rec aux f = 
@@ -157,15 +158,17 @@ let  simplify_constants  f  =
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
   in aux f
 
-let op_after_swap oldop = match oldop with
-  | EQ  -> EQ 
-  | LEQ -> GEQ
-  | LT  -> GT
-  | GEQ -> LEQ
-  | GT  -> LT
-  | NEQ -> NEQ
 
-let normalize_formula f = 
+
+let normalize_formula f =
+  let op_after_swap oldop = match oldop with
+    | EQ  -> EQ 
+    | LEQ -> GEQ
+    | LT  -> GT
+    | GEQ -> LEQ
+    | GT  -> LT
+    | NEQ -> NEQ
+  in 
   let remove_duplicates fs = 
     let rec uniq = function
       | [] -> []
@@ -278,6 +281,9 @@ and simplify_vals vals op identity =
   (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
   if v = identity then []
   else [Value(v)]
+
+(* Simplify pairs of operations.  Should perhaps replace this with
+ * checking for all pairs among the set that matches the current variable *)
 
 let rec simplify_formula_2 f =
   match f with
