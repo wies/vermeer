@@ -1,5 +1,35 @@
 open Smtlib_ast
 
+let rec compare_form f g =
+  let rec compare_lex fs gs =
+    match fs, gs with
+    | f :: fs1, g :: gs1 ->
+        let c = compare_form f g in
+        if c = 0
+        then compare_lex fs1 gs1
+        else c
+    | [], _ :: _ -> -1
+    | _ :: _, [] -> 1
+    | _, _ -> 0
+  in
+  match (f, g) with
+  | Relation (rel1, t1, t2), Relation (rel2, t3, t4) ->
+      let c13 = compare t1 t3 in
+      if c13 = 0 then
+        let c24 = compare t2 t4 in
+        if c24 = 0
+        then compare rel1 rel2
+        else c24
+      else c13
+  | Not f, Not g ->
+      compare_form f g
+  | And fs, And gs ->
+      compare_lex fs gs
+  | Or fs, Or gs ->
+      compare_lex fs gs
+  | f, g -> compare f g
+
+  
 let formula_size f = 
   let size = ref 0 in
   let rec aux f = 
@@ -172,7 +202,7 @@ let normalize_formula f =
       | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
       | hd :: tl -> hd :: uniq tl
     in
-    let sorted = List.sort compare fs in
+    let sorted = List.sort compare_form fs in
     uniq sorted
   in
   let flatten_nested_ands lst = 
