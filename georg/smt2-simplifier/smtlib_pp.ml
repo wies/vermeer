@@ -179,39 +179,52 @@ let propegate_truth_context f =
   aux FormulaSet.empty FormulaSet.empty f
 
 
-let rec simplify_constants  f  = 
-  match f with
-  (*constants remain constant *)
-  | True | False | UnsupportedFormula _ -> f
-    
-  | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
-  | Relation(LEQ,Value(v1), Value(v2)) -> if v1 <= v2 then True else False
-  | Relation(LT,Value(v1), Value(v2)) -> if v1 < v2 then True else False
-  | Relation(GEQ,Value(v1), Value(v2)) -> if v1 >= v2 then True else False
-  | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
-  | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
-  | Implication(False,_) -> True
-  | Implication(_,True) -> True
-  | Not(False) -> True
-  | Not(True) -> False
-  | ITE(True,t,e) -> t
-  | ITE(False,t,e) -> e
-    
-  (* We can special case a = a, which is always true *)
-  | Relation(EQ,a,b) when a = b -> True
+let  simplify_constants  f  = 
+  let remove_logical_consts lst = List.filter 
+    (fun x -> match x with | True | False -> false | _ -> true) lst in
+  let rec aux f = 
+
+    match f with
+    (*constants remain constant *)
+    | True | False | UnsupportedFormula _ -> f
+      
+  (* We can special case a = a *)
+    | Relation(EQ,a,b) when a = b -> True
+    | Relation(LEQ,a,b) when a = b -> True
+    | Relation(LT,a,b) when a = b -> False
+    | Relation(GEQ,a,b) when a = b -> True
+    | Relation(GT,a,b) when a = b -> False
+    | Relation(NEQ,a,b) when a = b -> False
+    | ITE(i,t,e) when t = e -> t
+
+  (* evaluate according to the known value *)
+    | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
+    | Relation(LEQ,Value(v1), Value(v2)) -> if v1 <= v2 then True else False
+    | Relation(LT,Value(v1), Value(v2)) -> if v1 < v2 then True else False
+    | Relation(GEQ,Value(v1), Value(v2)) -> if v1 >= v2 then True else False
+    | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
+    | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
+    | Implication(False,_) -> True
+    | Implication(_,True) -> True
+    | Not(False) -> True
+    | Not(True) -> False
+    | ITE(True,t,e) -> t
+    | ITE(False,t,e) -> e
+      
+    | And fl when List.exists (fun x -> x = False) fl -> False
+    | Or fl when List.exists (fun x -> x = True) fl -> True
+
+  (* Important that this happens after we have done the above test *)
+    | And fl -> And(List.map aux (remove_logical_consts fl))
+    | Or fl -> Or(List.map aux  (remove_logical_consts fl))
 
   (* recurse down the tree *)
-  | Not f1 -> Not (simplify_constants f1)
-  | And fl -> And (List.map simplify_constants fl)
-  | Or  fl -> Or (List.map simplify_constants fl)
-  | Implication (f1,f2) -> 
-    Implication(simplify_constants f1,simplify_constants f2) 
+    | Not f1 -> Not (aux f1)
+    | Implication (f1,f2) -> Implication(aux f1,aux f2) 
   (* Don't simplify terms here *)
-  | Relation _ -> f
-  | ITE(f1,f2,f3) -> 
-    ITE(simplify_constants f1,
-	simplify_constants f2, 
-	simplify_constants f3)
+    | Relation _ -> f
+    | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
+  in aux f
 
 let op_after_swap oldop = match oldop with
   | EQ  -> EQ 
@@ -222,6 +235,31 @@ let op_after_swap oldop = match oldop with
   | NEQ -> NEQ
 
 let normalize_formula f = 
+  let remove_duplicates fs = 
+    let rec uniq = function
+      | [] -> []
+      | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
+      | hd :: tl -> hd :: uniq tl
+    in
+    let sorted = List.sort compare fs in
+    uniq sorted
+  in
+  let flatten_nested_ands lst = 
+    let fs1, fs2 =  List.partition 
+      (fun (f) -> match f with | And(_) -> false | _ -> true) lst in
+    let fs2_extracted =
+      List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
+    in
+    List.append fs1 (List.concat fs2_extracted)
+  in
+  let flatten_nested_ors lst = 
+    let fs1, fs2 =  List.partition 
+      (fun (f) -> match f with | Or(_) -> false | _ -> true) lst in
+    let fs2_extracted =
+      List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
+    in
+    List.append fs1 (List.concat fs2_extracted)
+  in
   let rec aux f = 
     (* Normalize relations.  We want the precendence 
      * variable (in sorted order), 
@@ -240,15 +278,23 @@ let normalize_formula f =
     (* move the value to the right *)
     | Relation(op,Value v,x) -> Relation(op_after_swap op,x,Value v)
 
-  (* Deeper look into relations - move constants out of sums *)
-  (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
-  (* DSN TODO - should be able to make this more general *)
+    (* Deeper look into relations - move constants out of sums *)
+    (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
+    (* DSN TODO - should be able to make this more general *)
     | Relation(op,Sum([ t1 ; Value(v1) ]), Value(v2)) -> 
       Relation(op,t1, Value(v2 - v1))
 
-  (* recurse down the tree *)
-    | Relation _ -> f
+    (* Structural normalization *)
     | Not Not f1 -> aux f1
+    | And []  -> True
+    | And [f1] -> aux f1
+    | And lst -> And(List.map aux (remove_duplicates (flatten_nested_ands lst)))
+    | Or []  -> False
+    | Or [f1] -> aux f1
+    | Or lst -> Or(List.map aux (remove_duplicates (flatten_nested_ors lst)))
+
+    (* recurse down the tree *)
+    | Relation _ -> f
     | Not f1 -> Not (aux f1)
     | And fl -> And (List.map aux fl)
     | Or  fl -> Or (List.map aux fl)
