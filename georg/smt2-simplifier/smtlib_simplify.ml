@@ -27,6 +27,10 @@ let rec compare_form f g =
       compare_lex fs gs
   | Or fs, Or gs ->
       compare_lex fs gs
+  | Implication (f1, f2), Implication (f3, f4) ->
+      compare_lex [f1; f2] [f3; f4]
+  | ITE (f1, f2, f3), ITE (f4, f5, f6) ->
+      compare_lex [f1; f2; f3] [f4; f5; f6]
   | f, g -> compare f g
 
   
