@@ -323,7 +323,7 @@ let rec simplify_formula_2 f =
       | LEQ(t1, Value(c1)) :: LEQ(t2, Value(c2)) :: gs
         when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
           let c = min c1 c2 in
-          simplify_formula (And(LEQ(t1, Value(c)) :: gs))
+          simplify_formula_2 (And(LEQ(t1, Value(c)) :: gs))
       | LEQ(t1, t2) :: (LEQ(t3, t4) :: gs) when (t1 = t4 && t2 = t3) -> 
         (
           let 
@@ -338,7 +338,7 @@ let rec simplify_formula_2 f =
       | LEQ(t1, Value(c1)) :: (LEQ(Value(0), Sum([ t2; Value(c2) ])) :: gs) when (t1 = t2 && c1 = -1 * c2) -> 
         (
           let phi = EQ(t1, Value(c1)) in
-          let g = simplify_formula (And(gs)) in
+          let g = simplify_formula_2 (And(gs)) in
           match g with
           | False -> False
           | True -> phi
@@ -360,7 +360,7 @@ let rec simplify_formula_2 f =
       | g :: gs -> 
         (
           let
-              h = simplify_formula (And(gs))
+              h = simplify_formula_2 (And(gs))
           in
           match h with
           | False -> False
@@ -370,7 +370,7 @@ let rec simplify_formula_2 f =
         )
     )
   | Or([]) -> False
-  | Or([ f1 ]) -> simplify_formula f1
+  | Or([ f1 ]) -> simplify_formula_2 f1
   | Or(fs) ->
     let
         fs_simple = remove_duplicates (flatten_nested_or (simplify_or fs))
@@ -383,10 +383,10 @@ let rec simplify_formula_2 f =
     )
   | Implication(f1, f2) ->
     let
-        f1_simple = simplify_formula f1
+        f1_simple = simplify_formula_2 f1
     in
     let
-        f2_simple = simplify_formula f2
+        f2_simple = simplify_formula_2 f2
     in
     (
       match f1_simple with
@@ -402,9 +402,9 @@ let rec simplify_formula_2 f =
     )
   | _ -> f
 and
-    simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula fs)
+    simplify_and fs = List.filter (fun (f) -> f <> True) (List.map simplify_formula_2 fs)
 and
-    simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula fs)
+    simplify_or fs = List.filter (fun (f) -> f <> False) (List.map simplify_formula_2 fs)
 (* this should really just use List.sort_uniq *)
 and remove_duplicates fs = 
   let rec uniq = function
@@ -416,7 +416,7 @@ and remove_duplicates fs =
   uniq sorted
 and flatten_nested_or fs = 
   let
-      fs_simple = List.map simplify_formula fs
+      fs_simple = List.map simplify_formula_2 fs
   in
   let 
       (fs1, fs2) = List.partition (fun (f) -> match f with | Or(_) -> false | _ -> true) fs_simple
@@ -427,7 +427,7 @@ and flatten_nested_or fs =
   List.append fs1 (List.concat fs2_extracted)
 and flatten_nested_and fs = 
   let
-      fs_simple = List.map simplify_formula fs
+      fs_simple = List.map simplify_formula_2 fs
   in
   let 
       (fs1, fs2) = List.partition (fun (f) -> match f with | And(_) -> false | _ -> true) fs_simple
