@@ -95,7 +95,8 @@ and
   | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
   | _ -> print_string("*print_term_TODO*")  
 
-let rec simplify_formula f =
+
+let rec simplify_constants f = 
   match f with
   (* Simplify Constants *) 
   | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
@@ -110,11 +111,25 @@ let rec simplify_formula f =
   (* We can special case a = a, which is always true *)
   | EQ(a,b) when a = b -> True
 
+  (* recurse down the tree *)
+  | Not formula -> simplify_constants f
+  | And fl -> And (List.map simplify_constants fl)
+  | Or  fl -> Or (List.map simplify_constants fl)
+  | Implication (f1,f2) -> 
+    Implication(simplify_constants f1,simplify_constants f2) 
+  (* Don't simplify terms here *)
+  | LEQ _ | EQ _ | GEQ _ | NEQ _ | LT _ | GT _ -> f
+  | ITE(f1,f2,f3) -> 
+    ITE(simplify_constants f1,simplify_constants f2, simplify_constants f3)
+
+let rec normalize_formula f = 
   (* Normalize relations.  We want the precendence 
    * variable (in sorted order), 
    * non-variable expression,
    * value
    *)
+
+  match f with 
   (* For two vars, put them in lex order *)
   | EQ(Variable x,Variable y) -> 
     if x < y then EQ(Variable x, Variable y) else EQ(Variable y, Variable x)
@@ -145,9 +160,6 @@ let rec simplify_formula f =
   | GT(Value v,x) -> GT(x,Value v)
   | NEQ(Value v,x) -> NEQ(x,Value v)
 
-    
-
-
   (* Deeper look into relations - move constants out of sums *)
   (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
   (* DSN TODO - should be able to make this general!*)
@@ -158,6 +170,10 @@ let rec simplify_formula f =
   | GT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GT(t1, Value(v2 - v1))
   | NEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> NEQ(t1, Value(v2 - v1))
 
+
+
+let rec simplify_formula_2 f =
+match f with
   (* at this point we don't know what to do with relations any more
    * so try to just simplify their terms and hope for the best on the 
    * next pass *)
@@ -312,6 +328,11 @@ and simplify_term t =
     let vals = simplify_vals vals ( * ) 1 in
     Mult(vars @ vals  @ rest)
   | _ -> t
+and simplify_formula f = 
+  let f = simplify_constants f in
+  let f = normalize_formula f in 
+  let f = simplify_formula_2 f in
+  f
 and beautify_formula f =
   let f_simple = simplify_formula f in
   if f = f_simple then
