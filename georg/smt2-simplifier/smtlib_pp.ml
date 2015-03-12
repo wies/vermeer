@@ -127,6 +127,7 @@ and
   | Sum([ t1 ]) -> print_term t1
   | Sum(t1 :: ts) -> print_string("("); print_term t1; print_string(" + "); print_term (Sum(ts)); print_string(")")
   | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
+  | UnsupportedTerm(s) -> print_string("UNSUPPORTED TERM: [" ^ s ^ "]")
   | _ -> print_string("*print_term_TODO*")  
 
 (* DSN there is probably a better way to do this.
@@ -455,6 +456,9 @@ and flatten_nested_and fs =
   in
   List.append fs1 (List.concat fs2_extracted)
 and simplify_formula f = 
+  print_string "\n\n";
+  print_formula f "";
+  print_string "\n\n";
   let f = simplify_constants f in
   let f = normalize_formula f in 
   let f = simplify_terms f in
@@ -510,6 +514,15 @@ let rec
         t2_trans = translate_to_term t2
     in
     Mult([ t1_trans; t2_trans ])
+
+  | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (_, [ TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s2)))) ])) ->
+    let
+      term1 = Value(-1)
+    in
+    let
+      term2 = Variable(s2)
+    in
+    Mult([ term1; term2 ])
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), _) ->
     UnsupportedTerm("Case#1_" ^ s)
