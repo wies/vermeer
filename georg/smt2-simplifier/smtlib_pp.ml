@@ -36,10 +36,16 @@ type formula =
 | UnsupportedFormula of string
 ;; 
 
+let sort_vars = List.sort 
+  (fun x y -> match x,y with 
+  | Variable x, Variable y -> compare x y
+  | _ -> failwith "not a var???")
+
 (*Could make this slightly faster but who cares *)
 let split_term_list tl = 
   let (vars,rest) = List.partition 
     (fun x -> match x with | Variable _ -> true | _ -> false) tl in
+  let vars = sort_vars vars in
   let (vals,rest) = List.partition
     (fun x -> match x with  Value _ -> true | _ -> false) rest in
   let (sums,rest)  = List.partition
@@ -51,6 +57,7 @@ let split_term_list tl =
 let split_vars_vals tl : (term list * term list * term list)= 
   let (vars,rest) = List.partition 
     (fun x -> match x with | Variable _ -> true | _ -> false) tl in
+  let vars = sort_vars vars in
   let (vals,rest) = List.partition
     (fun x -> match x with  Value _ -> true | _ -> false) rest in
   (vars,vals,rest)
@@ -100,18 +107,56 @@ let rec simplify_formula f =
   | Not(False) -> True
   | Not(True) -> False
 
-  (*normalize so that the variable always goes on the left *)
-  | EQ(Value(v),Variable(x)) -> EQ(Variable(x),Value(v))
-  | LEQ(Value(v),Variable(x)) -> LEQ(Variable(x),Value(v))
-  | LT(Value(v),Variable(x)) -> LT(Variable(x),Value(v))
-  | GEQ(Value(v),Variable(x)) -> GEQ(Variable(x),Value(v))
-  | GT(Value(v),Variable(x)) -> GT(Variable(x),Value(v))
-  | NEQ(Value(v),Variable(x)) -> NEQ(Variable(x),Value(v))
+  (* We can special case a = a, which is always true *)
+  | EQ(a,b) when a = b -> True
+
+  (* Normalize relations.  We want the precendence 
+   * variable (in sorted order), 
+   * non-variable expression,
+   * value
+   *)
+  (* For two vars, put them in lex order *)
+  | EQ(Variable x,Variable y) -> 
+    if x < y then EQ(Variable x, Variable y) else EQ(Variable y, Variable x)
+  | LEQ(Variable x,Variable y) ->
+    if x < y then LEQ(Variable x, Variable y) else LEQ(Variable y, Variable x)
+  | LT(Variable x,Variable y) ->
+    if x < y then LT(Variable x, Variable y) else LT(Variable y, Variable x)
+  | GEQ(Variable x,Variable y) ->
+    if x < y then GEQ(Variable x, Variable y) else GEQ(Variable y, Variable x)
+  | GT(Variable x,Variable y) ->
+    if x < y then GT(Variable x, Variable y) else GT(Variable y, Variable x)
+  | NEQ(Variable x,Variable y) ->
+    if x < y then NEQ(Variable x, Variable y) else NEQ(Variable y, Variable x)
+
+  (* move the variable to the left *)
+  | EQ(y,Variable(x)) -> EQ(Variable(x),y)
+  | LEQ(y,Variable(x)) -> LEQ(Variable(x),y)
+  | LT(y,Variable(x)) -> LT(Variable(x),y)
+  | GEQ(y,Variable(x)) -> GEQ(Variable(x),y)
+  | GT(y,Variable(x)) -> GT(Variable(x),y)
+  | NEQ(y,Variable(x)) -> NEQ(Variable(x),y)
+
+  (* move the value to the right *)
+  | EQ(Value v,x) -> EQ(x,Value v)
+  | LEQ(Value v,x) -> LEQ(x,Value v)
+  | LT(Value v,x) -> LT(x,Value v)
+  | GEQ(Value v,x) -> GEQ(x,Value v)
+  | GT(Value v,x) -> GT(x,Value v)
+  | NEQ(Value v,x) -> NEQ(x,Value v)
+
     
 
-  (* Deeper look into relations - move constants out of sums *)
-  | EQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> EQ(t1, Value(v2 - v1))
 
+  (* Deeper look into relations - move constants out of sums *)
+  (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
+  (* DSN TODO - should be able to make this general!*)
+  | EQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> EQ(t1, Value(v2 - v1))
+  | LEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> LEQ(t1, Value(v2 - v1))
+  | LT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> LT(t1, Value(v2 - v1))
+  | GEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GEQ(t1, Value(v2 - v1))
+  | GT(Sum([ t1 ; Value(v1) ]), Value(v2)) -> GT(t1, Value(v2 - v1))
+  | NEQ(Sum([ t1 ; Value(v1) ]), Value(v2)) -> NEQ(t1, Value(v2 - v1))
 
   (* at this point we don't know what to do with relations any more
    * so try to just simplify their terms and hope for the best on the 
@@ -124,7 +169,7 @@ let rec simplify_formula f =
   | NEQ (t1,t2) -> NEQ(simplify_term t1,simplify_term t2)
 
 
-
+  (* Logical operators *)
   | And([]) -> True
   | And([ f1 ]) -> simplify_formula f1
   | And(fs) -> 
