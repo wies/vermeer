@@ -312,8 +312,8 @@ let simplify_terms f =
   and simplify_term t = 
     match t with
   (* Handle constants *)
-    | Sum([Value v]) -> Value v
-    | Mult([Value v]) -> Value v
+    | Sum [x] -> x
+    | Mult [x] -> x
 
     (* do we want to distribute mults across sums ??? *)
       
