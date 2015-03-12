@@ -451,7 +451,7 @@ and simplify_formula f =
   let f = normalize_formula f in 
   let f = simplify_terms f in
   let f = simplify_formula_2 f in
-  let f = propegate_and_context f in
+  let f = propegate_truth_context f in
   f
 and beautify_formula f =
   let f_simple = simplify_formula f in
