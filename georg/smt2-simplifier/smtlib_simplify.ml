@@ -252,6 +252,15 @@ let normalize_formula f =
     | Relation(op,Sum([ t1 ; Value(v1) ]), Value(v2)) -> 
       Relation(op,t1, Value(v2 - v1))
 
+    (*convert  (x_156_1 +  (x_157_1 * -1)) <= 0 to x_156_1 <= x_157_1 *)
+    | Relation(op,Sum[Variable x; Mult[Variable y; Value v1]], Value v2) -> 
+      Relation(op,Variable x,Sum[Mult[Variable y; Value (v1 * (-1))];Value v2])
+
+
+    (*convert  (x_156_1 + (0 + (x_157_1 * -1))) <= 0 to x_156_1 <= x_157_1 *)
+
+	       
+
     (* Structural normalization *)
     | Not Not f1 -> aux f1
     | And []  -> True

@@ -41,7 +41,7 @@ and
   | Value(v) -> print_int(v)
   | Sum([ t1 ]) -> print_term t1
   | Sum(t1 :: ts) -> print_string("("); print_term t1; print_string(" + "); print_term (Sum(ts)); print_string(")")
-  | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
+  | Mult(t1 :: ts) -> print_string("("); print_term t1; print_string(" * "); print_term (Mult(ts)); print_string(")")
   | UnsupportedTerm(s) -> print_string("UNSUPPORTED TERM: [" ^ s ^ "]")
   | _ -> print_string("*print_term_TODO*")  
 
