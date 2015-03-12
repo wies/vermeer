@@ -36,6 +36,33 @@ type formula =
 | UnsupportedFormula of string
 ;; 
 
+let formula_size f = 
+  let size = ref 0 in
+  let rec aux f = 
+    inc size;
+    match f with 
+    | True | False | UnsupportedFormula _ -> ()
+    | Not f -> aux f
+    | And fl -> List.iter aux fl
+    | Or fl -> List.iter aux fl
+    | Implication (f1,f2) -> aux f1;aux f2
+    | ITE(f1,f2,f3) -> aux f1;aux f2; aux f3
+    | LEQ (t1,t2) -> term_aux t1; term_aux t2
+    | EQ (t1,t2) -> term_aux t1; term_aux t2
+    | GEQ (t1,t2) -> term_aux t1; term_aux t2
+    | NEQ (t1,t2) -> term_aux t1; term_aux t2
+    | LT (t1,t2) -> term_aux t1; term_aux t2
+    | GT (t1,t2) -> term_aux t1; term_aux t2
+  and term_aux t = 
+    int size;
+    match t with
+    | Variable _ | Value _ | UnsupportedTerm _ -> ()
+    | Sum tl -> List.iter term_aux tl
+    | Mult tl -> List.iter term_aux tl
+  in
+  aux f;
+  !size
+
 module FormulaSet = Set.Make(
   struct
     let compare = Pervasives.compare
@@ -102,14 +129,47 @@ and
   | Mult([t1; t2]) -> print_string("("); print_term t1; print_string(" * "); print_term t2; print_string(")")
   | _ -> print_string("*print_term_TODO*")  
 
+(* DSN there is probably a better way to do this.
+ * What I'm trying to do here is to take advantage of the fact that 
+ * A && (A || B), can be simplified to A && (True || B)
+ * So, maintain a set of things that are known to be contextually "true"
+ * I keep two sets, one which is things which are true here, and one which is 
+ * only true for the children.
+ *)
 
-(* trueSet is the set of formulas that are true *)
-let rec simplify_constants f trueSet = 
+let propegate_and_context f = 
+  let rec aux trueHere trueChildren f = 
+    if FormulaSet.mem f trueHere then True 
+    else 
+      let trueHere = FormulaSet.union trueHere trueChildren in
+      let trueChildren = FormulaSet.empty in
+      
+      match f with
+      | And fl -> 
+	let trueChildren = 
+	  List.fold_left (fun a e -> FormulaSet.add e a) FormulaSet.empty fl in
+	And (List.map (aux trueHere trueChildren) fl)
+	
+      (* recurse into the tree *)
+      | EQ _ | LEQ _ | LT _ | GEQ _ | GT _ | NEQ _ -> f
+      | Not formula -> aux trueHere trueChildren f
+      | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
+      | Implication (f1,f2) -> 
+	Implication(aux trueHere trueChildren f1,aux trueHere trueChildren f2) 
+      | ITE(f1,f2,f3) -> 
+	ITE(aux trueHere trueChildren f1,
+	    aux trueHere trueChildren f2, 
+	    aux trueHere trueChildren f3)
+      | True|False|UnsupportedFormula _ -> f
+  in
+  aux FormulaSet.empty FormulaSet.empty f
+
+
+let rec simplify_constants  f  = 
   match f with
-    f when FormulaSet.mem f -> True
   (*constants remain constant *)
   | True | False | UnsupportedFormula _ -> f
-
+    
   | EQ(Value(v1), Value(v2)) -> if v1 = v2 then True else False
   | LEQ(Value(v1), Value(v2)) -> if v1 <= v2 then True else False
   | LT(Value(v1), Value(v2)) -> if v1 < v2 then True else False
@@ -120,7 +180,7 @@ let rec simplify_constants f trueSet =
   | Not(True) -> False
   | ITE(True,t,e) -> t
   | ITE(False,t,e) -> e
-
+    
   (* We can special case a = a, which is always true *)
   | EQ(a,b) when a = b -> True
 
@@ -133,7 +193,9 @@ let rec simplify_constants f trueSet =
   (* Don't simplify terms here *)
   | LEQ _ | EQ _ | GEQ _ | NEQ _ | LT _ | GT _ -> f
   | ITE(f1,f2,f3) -> 
-    ITE(simplify_constants f1,simplify_constants f2, simplify_constants f3)
+    ITE(simplify_constants f1,
+	simplify_constants f2, 
+	simplify_constants f3)
 
 
 
@@ -379,6 +441,7 @@ and simplify_formula f =
   let f = normalize_formula f in 
   let f = simplify_terms f in
   let f = simplify_formula_2 f in
+  let f = propegate_and_context f in
   f
 and beautify_formula f =
   let f_simple = simplify_formula f in
