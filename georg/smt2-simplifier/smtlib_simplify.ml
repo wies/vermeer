@@ -4,36 +4,36 @@ let rec compare_form f g =
   let rec compare_lex fs gs =
     match fs, gs with
     | f :: fs1, g :: gs1 ->
-        let c = compare_form f g in
-        if c = 0
-        then compare_lex fs1 gs1
-        else c
+      let c = compare_form f g in
+      if c = 0
+      then compare_lex fs1 gs1
+      else c
     | [], _ :: _ -> -1
     | _ :: _, [] -> 1
     | _, _ -> 0
   in
   match (f, g) with
   | Relation (rel1, t1, t2), Relation (rel2, t3, t4) ->
-      let c13 = compare t1 t3 in
-      if c13 = 0 then
-        let c24 = compare t2 t4 in
-        if c24 = 0
-        then compare rel1 rel2
-        else c24
-      else c13
+    let c13 = compare t1 t3 in
+    if c13 = 0 then
+      let c24 = compare t2 t4 in
+      if c24 = 0
+      then compare rel1 rel2
+      else c24
+    else c13
   | Not f, Not g ->
-      compare_form f g
+    compare_form f g
   | And fs, And gs ->
-      compare_lex fs gs
+    compare_lex fs gs
   | Or fs, Or gs ->
-      compare_lex fs gs
+    compare_lex fs gs
   | Implication (f1, f2), Implication (f3, f4) ->
-      compare_lex [f1; f2] [f3; f4]
+    compare_lex [f1; f2] [f3; f4]
   | ITE (f1, f2, f3), ITE (f4, f5, f6) ->
-      compare_lex [f1; f2; f3] [f4; f5; f6]
+    compare_lex [f1; f2; f3] [f4; f5; f6]
   | f, g -> compare f g
 
-  
+    
 let formula_size f = 
   let size = ref 0 in
   let rec aux f = 
@@ -151,7 +151,7 @@ let  simplify_constants  f  =
     (*constants remain constant *)
     | True | False | UnsupportedFormula _ -> f
       
-  (* We can special case a = a *)
+    (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True
     | Relation(LEQ,a,b) when a = b -> True
     | Relation(LT,a,b) when a = b -> False
@@ -160,7 +160,7 @@ let  simplify_constants  f  =
     | Relation(NEQ,a,b) when a = b -> False
     | ITE(i,t,e) when t = e -> t
 
-  (* evaluate according to the known value *)
+    (* evaluate according to the known value *)
     | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
     | Relation(LEQ,Value(v1), Value(v2)) -> if v1 <= v2 then True else False
     | Relation(LT,Value(v1), Value(v2)) -> if v1 < v2 then True else False
@@ -175,34 +175,35 @@ let  simplify_constants  f  =
     | Not(True) -> False
     | ITE(True,t,e) -> t
     | ITE(False,t,e) -> e
-    | ITE(i,t,False) -> And [i;t]
-    | ITE(i,False,e) -> And [Not i; e]
-
+    | ITE(i,t,False) -> And [aux i; aux t]
+    | ITE(i,False,e) -> And [Not (aux i); aux e]
+    | ITE(i,t,True) -> Implication(aux i,aux t)
+    | ITE(i,True,e) -> Implication(Not (aux i),aux e)
 
     | And fl when List.exists (fun x -> x = False) fl -> False
     | Or fl when List.exists (fun x -> x = True) fl -> True
 
-  (* Important that this happens after we have done the above test *)
+    (* Important that this happens after we have done the above test *)
     | And fl -> And(List.map aux (remove_logical_consts fl))
     | Or fl -> Or(List.map aux  (remove_logical_consts fl))
 
-  (* recurse down the tree *)
+    (* recurse down the tree *)
     | Not f1 -> Not (aux f1)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
-  (* Don't simplify terms here *)
+    (* Don't simplify terms here *)
     | Relation _ -> f
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
   in aux f
 
-let op_after_swap oldop = match oldop with
-  | EQ  -> EQ 
-  | LEQ -> GEQ
-  | LT  -> GT
-  | GEQ -> LEQ
-  | GT  -> LT
-  | NEQ -> NEQ
-
 let normalize_formula f = 
+  let op_after_swap oldop = match oldop with
+    | EQ  -> EQ 
+    | LEQ -> GEQ
+    | LT  -> GT
+    | GEQ -> LEQ
+    | GT  -> LT
+    | NEQ -> NEQ
+  in
   let remove_duplicates fs = 
     let rec uniq = function
       | [] -> []
@@ -271,7 +272,7 @@ let normalize_formula f =
 	       Sum[Mult [Sum[Value v0; Mult[Variable y; Value v1]]; Value (-1)];
 		   Value v2]) 
 
-	       
+	
 
     (* Structural normalization *)
     | Not Not f1 -> aux f1
@@ -312,26 +313,26 @@ let simplify_terms f =
   in
 
   let rec aux f = 
-  match f with 
+    match f with 
   (* base case: something with terms *)
-  | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
+    | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
 
   (* recurse down the tree *)
-  | True|False|UnsupportedFormula _ -> f
-  | Not f1 -> Not (aux f1)
-  | And fl -> And (List.map aux fl)
-  | Or  fl -> Or (List.map aux fl)
-  | Implication (f1,f2) -> Implication(aux f1,aux f2) 
-  | ITE(f1,f2,f3) -> ITE(aux f1,aux f2, aux f3)
+    | True|False|UnsupportedFormula _ -> f
+    | Not f1 -> Not (aux f1)
+    | And fl -> And (List.map aux fl)
+    | Or  fl -> Or (List.map aux fl)
+    | Implication (f1,f2) -> Implication(aux f1,aux f2) 
+    | ITE(f1,f2,f3) -> ITE(aux f1,aux f2, aux f3)
   and simplify_term t = 
     match t with
-  (* Handle constants *)
+    (* Handle constants *)
     | Sum [x] -> x
     | Mult [x] -> x
 
     (* do we want to distribute mults across sums ??? *)
       
-  (* Normalize so that sums and mults always have the variable(s) on the left *)
+    (* Normalize so that sums and mults always have the variable(s) on the left *)
     | Sum(lst) -> 
       let lst = List.map simplify_term lst in
       let (vars,vals,rest) = split_vars_vals lst in
@@ -349,14 +350,14 @@ let simplify_terms f =
       | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
       | _ -> Mult(vars @ vals  @ rest)
     end
-    | _ -> t
+    | Variable _ | Value _ | UnsupportedTerm _ -> t
   and simplify_vals vals op identity =
     let v = List.fold_left 
       (fun a x -> match x with 
       | Value v -> op a v
       | _ -> failwith "should be only values here"
       ) identity vals in
-  (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
+    (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
     if v = identity then []
     else [Value(v)]
   in
@@ -364,57 +365,57 @@ let simplify_terms f =
 
 let simplify_formula_2 f =
   let rec aux f = 
-  match f with
+    match f with
   (* Logical operators *)
-  | And(fs) -> begin match fs with 
+    | And(fs) -> begin match fs with 
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, t2, Value(c2)) :: gs
           when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
         aux (And(Relation(LEQ,t1, Value(c)) :: gs))
       | Relation(LEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
       | Relation(EQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
-        when t1 = t2 && c1 < c2 ->
-          False
+          when t1 = t2 && c1 < c2 ->
+        False
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
       | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
-        when t1 = t4 && t2 = t3 ->
-          aux (And (Relation(EQ, t1, t2) :: gs))
+          when t1 = t4 && t2 = t3 ->
+        aux (And (Relation(EQ, t1, t2) :: gs))
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: gs
-        when t1 = t2 && c1 = -1 * c2 -> 
-          let phi = Relation(EQ,t1, Value(c1)) in
-          aux (And (phi :: gs))
+          when t1 = t2 && c1 = -1 * c2 -> 
+        let phi = Relation(EQ,t1, Value(c1)) in
+        aux (And (phi :: gs))
       | Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: Relation(LEQ, t1, Value(c1)) :: gs
-        when t1 = t2 && c1 = -1 * c2 -> 
-          let phi = Relation(EQ,t1, Value(c1)) in
-          aux (And(phi :: gs))
+          when t1 = t2 && c1 = -1 * c2 -> 
+        let phi = Relation(EQ,t1, Value(c1)) in
+        aux (And(phi :: gs))
       | [ g ] -> g
       | [] -> True
       | g :: gs -> 
-          let g1 = aux g in
-          let
-              h = aux (And(gs))
-          in
-          match h with
-          | False -> False
-          | True -> g1
-          | And(hs) -> And(g1 :: hs)
-          | _ -> And([g1; h]) 
-  end
-  | Or(fs) -> begin match fs with  
-    | [ Relation(LEQ, Value(c1), t1) ; Relation(LEQ, t2, Value(c2)) ]
-      when (t1 = t2 && c1 = c2 + 2) ->
+        let g1 = aux g in
+        let
+            h = aux (And(gs))
+        in
+        match h with
+        | False -> False
+        | True -> g1
+        | And(hs) -> And(g1 :: hs)
+        | _ -> And([g1; h]) 
+    end
+    | Or(fs) -> begin match fs with  
+      | [ Relation(LEQ, Value(c1), t1) ; Relation(LEQ, t2, Value(c2)) ]
+	  when (t1 = t2 && c1 = c2 + 2) ->
         Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-    | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
-      when (t1 = t2 && c1 = c2 + 2) ->
+      | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
+	  when (t1 = t2 && c1 = c2 + 2) ->
         Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-    | _ -> Or(List.map aux fs)
-  end
+      | _ -> Or(List.map aux fs)
+    end
 
   (* recurse *)
-  | Not f -> Not (aux f)
-  | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
-  | Implication (f1,f2) -> Implication (aux f1,aux f2)
-  | True | False | Relation _ | UnsupportedFormula _ -> f
+    | Not f -> Not (aux f)
+    | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
+    | Implication (f1,f2) -> Implication (aux f1,aux f2)
+    | True | False | Relation _ | UnsupportedFormula _ -> f
   in
   aux f
 
