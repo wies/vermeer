@@ -50,11 +50,11 @@ let subsumes f g =
   | f, g -> f = g
         
 (* remove duplicates from a list *)
-let remove_duplicates fs = 
+let remove_duplicates strengthen fs = 
   let rec uniq = function
     | [] -> []
-    | e1 :: e2 :: tl when subsumes e1 e2 -> e1 :: uniq tl
-    | e1 :: e2 :: tl when subsumes e2 e1 -> e2 :: uniq tl
+    | e1 :: e2 :: tl when strengthen && subsumes e1 e2 -> e1 :: uniq tl
+    | e1 :: e2 :: tl when (not strengthen) && subsumes e2 e1 -> e1 :: uniq tl
     | hd :: tl -> hd :: uniq tl
   in
   let sorted = List.sort compare_form fs in
@@ -204,12 +204,12 @@ let propagate_truth_context f =
     (* in the context of an and, all other clauses in the and
      * are also true in the context of this one *)
     | And fl -> 
-      let fl = remove_duplicates fl in
+      let fl = remove_duplicates true fl in
       And (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i (fun f -> f) fl trueHere in
 	aux trueHere e) fl)
     | Or fl ->
-        let fl = remove_duplicates fl in
+        let fl = remove_duplicates false fl in
         Or (List.mapi (fun i e -> 
 	  let trueHere = add_all_but_i i mk_not fl trueHere in
 	  aux trueHere e) fl)
@@ -364,10 +364,10 @@ let normalize_formula f =
     | Not Not f1 -> aux f1
     | And []  -> True
     | And [f1] -> aux f1
-    | And lst -> And(List.map aux (remove_duplicates (flatten_nested_ands lst)))
+    | And lst -> And(List.map aux (remove_duplicates true (flatten_nested_ands lst)))
     | Or []  -> False
     | Or [f1] -> aux f1
-    | Or lst -> Or(List.map aux (remove_duplicates (flatten_nested_ors lst)))
+    | Or lst -> Or(List.map aux (remove_duplicates false (flatten_nested_ors lst)))
 
     (* recurse down the tree *)
     | Relation _ -> f
