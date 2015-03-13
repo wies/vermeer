@@ -1,5 +1,12 @@
 open Smtlib_ast
 
+module FormulaSet = Set.Make(
+  struct
+    let compare = Pervasives.compare
+    type t = formula
+  end
+);;
+
 let rec compare_form f g =
   let rec compare_lex fs gs =
     match fs, gs with
@@ -33,11 +40,21 @@ let rec compare_form f g =
     compare_lex [f1; f2; f3] [f4; f5; f6]
   | f, g -> compare f g
 
+let subsumes f g =
+  match f, g with
+  | Or fs, Or gs
+  | And gs, And fs ->
+      let fs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty fs in
+      let gs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty gs in
+      FormulaSet.subset fs gs
+  | f, g -> f = g
+        
 (* remove duplicates from a list *)
 let remove_duplicates fs = 
   let rec uniq = function
     | [] -> []
-    | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
+    | e1 :: e2 :: tl when subsumes e1 e2 -> e1 :: uniq tl
+    | e1 :: e2 :: tl when subsumes e2 e1 -> e2 :: uniq tl
     | hd :: tl -> hd :: uniq tl
   in
   let sorted = List.sort compare_form fs in
@@ -66,12 +83,6 @@ let formula_size f =
   aux f;
   !size
 
-module FormulaSet = Set.Make(
-  struct
-    let compare = Pervasives.compare
-    type t = formula
-  end
-);;
 
 let sort_vars = List.sort 
   (fun x y -> match x,y with 
@@ -103,7 +114,7 @@ let split_vars_vals tl : (term list * term list * term list)=
 (** Check whether conjunction of the two formulas is unsat.
   * Assumes formulas are in negation normal form
  *)
-let is_unsat f g =
+let rec is_unsat f g =
   match f, g with
   | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
     (*if t11 = t21 && t12 = t22 then 
@@ -124,18 +135,35 @@ let is_unsat f g =
       | GT, Value c2, LT, Value c1 
 	-> 
 	c1+1 >= c2
-
       (* cases with one has n an EQ in it *)
       | LT, Value c1, GEQ, Value c2
-      | LEQ, Value c1, GT, Value c2 -> c1 <= c2
+      | LEQ, Value c1, GT, Value c2
+      | EQ, Value c1, GT, Value c2
+      | LT, Value c1, EQ, Value c2
+        -> c1 <= c2
       | GT, Value c1, LEQ, Value c2
-      | GEQ, Value c1, LT, Value c2 -> c1 >= c2
-      | LEQ, Value c1, GEQ, Value c2 -> c1 < c2
-      | GEQ, Value c1, LEQ, Value c2 -> c1 > c2
+      | GEQ, Value c1, LT, Value c2
+      | GT, Value c1, EQ, Value c2
+      | EQ, Value c1, LT, Value c2
+        -> c1 >= c2
+      | LEQ, Value c1, GEQ, Value c2
+      | EQ, Value c1, GEQ, Value c2
+      | LEQ, Value c1, EQ, Value c2
+        -> c1 < c2
+      | GEQ, Value c1, LEQ, Value c2
+      | EQ, Value c1, LEQ, Value c2
+      | GEQ, Value c1, EQ, Value c2
+        -> c1 > c2
+      | EQ, Value c1, EQ, Value c2
+        -> c1 <> c2
       | _, _, _, _ -> 
           negate_rel rel1 = rel2 && t12 = t22)
   | False, _
   | _, False -> true
+  | And fs, g ->
+      List.exists (fun f -> is_unsat f g) fs
+  | Or fs, g ->
+      List.for_all (fun f -> is_unsat f g) fs
   | f, g -> mk_not f = g
 
 (* DSN there is probably a better way to do this.
@@ -438,22 +466,20 @@ let simplify_formula_2 f =
         aux (And(Relation(GEQ, t1, Value(c)) :: gs))                                                                         
       | Relation(GEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
         when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
-        let c = max c1 c2 in
-        aux (And(Relation(GEQ, t1, Value(c)) :: gs))                                                                         
+          let c = max c1 c2 in
+          aux (And(Relation(GEQ, t1, Value(c)) :: gs))
+      | Relation(GEQ, t1, Value(c1)) :: Relation(EQ, t2, Value(c2)) :: gs
+        when t1 = t2 && c1 <= c2 ->
+          aux (And(Relation(EQ, t2, Value(c2)) :: gs))
+      | Relation(GT, t1, Value(c1)) :: Relation(EQ, t2, Value(c2)) :: gs
+        when t1 = t2 && c1 < c2 ->
+          aux (And(Relation(EQ, t2, Value(c2)) :: gs))            
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, t2, Value(c2)) :: gs
         when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
         aux (And(Relation(LEQ, t1, Value(c)) :: gs))
-      | Relation(LEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
-      | Relation(EQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
-      | Relation(LEQ, t1, Value(c1)) :: Relation(GT, t2, Value(c2)) :: gs
-        when t1 = t2 && c1 < c2 ->
-          False
       | Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
       | Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
-      | Relation(LEQ, t1, t2) :: Relation(GT, t3, t4) :: gs
-        when t1 = t3 && t2 = t4 ->
-          False
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
       | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
         when t1 = t4 && t2 = t3 ->
@@ -465,13 +491,16 @@ let simplify_formula_2 f =
         when t1 = t3 && t2 = t4 ->
           aux (And (Relation(GT, t1, t2) :: gs))
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: gs
-          when t1 = t2 && c1 = -1 * c2 -> 
-        let phi = Relation(EQ,t1, Value(c1)) in
-        aux (And (phi :: gs))
+        when t1 = t2 && c1 = -1 * c2 -> 
+          let phi = Relation(EQ,t1, Value(c1)) in
+          aux (And (phi :: gs))
       | Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: Relation(LEQ, t1, Value(c1)) :: gs
-          when t1 = t2 && c1 = -1 * c2 -> 
-        let phi = Relation(EQ,t1, Value(c1)) in
-        aux (And(phi :: gs))
+        when t1 = t2 && c1 = -1 * c2 -> 
+          let phi = Relation(EQ,t1, Value(c1)) in
+          aux (And(phi :: gs))
+      | (Relation _ as g1) :: (Relation _ as g2) :: gs
+        when is_unsat g1 g2 ->
+          False
       | [ g ] -> aux g
       | [] -> True
       | g :: gs -> 
