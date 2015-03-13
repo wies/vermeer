@@ -101,12 +101,41 @@ let split_vars_vals tl : (term list * term list * term list)=
  * A ==> (A && B)  ~~~ A ===> B
  *)
 
-let propagate_truth_context f = 
-  let isTrue trueHere f =  FormulaSet.mem f trueHere  in
-  let isFalse trueHere f = 
-    match f with 
-    | Not f -> FormulaSet.mem f trueHere
-    | _ -> FormulaSet.mem (Not f) trueHere in
+(** Check whether conjunction of the two formulas is unsat.
+  * Assumes formulas are in negation normal form
+ *)
+let is_unsat f g =
+  match f, g with
+  | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
+      t11 = t21 &&
+      (match rel1, t21, rel2, t22 with
+      | LT, Value c1, GEQ, Value c2
+      | LT, Value c1, GT, Value c2
+      | LEQ, Value c1, GT, Value c2 -> c1 <= c2
+      | GT, Value c1, LEQ, Value c2
+      | GT, Value c1, LT, Value c2
+      | GEQ, Value c1, LT, Value c2 -> c1 >= c2
+      | LEQ, Value c1, GEQ, Value c2 -> c1 < c2
+      | GEQ, Value c1, LEQ, Value c2 -> c1 > c2
+      | _, _, _, _ -> negate_rel rel1 = rel2 && t12 = t22)
+  | False, _
+  | _, False -> true
+  | f, g -> mk_not f = g
+
+    
+let propagate_truth_context f =
+  let isTrue trueHere f =
+    match f with
+    | Relation _ ->
+        FormulaSet.exists (is_unsat (mk_not f)) trueHere
+    | _ -> FormulaSet.mem f trueHere
+  in
+  let isFalse trueHere f =
+    match f with
+    | Relation _ ->
+        FormulaSet.exists (is_unsat f) trueHere
+    | _ -> FormulaSet.mem (mk_not f) trueHere
+  in
   let rec aux trueHere trueChildren f = 
     if isTrue trueHere f then True
     else if isFalse trueHere f then False 
@@ -435,6 +464,7 @@ let simplify_formula_2 f =
       | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
 	when (t1 = t2 && c1 = c2 + 2) ->
           Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+      | [Relation _ as f; Relation _ as g] when f = mk_not g -> True
       | [] -> False
       | [f] -> aux f
       | f :: gs ->
