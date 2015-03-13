@@ -316,7 +316,10 @@ let normalize_formula f =
       Relation(LT, Variable(v1), Variable(v2))
     | Relation(GT, Variable(v1), Sum([ Variable(v2); Value(-1) ])) ->
       Relation(GEQ, Variable(v1), Variable(v2))
-	
+
+    (* (x_17_3 * -1) <= 0 *)
+    | Relation(op, Mult [Variable v1; Value(-1)], Value v) ->
+      Relation(invert_rel op, Variable v1, Value (v * -1))
 	
 
     (* Structural normalization *)
