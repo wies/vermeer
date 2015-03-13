@@ -175,7 +175,10 @@ let  simplify_constants  f  =
     | Not(True) -> False
     | ITE(True,t,e) -> t
     | ITE(False,t,e) -> e
-      
+    | ITE(i,t,False) -> And [i;t]
+    | ITE(i,False,e) -> And [Not i; e]
+
+
     | And fl when List.exists (fun x -> x = False) fl -> False
     | Or fl when List.exists (fun x -> x = True) fl -> True
 
