@@ -100,7 +100,7 @@ let split_vars_vals tl : (term list * term list * term list)=
  * A ==> (A && B)  ~~~ A ===> B
  *)
 
-let propegate_truth_context f = 
+let propagate_truth_context f = 
   let isTrue trueHere f =  FormulaSet.mem f trueHere  in
   let isFalse trueHere f = 
     match f with 
@@ -423,7 +423,7 @@ let simplify_formula f =
   let f = normalize_formula f in 
   let f = simplify_terms f in
   let f = simplify_formula_2 f in
-  let f = propegate_truth_context f in
+  let f = propagate_truth_context f in
   f
 
 let rec beautify_formula f =
