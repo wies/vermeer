@@ -106,8 +106,17 @@ let split_vars_vals tl : (term list * term list * term list)=
 let is_unsat f g =
   match f, g with
   | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
-      t11 = t21 &&
+    if t11 = t21 && t12 = t22 then 
+      (match rel1,rel2 with
+      (* equality *)
+      | EQ,LT | EQ,GT | EQ,NEQ
+      | LT,EQ | GT,EQ | NEQ,EQ -> true
+      | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
+      | _ -> false
+      ) 
+    else if t11 = t21 then
       (match rel1, t21, rel2, t22 with
+      (* Values *)
       | LT, Value c1, GEQ, Value c2
       | LT, Value c1, GT, Value c2
       | LEQ, Value c1, GT, Value c2 -> c1 <= c2
@@ -116,12 +125,13 @@ let is_unsat f g =
       | GEQ, Value c1, LT, Value c2 -> c1 >= c2
       | LEQ, Value c1, GEQ, Value c2 -> c1 < c2
       | GEQ, Value c1, LEQ, Value c2 -> c1 > c2
-      | _, _, _, _ -> negate_rel rel1 = rel2 && t12 = t22)
+      | _, _, _, _ -> negate_rel rel1 = rel2 && t12 = t22
+      ) 
+    else false
   | False, _
   | _, False -> true
   | f, g -> mk_not f = g
 
-    
 (* DSN there is probably a better way to do this.
  * What I'm trying to do here is to take advantage of the fact that 
  * A && (A || B), can be simplified to A && (True || B)
