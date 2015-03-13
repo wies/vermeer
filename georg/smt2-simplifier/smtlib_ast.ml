@@ -39,7 +39,9 @@ let invert_rel = function
   | GEQ -> LEQ
   | GT  -> LT
   | NEQ -> NEQ
-        
+
+
+
 (** Compute negation normal form of a formula *)
 let rec nnf = function
   | Not (Relation (rel, t1, t2)) -> Relation (negate_rel rel, t1, t2)

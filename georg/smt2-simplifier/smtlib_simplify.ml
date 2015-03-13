@@ -33,7 +33,16 @@ let rec compare_form f g =
     compare_lex [f1; f2; f3] [f4; f5; f6]
   | f, g -> compare f g
 
-    
+(* remove duplicates from a list *)
+let remove_duplicates fs = 
+  let rec uniq = function
+    | [] -> []
+    | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
+    | hd :: tl -> hd :: uniq tl
+  in
+  let sorted = List.sort compare_form fs in
+  uniq sorted    
+
 let formula_size f = 
   let size = ref 0 in
   let rec aux f = 
@@ -124,6 +133,13 @@ let is_unsat f g =
      *)
 
 let propagate_truth_context f =
+  let add_all_but_i toAvoid lst set = 
+    let (_,result) = 
+      List.fold_left (fun (i,a) e ->
+	if (i = toAvoid) then (i+1,a)
+	else (i+1, FormulaSet.add e a)) (0,set) lst
+    in result
+  in
   let isTrue trueHere f =
     match f with
     | Relation _ ->
@@ -136,40 +152,40 @@ let propagate_truth_context f =
         FormulaSet.exists (is_unsat f) trueHere
     | _ -> FormulaSet.mem (mk_not f) trueHere
   in
-  let rec aux trueHere trueChildren f = 
+  let rec aux trueHere  f = 
     if isTrue trueHere f then True
     else if isFalse trueHere f then False 
-    else 
-      let trueHere = FormulaSet.union trueHere trueChildren in
-      let trueChildren = FormulaSet.empty in
-      
-      match f with
-      | And fl -> 
-	let trueChildren = 
-	  List.fold_left (fun a e -> FormulaSet.add e a) FormulaSet.empty fl in
-	And (List.map (aux trueHere trueChildren) fl)
-	  
-      | Implication (f1,f2) -> 
+    else begin match f with
+
+    (* in the context of an and, all other clauses in the and
+     * are also true in the context of this one *)
+    | And fl -> 
+      let fl = remove_duplicates fl in
+      And (List.mapi (fun i e -> 
+	let trueHere = add_all_but_i i fl trueHere in
+	aux trueHere e) fl)
+	
+    | Implication (f1,f2) -> 
 	(* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
 	 * any of a,b,c *)
-	let lhs = aux trueHere trueChildren f1 in
-	let rhs = aux (FormulaSet.add lhs trueHere) trueChildren f2 in
-	Implication(lhs,rhs) 
-
-      | ITE(i,t,e) -> 
-	let i = aux trueHere trueChildren i in
-	let t = aux (FormulaSet.add i trueHere) trueChildren t in
-	(* TODO there ought to be a better way to handle the else case *)
-	let e = aux (FormulaSet.add (Not i) trueHere) trueChildren e in
-	ITE(i,t,e)
-
-      (* recurse into the tree *)
-      | Relation _ -> f
-      | Not f1 -> Not (aux trueHere trueChildren f1)
-      | Or  fl -> Or (List.map (aux trueHere trueChildren) fl)
-      | True|False|UnsupportedFormula _ -> f
+      let lhs = aux trueHere  f1 in
+      let rhs = aux (FormulaSet.add lhs trueHere)  f2 in
+      Implication(lhs,rhs) 
+	
+    | ITE(i,t,e) -> 
+      let i = aux trueHere  i in
+      let t = aux (FormulaSet.add i trueHere) t in
+      (* TODO there ought to be a better way to handle the else case *)
+      let e = aux (FormulaSet.add (mk_not i) trueHere)  e in
+      ITE(i,t,e)
+	
+    (* recurse into the tree *)
+    | Not f1 -> mk_not (aux trueHere f1)
+    | Or  fl -> Or (List.map (aux trueHere) fl)
+    | True|False|UnsupportedFormula _ | Relation _ -> f
+    end
   in
-  aux FormulaSet.empty FormulaSet.empty f
+  aux FormulaSet.empty f
 
 
 let  simplify_constants  f  = 
@@ -200,15 +216,15 @@ let  simplify_constants  f  =
     | Implication(False,_) -> True
     | Implication(_,True) -> True
     | Implication(True,x) -> x
-    | Implication(x,False) -> Not x
+    | Implication(x,False) -> mk_not x
     | Not(False) -> True
     | Not(True) -> False
     | ITE(True,t,e) -> t
     | ITE(False,t,e) -> e
     | ITE(i,t,False) -> And [aux i; aux t]
-    | ITE(i,False,e) -> And [Not (aux i); aux e]
+    | ITE(i,False,e) -> And [mk_not (aux i); aux e]
     | ITE(i,t,True) -> Implication(aux i,aux t)
-    | ITE(i,True,e) -> Implication(Not (aux i),aux e)
+    | ITE(i,True,e) -> Implication(mk_not (aux i),aux e)
 
     | And fl when List.exists (fun x -> x = False) fl -> False
     | Or fl when List.exists (fun x -> x = True) fl -> True
@@ -218,7 +234,7 @@ let  simplify_constants  f  =
     | Or fl -> Or(List.map aux  (remove_logical_consts fl))
 
     (* recurse down the tree *)
-    | Not f1 -> Not (aux f1)
+    | Not f1 -> mk_not (aux f1)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
     (* Don't simplify terms here *)
     | Relation _ -> f
@@ -226,15 +242,6 @@ let  simplify_constants  f  =
   in aux f
 
 let normalize_formula f = 
-  let remove_duplicates fs = 
-    let rec uniq = function
-      | [] -> []
-      | e1 :: e2 :: tl when e1 = e2 -> e1 :: uniq tl
-      | hd :: tl -> hd :: uniq tl
-    in
-    let sorted = List.sort compare_form fs in
-    uniq sorted
-  in
   let flatten_nested_ands lst = 
     let fs1, fs2 =  List.partition 
       (fun (f) -> match f with | And(_) -> false | _ -> true) lst in
@@ -292,7 +299,14 @@ let normalize_formula f =
 	       Variable x, 
 	       Sum[Mult [Sum[Value v0; Mult[Variable y; Value v1]]; Value (-1)];
 		   Value v2]) 
-
+	
+    (* x <= y - 1 ~~~ x < y *)
+    (* TODO generalize *)
+    | Relation(LEQ, Variable(v1), Sum([ Variable(v2); Value(-1) ])) ->
+      Relation(LT, Variable(v1), Variable(v2))
+    | Relation(GT, Variable(v1), Sum([ Variable(v2); Value(-1) ])) ->
+      Relation(GEQ, Variable(v1), Variable(v2))
+	
 	
 
     (* Structural normalization *)
@@ -306,7 +320,7 @@ let normalize_formula f =
 
     (* recurse down the tree *)
     | Relation _ -> f
-    | Not f1 -> Not (aux f1)
+    | Not f1 -> mk_not (aux f1)
     | Implication (f1,f2) -> 
       Implication(aux f1,aux f2) 
     | ITE(f1,f2,f3) -> 
@@ -340,7 +354,7 @@ let simplify_terms f =
 
   (* recurse down the tree *)
     | True|False|UnsupportedFormula _ -> f
-    | Not f1 -> Not (aux f1)
+    | Not f1 -> mk_not (aux f1)
     | And fl -> And (List.map aux fl)
     | Or  fl -> Or (List.map aux fl)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
@@ -479,15 +493,12 @@ let simplify_formula_2 f =
           | _, _ -> Or [f1; h]
     end
 
-  (* x <= y - 1 ~~~ x < y *)
-  (* TODO generalize *)
-    | Relation(LEQ, Variable(v1), Sum([ Variable(v2); Value(-1) ])) ->
-        Relation(LT, Variable(v1), Variable(v2))
+
+
 
   (* recurse *)
-    | Not f -> Not (aux f)
-    | ITE (i,t,e) ->
-        ITE(aux i, aux t, aux e)
+    | Not f -> mk_not (aux f)
+    | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
     | Implication (f1, f2) -> Implication (aux f1, aux f2)
     | True | False | Relation _ | UnsupportedFormula _ -> f
   in
