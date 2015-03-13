@@ -4,6 +4,7 @@ type term =
 | Value of int 
 | Sum of term list
 | Mult of term list
+| UMinus of term
 | UnsupportedTerm of string
 (* division, subtraction? *)
 ;;
@@ -23,7 +24,7 @@ type formula =
 | UnsupportedFormula of string
 ;; 
 
-let mk_not_rel = function
+let negate_rel = function
   | EQ -> NEQ
   | LEQ -> GT
   | LT -> GEQ
@@ -31,8 +32,17 @@ let mk_not_rel = function
   | GT -> LEQ
   | NEQ -> EQ
 
+let invert_rel = function
+  | EQ  -> EQ 
+  | LEQ -> GEQ
+  | LT  -> GT
+  | GEQ -> LEQ
+  | GT  -> LT
+  | NEQ -> NEQ
+        
+(** Compute negation normal form of a formula *)
 let rec nnf = function
-  | Not (Relation (rel, t1, t2)) -> Relation (mk_not_rel rel, t1, t2)
+  | Not (Relation (rel, t1, t2)) -> Relation (negate_rel rel, t1, t2)
   | Not (Not f) -> nnf f
   | Not (And (fs)) ->
       Or (List.map (function f -> nnf (Not f)) fs)

@@ -263,7 +263,7 @@ let normalize_formula f =
 	       Variable x, 
 	       Sum[Mult [Sum[Value v0; Mult[Variable y; Value v1]]; Value (-1)];
 		   Value v2]) 
-
+    
 	
 
     (* Structural normalization *)
