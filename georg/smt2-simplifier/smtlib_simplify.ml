@@ -410,6 +410,10 @@ let simplify_formula_2 f =
       | _ -> Or(List.map aux fs)
     end
 
+  (* x <= y - 1 ~~~ x < y *)
+  (* TODO generalize *)
+    | Relation(LEQ, Variable(v1), Sum([ Variable(v2); Value(-1) ])) -> Relation(LT, Variable(v1), Variable(v2))
+
   (* recurse *)
     | Not f -> Not (aux f)
     | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
