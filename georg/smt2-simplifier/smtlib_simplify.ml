@@ -460,24 +460,30 @@ let simplify_formula_2 f =
     | And(fs) ->
         let f1 =
         begin match fs with 
-      | Relation(GEQ, t1, Value(c1)) :: Relation(GT, t2, Value(c2)) :: gs
+      | Relation(GEQ, t1, Value c1) :: Relation(GT, t2, Value c2) :: gs
         when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
         let c = max c1 (c2 + 1) in
-        aux (And(Relation(GEQ, t1, Value(c)) :: gs))                                                                         
-      | Relation(GEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
+        aux (And(Relation(GEQ, t1, Value c) :: gs))
+      | Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
+        when t1 = t2 && c1 + 1 = c2 ->
+          aux (And (Relation(EQ, t1, Value c1) :: gs))
+      | Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
+        when t1 = t2 && c1 + 1 = c2 ->
+          aux (And (Relation(EQ, t1, Value c2) :: gs))
+      | Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
         when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
           let c = max c1 c2 in
-          aux (And(Relation(GEQ, t1, Value(c)) :: gs))
-      | Relation(GEQ, t1, Value(c1)) :: Relation(EQ, t2, Value(c2)) :: gs
+          aux (And(Relation(GEQ, t1, Value c) :: gs))
+      | Relation(GEQ, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
         when t1 = t2 && c1 <= c2 ->
-          aux (And(Relation(EQ, t2, Value(c2)) :: gs))
-      | Relation(GT, t1, Value(c1)) :: Relation(EQ, t2, Value(c2)) :: gs
+          aux (And(Relation(EQ, t2, Value c2) :: gs))
+      | Relation(GT, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
         when t1 = t2 && c1 < c2 ->
-          aux (And(Relation(EQ, t2, Value(c2)) :: gs))            
-      | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, t2, Value(c2)) :: gs
+          aux (And(Relation(EQ, t2, Value c2) :: gs))            
+      | Relation(LEQ, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
         when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
-        aux (And(Relation(LEQ, t1, Value(c)) :: gs))
+        aux (And(Relation(LEQ, t1, Value c) :: gs))
       | Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
       | Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
@@ -490,13 +496,13 @@ let simplify_formula_2 f =
       | Relation(GEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
         when t1 = t3 && t2 = t4 ->
           aux (And (Relation(GT, t1, t2) :: gs))
-      | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: gs
+      | Relation(LEQ, t1, Value c1) :: Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: gs
         when t1 = t2 && c1 = -1 * c2 -> 
-          let phi = Relation(EQ,t1, Value(c1)) in
+          let phi = Relation(EQ,t1, Value c1) in
           aux (And (phi :: gs))
-      | Relation(LEQ, Value(0), Sum([ t2; Value(c2) ])) :: Relation(LEQ, t1, Value(c1)) :: gs
+      | Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: Relation(LEQ, t1, Value c1) :: gs
         when t1 = t2 && c1 = -1 * c2 -> 
-          let phi = Relation(EQ,t1, Value(c1)) in
+          let phi = Relation(EQ,t1, Value c1) in
           aux (And(phi :: gs))
       | (Relation _ as g1) :: (Relation _ as g2) :: gs
         when is_unsat g1 g2 ->
@@ -524,10 +530,10 @@ let simplify_formula_2 f =
         f1
     | Or(fs) ->
         begin match fs with  
-      | [ Relation(LEQ, Value(c1), t1) ; Relation(LEQ, t2, Value(c2)) ]
+      | [ Relation(LEQ, Value c1, t1) ; Relation(LEQ, t2, Value c2) ]
 	when (t1 = t2 && c1 = c2 + 2) ->
           Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-      | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
+      | [ Relation(LEQ, t2, Value c2) ; Relation(LEQ, Value c1, t1) ]
 	when (t1 = t2 && c1 = c2 + 2) ->
           Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
       | [Relation _ as f; Relation _ as g] when f = mk_not g -> True
