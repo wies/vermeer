@@ -24,6 +24,8 @@ examples/simple/simple_dir/
 examples/tcas/tcas_dir/
 georg/concurrent-datastructure/
 georg/test/
+georg/smt2-simplifier/smtlib_main.native
+georg/smt2-simplifier/_build/
 test/output.allfile.binarysearch.txt
 test/output.allfile.noninductive.txt
 test/output.allfile.unsatcore.txt
