@@ -335,12 +335,17 @@ let simplify_terms f =
       let vals = simplify_vals vals (+) 0 in
       let rest = flatten_nested_sums rest in
       Sum(vars @ vals  @ rest)
-    | Mult(lst) -> 
+    | Mult(lst) -> begin
       let lst = List.map simplify_term lst in
       let (vars,vals,rest) = split_vars_vals lst in
       let vals = simplify_vals vals ( * ) 1 in
       let rest = flatten_nested_mults rest in
-      Mult(vars @ vals  @ rest)
+      (* distribute multiplication inside addition
+       * this opens up more normalization oppertunities *)
+      match vars,vals,rest with
+      | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
+      | _ -> Mult(vars @ vals  @ rest)
+    end
     | _ -> t
   and simplify_vals vals op identity =
     let v = List.fold_left 
