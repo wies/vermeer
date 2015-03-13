@@ -9,5 +9,4 @@ let run () =
   | Some(x) -> Smtlib_pp.pp x);
   print_string "\n";;
 
-Smtlib_simplify.test();;
-(* run() *) 
+run()

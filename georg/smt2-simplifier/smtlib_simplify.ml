@@ -104,10 +104,9 @@ let split_vars_vals tl : (term list * term list * term list)=
   * Assumes formulas are in negation normal form
  *)
 let is_unsat f g =
-  print_endline "foo";
   match f, g with
   | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
-    if t11 = t21 && t12 = t22 then 
+    (*if t11 = t21 && t12 = t22 then 
       (match rel1,rel2 with
       (* equality *)
       | EQ,LT | EQ,GT | EQ,NEQ
@@ -115,16 +114,15 @@ let is_unsat f g =
       | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
       | _ -> false
       ) 
-    else if t11 = t21 then
-      (print_endline "apple";
-       match rel1, t21, rel2, t22 with
+    else if*) t11 = t21 &&
+      (match rel1, t12, rel2, t22 with
       (* Values *)
       (* we are using integer arithmatic here 
        * x > 5 && x < 6 is unsat because no # between 5 and 6
        *)
       | LT, Value c1, GT, Value c2
       | GT, Value c2, LT, Value c1 
-	-> print_endline "matched"; 
+	-> 
 	c1+1 >= c2
 
       (* cases with one has n an EQ in it *)
@@ -135,13 +133,7 @@ let is_unsat f g =
       | LEQ, Value c1, GEQ, Value c2 -> c1 < c2
       | GEQ, Value c1, LEQ, Value c2 -> c1 > c2
       | _, _, _, _ -> 
-
-	Smtlib_ast.print_formula (Relation (rel1, t11, t12)) ""; 
-	Smtlib_ast.print_formula (Relation (rel2, t21, t22)) "";
-	print_endline "";
-	negate_rel rel1 = rel2 && t12 = t22
-      ) 
-    else false
+          negate_rel rel1 = rel2 && t12 = t22)
   | False, _
   | _, False -> true
   | f, g -> mk_not f = g
@@ -563,6 +555,7 @@ OR (
 )
 *)
 
+    (*
 let test () = 
   let f = 
     Or[
@@ -577,3 +570,4 @@ let test () =
     ] in
   let bf = beautify_formula f  in
   print_formula bf ""
+*)
