@@ -149,11 +149,11 @@ let is_unsat f g =
      *)
 
 let propagate_truth_context f =
-  let add_all_but_i toAvoid lst set = 
+  let add_all_but_i toAvoid fn lst set = 
     let (_,result) = 
       List.fold_left (fun (i,a) e ->
 	if (i = toAvoid) then (i+1,a)
-	else (i+1, FormulaSet.add e a)) (0,set) lst
+	else (i+1, FormulaSet.add (fn e) a)) (0,set) lst
     in result
   in
   let isTrue trueHere f =
@@ -178,9 +178,14 @@ let propagate_truth_context f =
     | And fl -> 
       let fl = remove_duplicates fl in
       And (List.mapi (fun i e -> 
-	let trueHere = add_all_but_i i fl trueHere in
+	let trueHere = add_all_but_i i (fun f -> f) fl trueHere in
 	aux trueHere e) fl)
-	
+    | Or fl ->
+        let fl = remove_duplicates fl in
+        Or (List.mapi (fun i e -> 
+	  let trueHere = add_all_but_i i mk_not fl trueHere in
+	  aux trueHere e) fl)
+          (*Or (List.map (aux trueHere) fl)*)
     | Implication (f1,f2) -> 
 	(* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
 	 * any of a,b,c *)
@@ -197,7 +202,6 @@ let propagate_truth_context f =
 	
     (* recurse into the tree *)
     | Not f1 -> mk_not (aux trueHere f1)
-    | Or  fl -> Or (List.map (aux trueHere) fl)
     | True|False|UnsupportedFormula _ | Relation _ -> f
     end
   in
