@@ -91,16 +91,6 @@ let split_vars_vals tl : (term list * term list * term list)=
   (vars,vals,rest)
 
 
-(* DSN there is probably a better way to do this.
- * What I'm trying to do here is to take advantage of the fact that 
- * A && (A || B), can be simplified to A && (True || B)
- * So, maintain a set of things that are known to be contextually "true"
- * I keep two sets, one which is things which are true here, and one which is 
- * only true for the children.
- * This also holds for implications.
- * A ==> (A && B)  ~~~ A ===> B
- *)
-
 (** Check whether conjunction of the two formulas is unsat.
   * Assumes formulas are in negation normal form
  *)
@@ -123,6 +113,16 @@ let is_unsat f g =
   | f, g -> mk_not f = g
 
     
+(* DSN there is probably a better way to do this.
+ * What I'm trying to do here is to take advantage of the fact that 
+ * A && (A || B), can be simplified to A && (True || B)
+ * So, maintain a set of things that are known to be contextually "true"
+ * I keep two sets, one which is things which are true here, and one which is 
+ * only true for the children.
+ * This also holds for implications.
+ * A ==> (A && B)  ~~~ A ===> B
+     *)
+
 let propagate_truth_context f =
   let isTrue trueHere f =
     match f with
