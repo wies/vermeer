@@ -266,7 +266,6 @@ let normalize_formula f =
     | Relation(op,
 	       Sum[Variable x; Value v0; Mult[Variable y; Value v1]], 
 	       Value v2) ->
-      print_endline "got a match";
       Relation(op,
 	       Variable x, 
 	       Sum[Mult [Sum[Value v0; Mult[Variable y; Value v1]]; Value (-1)];
