@@ -1,6 +1,9 @@
-SMT_SIMPLIFIER=../smtlib
+SMT_SIMPLIFIER=../smtlib_main.native
 
 all: example1 example2 example3 example4 example5 example6 example7 example8 example9 example10 example11 example12 example13 example14 example15
+
+bankaccount:
+	$(SMT_SIMPLIFIER) < bankaccount.smt2
 
 example1:
 	@echo "example1:"
@@ -62,4 +65,7 @@ example15:
 	@echo "example15:"
 	@$(SMT_SIMPLIFIER) < example15.smt2
 
+example16:
+	@echo "example16:"
+	@$(SMT_SIMPLIFIER) < example16.smt2
 
