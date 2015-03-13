@@ -104,6 +104,7 @@ let split_vars_vals tl : (term list * term list * term list)=
   * Assumes formulas are in negation normal form
  *)
 let is_unsat f g =
+  print_endline "foo";
   match f, g with
   | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
     if t11 = t21 && t12 = t22 then 
@@ -115,17 +116,30 @@ let is_unsat f g =
       | _ -> false
       ) 
     else if t11 = t21 then
-      (match rel1, t21, rel2, t22 with
+      (print_endline "apple";
+       match rel1, t21, rel2, t22 with
       (* Values *)
-      | LT, Value c1, GEQ, Value c2
+      (* we are using integer arithmatic here 
+       * x > 5 && x < 6 is unsat because no # between 5 and 6
+       *)
       | LT, Value c1, GT, Value c2
+      | GT, Value c2, LT, Value c1 
+	-> print_endline "matched"; 
+	c1+1 >= c2
+
+      (* cases with one has n an EQ in it *)
+      | LT, Value c1, GEQ, Value c2
       | LEQ, Value c1, GT, Value c2 -> c1 <= c2
       | GT, Value c1, LEQ, Value c2
-      | GT, Value c1, LT, Value c2
       | GEQ, Value c1, LT, Value c2 -> c1 >= c2
       | LEQ, Value c1, GEQ, Value c2 -> c1 < c2
       | GEQ, Value c1, LEQ, Value c2 -> c1 > c2
-      | _, _, _, _ -> negate_rel rel1 = rel2 && t12 = t22
+      | _, _, _, _ -> 
+
+	Smtlib_ast.print_formula (Relation (rel1, t11, t12)) ""; 
+	Smtlib_ast.print_formula (Relation (rel2, t21, t22)) "";
+	print_endline "";
+	negate_rel rel1 = rel2 && t12 = t22
       ) 
     else false
   | False, _
@@ -533,3 +547,33 @@ let beautify_formula f =
     else
       loop f_simple
   in loop (nnf f)
+
+(*
+//(let ((.cse4 (+ x_6_6 (- 5 ) )) ) (let ((.cse3 (= .cse4 0 )) ) (let ((.cse1 (not .cse3 )) (.cse2 (ite (<= (+ (- x_6_6 ) 6 ) 0 ) (<= x_6_6 5 ) (<= 0 .cse4 ) )) ) (let ((.cse0 (ite .cse3 (or (<= x_7_6 (+ x_20_2 (- 21 ) ) ) (and .cse1 .cse2 ) ) .cse2 )) ) (or .cse0 (ite .cse1 (or .cse2 .cse0 ) .cse0 ) )))))
+/*
+OR (
+  AND (
+    x_6_6 = 5
+    x_7_6 <= (x_20_2 + -21)
+  )
+  AND (
+    x_6_6 > 5
+    x_6_6 < 6
+  )
+)
+*)
+
+let test () = 
+  let f = 
+    Or[
+      And [
+	Relation (EQ, Variable "x_6_6", Value 5);
+	Relation(LEQ, Variable "x_7_6", Sum [Variable "x_20_2";Value (-21)]);
+      ];
+      And [
+	Relation(GT, Variable "x_6_6", Value 5);
+	Relation(LT, Variable "x_6_6", Value 6);
+      ]
+    ] in
+  let bf = beautify_formula f  in
+  print_formula bf ""
