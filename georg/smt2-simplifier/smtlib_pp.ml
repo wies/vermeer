@@ -50,7 +50,13 @@ let rec
     translate_to_term smt_term = 
   match smt_term with
   | TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s)))) ->
-    Variable(s)
+    let is_Integer str =
+      try ignore(int_of_string str); true with Failure _ -> false (* from http://pleac.sourceforge.net/pleac_ocaml/numbers.html *)
+    in
+      if is_Integer s then
+        let v = int_of_string s in Value(v)
+      else
+        Variable(s)
 
   | TermSpecConst (_, SpecConstNum(_, c)) -> 
     let
