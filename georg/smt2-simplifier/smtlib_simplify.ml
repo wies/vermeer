@@ -387,7 +387,7 @@ let simplify_formula_2 f =
           when t1 = t2 && c1 = -1 * c2 -> 
         let phi = Relation(EQ,t1, Value(c1)) in
         aux (And(phi :: gs))
-      | [ g ] -> g
+      | [ g ] -> aux g
       | [] -> True
       | g :: gs -> 
         let g1 = aux g in
