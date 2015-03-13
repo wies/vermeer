@@ -85,8 +85,8 @@ and
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, "false") ))) -> 
     False
 
-  |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, s)))) ->
-    UnsupportedFormula("TermQualIdentifier: " ^ s)
+  | TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, Symbol(_, s)))) 
+    -> Boolvar s
 
   |TermQualIdentifier (p , QualIdentifierId (p2, IdSymbol (p3, sym))) -> 
     UnsupportedFormula("TermQualIdentifier1")

@@ -65,7 +65,7 @@ let formula_size f =
   let rec aux f = 
     incr size;
     match f with 
-    | True | False | UnsupportedFormula _ -> ()
+    | True | False | UnsupportedFormula _ | Boolvar _ -> ()
     | Not f -> aux f
     | And fl -> List.iter aux fl
     | Or fl -> List.iter aux fl
@@ -230,7 +230,7 @@ let propagate_truth_context f =
 	
     (* recurse into the tree *)
     | Not f1 -> mk_not (aux trueHere f1)
-    | True|False|UnsupportedFormula _ | Relation _ -> f
+    | True|False|UnsupportedFormula _ | Relation _ | Boolvar _ -> f
     end
   in
   aux FormulaSet.empty f
@@ -243,7 +243,7 @@ let  simplify_constants  f  =
 
     match f with
     (*constants remain constant *)
-    | True | False | UnsupportedFormula _ -> f
+    | True | False | UnsupportedFormula _ | Boolvar _ -> f
       
     (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True
@@ -376,7 +376,7 @@ let normalize_formula f =
       Implication(aux f1,aux f2) 
     | ITE(f1,f2,f3) -> 
       ITE(aux f1,aux f2, aux f3)
-    | True|False|UnsupportedFormula _ -> f  
+    | True|False|UnsupportedFormula _ | Boolvar _ -> f  
   in  
   aux f
 
@@ -404,7 +404,7 @@ let simplify_terms f =
     | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
 
   (* recurse down the tree *)
-    | True|False|UnsupportedFormula _ -> f
+    | True|False|UnsupportedFormula _ | Boolvar _ -> f
     | Not f1 -> mk_not (aux f1)
     | And fl -> And (List.map aux fl)
     | Or  fl -> Or (List.map aux fl)
@@ -552,7 +552,7 @@ let simplify_formula_2 f =
     | Not f -> mk_not (aux f)
     | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
     | Implication (f1, f2) -> Implication (aux f1, aux f2)
-    | True | False | Relation _ | UnsupportedFormula _ -> f
+    | True | False | Relation _ | UnsupportedFormula _ | Boolvar _ -> f
   in
   aux f
 

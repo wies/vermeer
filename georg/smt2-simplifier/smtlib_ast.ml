@@ -21,6 +21,7 @@ type formula =
 (* relations: *)
 | Relation of binop * term * term
 | ITE of formula * formula * formula
+| Boolvar of string
 | UnsupportedFormula of string
 ;; 
 
@@ -65,6 +66,7 @@ let mk_not f =
 
 let rec print_formula f indentation =
   match f with
+  | Boolvar s -> print_string (indentation ^ s ^ "\n")
   | True -> print_string(indentation ^ "TRUE\n")
   | False -> print_string(indentation ^ "FALSE\n")
   | Not(g) -> print_string(indentation ^ "NOT (\n"); print_formula g (indentation ^ "  "); print_string(indentation ^ ")\n")
