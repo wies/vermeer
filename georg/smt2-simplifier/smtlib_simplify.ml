@@ -368,13 +368,18 @@ let simplify_formula_2 f =
   (* Logical operators *)
     | And(fs) -> begin match fs with 
       | Relation(LEQ, t1, Value(c1)) :: Relation(LEQ, t2, Value(c2)) :: gs
-          when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
+        when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
         aux (And(Relation(LEQ,t1, Value(c)) :: gs))
       | Relation(LEQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
       | Relation(EQ, t1, Value(c1)) :: Relation(GEQ, t2, Value(c2)) :: gs
-          when t1 = t2 && c1 < c2 ->
-        False
+        when t1 = t2 && c1 < c2 ->
+          False
+      | Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
+      | Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
+      | Relation(LEQ, t1, t2) :: Relation(GT, t3, t4) :: gs
+        when t1 = t2 && t3 = t4 ->
+          False
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
       | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
           when t1 = t4 && t2 = t3 ->
@@ -394,20 +399,33 @@ let simplify_formula_2 f =
         let
             h = aux (And(gs))
         in
-        match h with
-        | False -> False
-        | True -> g1
-        | And(hs) -> And(g1 :: hs)
-        | _ -> And([g1; h]) 
+        match g1, h with
+        | False, _
+        | _, False -> False
+        | True, _ -> h
+        | _, True -> g1
+        | _, And(hs) -> And(g1 :: hs)
+        | _, _ -> And([g1; h]) 
     end
     | Or(fs) -> begin match fs with  
       | [ Relation(LEQ, Value(c1), t1) ; Relation(LEQ, t2, Value(c2)) ]
-	  when (t1 = t2 && c1 = c2 + 2) ->
-        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+	when (t1 = t2 && c1 = c2 + 2) ->
+          Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
       | [ Relation(LEQ, t2, Value(c2)) ; Relation(LEQ, Value(c1), t1) ]
-	  when (t1 = t2 && c1 = c2 + 2) ->
-        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-      | _ -> Or(List.map aux fs)
+	when (t1 = t2 && c1 = c2 + 2) ->
+          Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+      | [] -> False
+      | [f] -> f
+      | f :: gs ->
+          let f1 = aux f in
+          let h = aux (Or gs) in
+          match f1, h with
+          | True, _
+          | _, True -> True
+          | False, _ -> h
+          | _, False -> f1
+          | _, Or(hs) -> Or(f1 :: hs)
+          | _, _ -> Or([f1; h])
     end
 
   (* x <= y - 1 ~~~ x < y *)
@@ -416,8 +434,9 @@ let simplify_formula_2 f =
 
   (* recurse *)
     | Not f -> Not (aux f)
-    | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
-    | Implication (f1,f2) -> Implication (aux f1,aux f2)
+    | ITE (i,t,e) ->
+        ITE(aux i, aux t, aux e)
+    | Implication (f1, f2) -> Implication (aux f1, aux f2)
     | True | False | Relation _ | UnsupportedFormula _ -> f
   in
   aux f
@@ -430,9 +449,11 @@ let simplify_formula f =
   let f = propagate_truth_context f in
   f
 
-let rec beautify_formula f =
-  let f_simple = simplify_formula f in
-  if f = f_simple then
-    f_simple
-  else
-    beautify_formula f_simple
+let beautify_formula f =
+  let rec loop f =
+    let f_simple = simplify_formula f in
+    if f = f_simple then
+      f_simple
+    else
+      loop f_simple
+  in loop (nnf f)
