@@ -1,10 +1,18 @@
 #!/bin/bash
-time $VERMEER_PATH/cil-1.7.3/bin/cilly -c --keepunused --dodsnsmt --smtcalcstats --runsmtanalysistype=binarysearch --smtmultithread=allthreads --flowsensitive --hazardsensitivewar --nointrathreadhazard trace_assertion_failed_139.c
+TRACE="trace_assertion_failed_139.c"
+ARGS="--smtmultithread=allthreads --flowsensitive --hazardsensitivewar --nointrathreadhazard" 
 
-python ../scripted-experiments/beautify_explanation.py threadSlice0.txt >out0.txt;
-python ../scripted-experiments/beautify_explanation.py threadSlice1.txt >out1.txt;
-python ../scripted-experiments/beautify_explanation.py threadSlice2.txt >out2.txt;
+time $VERMEER_PATH/cil-1.7.3/bin/cilly -c --keepunused --dodsnsmt --smtcalcstats $ARGS $TRACE
 
-../remap_variables trace_assertion_failed_139.c out0.txt > remap0.txt
-../remap_variables trace_assertion_failed_139.c out1.txt > remap1.txt
-../remap_variables trace_assertion_failed_139.c out2.txt > remap2.txt
+python ../scripted-experiments/beautify_explanation.py reduced.txt > reduced.beautify.txt;
+python ../scripted-experiments/beautify_explanation.py threadSlice0.txt > threadSlice0.beautify.txt;
+python ../scripted-experiments/beautify_explanation.py threadSlice1.txt > threadSlice1.beautify.txt;
+python ../scripted-experiments/beautify_explanation.py threadSlice2.txt > threadSlice2.beautify.txt;
+
+
+../remap_variables $TRACE reduced.beautify.txt > reduced.remap.txt;
+../remap_variables $TRACE threadSlice0.beautify.txt > threadSlice0.remap.txt;
+../remap_variables $TRACE threadSlice1.beautify.txt > threadSlice1.remap.txt;
+../remap_variables $TRACE threadSlice2.beautify.txt > threadSlice2.remap.txt;
+
+
