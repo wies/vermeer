@@ -306,39 +306,40 @@ let dsnsmt (f: file) : unit =
     assert(HazardSet.is_empty opts.trackedHazards)
   end in
   let make_graph = opts.toposortInput || not (HazardSet.is_empty opts.trackedHazards) in
-  let parsed = Dsnctosmt.parse_file f make_graph in
-  smtContext := parsed;
+  (* DSN - the parse sets a global var.  Not ideal *)
+  (Dsnctosmt.parse_file f make_graph);
+  (* Now toposort it, if reqested *)
+  if (opts.toposortInput) then topoSortCurrent();
+
   (* add the hazard tracking if needed *)
   if not (HazardSet.is_empty opts.trackedHazards) then begin
-    match parsed.graph with
-    | Some g -> encode_hazards g opts.trackedHazards opts.intrathreadHazards
-    | None -> failwith "adding hazards but didn't create graph"
+    encode_hazards 
+      (getCurrentGraph()) 
+      opts.trackedHazards 
+      opts.intrathreadHazards
   end;
-  let clauses = parsed.clauses in
-  let clauses = if (opts.toposortInput) then 
-      match parsed.graph with
-      |Some g -> Dsngraph.topo_sort_graph g 
-      |None -> failwith "how is there no graph here"
-    else clauses in
-  (List.iter (fun c -> Printf.printf "%s\n" (string_of_formula c.formula))clauses);
+
   (* add a true assertion at the begining of the program *)
-  let clauses = make_true_clause () :: clauses in
+  let clauses = make_true_clause() :: getCurrentClauses() in
   if opts.calcStats then calculate_stats "Initial" clauses;
   if opts.printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
   begin match opts.multithread with
   | PARTITIONTID -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
-    TIDSet.iter (partition_to_file extract_tid reducedClauses) parsed.seenThreads
+    TIDSet.iter (partition_to_file extract_tid reducedClauses) 
+      (getCurrentSeenThreads())
   | PARTITIONGROUP -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
-    GroupSet.iter (partition_to_file extract_group reducedClauses) parsed.seenGroups
+    GroupSet.iter (partition_to_file extract_group reducedClauses) 
+      (getCurrentSeenGroups())
   | ALLGROUPS -> 
     let reduced = reduce_to_file !analysis "reduced" clauses in
-    GroupSet.iter (summarize_to_file extract_group reduced) parsed.seenGroups
+    GroupSet.iter (summarize_to_file extract_group reduced) 
+      (getCurrentSeenGroups())
   | ALLTHREADS ->
     let reduced = reduce_to_file !analysis "reduced" clauses in
-    calculate_thread_stats parsed.seenThreads clauses;
-    TIDSet.iter (summarize_to_file extract_tid reduced) parsed.seenThreads
+    calculate_thread_stats (getCurrentSeenThreads()) clauses;
+    TIDSet.iter (summarize_to_file extract_tid reduced) (getCurrentSeenThreads())
   | ABSTRACTENV -> 
     TIDSet.iter 
       (fun tid  -> 
@@ -350,8 +351,8 @@ let dsnsmt (f: file) : unit =
 	  summarize_to_file extract_tid 
 	    ~filenameOpt:(Some("slice" ^ string_of_int tid 
 			       ^"_" ^ string_of_int sliceTid))
-	    reduced sliceTid) parsed.seenThreads
-      )parsed.seenThreads
+	    reduced sliceTid) (getCurrentSeenThreads())
+      )(getCurrentSeenThreads())
   | NOMULTI -> 
     ignore(reduce_to_file !analysis "smtresult" clauses)
   end ;

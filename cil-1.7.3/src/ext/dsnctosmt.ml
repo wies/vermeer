@@ -159,7 +159,7 @@ class dsnsmtVisitorClass ig = object (self)
   end
 end
 
-let parse_file (file: file) ?(dottyFileName = None) makeGraph = 
+let parse_file (file: file)h = 
   let dsnsmtVisitor = new dsnsmtVisitorClass ig in
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
@@ -170,14 +170,10 @@ let parse_file (file: file) ?(dottyFileName = None) makeGraph =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals file) doGlobal in
   let clauses = List.rev ig.currentRevProgram in
-  let graph = if makeGraph 
-    then Some (Dsngraph.make_dependency_graph ~dottyFileName:dottyFileName clauses) 
-    else None in
-  let open Dsnsmt in
-  {
-    typeMap = !Dsnsmt.typeMap;
-    seenGroups = ig.currentSeenGroups;
-    seenThreads = ig.currentSeenThreads;
-    clauses = clauses;
-    graph = graph;
-  }
+  Dsnsmt.setSmtContext
+    ("initialParse" ^ file.fileName)
+    !Dsnsmt.typeMap
+    ig.currentSeenGroups
+    ig.currentSeenThreads
+    clauses
+    
