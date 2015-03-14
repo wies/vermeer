@@ -22,6 +22,7 @@ module HazardSet = Dsngraph.HazardSet
 (* DSN TODO just pass this around *)
 type smtContext = 
   {
+    contextName : string;
     typeMap: varTypeMap;
     seenThreads : TIDSet.t;
     seenGroups : GroupSet.t;
@@ -30,14 +31,81 @@ type smtContext =
   }
 
 (* a bit of a hack - yet another global :( *)
+let makeDottyFiles = ref false
 (* typemap should go in here too *)
-let smtContext = ref {
+let privateSmtContext = ref {
+  contextName = "ERROR.  EMPTY.";
   typeMap = emptyTypeMap;
   seenThreads = TIDSet.empty;
   seenGroups = GroupSet.empty;
   clauses = [];
   graph = None
 }
+
+(* should only ever update it using this fn *)
+let setSmtContext name typeMap seenThreads seenGroups clauses = 
+  privateSmtContext :=
+    {
+      contextName = name;
+      typeMap = typeMap;
+      seenThreads = seenThreads;
+      seenGroups = seenGroups;
+      clauses = clauses;
+      graph = None;
+    }
+
+let getCurrentTypeMap() = !privateSmtContext.typeMap 
+let getCurrentSeenThreads () =  !privateSmtContext.seenThreads
+let getCurrentSeenGroups() =  !privateSmtContext.seenGroups
+let getCurrentClauses () =  !privateSmtContext.clauses
+let getCurrentGraph ?(make) () = 
+  match !privateSmtContext.graph with
+  | Some g -> g 
+  | None ->   
+    let dottyFileName = 
+      if !makeDottyFiles then Some !privateSmtContext.contextName else None in
+    let graph = Dsngraph.make_dependency_graph 
+      ~dottyFileName:dottyFileName (getCurrentClauses()) in
+    privateSmtContext := {!privateSmtContext with graph = Some graph};
+    graph
+
+let rec make_ssa_map (vars : smtSsaVar list) 
+    (ssaMap : varSSAMap) (defs : VarSet.t) 
+    : (varSSAMap * VarSet.t) =
+  let alreadyDefined v = 	
+    try let vOld = VarSSAMap.find v.vidx ssaMap in
+	vOld.ssaIdx >= v.ssaIdx 
+    with Not_found -> false in
+  match vars with 
+  | [] -> ssaMap, defs
+  | v :: vs -> 
+    let vidx = v.vidx in
+    let ssaMap,defs = 
+      if (alreadyDefined v) then (ssaMap,defs)
+      else (VarSSAMap.add vidx v ssaMap, VarSet.add v defs) in 
+    make_ssa_map  vs ssaMap defs
+      
+(* this rebuilds the clauses, and the graph.  DO NOT USE THE OLD 
+ * CLAUSES OR GRAPH AFTER THIS POINT *)
+let topoSortCurrent () = 
+  let remake_ssa_map clauses = 
+    let (_,newClausesRev) = 
+      List.fold_left 
+	(fun (ssaBefore,revClsLst) cls -> 
+	  let v = cls.vars in
+	  let (newSsa,newDefs) = 
+	    make_ssa_map (VarSet.elements v) ssaBefore VarSet.empty in
+	  (newSsa,{cls with ssaIdxs = newSsa}::revClsLst)) 
+	(VarSSAMap.empty,[]) clauses in
+    List.rev newClausesRev
+  in
+  let newClauses = Dsngraph.topo_sort_graph (getCurrentGraph()) in
+  let newClauses = remake_ssa_map newClauses in
+  privateSmtContext := {
+    !privateSmtContext with 
+      clauses = newClauses; 
+      graph = None;
+  }
 
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
@@ -491,6 +559,7 @@ let get_vars_ic icList set =
   List.fold_left (fun a e -> get_vars [e.iformula] a) set icList
 
 
+
 (* the first time we see a new index, we know we have a defn for it *)
 let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList) 
     (ct: clauseType) (tags : clauseTag list)
@@ -557,7 +626,11 @@ let remap_formula ssaMap form =
       let newVarOpt = get_current_var v ssaMap in
       match newVarOpt with
       | Some (newVar) -> SMTSsaVar(newVar)
-      | None -> raise (CantMap v)
+      | None -> 
+	print_endline ("can't map " ^ string_of_var v 
+		       ^ "\nin formula " ^ string_of_formula form);
+	print_ssa_map ssaMap;
+	raise (CantMap v)
   in
   aux form
     
@@ -918,7 +991,8 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* declare the flags vars *)
   (*this is a bit of a hack.  We should really only do this for the ones we need *)
-  List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) !smtContext.clauses;
+  List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) 
+    (getCurrentClauses());
   (* write the program clauses *)
   List.iter (fun x -> write_line_to_solver solver (encode_formula currentEncoding x)) clauses;
   (* write the commands *)
