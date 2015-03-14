@@ -577,6 +577,11 @@ let simplify_formula f =
   f
 
 let beautify_formula f =
+  print_endline "***orig";
+  Smtlib_ast.print_formula f "";
+  print_endline "***NNF";
+  Smtlib_ast.print_formula (nnf f) "";
+  print_endline "***reduced";
   let rec loop f =
     let f_simple = simplify_formula f in
     if f = f_simple then
@@ -586,33 +591,30 @@ let beautify_formula f =
   in loop (nnf f)
 
 (*
-//(let ((.cse4 (+ x_6_6 (- 5 ) )) ) (let ((.cse3 (= .cse4 0 )) ) (let ((.cse1 (not .cse3 )) (.cse2 (ite (<= (+ (- x_6_6 ) 6 ) 0 ) (<= x_6_6 5 ) (<= 0 .cse4 ) )) ) (let ((.cse0 (ite .cse3 (or (<= x_7_6 (+ x_20_2 (- 21 ) ) ) (and .cse1 .cse2 ) ) .cse2 )) ) (or .cse0 (ite .cse1 (or .cse2 .cse0 ) .cse0 ) )))))
-/*
-OR (
-  AND (
-    x_6_6 = 5
-    x_7_6 <= (x_20_2 + -21)
+IF (
+    (x_6_6 + -4) <= 0
+  ) THEN (
+    0 <= (x_6_6 + -5)
+  ) ELSE (
+    OR (
+      (x_6_6 + -5) <= 0
+      x_6_6 <= 5
+    )
   )
-  AND (
-    x_6_6 > 5
-    x_6_6 < 6
-  )
-)
 *)
 
-    (*
-let test () = 
+let test () =
+  let x = Variable "x" in
+  let zero = Value 0 in
   let f = 
-    Or[
-      And [
-	Relation (EQ, Variable "x_6_6", Value 5);
-	Relation(LEQ, Variable "x_7_6", Sum [Variable "x_20_2";Value (-21)]);
-      ];
-      And [
-	Relation(GT, Variable "x_6_6", Value 5);
-	Relation(LT, Variable "x_6_6", Value 6);
-      ]
-    ] in
+    And [
+      Not (Relation (EQ,x,Value 5));
+	   ITE(
+	     Relation(LEQ, Sum[x;Value (-4)], zero),
+	     Relation(LEQ, zero, Sum[x; Value (-5)]),
+	     Or [
+	       Relation(LEQ,Sum[x;Value (-5)],zero);
+	       Relation(LEQ, x, Value 5)])] in
   let bf = beautify_formula f  in
   print_formula bf ""
-*)
+
