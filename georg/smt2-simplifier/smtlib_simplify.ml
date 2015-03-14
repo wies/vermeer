@@ -40,14 +40,85 @@ let rec compare_form f g =
     compare_lex [f1; f2; f3] [f4; f5; f6]
   | f, g -> compare f g
 
+(** Check whether conjunction of the two formulas is unsat.
+  * Assumes formulas are in negation normal form
+ *)
+let rec is_unsat f g =
+  match f, g with
+  | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
+    (*if t11 = t21 && t12 = t22 then 
+      (match rel1,rel2 with
+      (* equality *)
+      | EQ,LT | EQ,GT | EQ,NEQ
+      | LT,EQ | GT,EQ | NEQ,EQ -> true
+      | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
+      | _ -> false
+      )
+    else if*) t11 = t21 &&
+      (match rel1, t12, rel2, t22 with
+      (* Values *)
+      (* we are using integer arithmatic here 
+       * x > 5 && x < 6 is unsat because no # between 5 and 6
+       *)
+      | LT, Value c1, GT, Value c2
+      | GT, Value c2, LT, Value c1 
+	-> 
+	c1+1 >= c2
+      (* cases with one has n an EQ in it *)
+      | LT, Value c1, GEQ, Value c2
+      | LEQ, Value c1, GT, Value c2
+      | EQ, Value c1, GT, Value c2
+      | LT, Value c1, EQ, Value c2
+        -> c1 <= c2
+      | GT, Value c1, LEQ, Value c2
+      | GEQ, Value c1, LT, Value c2
+      | GT, Value c1, EQ, Value c2
+      | EQ, Value c1, LT, Value c2
+        -> c1 >= c2
+      | LEQ, Value c1, GEQ, Value c2
+      | EQ, Value c1, GEQ, Value c2
+      | LEQ, Value c1, EQ, Value c2
+        -> c1 < c2
+      | GEQ, Value c1, LEQ, Value c2
+      | EQ, Value c1, LEQ, Value c2
+      | GEQ, Value c1, EQ, Value c2
+        -> c1 > c2
+      | EQ, Value c1, EQ, Value c2
+        -> c1 <> c2
+      | _, Variable _, _, Variable _ ->
+          is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
+            (Relation (rel2, Sum [t21; UMinus t22], Value 0))
+      | _, _, _, _ ->
+          negate_rel rel1 = rel2 && t12 = t22)
+  | False, _
+  | _, False -> true
+  | And fs, g ->
+      List.exists (fun f -> is_unsat f g) fs
+  | Or fs, g ->
+      List.for_all (fun f -> is_unsat f g) fs
+  | f, g -> mk_not f = g
+
 let subsumes f g =
-   match f, g with
-   | Or fs, Or gs
-   | And gs, And fs ->
-       let fs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty fs in
-       let gs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty gs in
-       FormulaSet.subset fs gs
-  | f, g -> f = g
+  let rec subs strengthen fs gs =
+   match fs, gs with
+   | [], _ -> true
+   | _, [] -> false
+   | (Relation _ as f) :: fs, (Relation _ as g) :: gs ->
+       if strengthen && is_unsat f (mk_not g) ||
+       not strengthen && is_unsat (mk_not f) g
+       then subs strengthen fs (g::gs)
+       else subs strengthen (f::fs) gs
+   | f :: fs, g :: gs ->
+       if f = g then subs strengthen fs (g::gs)
+       else subs strengthen (f::fs) gs
+       (*let fs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty fs in
+          let gs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty gs in
+       FormulaSet.subset fs gs*)
+  in
+  match f, g with
+  | Or fs, Or gs -> subs false fs gs
+  | And gs, And fs -> subs true fs gs
+  | f, g -> subs true [f] [g]
         
 (* remove duplicates from a list *)
 let remove_duplicates strengthen fs = 
@@ -117,60 +188,6 @@ let split_vars_vals tl : (term list * term list * term list)=
   (vars,vals,rest)
 
 
-(** Check whether conjunction of the two formulas is unsat.
-  * Assumes formulas are in negation normal form
- *)
-let rec is_unsat f g =
-  match f, g with
-  | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
-    (*if t11 = t21 && t12 = t22 then 
-      (match rel1,rel2 with
-      (* equality *)
-      | EQ,LT | EQ,GT | EQ,NEQ
-      | LT,EQ | GT,EQ | NEQ,EQ -> true
-      | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
-      | _ -> false
-      ) 
-    else if*) t11 = t21 &&
-      (match rel1, t12, rel2, t22 with
-      (* Values *)
-      (* we are using integer arithmatic here 
-       * x > 5 && x < 6 is unsat because no # between 5 and 6
-       *)
-      | LT, Value c1, GT, Value c2
-      | GT, Value c2, LT, Value c1 
-	-> 
-	c1+1 >= c2
-      (* cases with one has n an EQ in it *)
-      | LT, Value c1, GEQ, Value c2
-      | LEQ, Value c1, GT, Value c2
-      | EQ, Value c1, GT, Value c2
-      | LT, Value c1, EQ, Value c2
-        -> c1 <= c2
-      | GT, Value c1, LEQ, Value c2
-      | GEQ, Value c1, LT, Value c2
-      | GT, Value c1, EQ, Value c2
-      | EQ, Value c1, LT, Value c2
-        -> c1 >= c2
-      | LEQ, Value c1, GEQ, Value c2
-      | EQ, Value c1, GEQ, Value c2
-      | LEQ, Value c1, EQ, Value c2
-        -> c1 < c2
-      | GEQ, Value c1, LEQ, Value c2
-      | EQ, Value c1, LEQ, Value c2
-      | GEQ, Value c1, EQ, Value c2
-        -> c1 > c2
-      | EQ, Value c1, EQ, Value c2
-        -> c1 <> c2
-      | _, _, _, _ -> 
-          negate_rel rel1 = rel2 && t12 = t22)
-  | False, _
-  | _, False -> true
-  | And fs, g ->
-      List.exists (fun f -> is_unsat f g) fs
-  | Or fs, g ->
-      List.for_all (fun f -> is_unsat f g) fs
-  | f, g -> mk_not f = g
 
 (* DSN there is probably a better way to do this.
  * What I'm trying to do here is to take advantage of the fact that 
