@@ -41,20 +41,26 @@ let rec compare_form f g =
   | f, g -> compare f g
 
 let subsumes f g =
-  match f, g with
-  | Or fs, Or gs
-  | And gs, And fs ->
-      let fs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty fs in
-      let gs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty gs in
-      FormulaSet.subset fs gs
+   match f, g with
+   | Or fs, Or gs
+   | And gs, And fs ->
+       let fs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty fs in
+       let gs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty gs in
+       FormulaSet.subset fs gs
   | f, g -> f = g
         
 (* remove duplicates from a list *)
 let remove_duplicates strengthen fs = 
   let rec uniq = function
     | [] -> []
-    | e1 :: e2 :: tl when strengthen && subsumes e1 e2 -> e1 :: uniq tl
-    | e1 :: e2 :: tl when (not strengthen) && subsumes e2 e1 -> e1 :: uniq tl
+    | e1 :: e2 :: tl when subsumes e1 e2 ->
+        if strengthen
+        then e1 :: uniq tl
+        else e2 :: uniq tl
+    | e1 :: e2 :: tl when subsumes e2 e1 ->
+        if strengthen
+        then e2 :: uniq tl
+        else e1 :: uniq tl
     | hd :: tl -> hd :: uniq tl
   in
   let sorted = List.sort compare_form fs in
@@ -466,10 +472,10 @@ let simplify_formula_2 f =
         aux (And(Relation(GEQ, t1, Value c) :: gs))
       | Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
         when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c2) :: gs))
+          aux (And (Relation(EQ, t1, Value c1) :: gs))
       | Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
         when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c1) :: gs))
+          aux (And (Relation(EQ, t1, Value c2) :: gs))
       | Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
         when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
           let c = max c1 c2 in
@@ -484,8 +490,8 @@ let simplify_formula_2 f =
         when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
         let c = min c1 c2 in
         aux (And(Relation(LEQ, t1, Value c) :: gs))
-      (*| (* I think this rule is buggy *) Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs *)
-      (*| (* I think this rule is buggy *) Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs *)
+      | Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
+      | Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
       | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
       | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
         when t1 = t4 && t2 = t3 ->
