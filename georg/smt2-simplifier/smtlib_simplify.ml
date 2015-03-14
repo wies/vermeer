@@ -591,6 +591,8 @@ let beautify_formula f =
   in loop (nnf f)
 
 (*
+In the else branch of x_6_6 = 5
+
 IF (
     (x_6_6 + -4) <= 0
   ) THEN (
