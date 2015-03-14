@@ -489,10 +489,10 @@ let simplify_formula_2 f =
         aux (And(Relation(GEQ, t1, Value c) :: gs))
       | Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
         when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c1) :: gs))
+          aux (And (Relation(EQ, t1, Value c2) :: gs))
       | Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
         when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c2) :: gs))
+          aux (And (Relation(EQ, t1, Value c1) :: gs))
       | Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
         when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
           let c = max c1 c2 in
@@ -587,18 +587,13 @@ let simplify_formula_2 f =
 
 let simplify_formula f = 
   let f = simplify_constants f in
-  let f = normalize_formula f in 
+  let f = normalize_formula f in
   let f = simplify_terms f in
   let f = propagate_truth_context f in
   let f = simplify_formula_2 f in
   f
 
 let beautify_formula f =
-  print_endline "***orig";
-  Smtlib_ast.print_formula f "";
-  print_endline "***NNF";
-  Smtlib_ast.print_formula (nnf f) "";
-  print_endline "***reduced";
   let rec loop f =
     let f_simple = simplify_formula f in
     if f = f_simple then
@@ -636,4 +631,3 @@ let test () =
 	       Relation(LEQ, x, Value 5)])] in
   let bf = beautify_formula f  in
   print_formula bf ""
-
