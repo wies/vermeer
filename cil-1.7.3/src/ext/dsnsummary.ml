@@ -320,6 +320,7 @@ let dsnsmt (f: file) : unit =
       |Some g -> Dsngraph.topo_sort_graph g 
       |None -> failwith "how is there no graph here"
     else clauses in
+  (List.iter (fun c -> Printf.printf "%s\n" (string_of_formula c.formula))clauses);
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause () :: clauses in
   if opts.calcStats then calculate_stats "Initial" clauses;

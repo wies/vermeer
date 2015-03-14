@@ -557,7 +557,11 @@ let remap_formula ssaMap form =
       let newVarOpt = get_current_var v ssaMap in
       match newVarOpt with
       | Some (newVar) -> SMTSsaVar(newVar)
-      | None -> raise (CantMap v)
+      | None -> 
+	print_endline ("can't map " ^ string_of_var v 
+		       ^ "\nin formula " ^ string_of_formula form);
+	print_ssa_map ssaMap;
+	raise (CantMap v)
   in
   aux form
     

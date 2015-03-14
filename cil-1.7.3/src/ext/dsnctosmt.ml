@@ -100,6 +100,11 @@ let parseLabel s =
   end
   | _ -> failwith ("unexpected label " ^ d_labels s.labels)
 
+let register_lval_location lval_formula location = 
+  match lval_formula with 
+  | SMTSsaVar v -> smtVarDefLoc := VarMap.add v location !smtVarDefLoc
+  | _ -> failwith "not a var"
+
 (* Future work - capture the global variables inside an object. then
  * we can just pass that around *)
 class dsnsmtVisitorClass ig = object (self)
@@ -119,6 +124,7 @@ class dsnsmtVisitorClass ig = object (self)
     match i with
     |  Set(lv, e, l) -> 
       let lvForm = formula_from_lval lv in
+      register_lval_location lvForm l;
       let eForm = formula_from_exp e in
       let assgt = SMTRelation("=",[lvForm;eForm]) in
       let cls = Dsnsmt.make_clause assgt ssaBefore ig.currentIfContext 
