@@ -31,6 +31,7 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive")
 
+# 8
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionTID --smtcalcstats")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionTID --smtcalcstats --flowsensitive --hazardsensitiveall")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionTID --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
@@ -40,6 +41,7 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionTID --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionTID --smtcalcstats --flowsensitive")
 
+# 16
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionGroup --smtcalcstats")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionGroup --smtcalcstats --flowsensitive --hazardsensitiveall")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionGroup --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
@@ -49,6 +51,7 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionGroup --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=partitionGroup --smtcalcstats --flowsensitive")
 
+# 24
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allgroups --smtcalcstats")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allgroups --smtcalcstats --flowsensitive --hazardsensitiveall")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allgroups --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
@@ -58,6 +61,7 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allgroups --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allgroups --smtcalcstats --flowsensitive")
 
+# 32
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveall")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
@@ -67,6 +71,7 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive")
 
+# 40
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive --hazardsensitiveall")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
@@ -75,6 +80,17 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive --hazardsensitivewaw --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=nomulti --smtcalcstats --flowsensitive")
+
+# 48
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveall")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveraw --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitivewar --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitivewaw --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive")
+
 
 if len(sys.argv) <= 1:
   option_index_range = range(0, len(options))

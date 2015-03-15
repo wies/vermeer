@@ -70,3 +70,50 @@ option10:
 eval10:
 	./eval.sh 10
 
+option32:
+	./generate_statistics_for_index.sh 32
+
+eval32:
+	./eval.sh 32
+
+option33:
+	./generate_statistics_for_index.sh 33
+
+eval33:
+	./eval.sh 33
+
+option34:
+	./generate_statistics_for_index.sh 34
+
+eval34:
+	./eval.sh 34
+
+option35:
+	./generate_statistics_for_index.sh 35
+
+eval35:
+	./eval.sh 35
+
+option36:
+	./generate_statistics_for_index.sh 36
+
+eval36:
+	./eval.sh 36
+
+option37:
+	./generate_statistics_for_index.sh 37
+
+eval37:
+	./eval.sh 37
+
+option38:
+	./generate_statistics_for_index.sh 38
+
+eval38:
+	./eval.sh 38
+
+option39:
+	./generate_statistics_for_index.sh 39
+
+eval39:
+	./eval.sh 39
