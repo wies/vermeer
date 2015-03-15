@@ -27,7 +27,7 @@ type smtContext =
     seenThreads : TIDSet.t;
     seenGroups : GroupSet.t;
     clauses : clause list;
-    graph : Dsngraph.G.t option;
+    graph : Dsngraph.G.t option; (*lazy var *)
   }
 
 (* a bit of a hack - yet another global :( *)
@@ -39,7 +39,7 @@ let privateSmtContext = ref {
   seenThreads = TIDSet.empty;
   seenGroups = GroupSet.empty;
   clauses = [];
-  graph = None
+  graph = None;
 }
 
 (* should only ever update it using this fn *)
@@ -103,6 +103,7 @@ let topoSortCurrent () =
   let newClauses = remake_ssa_map newClauses in
   privateSmtContext := {
     !privateSmtContext with 
+      contextName = "post_topo_sort";
       clauses = newClauses; 
       graph = None;
   }
