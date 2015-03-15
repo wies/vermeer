@@ -1,5 +1,6 @@
 import sys
 import os
+import signal
 import glob
 import subprocess
 import time
@@ -115,9 +116,20 @@ for option_index in option_index_range:
             break
         data_set_list.append(DataSet(directory[3:-7], trace_index, data_entry_list, (time_stop - time_start)))
         subprocess.call(["rm", "-f", "*.o"])
+        # clean up processes
+        ps_proc = subprocess.Popen(["ps -aux"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
+        ps_proc.wait()
+        while True:
+          line = ps_proc.stdout.readline().rstrip()
+          if line != '':
+            if (line.endswith("z3 -smt2 -in") or line.endswith("smtinterpol.jar -q")):
+              proc_infos = line.split()
+              os.kill(int(proc_infos[1]), signal.SIGKILL)
+          else:
+            break
       sys.stdout.write("\n")
       os.chdir(cwd)
-    data_file = open("data_option" + str(option_index) + ".dat", "w")
+    data_file = open("./data/config-" + str(option_index) + "/data_option" + str(option_index) + ".dat", "w")
     data_file.write("# Options: " + options[option_index] + "\n")
     data_file.write("# Format: Benchmark,Trace")
     for data_entry in data_set_list[0].data_entry_list:

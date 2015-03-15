@@ -1,6 +1,6 @@
-../apache1-traces
-../apache2-traces
-../bankaccount-traces
-../bluetooth-traces
-../pool-traces
-../deadlock-traces
+../traces/apache1/locks
+../traces/apache2/locks
+../traces/bankaccount/locks
+../traces/bluetooth/locks
+../traces/pool/locks
+../traces/deadlock/locks
