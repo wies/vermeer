@@ -114,7 +114,7 @@ for option_index in option_index_range:
             data_entry_list.append(DataEntry(entries[0], entries[2], entries[4], entries[6]))
           else:
             break
-        data_set_list.append(DataSet(directory[3:-7], trace_index, data_entry_list, (time_stop - time_start)))
+        data_set_list.append(DataSet(directory[10:-6], trace_index, data_entry_list, (time_stop - time_start)))
         subprocess.call(["rm", "-f", "*.o"])
         # clean up processes
         ps_proc = subprocess.Popen(["ps -aux"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
