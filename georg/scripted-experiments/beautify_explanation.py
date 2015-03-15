@@ -5,7 +5,7 @@ import subprocess
 import time
 
 explanation_file = sys.argv[1]
-smt_simplifier = "../smt2-simplifier/smtlib"
+smt_simplifier = "../smt2-simplifier/smtlib_main.native"
 
 with open(explanation_file, "r") as f:
   next = False
