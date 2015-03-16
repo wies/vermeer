@@ -58,21 +58,53 @@ for i in range(1, len(sys.argv)):
 stats = []
 for dataset in datasets:
   stats.append(calculate_stats(dataset))
+results = []
+for i in range(0, len(stats)):
+  stat = stats[i] # for each configuration we have one stat
+  result = dict()
+  for benchmark_name in stat.stats_cs.keys():
+    nr_of_traces = stat.stats_counter[benchmark_name]
+    sum_of_fractions_cs = stat.stats_cs[benchmark_name]
+    sum_of_fractions_stmts = stat.stats_stmts[benchmark_name]
+    sum_of_fractions_vars = stat.stats_vars[benchmark_name]
+    # calculate the means:
+    avg_red_cs_fraction = sum_of_fractions_cs/nr_of_traces
+    avg_red_stmts_fraction = sum_of_fractions_stmts/nr_of_traces
+    avg_red_vars_fraction = sum_of_fractions_vars/nr_of_traces
+    # calculate the deviation:
+    dataset = datasets[i]
+    benchmark = dataset[benchmark_name]
+    dev_cs = 0
+    dev_stmts = 0
+    dev_vars = 0
+    for trace in benchmark:
+      reduction_cs = reduction_fraction(trace[2], trace[5])
+      delta_cs = reduction_cs - avg_red_cs_fraction
+      dev_cs += delta_cs * delta_cs
+      reduction_stmts = reduction_fraction(trace[3], trace[6])
+      delta_stmts = reduction_stmts - avg_red_stmts_fraction
+      dev_stmts += delta_stmts * delta_stmts
+      reduction_vars = reduction_fraction(trace[4], trace[7])
+      delta_vars = reduction_vars - avg_red_vars_fraction
+      dev_vars += delta_vars * delta_vars
+    dev_cs /= nr_of_traces
+    dev_cs = math.sqrt(dev_cs)
+    dev_stmts /= nr_of_traces
+    dev_stmts = math.sqrt(dev_stmts)
+    dev_vars /= nr_of_traces
+    dev_vars = math.sqrt(dev_vars)
+    result[benchmark_name] = (avg_red_cs_fraction, dev_cs, avg_red_stmts_fraction, dev_stmts, avg_red_vars_fraction, dev_vars)
+  results.append(result)
 
+# phase 3: write benchmark name and number of traces
 config_stats = stats[0]
 str_representation = dict()
 for s in config_stats.stats_cs.iteritems():
   str_representation[s[0]] = (s[0] + " & " + str(config_stats.stats_counter[s[0]]))
 
-for config_stats in stats:
-  for s in config_stats.stats_cs.iteritems():
-    avg_red_cs_fraction = s[1]/config_stats.stats_counter[s[0]]
-    avg_red_stmts_fraction = config_stats.stats_stmts[s[0]]/config_stats.stats_counter[s[0]]
-    avg_red_vars_fraction = config_stats.stats_vars[s[0]]/config_stats.stats_counter[s[0]]
-    red_cs_perc = percentage(avg_red_cs_fraction)
-    red_stmts_perc = percentage(avg_red_stmts_fraction)
-    red_vars_perc = percentage(avg_red_vars_fraction)
-    str_representation[s[0]] += " & " + str(red_cs_perc) + " & " + str(red_stmts_perc) + " & " + str(red_vars_perc)
+for result in results:
+  for benchmark_name in result.keys():
+    str_representation[benchmark_name] += " & " + str(percentage(result[benchmark_name][0])) + " & " + str(percentage(result[benchmark_name][1])) + " & " + str(percentage(result[benchmark_name][2])) + " & " + str(percentage(result[benchmark_name][3])) + " & " + str(percentage(result[benchmark_name][4])) + " & " + str(percentage(result[benchmark_name][5]))
 
 keys = list(str_representation.keys())
 keys.sort()
