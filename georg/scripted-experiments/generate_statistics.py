@@ -137,7 +137,7 @@ def process_trace(trace_file, configuration, data_set_list):
   cleanup_processes()
 
 def cleanup_processes():
-  ps_proc = subprocess.Popen(["ps -aux"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
+  ps_proc = subprocess.Popen(["ps -aux | grep $USER"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
   ps_proc.wait()
   while True:
     line = ps_proc.stdout.readline().rstrip()
