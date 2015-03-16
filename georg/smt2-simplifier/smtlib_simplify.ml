@@ -88,6 +88,9 @@ let rec is_unsat f g =
       | _, Variable _, _, Variable _ ->
           is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
             (Relation (rel2, Sum [t21; UMinus t22], Value 0))
+      | _, Variable _, _, Sum [(Variable _ as t); Value c] ->
+          is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
+            (Relation (rel2, Sum [t21; UMinus t], Value c))
       | _, _, _, _ ->
           negate_rel rel1 = rel2 && t12 = t22)
   | False, _
