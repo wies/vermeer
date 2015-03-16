@@ -9,15 +9,30 @@ class Stats:
     self.stats_vars = dict()
     self.stats_counter = dict()
 
+def read_dataset(datafile_name):
+  dataset = dict()
+  with open(datafile_name, "r") as datafile:
+    for line in datafile:
+      if not(line.startswith("#")):
+        dataitems = line.rstrip().split(",")
+        key = dataitems[0]
+        if key in dataset:
+          dataset[key].append(dataitems)
+        else:
+          dataset[key] = [ dataitems ]
+
+def reduction(old, new):
+  return ((float(old)-float(new))/float(old))
+
 def collect_stats(datafile_name):
   config_stats = Stats()
   with open(datafile_name, "r") as datafile:
     for line in datafile:
       if not(line.startswith("#")):
         dataitems = line.rstrip().split(",")
-        reduction_cs = ((float(dataitems[2])-float(dataitems[5]))/float(dataitems[2]))
-        reduction_stmts = ((float(dataitems[3])-float(dataitems[6]))/float(dataitems[3]))
-        reduction_vars = ((float(dataitems[4])-float(dataitems[7]))/float(dataitems[4]))
+        reduction_cs = reduction(dataitems[2], dataitems[5])
+        reduction_stmts = reduction(dataitems[3], dataitems[6])
+        reduction_vars = reduction(dataitems[4], dataitems[7])
         key = dataitems[0]
         if key in config_stats.stats_cs:
           config_stats.stats_cs[key] += reduction_cs
