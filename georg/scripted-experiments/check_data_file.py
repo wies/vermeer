@@ -24,7 +24,7 @@ with open(datadirectory + "/data_option" + str(option_index_value) + ".dat", "r"
     if line_stripped.startswith("#"):
       comments.append(line)
     else:
-      if len(line_stripped.split(",")) != 27:
+      if len(line_stripped.split(",")) != 27 and len(line_stripped.split(",")) != 51:
         faulty_entries.append(line)
       else:
         entries.append(line)

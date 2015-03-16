@@ -145,8 +145,8 @@ def cleanup_processes():
       if (line.endswith("z3 -smt2 -in") or line.endswith("smtinterpol.jar -q")):
         proc_infos = line.split()
         os.kill(int(proc_infos[1]), signal.SIGKILL)
-      else:
-        break
+    else:
+      break
 
 def write_data_set_to_file(data_set_list, data_file):
   data_file.write("# Options: " + options[option_index] + "\n")
