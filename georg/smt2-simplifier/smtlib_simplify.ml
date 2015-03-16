@@ -111,9 +111,6 @@ let subsumes f g =
    | f :: fs, g :: gs ->
        if f = g then subs strengthen fs (g::gs)
        else subs strengthen (f::fs) gs
-       (*let fs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty fs in
-          let gs = List.fold_left (fun s f -> FormulaSet.add f s) FormulaSet.empty gs in
-       FormulaSet.subset fs gs*)
   in
   match f, g with
   | Or fs, Or gs -> subs false fs gs
