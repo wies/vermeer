@@ -263,7 +263,9 @@ let  simplify_constants  f  =
 
     match f with
     (*constants remain constant *)
-    | True | False | UnsupportedFormula _ | Boolvar _ -> f
+    | True | False | UnsupportedFormula _ -> f
+    (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
+    | Boolvar _ -> True
       
     (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True

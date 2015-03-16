@@ -30,7 +30,7 @@ with open(dat_file, "r") as f_dat:
                   sys.stdout.write(benchmark + "\n")
                   sys.stdout.write(line_out)
           else:
-            if line_out.startswith("********** Processing directory ../" + benchmark + "-traces **********"):
+            if line_out.startswith("********** Processing directory ../traces/" + benchmark + "/locks **********"):
               start_matching = True
             else:
               if line_out.startswith("********** Processing directory ../"):

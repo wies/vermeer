@@ -100,6 +100,11 @@ let parseLabel s =
   end
   | _ -> failwith ("unexpected label " ^ d_labels s.labels)
 
+let register_lval_location lval_formula location = 
+  match lval_formula with 
+  | SMTSsaVar v -> smtVarDefLoc := VarMap.add v location !smtVarDefLoc
+  | _ -> failwith "not a var"
+
 (* Future work - capture the global variables inside an object. then
  * we can just pass that around *)
 class dsnsmtVisitorClass ig = object (self)
@@ -119,6 +124,7 @@ class dsnsmtVisitorClass ig = object (self)
     match i with
     |  Set(lv, e, l) -> 
       let lvForm = formula_from_lval lv in
+      register_lval_location lvForm l;
       let eForm = formula_from_exp e in
       let assgt = SMTRelation("=",[lvForm;eForm]) in
       let cls = Dsnsmt.make_clause assgt ssaBefore ig.currentIfContext 
@@ -153,7 +159,7 @@ class dsnsmtVisitorClass ig = object (self)
   end
 end
 
-let parse_file (file: file) ?(dottyFileName = None) makeGraph = 
+let parse_file (file: file)h = 
   let dsnsmtVisitor = new dsnsmtVisitorClass ig in
   let doGlobal = function 
     | GVarDecl (v, _) -> ()
@@ -164,14 +170,10 @@ let parse_file (file: file) ?(dottyFileName = None) makeGraph =
     | _ -> () in 
   let _ = Stats.time "dsn" (iterGlobals file) doGlobal in
   let clauses = List.rev ig.currentRevProgram in
-  let graph = if makeGraph 
-    then Some (Dsngraph.make_dependency_graph ~dottyFileName:dottyFileName clauses) 
-    else None in
-  let open Dsnsmt in
-  {
-    typeMap = !Dsnsmt.typeMap;
-    seenGroups = ig.currentSeenGroups;
-    seenThreads = ig.currentSeenThreads;
-    clauses = clauses;
-    graph = graph;
-  }
+  Dsnsmt.setSmtContext
+    ("initialParse" ^ file.fileName)
+    !Dsnsmt.typeMap
+    ig.currentSeenGroups
+    ig.currentSeenThreads
+    clauses
+    

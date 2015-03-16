@@ -10,7 +10,10 @@ type smtSsaVar =
   {fullname : string; 
    vidx: int; 
    owner : int; 
-   ssaIdx : int}
+   ssaIdx : int;
+  }
+
+
 
 (* canonical format: x_vidx_ssaidx *)
 let smtSsaVarFromString str = 
@@ -45,6 +48,13 @@ let emptySSAMap : varSSAMap = VarSSAMap.empty
 let emptyTypeMap : varTypeMap = TypeMap.empty
 let emptyVarSet = VarSet.empty
 let emptyStringSet = StringSet.empty
+
+let smtVarDefLoc : Cil.location VarMap.t ref = ref VarMap.empty
+let get_location_line v = 
+  let open Cil in
+  let l = VarMap.find v !smtVarDefLoc 
+  in l.line
+
 
 (* A let can take a list of bindings that it applies
  * So we SMTLet which takes a list of SMTLetBindings, which are of the 
@@ -157,3 +167,13 @@ let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVa
 let all_basevars clauses = 
   let allVars = all_vars clauses in
   VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
+
+let print_ssa_map map = 
+  print_endline "id\tname\tdefloc";
+  VarSSAMap.iter
+    (fun k v -> 
+      Printf.printf "%d\t%s\t%d\n" 
+	k 
+	v.fullname 
+        (get_location_line v))
+    map
