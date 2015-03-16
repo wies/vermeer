@@ -62,7 +62,10 @@ for config_stats in stats:
     red_vars_perc = int(math.floor(0.5 + 100*(config_stats.stats_vars[s[0]]/config_stats.stats_counter[s[0]])))
     str_representation[s[0]] += " & " + str(red_cs_perc) + " & " + str(red_stmts_perc) + " & " + str(red_vars_perc)
 
-for s in str_representation.itervalues():
+keys = list(str_representation.keys())
+keys.sort()
+for key in keys:
+  s = str_representation[key]
   print(s + "\\\\")
 
 
