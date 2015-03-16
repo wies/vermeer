@@ -23,11 +23,11 @@ cwd = os.getcwd()
 vermeer = os.environ['VERMEER_PATH'] + "/cil-1.7.3/bin/cilly"
 options = []
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveall")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveraw --toposortinput")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitivewar --toposortinput")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitivewaw --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveall --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitiveraw --toposortinput --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitivewar --toposortinput --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --hazardsensitivewaw --toposortinput --nointrathreadhazard")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --flowsensitive")
 
@@ -63,11 +63,11 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtm
 
 # 32
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveall")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveraw --toposortinput")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitivewar --toposortinput")
-options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitivewaw --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveall --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveall --toposortinput --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitiveraw --toposortinput --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitivewar --toposortinput --nointrathreadhazard")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --hazardsensitivewaw --toposortinput --nointrathreadhazard")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --flowsensitive")
 
