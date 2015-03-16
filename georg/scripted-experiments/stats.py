@@ -25,31 +25,37 @@ def read_dataset(datafile_name):
 def reduction_fraction(old, new):
   return ((float(old)-float(new))/float(old))
 
-def collect_stats(datafile_name):
+def calculate_stats(dataset):
   config_stats = Stats()
-  with open(datafile_name, "r") as datafile:
-    for line in datafile:
-      if not(line.startswith("#")):
-        dataitems = line.rstrip().split(",")
-        reduction_cs = reduction_fraction(dataitems[2], dataitems[5])
-        reduction_stmts = reduction_fraction(dataitems[3], dataitems[6])
-        reduction_vars = reduction_fraction(dataitems[4], dataitems[7])
-        key = dataitems[0]
-        if key in config_stats.stats_cs:
-          config_stats.stats_cs[key] += reduction_cs
-          config_stats.stats_stmts[key] += reduction_stmts
-          config_stats.stats_vars[key] += reduction_vars
-          config_stats.stats_counter[key] += 1
-        else:
-          config_stats.stats_cs[key] = reduction_cs
-          config_stats.stats_stmts[key] = reduction_stmts
-          config_stats.stats_vars[key] = reduction_vars
-          config_stats.stats_counter[key] = 1
+  for benchmark in dataset.iteritems():
+    key = benchmark[0]
+    traces = benchmark[1]
+    for trace in traces:
+      reduction_cs = reduction_fraction(trace[2], trace[5])
+      reduction_stmts = reduction_fraction(trace[3], trace[6])
+      reduction_vars = reduction_fraction(trace[4], trace[7])
+      if key in config_stats.stats_cs:
+        config_stats.stats_cs[key] += reduction_cs
+        config_stats.stats_stmts[key] += reduction_stmts
+        config_stats.stats_vars[key] += reduction_vars
+        config_stats.stats_counter[key] += 1
+      else:
+        config_stats.stats_cs[key] = reduction_cs
+        config_stats.stats_stmts[key] = reduction_stmts
+        config_stats.stats_vars[key] = reduction_vars
+        config_stats.stats_counter[key] = 1
   return config_stats
 
-stats = []
+
+# phase 1: collect data
+datasets = []
 for i in range(1, len(sys.argv)):
-  stats.append(collect_stats(sys.argv[i]))
+  datasets.append(read_dataset(sys.argv[i]))
+
+# phase 2: calculate statistics
+stats = []
+for dataset in datasets:
+  stats.append(calculate_stats(dataset))
 
 config_stats = stats[0]
 str_representation = dict()
