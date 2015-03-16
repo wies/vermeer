@@ -347,6 +347,7 @@ let dsnsmt (f: file) : unit =
 	encode_flowsensitive_this_tid tid;
 	let reduced = reduce_to_file 
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
+	calculate_thread_stats (getCurrentSeenThreads()) clauses;
 	TIDSet.iter (fun sliceTid -> 
 	  summarize_to_file extract_tid 
 	    ~filenameOpt:(Some("slice" ^ string_of_int tid 
