@@ -46,6 +46,8 @@ def calculate_stats(dataset):
         config_stats.stats_counter[key] = 1
   return config_stats
 
+def percentage(fraction):
+  return int(math.floor(0.5 + 100*(fraction)))
 
 # phase 1: collect data
 datasets = []
@@ -64,9 +66,12 @@ for s in config_stats.stats_cs.iteritems():
 
 for config_stats in stats:
   for s in config_stats.stats_cs.iteritems():
-    red_cs_perc = int(math.floor(0.5 + 100*(s[1]/config_stats.stats_counter[s[0]])))
-    red_stmts_perc = int(math.floor(0.5 + 100*(config_stats.stats_stmts[s[0]]/config_stats.stats_counter[s[0]])))
-    red_vars_perc = int(math.floor(0.5 + 100*(config_stats.stats_vars[s[0]]/config_stats.stats_counter[s[0]])))
+    avg_red_cs_fraction = s[1]/config_stats.stats_counter[s[0]]
+    avg_red_stmts_fraction = config_stats.stats_stmts[s[0]]/config_stats.stats_counter[s[0]]
+    avg_red_vars_fraction = config_stats.stats_vars[s[0]]/config_stats.stats_counter[s[0]]
+    red_cs_perc = percentage(avg_red_cs_fraction)
+    red_stmts_perc = percentage(avg_red_stmts_fraction)
+    red_vars_perc = percentage(avg_red_vars_fraction)
     str_representation[s[0]] += " & " + str(red_cs_perc) + " & " + str(red_stmts_perc) + " & " + str(red_vars_perc)
 
 keys = list(str_representation.keys())
