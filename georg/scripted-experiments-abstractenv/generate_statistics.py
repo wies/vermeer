@@ -105,30 +105,6 @@ else:
     sys.stdout.write("\n")
     exit(-1)
 
-for option_index in option_index_range:
-  sys.stdout.write("\n########## Processing option \"" + options[option_index] + "\" ##########\n\n")
-  with open("directories.txt", "r") as f:
-    data_set_list = []
-    for line in f:
-      directory = line.strip()
-      process_directory(directory, cwd, data_set_list)
-    data_file = open("./data/config-" + str(option_index) + "/data_option" + str(option_index) + ".dat", "w")
-    data_file.write("# Options: " + options[option_index] + "\n")
-    data_file.write("# Format: Benchmark,Trace")
-    for data_entry in data_set_list[0].data_entry_list:
-      data_file.write("," + data_entry.category + "-CSs")
-      data_file.write("," + data_entry.category + "-Stmts")
-      data_file.write("," + data_entry.category + "-Vars")
-    data_file.write(",Time[s]")
-    data_file.write("\n")
-    for data_set in data_set_list:
-      data_file.write(data_set.benchmark + "," + data_set.trace_file)
-      for data_entry in data_set.data_entry_list:
-        data_file.write("," + data_entry.nr_context_switches)
-        data_file.write("," + data_entry.nr_statements)
-        data_file.write("," + data_entry.nr_variables)
-      data_file.write("," + str(data_set.duration))
-      data_file.write("\n")
 
 def process_directory(directory, cwd, data_set_list):
   sys.stdout.write("\n********** Processing directory " + directory + " **********\n\n")
@@ -170,4 +146,32 @@ def cleanup_processes():
         os.kill(int(proc_infos[1]), signal.SIGKILL)
       else:
         break
+
+def write_data_set_to_file(data_set_list, data_file):
+  data_file.write("# Options: " + options[option_index] + "\n")
+  data_file.write("# Format: Benchmark,Trace")
+  for data_entry in data_set_list[0].data_entry_list:
+    data_file.write("," + data_entry.category + "-CSs")
+    data_file.write("," + data_entry.category + "-Stmts")
+    data_file.write("," + data_entry.category + "-Vars")
+  data_file.write(",Time[s]")
+  data_file.write("\n")
+  for data_set in data_set_list:
+    data_file.write(data_set.benchmark + "," + data_set.trace_file)
+    for data_entry in data_set.data_entry_list:
+      data_file.write("," + data_entry.nr_context_switches)
+      data_file.write("," + data_entry.nr_statements)
+      data_file.write("," + data_entry.nr_variables)
+    data_file.write("," + str(data_set.duration))
+    data_file.write("\n")
+
+for option_index in option_index_range:
+  sys.stdout.write("\n########## Processing option \"" + options[option_index] + "\" ##########\n\n")
+  with open("directories.txt", "r") as f:
+    data_set_list = []
+    for line in f:
+      directory = line.strip()
+      process_directory(directory, cwd, data_set_list)
+    data_file = open("./data/config-" + str(option_index) + "/data_option" + str(option_index) + ".dat", "w")
+    write_data_set_to_file(data_set_list, data_file)
 
