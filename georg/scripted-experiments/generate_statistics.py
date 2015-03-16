@@ -127,8 +127,9 @@ def process_trace(trace_file, configuration, data_set_list):
   while True:
     line = proc.stdout.readline()
     if line != '':
-      entries = line.rstrip().split()
-      data_entry_list.append(DataEntry(entries[0], entries[2], entries[4], entries[6]))
+      if line.rstrip() != '' and (not (line.rstrip().startswith("***Processing abstract thread:"))):
+        entries = line.rstrip().split()
+        data_entry_list.append(DataEntry(entries[0], entries[2], entries[4], entries[6]))
     else:
       break
   data_set_list.append(DataSet(directory[10:-6], trace_index, data_entry_list, (time_stop - time_start)))
