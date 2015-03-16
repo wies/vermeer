@@ -1,16 +1,16 @@
-data/locks-allthreads/config-0/data_option0.filtered.dat
-data/locks-allthreads/config-1/data_option1.filtered.dat
-data/locks-allthreads/config-2/data_option2.filtered.dat
-data/locks-allthreads/config-3/data_option3.filtered.dat
-data/locks-allthreads/config-4/data_option4.filtered.dat
-data/locks-allthreads/config-5/data_option5.filtered.dat
-data/locks-allthreads/config-6/data_option6.filtered.dat
-data/locks-allthreads/config-7/data_option7.filtered.dat
-data/locks-abstractenv/config-32/data_option32.filtered.dat
-data/locks-abstractenv/config-33/data_option33.filtered.dat
-data/locks-abstractenv/config-34/data_option34.filtered.dat
-data/locks-abstractenv/config-35/data_option35.filtered.dat
-data/locks-abstractenv/config-36/data_option36.filtered.dat
-data/locks-abstractenv/config-37/data_option37.filtered.dat
-data/locks-abstractenv/config-38/data_option38.filtered.dat
-data/locks-abstractenv/config-39/data_option39.filtered.dat
+data/locks-allthreads/config-0/data_option0.filtered.dat fse15-data/data0.dat
+data/locks-allthreads/config-1/data_option1.filtered.dat fse15-data/data1.dat
+data/locks-allthreads/config-2/data_option2.filtered.dat fse15-data/data2.dat
+data/locks-allthreads/config-3/data_option3.filtered.dat fse15-data/data3.dat
+data/locks-allthreads/config-4/data_option4.filtered.dat fse15-data/data4.dat
+data/locks-allthreads/config-5/data_option5.filtered.dat fse15-data/data5.dat
+data/locks-allthreads/config-6/data_option6.filtered.dat fse15-data/data6.dat
+data/locks-allthreads/config-7/data_option7.filtered.dat fse15-data/data7.dat
+data/locks-abstractenv/config-32/data_option32.filtered.dat fse15-data/data32.dat
+data/locks-abstractenv/config-33/data_option33.filtered.dat fse15-data/data33.dat
+data/locks-abstractenv/config-34/data_option34.filtered.dat fse15-data/data34.dat
+data/locks-abstractenv/config-35/data_option35.filtered.dat fse15-data/data35.dat
+data/locks-abstractenv/config-36/data_option36.filtered.dat fse15-data/data36.dat
+data/locks-abstractenv/config-37/data_option37.filtered.dat fse15-data/data37.dat
+data/locks-abstractenv/config-38/data_option38.filtered.dat fse15-data/data38.dat
+data/locks-abstractenv/config-39/data_option39.filtered.dat fse15-data/data39.dat
