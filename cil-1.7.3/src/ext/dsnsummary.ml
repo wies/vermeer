@@ -337,17 +337,17 @@ let dsnsmt (f: file) : unit =
     GroupSet.iter (summarize_to_file extract_group reduced) 
       (getCurrentSeenGroups())
   | ALLTHREADS ->
-    let reduced = reduce_to_file !analysis "reduced" clauses in
     calculate_thread_stats (getCurrentSeenThreads()) clauses;
+    let reduced = reduce_to_file !analysis "reduced" clauses in
     TIDSet.iter (summarize_to_file extract_tid reduced) (getCurrentSeenThreads())
   | ABSTRACTENV -> 
+    calculate_thread_stats (getCurrentSeenThreads()) clauses;
     TIDSet.iter 
       (fun tid  -> 
 	print_endline ("\n\n***Processing abstract thread: " ^ string_of_int tid);
 	encode_flowsensitive_this_tid tid;
 	let reduced = reduce_to_file 
 	  !analysis ("reduced" ^ string_of_int tid) clauses in
-	calculate_thread_stats (getCurrentSeenThreads()) clauses;
 	TIDSet.iter (fun sliceTid -> 
 	  summarize_to_file extract_tid 
 	    ~filenameOpt:(Some("slice" ^ string_of_int tid 
