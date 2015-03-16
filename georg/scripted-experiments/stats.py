@@ -2,6 +2,11 @@ import os
 import sys
 import math
 
+class DataSet:
+  def __init__(self):
+    self.dataset = dict()
+    self.indices = dict()
+
 class Stats:
   def __init__(self):
     self.stats_cs = dict()
@@ -10,16 +15,22 @@ class Stats:
     self.stats_counter = dict()
 
 def read_dataset(datafile_name):
-  dataset = dict()
+  dataset = DataSet()
   with open(datafile_name, "r") as datafile:
     for line in datafile:
       if not(line.startswith("#")):
         dataitems = line.rstrip().split(",")
         key = dataitems[0]
-        if key in dataset:
-          dataset[key].append(dataitems)
+        if key in dataset.dataset:
+          dataset.dataset[key].append(dataitems)
         else:
-          dataset[key] = [ dataitems ]
+          dataset.dataset[key] = [ dataitems ]
+      else:
+        if line.startswith("# Format: "):
+          # calculate indices
+          items = line.rstrip()[10:].split(",")
+          for i in range(0, len(items)):
+            dataset.indices[items[i]] = i
   return dataset
 
 def reduction_fraction(old, new):
@@ -27,13 +38,21 @@ def reduction_fraction(old, new):
 
 def calculate_stats(dataset):
   config_stats = Stats()
-  for benchmark in dataset.iteritems():
-    key = benchmark[0]
-    traces = benchmark[1]
+  benchmark_name_idx = dataset.indices["Benchmark"]
+  trace_idx = dataset.indices["Trace"]
+  initial_css_idx = dataset.indices["Initial-CSs"]
+  initial_stmts_idx = dataset.indices["Initial-Stmts"]
+  initial_vars_idx = dataset.indices["Initial-Vars"]
+  reduced_css_idx = dataset.indices["Reduced-CSs"]
+  reduced_stmts_idx = dataset.indices["Reduced-Stmts"]
+  reduced_vars_idx = dataset.indices["Reduced-Vars"]
+  for benchmark in dataset.dataset.iteritems():
+    key = benchmark[benchmark_name_idx]
+    traces = benchmark[trace_idx]
     for trace in traces:
-      reduction_cs = reduction_fraction(trace[2], trace[5])
-      reduction_stmts = reduction_fraction(trace[3], trace[6])
-      reduction_vars = reduction_fraction(trace[4], trace[7])
+      reduction_cs = reduction_fraction(trace[initial_css_idx], trace[reduced_css_idx])
+      reduction_stmts = reduction_fraction(trace[initial_stmts_idx], trace[reduced_stmts_idx])
+      reduction_vars = reduction_fraction(trace[initial_vars_idx], trace[reduced_vars_idx])
       if key in config_stats.stats_cs:
         config_stats.stats_cs[key] += reduction_cs
         config_stats.stats_stmts[key] += reduction_stmts
@@ -73,18 +92,24 @@ for i in range(0, len(stats)):
     avg_red_vars_fraction = sum_of_fractions_vars/nr_of_traces
     # calculate the deviation:
     dataset = datasets[i]
-    benchmark = dataset[benchmark_name]
+    benchmark = dataset.dataset[benchmark_name]
     dev_cs = 0
     dev_stmts = 0
     dev_vars = 0
+    initial_css_idx = dataset.indices["Initial-CSs"]
+    initial_stmts_idx = dataset.indices["Initial-Stmts"]
+    initial_vars_idx = dataset.indices["Initial-Vars"]
+    reduced_css_idx = dataset.indices["Reduced-CSs"]
+    reduced_stmts_idx = dataset.indices["Reduced-Stmts"]
+    reduced_vars_idx = dataset.indices["Reduced-Vars"]
     for trace in benchmark:
-      reduction_cs = reduction_fraction(trace[2], trace[5])
+      reduction_cs = reduction_fraction(trace[initial_css_idx], trace[reduced_css_idx])
       delta_cs = reduction_cs - avg_red_cs_fraction
       dev_cs += delta_cs * delta_cs
-      reduction_stmts = reduction_fraction(trace[3], trace[6])
+      reduction_stmts = reduction_fraction(trace[initial_stmts_idx], trace[reduced_stmts_idx])
       delta_stmts = reduction_stmts - avg_red_stmts_fraction
       dev_stmts += delta_stmts * delta_stmts
-      reduction_vars = reduction_fraction(trace[4], trace[7])
+      reduction_vars = reduction_fraction(trace[initial_vars_idx], trace[reduced_vars_idx])
       delta_vars = reduction_vars - avg_red_vars_fraction
       dev_vars += delta_vars * delta_vars
     dev_cs /= nr_of_traces
