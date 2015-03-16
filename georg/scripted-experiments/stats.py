@@ -20,8 +20,9 @@ def read_dataset(datafile_name):
           dataset[key].append(dataitems)
         else:
           dataset[key] = [ dataitems ]
+  return dataset
 
-def reduction(old, new):
+def reduction_fraction(old, new):
   return ((float(old)-float(new))/float(old))
 
 def collect_stats(datafile_name):
@@ -30,9 +31,9 @@ def collect_stats(datafile_name):
     for line in datafile:
       if not(line.startswith("#")):
         dataitems = line.rstrip().split(",")
-        reduction_cs = reduction(dataitems[2], dataitems[5])
-        reduction_stmts = reduction(dataitems[3], dataitems[6])
-        reduction_vars = reduction(dataitems[4], dataitems[7])
+        reduction_cs = reduction_fraction(dataitems[2], dataitems[5])
+        reduction_stmts = reduction_fraction(dataitems[3], dataitems[6])
+        reduction_vars = reduction_fraction(dataitems[4], dataitems[7])
         key = dataitems[0]
         if key in config_stats.stats_cs:
           config_stats.stats_cs[key] += reduction_cs
