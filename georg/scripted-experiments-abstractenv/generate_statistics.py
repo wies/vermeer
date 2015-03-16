@@ -111,40 +111,7 @@ for option_index in option_index_range:
     data_set_list = []
     for line in f:
       directory = line.strip()
-      sys.stdout.write("\n********** Processing directory " + directory + " **********\n\n")
-      os.chdir(directory)
-      for trace_file in glob.glob("trace_assertion_failed_*.c"):
-        name = trace_file[:-2]
-        trace_index = trace_file[23:-2]
-        sys.stdout.write("\n# process " + name + "\n\n")
-        sys.stdout.flush()
-        time_start = time.time() # wall time
-        proc = subprocess.Popen([vermeer + " -c " + options[option_index] + " \"" + trace_file + "\" -lm"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
-        proc.wait()
-        time_stop = time.time()
-        data_entry_list = []
-        while True:
-          line = proc.stdout.readline()
-          if line != '':
-            entries = line.rstrip().split()
-            data_entry_list.append(DataEntry(entries[0], entries[2], entries[4], entries[6]))
-          else:
-            break
-        data_set_list.append(DataSet(directory[10:-6], trace_index, data_entry_list, (time_stop - time_start)))
-        subprocess.call(["rm", "-f", "*.o"])
-        # clean up processes
-        ps_proc = subprocess.Popen(["ps -aux"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
-        ps_proc.wait()
-        while True:
-          line = ps_proc.stdout.readline().rstrip()
-          if line != '':
-            if (line.endswith("z3 -smt2 -in") or line.endswith("smtinterpol.jar -q")):
-              proc_infos = line.split()
-              os.kill(int(proc_infos[1]), signal.SIGKILL)
-          else:
-            break
-      sys.stdout.write("\n")
-      os.chdir(cwd)
+      process_directory(directory, cwd, data_set_list)
     data_file = open("./data/config-" + str(option_index) + "/data_option" + str(option_index) + ".dat", "w")
     data_file.write("# Options: " + options[option_index] + "\n")
     data_file.write("# Format: Benchmark,Trace")
@@ -162,4 +129,45 @@ for option_index in option_index_range:
         data_file.write("," + data_entry.nr_variables)
       data_file.write("," + str(data_set.duration))
       data_file.write("\n")
+
+def process_directory(directory, cwd, data_set_list):
+  sys.stdout.write("\n********** Processing directory " + directory + " **********\n\n")
+  os.chdir(directory)
+  for trace_file in glob.glob("trace_assertion_failed_*.c"):
+    process_trace(trace_file, options[option_index], data_set_list)
+  sys.stdout.write("\n")
+  os.chdir(cwd)
+
+def process_trace(trace_file, configuration, data_set_list):
+  name = trace_file[:-2]
+  trace_index = trace_file[23:-2]
+  sys.stdout.write("\n# process " + name + "\n\n")
+  sys.stdout.flush()
+  time_start = time.time() # wall time
+  proc = subprocess.Popen([vermeer + " -c " + configuration + " \"" + trace_file + "\" -lm"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
+  proc.wait()
+  time_stop = time.time()
+  data_entry_list = []
+  while True:
+    line = proc.stdout.readline()
+    if line != '':
+      entries = line.rstrip().split()
+      data_entry_list.append(DataEntry(entries[0], entries[2], entries[4], entries[6]))
+    else:
+      break
+  data_set_list.append(DataSet(directory[10:-6], trace_index, data_entry_list, (time_stop - time_start)))
+  subprocess.call(["rm", "-f", "*.o"])
+  cleanup_processes()
+
+def cleanup_processes():
+  ps_proc = subprocess.Popen(["ps -aux"], stdout=subprocess.PIPE, stderr=sys.stdout, shell=True)
+  ps_proc.wait()
+  while True:
+    line = ps_proc.stdout.readline().rstrip()
+    if line != '':
+      if (line.endswith("z3 -smt2 -in") or line.endswith("smtinterpol.jar -q")):
+        proc_infos = line.split()
+        os.kill(int(proc_infos[1]), signal.SIGKILL)
+      else:
+        break
 
