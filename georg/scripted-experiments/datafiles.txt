@@ -14,3 +14,11 @@ data/config-36/data_option36.filtered.dat fse15-data/data36.dat
 data/config-37/data_option37.filtered.dat fse15-data/data37.dat
 data/config-38/data_option38.filtered.dat fse15-data/data38.dat
 data/config-39/data_option39.filtered.dat fse15-data/data39.dat
+data/config-56/data_option56.filtered.dat fse15-data/data56.dat
+data/config-57/data_option57.filtered.dat fse15-data/data57.dat
+data/config-58/data_option58.filtered.dat fse15-data/data58.dat
+data/config-59/data_option59.filtered.dat fse15-data/data59.dat
+data/config-60/data_option60.filtered.dat fse15-data/data60.dat
+data/config-61/data_option61.filtered.dat fse15-data/data61.dat
+data/config-62/data_option62.filtered.dat fse15-data/data62.dat
+data/config-63/data_option63.filtered.dat fse15-data/data63.dat
