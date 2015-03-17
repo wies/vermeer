@@ -79,7 +79,7 @@ else:
 
 print("\\begin{tikzpicture}")
 print("\\begin{axis}[xmin=" + str(axis_min) + ", xmax=" + str(axis_max) + ", ymin=" + str(axis_min) + ", ymax=" + str(axis_max) + ",xlabel={" + field0 + "}, ylabel={" + field1 + "}]")
-print("\\addplot[scatter, only marks, scatter src=\\thisrow{class}, error bars/.cd, y dir=both, x dir=both, y explicit, x explicit, error bar style={color=mapped color}] table[x=x,y=y] {")
+print("\\addplot[scatter, only marks, mark=x, scatter src=\\thisrow{class}] table[x=x,y=y] {")
 print("x y class")
 
 for line in print_lines:
