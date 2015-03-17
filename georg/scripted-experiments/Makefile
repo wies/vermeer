@@ -117,3 +117,51 @@ option39:
 
 eval39:
 	./eval.sh 39
+
+option56:
+	./generate_statistics_for_index.sh 56
+
+eval56:
+	./eval.sh 56
+
+option57:
+	./generate_statistics_for_index.sh 57
+
+eval57:
+	./eval.sh 57
+
+option58:
+	./generate_statistics_for_index.sh 58
+
+eval58:
+	./eval.sh 58
+
+option59:
+	./generate_statistics_for_index.sh 59
+
+eval59:
+	./eval.sh 59
+
+option60:
+	./generate_statistics_for_index.sh 60
+
+eval60:
+	./eval.sh 60
+
+option61:
+	./generate_statistics_for_index.sh 61
+
+eval61:
+	./eval.sh 61
+
+option62:
+	./generate_statistics_for_index.sh 62
+
+eval62:
+	./eval.sh 62
+
+option63:
+	./generate_statistics_for_index.sh 63
+
+eval63:
+	./eval.sh 63

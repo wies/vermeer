@@ -91,6 +91,16 @@ options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmult
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive --toposortinput")
 options.append("--keepunused --dodsnsmt --runsmtanalysistype=unsatcore --smtmultithread=allthreads --smtcalcstats --flowsensitive")
 
+#56
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --hazardsensitiveall --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --hazardsensitiveraw --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --hazardsensitivewar --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --smtcalcstats --hazardsensitivewaw --toposortinput")
+
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --hazardsensitiveall --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --hazardsensitiveraw --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --hazardsensitivewar --toposortinput")
+options.append("--keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=abstractenv --smtcalcstats --hazardsensitivewaw --toposortinput")
 
 if len(sys.argv) <= 1:
   option_index_range = range(0, len(options))
