@@ -33,59 +33,23 @@ def read_dataset(datafile_name):
             dataset.indices[items[i]] = i
   return dataset
 
-def reduction_fraction(old, new):
-  return ((float(old)-float(new))/float(old))
-
-def calculate_stats(dataset):
-  config_stats = Stats()
-  benchmark_name_idx = dataset.indices["Benchmark"]
-  trace_idx = dataset.indices["Trace"]
-  initial_css_idx = dataset.indices["Initial-CSs"]
-  initial_stmts_idx = dataset.indices["Initial-Stmts"]
-  initial_vars_idx = dataset.indices["Initial-Vars"]
-  reduced_css_idx = dataset.indices["Reduced-CSs"]
-  reduced_stmts_idx = dataset.indices["Reduced-Stmts"]
-  reduced_vars_idx = dataset.indices["Reduced-Vars"]
-  for benchmark in dataset.dataset.iteritems():
-    key = benchmark[benchmark_name_idx]
-    traces = benchmark[trace_idx]
-    for trace in traces:
-      reduction_cs = reduction_fraction(trace[initial_css_idx], trace[reduced_css_idx])
-      reduction_stmts = reduction_fraction(trace[initial_stmts_idx], trace[reduced_stmts_idx])
-      reduction_vars = reduction_fraction(trace[initial_vars_idx], trace[reduced_vars_idx])
-      if key in config_stats.stats_cs:
-        config_stats.stats_cs[key] += reduction_cs
-        config_stats.stats_stmts[key] += reduction_stmts
-        config_stats.stats_vars[key] += reduction_vars
-        config_stats.stats_counter[key] += 1
-      else:
-        config_stats.stats_cs[key] = reduction_cs
-        config_stats.stats_stmts[key] = reduction_stmts
-        config_stats.stats_vars[key] = reduction_vars
-        config_stats.stats_counter[key] = 1
-  return config_stats
-
-def percentage(fraction):
-  return int(math.floor(0.5 + 100*(fraction)))
-
 # phase 1: collect data
+field0 = sys.argv[1]
+field1 = sys.argv[2]
 datasets = []
-for i in range(1, len(sys.argv)):
+for i in range(3, len(sys.argv)):
   datasets.append(read_dataset(sys.argv[i]))
 
 # phase 2: create data for plots
-
-print("\\begin{tikzpicture}")
-print("\\begin{axis}[xlabel={$T_{\\text{meas}}$}, ylabel={$T_{\\text{cal}}$}]")
-print("\\addplot[scatter, only marks, scatter src=\\thisrow{class}, error bars/.cd, y dir=both, x dir=both, y explicit, x explicit, error bar style={color=mapped color}] table[x=x,y=y] {")
-print("x y class")
-
+print_lines = []
 dataset0 = datasets[0]
 dataset1 = datasets[1]
 trace_idx0 = dataset0.indices["Trace"]
 trace_idx1 = dataset1.indices["Trace"]
-reduced_stmts_idx0 = dataset0.indices["Reduced-Stmts"]
-reduced_stmts_idx1 = dataset1.indices["Reduced-Stmts"]
+reduced_stmts_idx0 = dataset0.indices[field0]
+reduced_stmts_idx1 = dataset1.indices[field1]
+xs = []
+ys = []
 for benchmark_name in dataset0.dataset.keys():
   traces0 = dataset0.dataset[benchmark_name]
   traces1 = dataset1.dataset[benchmark_name]
@@ -93,8 +57,33 @@ for benchmark_name in dataset0.dataset.keys():
   for trace0 in traces0:
     for trace1 in traces1:
       if trace0[trace_idx0] == trace1[trace_idx1]:
-        print(trace0[reduced_stmts_idx0] + " " + trace1[reduced_stmts_idx1] + " 0")
+        v0 = int(trace0[reduced_stmts_idx0])
+        v1 = int(trace1[reduced_stmts_idx1])
+        xs.append(v0)
+        ys.append(v1)
+        print_lines.append(trace0[reduced_stmts_idx0] + " " + trace1[reduced_stmts_idx1] + " 0")
         break
+
+if min(xs) > min(ys):
+  axis_min = min(ys) - 1
+else:
+  axis_min = min(xs) - 1
+
+if (axis_min > 0):
+  axis_min = 0
+
+if max(xs) < max(ys):
+  axis_max = max(ys) + 1
+else:
+  axis_max = max(xs) + 1
+
+print("\\begin{tikzpicture}")
+print("\\begin{axis}[xmin=" + str(axis_min) + ", xmax=" + str(axis_max) + ", ymin=" + str(axis_min) + ", ymax=" + str(axis_max) + ",xlabel={" + field0 + "}, ylabel={" + field1 + "}]")
+print("\\addplot[scatter, only marks, scatter src=\\thisrow{class}, error bars/.cd, y dir=both, x dir=both, y explicit, x explicit, error bar style={color=mapped color}] table[x=x,y=y] {")
+print("x y class")
+
+for line in print_lines:
+  print(line)
 
 print("};")
 print("\\end{axis}")
