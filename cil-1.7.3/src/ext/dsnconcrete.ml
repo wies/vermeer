@@ -256,13 +256,13 @@ let rec d_mem_exp ?(pr_val=false) (arg :exp) : logStatement =
   | BinOp(op, e1, e2, t) -> begin match op with
     | IndexPI -> E.s (E.bug "IndexPI not expected.")
     | PlusPI | MinusPI ->
-      if not isPointerType t then E.s (E.bug "Pointer expected.");
+      if not (isPointerType t) then E.s (E.bug "Pointer expected.");
       let sz_ptr = (bitsSizeOf (unrollType t)) / 8 in
       let e2' = BinOp(Mult, e2, integer sz_ptr, t) in
       let op' = if op = PlusPI then PlusA else MinusA in
       d_mem_exp ~pr_val (BinOp(op', e1, e2', t))
     | MinusPP ->
-      if not isPointerType (typeOf e1) then E.s (E.bug "Pointer expected.");
+      if not (isPointerType (typeOf e1)) then E.s (E.bug "Pointer expected.");
       let sz_ptr = (bitsSizeOf (unrollType (typeOf e1))) / 8 in
       let diff_e = BinOp(Div, BinOp(MinusA, e1, e2, t), integer sz_ptr, t) in
       d_mem_exp ~pr_val diff_e
