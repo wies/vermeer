@@ -290,8 +290,8 @@ and simplifyOffset (setTemp: taExp -> bExp) = function
 class threeAddressVisitor (fi: fundec) = object (self)
   inherit nopCilVisitor
 
-  method private makeTemp (e1: exp) : exp = 
-    let t = makeTempVar fi (typeOf e1) in
+  method private makeTemp ?name (e1: exp) : exp = 
+    let t = makeTempVar fi ?name (typeOf e1) in
     (* Add this instruction before the current statement *)
     self#queueInstr [Set(var t, e1, !currentLoc)];
     Lval(var t)
@@ -306,14 +306,19 @@ class threeAddressVisitor (fi: fundec) = object (self)
      (** We want the argument in calls to be simple variables *)
   method vinst (i: instr) =
     match i with 
-      Call (someo, f, args, loc) -> 
+      Call (someo, f, args, loc) ->
+        let fun_name = match f with
+            Lval(Var v, NoOffset) -> v.vname
+          | _ -> "fun_pointer_exp" in
         let someo' = 
           match someo with 
             Some lv -> Some (simplifyLval self#makeTemp lv)
           | _ -> None
         in
         let f' = makeBasic self#makeTemp f in
-        let args' = Util.list_map (makeBasic self#makeTemp) args in 
+        let arg_tmp_name = "__arg_to_" ^ fun_name ^ "_cil_tmp" in
+        let args' = Util.list_map (makeBasic (self#makeTemp ~name:arg_tmp_name))
+                                  args in 
         ChangeTo [ Call (someo', f', args', loc) ]
   | _ -> DoChildren
 
@@ -462,13 +467,13 @@ let isVar lv =
 class splitVarVisitorClass(func:fundec option) : cilVisitor = object (self)
   inherit nopCilVisitor
 
-  method private makeTemp (e1: exp) : exp = 
+  method private makeTemp ?name (e1: exp) : exp = 
     let fi:fundec = match func with
         Some f -> f
       | None -> 
           E.s (bug "You can't create a temporary if you're not in a function.")
     in
-    let t = makeTempVar fi (typeOf e1) in
+    let t = makeTempVar fi ?name (typeOf e1) in
     (* Add this instruction before the current statement *)
     self#queueInstr [Set(var t, e1, !currentLoc)];
     Lval(var t)
