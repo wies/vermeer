@@ -502,9 +502,12 @@ class dsnVisitorClass = object
 	 * to actually use them *)
 	let temps = mkActualsToTempInstrs al in
 	let returnTemp = mkReturnTemp e in
-	let saveReturn = mkCopyReturnToOuterscope lo in 
+	let saveReturn = mkCopyReturnToOuterscope lo in
 	let doneSetupComment = [mkComment "done setup\n" []] in
-	let fnLabel    = printFnLabel fnNameStr nextScopeExpr in
+        let fnName = match e with
+            Lval(Var v, NoOffset) -> v.vname
+          | _ -> "fun_pointer_exp" in
+	let fnLabel    = printFnLabel fnName nextScopeExpr in
 	let fnLabelRet = printFnLabel ~postfix:"__RETURNED" !currentFunc currentScopeExpr in
 	let newInstrs =  
           fnLabel :: logCall @ makeScopeOpen  
