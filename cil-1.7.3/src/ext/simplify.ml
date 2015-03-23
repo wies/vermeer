@@ -111,6 +111,18 @@ let convertFieldOffsets = ref true
 let onlyVariableBasics = ref false
 let noStringConstantsBasics = ref false
 
+let temp_var_name = ref ""
+
+(* TODO: not an elegant way; just to minimize modifying the original CIL code *)
+let run_with_temp_var_name temp_name to_run =
+  if !temp_var_name <> "" then to_run ()
+  else begin
+    temp_var_name := temp_name;
+    let ret = to_run () in
+    temp_var_name := "";
+    ret
+  end
+
 exception BitfieldAccess
 
 (* Turn an expression into a three address expression (and queue some 
@@ -267,7 +279,9 @@ and simplifyLval
 	        add (mkCast a !upointType) (makeBasic setTemp offidx)
 	    else add (mkCast a !upointType) offidx
       in
-      let a' = if !simpleMem then setTemp a' else a' in
+      let a' = if !simpleMem then run_with_temp_var_name
+                 ("__"^ v.vname ^ "_with_offset_cil_tmp") (fun () -> setTemp a')
+               else a' in
       Mem (mkCast a' (typeForCast restoff)), restoff
 
   | Var v, off -> 
@@ -290,8 +304,10 @@ and simplifyOffset (setTemp: taExp -> bExp) = function
 class threeAddressVisitor (fi: fundec) = object (self)
   inherit nopCilVisitor
 
-  method private makeTemp ?name (e1: exp) : exp = 
-    let t = makeTempVar fi ?name (typeOf e1) in
+  method private makeTemp (e1: exp) : exp = 
+    let t = if !temp_var_name = ""
+            then makeTempVar fi                      (typeOf e1)
+            else makeTempVar fi ~name:!temp_var_name (typeOf e1) in
     (* Add this instruction before the current statement *)
     self#queueInstr [Set(var t, e1, !currentLoc)];
     Lval(var t)
@@ -307,18 +323,27 @@ class threeAddressVisitor (fi: fundec) = object (self)
   method vinst (i: instr) =
     match i with 
       Call (someo, f, args, loc) ->
-        let fun_name = match f with
-            Lval(Var v, NoOffset) -> v.vname
-          | _ -> "fun_pointer_exp" in
         let someo' = 
           match someo with 
             Some lv -> Some (simplifyLval self#makeTemp lv)
           | _ -> None
         in
         let f' = makeBasic self#makeTemp f in
-        let arg_tmp_name = "__arg_to_" ^ fun_name ^ "_cil_tmp" in
-        let args' = Util.list_map (makeBasic (self#makeTemp ~name:arg_tmp_name))
-                                  args in 
+
+        let fun_name = match f with
+            Lval(Var v, NoOffset) -> v.vname
+          | _ -> "fun_pointer_exp" in
+        let rec list_mapi i args = match args with
+            [] -> []
+          | x::xs -> temp_var_name := "__arg" ^ (string_of_int i) ^
+                                      "_to_" ^ fun_name ^ "_cil_tmp";
+                     let y = makeBasic self#makeTemp x in
+                     y::(list_mapi (i+1) xs) in
+        let old_name = !temp_var_name in
+        let args' = list_mapi 1 args in
+        temp_var_name := old_name;
+
+        (* let args' = Util.list_map (makeBasic self#makeTemp) args in *)
         ChangeTo [ Call (someo', f', args', loc) ]
   | _ -> DoChildren
 
@@ -467,13 +492,13 @@ let isVar lv =
 class splitVarVisitorClass(func:fundec option) : cilVisitor = object (self)
   inherit nopCilVisitor
 
-  method private makeTemp ?name (e1: exp) : exp = 
+  method private makeTemp (e1: exp) : exp = 
     let fi:fundec = match func with
         Some f -> f
       | None -> 
           E.s (bug "You can't create a temporary if you're not in a function.")
     in
-    let t = makeTempVar fi ?name (typeOf e1) in
+    let t = makeTempVar fi (typeOf e1) in
     (* Add this instruction before the current statement *)
     self#queueInstr [Set(var t, e1, !currentLoc)];
     Lval(var t)
