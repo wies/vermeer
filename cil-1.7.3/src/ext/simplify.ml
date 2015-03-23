@@ -194,7 +194,8 @@ and makeBasic (setTemp: taExp -> bExp) (e: exp) : bExp =
 
   | _ -> begin
     if dump then ignore (E.log "Placing %a into a temporary\n" d_plainexp e');
-    setTemp e' (* Put it into a temporary otherwise *)
+    run_with_temp_var_name "__intermediate_exp_cil_tmp"
+      (fun () -> setTemp e') (* Put it into a temporary otherwise *)
   end
 
 
