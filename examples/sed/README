@@ -1,8 +1,8 @@
 To run,
 
-    ../runlinear sed
+    runlinear sed
 
-    ../runconcrete sed
+    runconcrete sed
 
 At this point, the concrete trace will tell us that the last pointer (re_search_2__6__mem_1406) we tried to dereference was pointing to the non-sensical memory address 0x2a8. Open the trace (sed_dir/sed.postconcrete.c) and add the following assertion at the end of the trace.
 
@@ -10,4 +10,4 @@ At this point, the concrete trace will tell us that the last pointer (re_search_
 
 Next,
 
-    ../runexplain sed
+    runexplain sed

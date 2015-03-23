@@ -1,8 +1,8 @@
 To run,
 
-    ../runlinear allfile
+    runlinear allfile
 
-    ../runconcrete allfile
+    runconcrete allfile
 
 At this point, the concrete trace will tell us that the last pointer (inflate_dynamic__6__mem_222) we tried to dereference was pointing to the non-sensical memory address 0x1. Open the trace (allfile_dir/allfile.postconcrete.c) and add the following assertion at the end of the trace.
 
@@ -10,4 +10,4 @@ At this point, the concrete trace will tell us that the last pointer (inflate_dy
 
 Next,
 
-    ../runexplain allfile
+    runexplain allfile
