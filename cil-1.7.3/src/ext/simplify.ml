@@ -194,7 +194,7 @@ and makeBasic (setTemp: taExp -> bExp) (e: exp) : bExp =
 
   | _ -> begin
     if dump then ignore (E.log "Placing %a into a temporary\n" d_plainexp e');
-    run_with_temp_var_name "__intermediate_exp_cil_tmp"
+    run_with_temp_var_name "__cil_tmp_subexp"
       (fun () -> setTemp e') (* Put it into a temporary otherwise *)
   end
 
@@ -281,7 +281,7 @@ and simplifyLval
 	    else add (mkCast a !upointType) offidx
       in
       let a' = if !simpleMem then run_with_temp_var_name
-                 ("__"^ v.vname ^ "_with_offset_cil_tmp") (fun () -> setTemp a')
+                 ("__cil_tmp_"^ v.vname ^ "_with_offset") (fun () -> setTemp a')
                else a' in
       Mem (mkCast a' (typeForCast restoff)), restoff
 
@@ -336,8 +336,8 @@ class threeAddressVisitor (fi: fundec) = object (self)
           | _ -> "fun_pointer_exp" in
         let rec list_mapi i args = match args with
             [] -> []
-          | x::xs -> temp_var_name := "__arg" ^ (string_of_int i) ^
-                                      "_to_" ^ fun_name ^ "_cil_tmp";
+          | x::xs -> temp_var_name := "__cil_tmp_arg" ^ (string_of_int i) ^
+                                      "_to_" ^ fun_name;
                      let y = makeBasic self#makeTemp x in
                      y::(list_mapi (i+1) xs) in
         let old_name = !temp_var_name in
