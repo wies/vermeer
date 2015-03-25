@@ -11,7 +11,7 @@ with open(explanation_file, "r") as f:
   next = False
   for line in f:
     line_stripped = line.strip()
-    if line_stripped == "":
+    if line_stripped == "" or line_stripped == "//(Summary)":
       sys.stdout.write(line)
       next = True
     else:
