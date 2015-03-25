@@ -1,6 +1,7 @@
+type variable = string
 
 type term = 
-| Variable of string
+| Variable of variable
 | Value of int 
 | Sum of term list
 | Mult of term list
@@ -20,6 +21,7 @@ type formula =
 | Implication of formula * formula
 (* relations: *)
 | Relation of binop * term * term
+| LinearRelation of binop * (int * variable) list * int
 | ITE of formula * formula * formula
 | Boolvar of string
 | UnsupportedFormula of string
@@ -41,7 +43,29 @@ let invert_rel = function
   | GT  -> LT
   | NEQ -> NEQ
 
+let string_of_relation = function
+  | EQ  -> "=" 
+  | LEQ -> "<="
+  | LT  -> "<"
+  | GEQ -> ">="
+  | GT  -> ">"
+  | NEQ -> "!="
 
+let print_relation rel = 
+  print_string " ";
+  print_string (string_of_relation rel);
+  print_string " "
+  
+let relation_of_linearrelation op lhs rhs= 
+  let mults = List.map (fun (coeff,var) ->
+    match coeff with 
+    | -1 -> UMinus (Variable var)
+    | 0 -> failwith "shouldn't have 0 coefficients"
+    | 1 -> Variable var
+    | x -> Mult[Value x; Variable var]) lhs
+  in
+  Relation(op,Sum mults,Value rhs)
+(* todo could normalize here to something more readable *)
 
 (** Compute negation normal form of a formula *)
 let rec nnf = function
@@ -73,12 +97,14 @@ let rec print_formula f indentation =
   | And(fs) -> print_string(indentation ^ "AND (\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
   | Or(fs) -> print_string(indentation ^ "OR (\n"); List.iter (fun (f2) -> print_formula f2 (indentation ^ "  ")) fs; print_string(indentation ^ ")\n")
   | Implication(f1, f2) -> print_string(indentation ^ "IMPLICATION (\n"); print_formula f1 (indentation ^ "  "); print_formula f2 (indentation ^ "  "); print_string(indentation ^ ")\n")
-  | Relation(LEQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" <= "); print_term t2; print_string("\n")
-  | Relation(EQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" = "); print_term t2; print_string("\n")
-  | Relation(GEQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" >= "); print_term t2; print_string("\n")
-  | Relation(NEQ,t1, t2) -> print_string(indentation); print_term t1; print_string(" != "); print_term t2; print_string("\n")
-  | Relation(LT,t1, t2) -> print_string(indentation); print_term t1; print_string(" < "); print_term t2; print_string("\n")
-  | Relation(GT,t1, t2) -> print_string(indentation); print_term t1; print_string(" > "); print_term t2; print_string("\n")
+  | Relation(rel,t1,t2) -> 
+    print_string indentation; 
+    print_term t1; 
+    print_relation rel;
+    print_term t2;
+    print_newline ()
+  | LinearRelation(op,lst,value) ->
+    print_formula (relation_of_linearrelation op lst value) indentation
   | ITE(f_cond, f_then, f_else) -> 
     print_string(indentation ^ "IF (\n");
     print_formula f_cond (indentation ^ "  ");

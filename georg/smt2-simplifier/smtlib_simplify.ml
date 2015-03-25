@@ -7,6 +7,12 @@ module FormulaSet = Set.Make(
   end
 );;
 
+let rec run_fixpt fn term = 
+  let newTerm = fn term in
+  if newTerm = term 
+  then term 
+  else run_fixpt fn newTerm
+
 let rec compare_form f g =
   let rec compare_lex fs gs =
     match fs, gs with
@@ -41,8 +47,8 @@ let rec compare_form f g =
   | f, g -> compare f g
 
 (** Check whether conjunction of the two formulas is unsat.
-  * Assumes formulas are in negation normal form
- *)
+    * Assumes formulas are in negation normal form
+*)
 let rec is_unsat f g =
   match f, g with
   | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
@@ -54,84 +60,84 @@ let rec is_unsat f g =
       | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
       | _ -> false
       )
-    else if*) t11 = t21 &&
-      (match rel1, t12, rel2, t22 with
+      else if*) t11 = t21 &&
+  (match rel1, t12, rel2, t22 with
       (* Values *)
       (* we are using integer arithmatic here 
        * x > 5 && x < 6 is unsat because no # between 5 and 6
        *)
-      | LT, Value c1, GT, Value c2
-      | GT, Value c2, LT, Value c1 
-	-> 
-	c1+1 >= c2
+  | LT, Value c1, GT, Value c2
+  | GT, Value c2, LT, Value c1 
+    -> 
+    c1+1 >= c2
       (* cases with one has n an EQ in it *)
-      | LT, Value c1, GEQ, Value c2
-      | LEQ, Value c1, GT, Value c2
-      | EQ, Value c1, GT, Value c2
-      | LT, Value c1, EQ, Value c2
-        -> c1 <= c2
-      | GT, Value c1, LEQ, Value c2
-      | GEQ, Value c1, LT, Value c2
-      | GT, Value c1, EQ, Value c2
-      | EQ, Value c1, LT, Value c2
-        -> c1 >= c2
-      | LEQ, Value c1, GEQ, Value c2
-      | EQ, Value c1, GEQ, Value c2
-      | LEQ, Value c1, EQ, Value c2
-        -> c1 < c2
-      | GEQ, Value c1, LEQ, Value c2
-      | EQ, Value c1, LEQ, Value c2
-      | GEQ, Value c1, EQ, Value c2
-        -> c1 > c2
-      | EQ, Value c1, EQ, Value c2
-        -> c1 <> c2
-      | _, Variable _, _, Variable _ ->
-          is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
-            (Relation (rel2, Sum [t21; UMinus t22], Value 0))
-      | _, Variable _, _, Sum [(Variable _ as t); Value c] ->
-          is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
-            (Relation (rel2, Sum [t21; UMinus t], Value c))
-      | _, _, _, _ ->
-          negate_rel rel1 = rel2 && t12 = t22)
+  | LT, Value c1, GEQ, Value c2
+  | LEQ, Value c1, GT, Value c2
+  | EQ, Value c1, GT, Value c2
+  | LT, Value c1, EQ, Value c2
+    -> c1 <= c2
+  | GT, Value c1, LEQ, Value c2
+  | GEQ, Value c1, LT, Value c2
+  | GT, Value c1, EQ, Value c2
+  | EQ, Value c1, LT, Value c2
+    -> c1 >= c2
+  | LEQ, Value c1, GEQ, Value c2
+  | EQ, Value c1, GEQ, Value c2
+  | LEQ, Value c1, EQ, Value c2
+    -> c1 < c2
+  | GEQ, Value c1, LEQ, Value c2
+  | EQ, Value c1, LEQ, Value c2
+  | GEQ, Value c1, EQ, Value c2
+    -> c1 > c2
+  | EQ, Value c1, EQ, Value c2
+    -> c1 <> c2
+  | _, Variable _, _, Variable _ ->
+    is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
+      (Relation (rel2, Sum [t21; UMinus t22], Value 0))
+  | _, Variable _, _, Sum [(Variable _ as t); Value c] ->
+    is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
+      (Relation (rel2, Sum [t21; UMinus t], Value c))
+  | _, _, _, _ ->
+    negate_rel rel1 = rel2 && t12 = t22)
   | False, _
   | _, False -> true
   | And fs, g ->
-      List.exists (fun f -> is_unsat f g) fs
+    List.exists (fun f -> is_unsat f g) fs
   | Or fs, g ->
-      List.for_all (fun f -> is_unsat f g) fs
+    List.for_all (fun f -> is_unsat f g) fs
   | f, g -> mk_not f = g
 
 let subsumes f g =
   let rec subs strengthen fs gs =
-   match fs, gs with
-   | [], _ -> true
-   | _, [] -> false
-   | (Relation _ as f) :: fs, (Relation _ as g) :: gs ->
-       if strengthen && is_unsat f (mk_not g) ||
-       not strengthen && is_unsat (mk_not f) g
-       then subs strengthen fs (g::gs)
-       else subs strengthen (f::fs) gs
-   | f :: fs, g :: gs ->
-       if f = g then subs strengthen fs (g::gs)
-       else subs strengthen (f::fs) gs
+    match fs, gs with
+    | [], _ -> true
+    | _, [] -> false
+    | (Relation _ as f) :: fs, (Relation _ as g) :: gs ->
+      if strengthen && is_unsat f (mk_not g) ||
+	not strengthen && is_unsat (mk_not f) g
+      then subs strengthen fs (g::gs)
+      else subs strengthen (f::fs) gs
+    | f :: fs, g :: gs ->
+      if f = g then subs strengthen fs (g::gs)
+      else subs strengthen (f::fs) gs
   in
   match f, g with
   | Or fs, Or gs -> subs false fs gs
   | And gs, And fs -> subs true fs gs
   | f, g -> subs true [f] [g]
-        
+    
 (* remove duplicates from a list *)
 let remove_duplicates strengthen fs = 
   let rec uniq = function
     | [] -> []
     | e1 :: e2 :: tl when subsumes e1 e2 ->
-        if strengthen
-        then e1 :: uniq tl
-        else e2 :: uniq tl
+      if strengthen
+      then e1 :: uniq tl
+      else e2 :: uniq tl
     | e1 :: e2 :: tl when subsumes e2 e1 ->
-        if strengthen
-        then e2 :: uniq tl
-        else e1 :: uniq tl
+      if strengthen
+      then e2 :: uniq tl
+      else e1 :: uniq tl
     | hd :: tl -> hd :: uniq tl
   in
   let sorted = List.sort compare_form fs in
@@ -149,6 +155,7 @@ let formula_size f =
     | Implication (f1,f2) -> aux f1;aux f2
     | ITE(f1,f2,f3) -> aux f1;aux f2; aux f3
     | Relation (_, t1,t2) -> term_aux t1; term_aux t2
+    | LinearRelation (_,lhs,_) -> size := !size + List.length lhs
   and term_aux t = 
     incr size;
     match t with
@@ -197,7 +204,7 @@ let split_vars_vals tl : (term list * term list * term list)=
  * only true for the children.
  * This also holds for implications.
  * A ==> (A && B)  ~~~ A ===> B
-     *)
+ *)
 
 let propagate_truth_context f =
   let add_all_but_i toAvoid fn lst set = 
@@ -210,13 +217,13 @@ let propagate_truth_context f =
   let isTrue trueHere f =
     match f with
     | Relation _ ->
-        FormulaSet.exists (is_unsat (mk_not f)) trueHere
+      FormulaSet.exists (is_unsat (mk_not f)) trueHere
     | _ -> FormulaSet.mem f trueHere
   in
   let isFalse trueHere f =
     match f with
     | Relation _ ->
-        FormulaSet.exists (is_unsat f) trueHere
+      FormulaSet.exists (is_unsat f) trueHere
     | _ -> FormulaSet.mem (mk_not f) trueHere
   in
   let rec aux trueHere  f = 
@@ -226,20 +233,21 @@ let propagate_truth_context f =
 
     (* in the context of an and, all other clauses in the and
      * are also true in the context of this one *)
+    
     | And fl -> 
       let fl = remove_duplicates true fl in
       And (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i (fun f -> f) fl trueHere in
 	aux trueHere e) fl)
     | Or fl ->
-        let fl = remove_duplicates false fl in
-        Or (List.mapi (fun i e -> 
-	  let trueHere = add_all_but_i i mk_not fl trueHere in
-	  aux trueHere e) fl)
-          (*Or (List.map (aux trueHere) fl)*)
+      let fl = remove_duplicates false fl in
+      Or (List.mapi (fun i e -> 
+	let trueHere = add_all_but_i i mk_not fl trueHere in
+	aux trueHere e) fl)
+    (*Or (List.map (aux trueHere) fl)*)
     | Implication (f1,f2) -> 
-	(* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
-	 * any of a,b,c *)
+      (* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
+       * any of a,b,c *)
       let lhs = aux trueHere  f1 in
       let rhs = aux (FormulaSet.add lhs trueHere)  f2 in
       Implication(lhs,rhs) 
@@ -253,10 +261,12 @@ let propagate_truth_context f =
 	
     (* recurse into the tree *)
     | Not f1 -> mk_not (aux trueHere f1)
-    | True|False|UnsupportedFormula _ | Relation _ | Boolvar _ -> f
+    | True|False|UnsupportedFormula _ | Relation _ | Boolvar _ | LinearRelation _ -> f
     end
   in
   aux FormulaSet.empty f
+
+
 
 
 let  simplify_constants  f  = 
@@ -269,7 +279,8 @@ let  simplify_constants  f  =
     | True | False | UnsupportedFormula _ -> f
     (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
     | Boolvar _ -> True
-      
+    | LinearRelation _ -> failwith "need to handle this"
+
     (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True
     | Relation(LEQ,a,b) when a = b -> True
@@ -313,6 +324,8 @@ let  simplify_constants  f  =
     | Relation _ -> f
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
   in aux f
+
+
 
 let normalize_formula f = 
   let flatten_nested_ands lst = 
@@ -395,6 +408,7 @@ let normalize_formula f =
     | Or lst -> Or(List.map aux (remove_duplicates false (flatten_nested_ors lst)))
 
     (* recurse down the tree *)
+    | LinearRelation _ -> failwith "need to handle this"
     | Relation _ -> f
     | Not f1 -> mk_not (aux f1)
     | Implication (f1,f2) -> 
@@ -405,7 +419,7 @@ let normalize_formula f =
   in  
   aux f
 
-let simplify_terms f = 
+let rec simplify_term t = 
   let flatten_nested_mults lst = 
     let fs1, fs2 =  List.partition 
       (fun (f) -> match f with | Mult(_) -> false | _ -> true) lst in
@@ -422,164 +436,183 @@ let simplify_terms f =
     in
     List.append fs1 (List.concat fs2_extracted)
   in
+  match t with
+    (* Handle constants *)
+  | UMinus (Value c) -> Value (-c)
+  | UMinus (Sum ts) ->
+    simplify_term (Sum (List.map (function t -> UMinus t) ts))
+  | UMinus (Mult ts) ->
+    simplify_term (Mult (Value(-1) :: ts))
+  | Sum [x] -> x
+  | Mult [x] -> x
+    (* do we want to distribute mults across sums ??? *)
+    
+    (* Normalize so that sums and mults always have the variable(s) on the left *)
+  | Sum(lst) -> 
+    let lst = List.map simplify_term lst in
+    let (vars,vals,rest) = split_vars_vals lst in
+    let vals = simplify_vals vals (+) 0 in
+    let rest = flatten_nested_sums rest in
+    Sum(vars @ vals  @ rest)
+  | Mult(lst) -> begin
+    let lst = List.map simplify_term lst in
+    let (vars,vals,rest) = split_vars_vals lst in
+    let vals = simplify_vals vals ( * ) 1 in
+    let rest = flatten_nested_mults rest in
+      (* distribute multiplication inside addition
+       * this opens up more normalization oppertunities *)
+    match vars,vals,rest with
+    | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
+    | _ -> Mult(vars @ vals  @ rest)
+  end
+  | Variable _ | Value _ | UnsupportedTerm _ | UMinus _ -> t
+and simplify_vals vals op identity =
+  let v = List.fold_left 
+    (fun a x -> match x with 
+    | Value v -> op a v
+    | _ -> failwith "should be only values here"
+    ) identity vals in
+    (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
+  if v = identity then []
+  else [Value(v)]
+    
+
+let simplify_terms f = 
 
   let rec aux f = 
     match f with 
-  (* base case: something with terms *)
+    (* base case: something with terms *)
     | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
 
-  (* recurse down the tree *)
-    | True|False|UnsupportedFormula _ | Boolvar _ -> f
+    (* recurse down the tree *)
+    | True|False|UnsupportedFormula _ | Boolvar _ | LinearRelation _ -> f
     | Not f1 -> mk_not (aux f1)
     | And fl -> And (List.map aux fl)
     | Or  fl -> Or (List.map aux fl)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2, aux f3)
-  and simplify_term t = 
-    match t with
-    (* Handle constants *)
-    | UMinus (Value c) -> Value (-c)
-    | UMinus (Sum ts) ->
-        simplify_term (Sum (List.map (function t -> UMinus t) ts))
-    | UMinus (Mult ts) ->
-        simplify_term (Mult (Value(-1) :: ts))
-    | Sum [x] -> x
-    | Mult [x] -> x
-    (* do we want to distribute mults across sums ??? *)
-      
-    (* Normalize so that sums and mults always have the variable(s) on the left *)
-    | Sum(lst) -> 
-      let lst = List.map simplify_term lst in
-      let (vars,vals,rest) = split_vars_vals lst in
-      let vals = simplify_vals vals (+) 0 in
-      let rest = flatten_nested_sums rest in
-      Sum(vars @ vals  @ rest)
-    | Mult(lst) -> begin
-      let lst = List.map simplify_term lst in
-      let (vars,vals,rest) = split_vars_vals lst in
-      let vals = simplify_vals vals ( * ) 1 in
-      let rest = flatten_nested_mults rest in
-      (* distribute multiplication inside addition
-       * this opens up more normalization oppertunities *)
-      match vars,vals,rest with
-      | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
-      | _ -> Mult(vars @ vals  @ rest)
-    end
-    | Variable _ | Value _ | UnsupportedTerm _ | UMinus _ -> t
-  and simplify_vals vals op identity =
-    let v = List.fold_left 
-      (fun a x -> match x with 
-      | Value v -> op a v
-      | _ -> failwith "should be only values here"
-      ) identity vals in
-    (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
-    if v = identity then []
-    else [Value(v)]
   in
   aux f
+
+let normalize_relation op lhs rhs = 
+  (*first, move everything interresting to the lhs *)
+  (* RHS is implictly 0 now *)
+  let newLHS = Sum[lhs;UMinus rhs] in
+  let newLHS = run_fixpt simplify_terms newLHS in
+  match newLHS with 
+  | Sum tl -> 
+  | Variable v -> 
+  | Mult tl ->
+  | Uminus (Variable v) ->
+  |  _ -> Relation(op,lhs,rhs)
+    lhs
+  | _ -> failwith "wtf"
+
+
 
 let simplify_formula_2 f =
   let rec aux f = 
     match f with
-  (* Logical operators *)
+    (* Logical operators *)
     | And(fs) ->
-        let f1 =
+      let f1 =
         begin match fs with 
-      | Relation(GEQ, t1, Value c1) :: Relation(GT, t2, Value c2) :: gs
-        when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
-        let c = max c1 (c2 + 1) in
-        aux (And(Relation(GEQ, t1, Value c) :: gs))
-      | Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
-        when t1 = t2 && c1 + 1 = c2 ->
+	| Relation(GEQ, t1, Value c1) :: Relation(GT, t2, Value c2) :: gs
+            when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
+          let c = max c1 (c2 + 1) in
+          aux (And(Relation(GEQ, t1, Value c) :: gs))
+	| Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
+            when t1 = t2 && c1 + 1 = c2 ->
           aux (And (Relation(EQ, t1, Value c2) :: gs))
-      | Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
-        when t1 = t2 && c1 + 1 = c2 ->
+	| Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
+            when t1 = t2 && c1 + 1 = c2 ->
           aux (And (Relation(EQ, t1, Value c1) :: gs))
-      | Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
-        when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
+	| Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
+            when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
           let c = max c1 c2 in
           aux (And(Relation(GEQ, t1, Value c) :: gs))
-      | Relation(GEQ, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
-        when t1 = t2 && c1 <= c2 ->
+	| Relation(GEQ, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
+            when t1 = t2 && c1 <= c2 ->
           aux (And(Relation(EQ, t2, Value c2) :: gs))
-      | Relation(GT, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
-        when t1 = t2 && c1 < c2 ->
+	| Relation(GT, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
+            when t1 = t2 && c1 < c2 ->
           aux (And(Relation(EQ, t2, Value c2) :: gs))            
-      | Relation(LEQ, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
-        when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
-        let c = min c1 c2 in
-        aux (And(Relation(LEQ, t1, Value c) :: gs))
-      | Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
-      | Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
-      | Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
-      | Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
-        when t1 = t4 && t2 = t3 ->
+	| Relation(LEQ, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
+            when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
+          let c = min c1 c2 in
+          aux (And(Relation(LEQ, t1, Value c) :: gs))
+	| Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
+	| Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
+	| Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
+	| Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
+            when t1 = t4 && t2 = t3 ->
           aux (And (Relation(EQ, t1, t2) :: gs))
-      | Relation(LEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
-        when t1 = t3 && t2 = t4 ->
+	| Relation(LEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
+            when t1 = t3 && t2 = t4 ->
           aux (And (Relation(LT, t1, t2) :: gs))
-      | Relation(GEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
-        when t1 = t3 && t2 = t4 ->
+	| Relation(GEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
+            when t1 = t3 && t2 = t4 ->
           aux (And (Relation(GT, t1, t2) :: gs))
-      | Relation(LEQ, t1, Value c1) :: Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: gs
-        when t1 = t2 && c1 = -1 * c2 -> 
+	| Relation(LEQ, t1, Value c1) :: Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: gs
+            when t1 = t2 && c1 = -1 * c2 -> 
           let phi = Relation(EQ,t1, Value c1) in
           aux (And (phi :: gs))
-      | Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: Relation(LEQ, t1, Value c1) :: gs
-        when t1 = t2 && c1 = -1 * c2 -> 
+	| Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: Relation(LEQ, t1, Value c1) :: gs
+            when t1 = t2 && c1 = -1 * c2 -> 
           let phi = Relation(EQ,t1, Value c1) in
           aux (And(phi :: gs))
-      | (Relation _ as g1) :: (Relation _ as g2) :: gs
-        when is_unsat g1 g2 ->
+	| (Relation _ as g1) :: (Relation _ as g2) :: gs
+            when is_unsat g1 g2 ->
           False
-      | [ g ] -> aux g
-      | [] -> True
-      | g :: gs -> 
-        let g1 = aux g in
-        let
-            h = aux (And(gs))
-        in
-        match g1, h with
-        | False, _
-        | _, False -> False
-        | True, _ -> h
-        | _, True -> g1
-        | _, And(hs) -> And (g1 :: hs)
-        | _, _ -> And [g1; h]
+	| [ g ] -> aux g
+	| [] -> True
+	| g :: gs -> 
+          let g1 = aux g in
+          let
+              h = aux (And(gs))
+          in
+          match g1, h with
+          | False, _
+          | _, False -> False
+          | True, _ -> h
+          | _, True -> g1
+          | _, And(hs) -> And (g1 :: hs)
+          | _, _ -> And [g1; h]
         end
-        in
+      in
         (*print_endline "Before simplify: ";
-        print_formula f ""; print_newline ();
-        print_endline "After simplify: ";
-        print_formula f1 ""; print_newline ();*)
-        f1
+          print_formula f ""; print_newline ();
+          print_endline "After simplify: ";
+          print_formula f1 ""; print_newline ();*)
+      f1
+    | LinearRelation _ -> failwith "need to handle this"
     | Or(fs) ->
-        begin match fs with  
+      begin match fs with  
       | [ Relation(LEQ, Value c1, t1) ; Relation(LEQ, t2, Value c2) ]
-	when (t1 = t2 && c1 = c2 + 2) ->
-          Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+	  when (t1 = t2 && c1 = c2 + 2) ->
+        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
       | [ Relation(LEQ, t2, Value c2) ; Relation(LEQ, Value c1, t1) ]
-	when (t1 = t2 && c1 = c2 + 2) ->
-          Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
+	  when (t1 = t2 && c1 = c2 + 2) ->
+        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
       | [Relation _ as f; Relation _ as g] when f = mk_not g -> True
       | [] -> False
       | [f] -> aux f
       | f :: gs ->
-          let f1 = aux f in
-          let h = aux (Or gs) in
-          match f1, h with
-          | True, _
-          | _, True -> True
-          | False, _ -> h
-          | _, False -> f1
-          | _, Or (hs) -> Or (f1 :: hs)
-          | _, _ -> Or [f1; h]
-    end
+        let f1 = aux f in
+        let h = aux (Or gs) in
+        match f1, h with
+        | True, _
+        | _, True -> True
+        | False, _ -> h
+        | _, False -> f1
+        | _, Or (hs) -> Or (f1 :: hs)
+        | _, _ -> Or [f1; h]
+      end
 
 
 
 
-  (* recurse *)
+    (* recurse *)
     | Not f -> mk_not (aux f)
     | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
     | Implication (f1, f2) -> Implication (aux f1, aux f2)
@@ -605,17 +638,17 @@ let beautify_formula f =
   in loop (nnf f)
 
 (*
-In the else branch of x_6_6 = 5
+  In the else branch of x_6_6 = 5
 
-IF (
-    (x_6_6 + -4) <= 0
+  IF (
+  (x_6_6 + -4) <= 0
   ) THEN (
-    0 <= (x_6_6 + -5)
+  0 <= (x_6_6 + -5)
   ) ELSE (
-    OR (
-      (x_6_6 + -5) <= 0
-      x_6_6 <= 5
-    )
+  OR (
+  (x_6_6 + -5) <= 0
+  x_6_6 <= 5
+  )
   )
 *)
 
@@ -625,11 +658,11 @@ let test () =
   let f = 
     And [
       Not (Relation (EQ,x,Value 5));
-	   ITE(
-	     Relation(LEQ, Sum[x;Value (-4)], zero),
-	     Relation(LEQ, zero, Sum[x; Value (-5)]),
-	     Or [
-	       Relation(LEQ,Sum[x;Value (-5)],zero);
-	       Relation(LEQ, x, Value 5)])] in
+      ITE(
+	Relation(LEQ, Sum[x;Value (-4)], zero),
+	Relation(LEQ, zero, Sum[x; Value (-5)]),
+	Or [
+	  Relation(LEQ,Sum[x;Value (-5)],zero);
+	  Relation(LEQ, x, Value 5)])] in
   let bf = beautify_formula f  in
   print_formula bf ""
