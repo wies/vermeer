@@ -80,9 +80,9 @@ let subsumes f g =
     match fs, gs with
     | [], _ -> true
     | _, [] -> false
-    | (Relation _ as f) :: fs, (Relation _ as g) :: gs ->
-      if strengthen && is_unsat f (mk_not g) ||
-	not strengthen && is_unsat (mk_not f) g
+    | (Relation _ as f) :: fs, (Relation _ as g) :: gs
+    | (LinearRelation _ as f) :: fs, (LinearRelation _ as g) :: gs ->
+      if strengthen && is_unsat f (mk_not g) || not strengthen && is_unsat (mk_not f) g
       then subs strengthen fs (g::gs)
       else subs strengthen (f::fs) gs
     | f :: fs, g :: gs ->
@@ -159,13 +159,13 @@ let propagate_truth_context f =
   in
   let isTrue trueHere f =
     match f with
-    | Relation _ ->
+    | Relation _ | LinearRelation _ ->
       FormulaSet.exists (is_unsat (mk_not f)) trueHere
     | _ -> FormulaSet.mem f trueHere
   in
   let isFalse trueHere f =
     match f with
-    | Relation _ ->
+    | Relation _ | LinearRelation _ ->
       FormulaSet.exists (is_unsat f) trueHere
     | _ -> FormulaSet.mem (mk_not f) trueHere
   in
@@ -187,24 +187,7 @@ let propagate_truth_context f =
       Or (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i mk_not fl trueHere in
 	aux trueHere e) fl)
-    (*Or (List.map (aux trueHere) fl)*)
-    | Implication (f1,f2) -> 
-      (* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
-       * any of a,b,c *)
-      let lhs = aux trueHere  f1 in
-      let rhs = aux (FormulaSet.add lhs trueHere)  f2 in
-      Implication(lhs,rhs) 
-	
-    | ITE(i,t,e) -> 
-      let i = aux trueHere  i in
-      let t = aux (FormulaSet.add i trueHere) t in
-      (* TODO there ought to be a better way to handle the else case *)
-      let e = aux (FormulaSet.add (mk_not i) trueHere)  e in
-      ITE(i,t,e)
-	
-    (* recurse into the tree *)
-    | Not f1 -> mk_not (aux trueHere f1)
-    | True|False|UnsupportedFormula _ | Relation _ | Boolvar _ | LinearRelation _ -> f
+    | _ -> f
     end
   in
   aux FormulaSet.empty f
@@ -352,13 +335,7 @@ let normalize_formula f =
 
     (* recurse down the tree *)
     | LinearRelation _ -> failwith "need to handle this"
-    | Relation _ -> f
-    | Not f1 -> mk_not (aux f1)
-    | Implication (f1,f2) -> 
-      Implication(aux f1,aux f2) 
-    | ITE(f1,f2,f3) -> 
-      ITE(aux f1,aux f2, aux f3)
-    | True|False|UnsupportedFormula _ | Boolvar _ -> f  
+    | _ -> f  
   in  
   aux f
 
