@@ -278,6 +278,7 @@ let normalize_formula f =
     | Or []  -> False
     | Or [f1] -> aux f1
     | Or lst -> Or (List.map aux (remove_duplicates false (flatten_nested_ors lst)))
+    | Relation (op,lhs,rhs) -> normalize_relation op lhs rhs
     | _ -> f  
   in  
   aux f
