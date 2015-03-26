@@ -5,7 +5,6 @@ type term =
 | Value of int 
 | Sum of term list
 | Mult of term list
-| UMinus of term
 | UnsupportedTerm of string
 (* division, subtraction? *)
 ;;
@@ -81,7 +80,7 @@ let split_term_list tl =
 
 let split_vars_vals tl : (term list * term list * term list)= 
   let (vars,rest) = List.partition 
-    (fun x -> match x with | Variable _ | UMinus (Variable _) -> true | _ -> false) tl in
+    (fun x -> match x with | Variable _ | _ -> false) tl in
   let vars = sort_vars vars in
   let (vals,rest) = List.partition
     (fun x -> match x with  Value _ -> true | _ -> false) rest in
@@ -96,7 +95,6 @@ let print_relation rel =
 let relation_of_linearrelation op lhs rhs= 
   let mults = List.map (fun (coeff,var) ->
     match coeff with 
-    | -1 -> UMinus (Variable var)
     | 0 -> failwith "shouldn't have 0 coefficients"
     | 1 -> Variable var
     | x -> Mult[Value x; Variable var]) lhs
@@ -145,11 +143,6 @@ let rec normalize_term t =
   in
   match t with
   (* Handle constants *)
-  | UMinus (Value c) -> Value (-c)
-  | UMinus (Sum ts) ->
-    normalize_term (Sum (List.map (function t -> UMinus t) ts))
-  | UMinus (Mult ts) ->
-    normalize_term (Mult (Value(-1) :: ts))
   | Sum [x] -> x
   | Mult [x] -> x
   (* do we want to distribute mults across sums ??? *)
@@ -172,7 +165,7 @@ let rec normalize_term t =
     | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
     | _ -> Mult(vars @ vals  @ rest)
   end
-  | Variable _ | Value _ | UnsupportedTerm _ | UMinus _ -> t
+  | Variable _ | Value _ | UnsupportedTerm _ -> t
 and simplify_vals vals op identity =
   let v = List.fold_left 
     (fun a x -> match x with 
@@ -194,7 +187,6 @@ let normalize_relation op lhs rhs =
    * -x, a*x, or x
    *)
   let convert_to_coeff = function 
-    | UMinus (Variable v) -> (-1,v)
     | Variable var -> (1,var)
     | Mult lst -> begin
       let (vars,vals,rest) = split_vars_vals lst in
@@ -238,8 +230,8 @@ let normalize_relation op lhs rhs =
     | _ -> failwith "should really have been a value here"
   in
   (*first, move everything interresting to the lhs *)
-  (* RHS is implictly 0 now *)
-  let newLHS = Sum[lhs;UMinus rhs] in
+  (* RHS is implicitly 0 now *)
+  let newLHS = Sum[lhs; Mult [Value (-1); rhs]] in
   let newLHS = run_fixpt normalize_term newLHS in
   let linearList,newRHS =  
     match newLHS with 
