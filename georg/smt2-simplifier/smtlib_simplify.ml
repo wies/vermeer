@@ -22,13 +22,9 @@ let rec compare_form f g =
   in
   match (f, g) with
   | Relation (rel1, t1, t2), Relation (rel2, t3, t4) ->
-    let c13 = compare t1 t3 in
-    if c13 = 0 then
-      let c24 = compare t2 t4 in
-      if c24 = 0
-      then compare rel1 rel2
-      else c24
-    else c13
+      compare (t1, t2, rel1) (t3, t4, rel2)
+  | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
+      compare (t1, c1, rel1) (t2, c2, rel2)        
   | Not f, Not g ->
     compare_form f g
   | And fs, And gs ->
@@ -46,54 +42,31 @@ let rec compare_form f g =
 *)
 let rec is_unsat f g =
   match f, g with
-  | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
-	(*if t11 = t21 && t12 = t22 then 
-	  (match rel1,rel2 with
-	(* equality *)
-	  | EQ,LT | EQ,GT | EQ,NEQ
-	  | LT,EQ | GT,EQ | NEQ,EQ -> true
-	  | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
-	  | _ -> false
-	  )
-	  else if*) t11 = t21 &&
-  (match rel1, t12, rel2, t22 with
-  (* Values *)
-  (* we are using integer arithmatic here 
-   * x > 5 && x < 6 is unsat because no # between 5 and 6
-   *)
-  | LT, Value c1, GT, Value c2
-  | GT, Value c2, LT, Value c1 
-    -> 
-    c1+1 >= c2
-  (* cases with one has n an EQ in it *)
-  | LT, Value c1, GEQ, Value c2
-  | LEQ, Value c1, GT, Value c2
-  | EQ, Value c1, GT, Value c2
-  | LT, Value c1, EQ, Value c2
-    -> c1 <= c2
-  | GT, Value c1, LEQ, Value c2
-  | GEQ, Value c1, LT, Value c2
-  | GT, Value c1, EQ, Value c2
-  | EQ, Value c1, LT, Value c2
-    -> c1 >= c2
-  | LEQ, Value c1, GEQ, Value c2
-  | EQ, Value c1, GEQ, Value c2
-  | LEQ, Value c1, EQ, Value c2
-    -> c1 < c2
-  | GEQ, Value c1, LEQ, Value c2
-  | EQ, Value c1, LEQ, Value c2
-  | GEQ, Value c1, EQ, Value c2
-    -> c1 > c2
-  | EQ, Value c1, EQ, Value c2
-    -> c1 <> c2
-  | _, Variable _, _, Variable _ ->
-    is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
-      (Relation (rel2, Sum [t21; UMinus t22], Value 0))
-  | _, Variable _, _, Sum [(Variable _ as t); Value c] ->
-    is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
-      (Relation (rel2, Sum [t21; UMinus t], Value c))
-  | _, _, _, _ ->
-    negate_rel rel1 = rel2 && t12 = t22)
+  | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
+      t1 = t2 && (match rel1, rel2 with
+      (* we are using integer arithmatic here 
+       * x > 5 && x < 6 is unsat because no # between 5 and 6
+       *)
+      | LT, GT -> c1 + 1 >= c2
+      | GT, LT -> c2 + 1 >= c1
+      (* cases with one has n an EQ in it *)
+      | LT, GEQ
+      | LEQ, GT
+      | EQ, GT
+      | LT, EQ -> c1 <= c2
+      | GT, LEQ
+      | GEQ, LT
+      | GT, EQ
+      | EQ, LT -> c1 >= c2
+      | LEQ, GEQ
+      | EQ, GEQ
+      | LEQ, EQ -> c1 < c2
+      | GEQ, LEQ
+      | EQ, LEQ
+      | GEQ, EQ -> c1 > c2
+      | EQ, EQ  -> c1 <> c2
+      | _, _ ->
+          negate_rel rel1 = rel2 && c1 = c2)
   | False, _
   | _, False -> true
   | And fs, g ->
@@ -107,9 +80,9 @@ let subsumes f g =
     match fs, gs with
     | [], _ -> true
     | _, [] -> false
-    | (Relation _ as f) :: fs, (Relation _ as g) :: gs ->
-      if strengthen && is_unsat f (mk_not g) ||
-	not strengthen && is_unsat (mk_not f) g
+    | (Relation _ as f) :: fs, (Relation _ as g) :: gs
+    | (LinearRelation _ as f) :: fs, (LinearRelation _ as g) :: gs ->
+      if strengthen && is_unsat f (mk_not g) || not strengthen && is_unsat (mk_not f) g
       then subs strengthen fs (g::gs)
       else subs strengthen (f::fs) gs
     | f :: fs, g :: gs ->
@@ -186,13 +159,13 @@ let propagate_truth_context f =
   in
   let isTrue trueHere f =
     match f with
-    | Relation _ ->
+    | Relation _ | LinearRelation _ ->
       FormulaSet.exists (is_unsat (mk_not f)) trueHere
     | _ -> FormulaSet.mem f trueHere
   in
   let isFalse trueHere f =
     match f with
-    | Relation _ ->
+    | Relation _ | LinearRelation _ ->
       FormulaSet.exists (is_unsat f) trueHere
     | _ -> FormulaSet.mem (mk_not f) trueHere
   in
@@ -214,24 +187,7 @@ let propagate_truth_context f =
       Or (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i mk_not fl trueHere in
 	aux trueHere e) fl)
-    (*Or (List.map (aux trueHere) fl)*)
-    | Implication (f1,f2) -> 
-      (* DSN we could go deeper by saying AND(a,b,c) -> d allows us to state 
-       * any of a,b,c *)
-      let lhs = aux trueHere  f1 in
-      let rhs = aux (FormulaSet.add lhs trueHere)  f2 in
-      Implication(lhs,rhs) 
-	
-    | ITE(i,t,e) -> 
-      let i = aux trueHere  i in
-      let t = aux (FormulaSet.add i trueHere) t in
-      (* TODO there ought to be a better way to handle the else case *)
-      let e = aux (FormulaSet.add (mk_not i) trueHere)  e in
-      ITE(i,t,e)
-	
-    (* recurse into the tree *)
-    | Not f1 -> mk_not (aux trueHere f1)
-    | True|False|UnsupportedFormula _ | Relation _ | Boolvar _ | LinearRelation _ -> f
+    | _ -> f
     end
   in
   aux FormulaSet.empty f
@@ -387,13 +343,7 @@ let normalize_formula f =
 
     (* recurse down the tree *)
     | LinearRelation _ -> failwith "need to handle this"
-    | Relation _ -> f
-    | Not f1 -> mk_not (aux f1)
-    | Implication (f1,f2) -> 
-      Implication(aux f1,aux f2) 
-    | ITE(f1,f2,f3) -> 
-      ITE(aux f1,aux f2, aux f3)
-    | True|False|UnsupportedFormula _ | Boolvar _ -> f  
+    | _ -> f  
   in  
   aux f
 
@@ -415,14 +365,37 @@ let simplify_terms f =
   in
   aux f
 
-(* simplify the term as much as possible *)
-(* remove the value to the rhs *)
-(* turn to coefficient form *)
-(* sort by variable *)
-(* combine similar vars to one coefficient *)
-(* remove 0 coefficients *)
 
 
+(* we can strengthen this later *)
+(* return Some reduced if reduction possible. None otherwise *)
+let simplify_and_pair f1 f2 = 
+  None
+
+let simplify_or_pair f1 f2 = 
+  None
+
+let fold_pairs fn lst = 
+  let rec aux = function  
+    | [] -> []
+    | [x] -> [x]
+    | t1::t2::rest -> begin
+      match fn t1 t2 with
+      | Some r -> aux (r::rest)
+      | None -> t1 :: (aux (t2::rest))
+    end    
+  in aux lst
+
+let simplify_formula_2_new f = 
+  let rec aux = function
+    | And fs -> And(fold_pairs simplify_and_pair fs)
+    | Or fs -> Or(fold_pairs simplify_and_pair fs)
+    | Not f -> mk_not (aux f)
+    | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
+    | Implication (f1, f2) -> Implication (aux f1, aux f2)
+    | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
+  in
+  aux f
 let simplify_formula_2 f =
   let rec aux f = 
     match f with
@@ -541,14 +514,8 @@ let simplify_formula f =
   let f = simplify_formula_2 f in
   f
 
-let beautify_formula f =
-  let rec loop f =
-    let f_simple = simplify_formula f in
-    if f = f_simple then
-      f_simple
-    else
-      loop f_simple
-  in loop (nnf f)
+let beautify_formula f = run_fixpt simplify_formula (nnf f)
+
 
 (*
   In the else branch of x_6_6 = 5

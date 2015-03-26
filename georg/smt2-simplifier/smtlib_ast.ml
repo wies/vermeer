@@ -107,6 +107,7 @@ let relation_of_linearrelation op lhs rhs=
 (** Compute negation normal form of a formula *)
 let rec nnf = function
   | Not (Relation (rel, t1, t2)) -> Relation (negate_rel rel, t1, t2)
+  | Not (LinearRelation (rel, t, c)) -> LinearRelation (negate_rel rel, t, c)
   | Not (Not f) -> nnf f
   | Not (And (fs)) ->
       Or (List.map (function f -> nnf (Not f)) fs)
@@ -182,7 +183,12 @@ and simplify_vals vals op identity =
   if v = identity then []
   else [Value(v)]
 
-
+(* simplify the term as much as possible *)
+(* remove the value to the rhs *)
+(* turn to coefficient form *)
+(* sort by variable *)
+(* combine similar vars to one coefficient *)
+(* remove 0 coefficients *)
 let normalize_relation op lhs rhs = 
   (* should only be called on terms of the form
    * -x, a*x, or x
