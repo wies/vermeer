@@ -5,7 +5,6 @@ import subprocess
 import time
 
 trace_file = sys.argv[1]
-smt_simplifier = os.environ['VERMEER_PATH'] + "/georg/smt2-simplifier/smtlib_main.native"
 
 def read_entities_from_file(filename):
   entities = []
