@@ -192,14 +192,6 @@ let  simplify_constants  f  =
     | Relation(GT,a,b) when a = b -> False
     | Relation(NEQ,a,b) when a = b -> False
 
-    (* evaluate according to the known value *)
-    | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
-    | Relation(LEQ,Value(v1), Value(v2)) -> if v1 <= v2 then True else False
-    | Relation(LT,Value(v1), Value(v2)) -> if v1 < v2 then True else False
-    | Relation(GEQ,Value(v1), Value(v2)) -> if v1 >= v2 then True else False
-    | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
-    | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
-
     | And fl when List.exists (fun x -> x = False) fl -> False
     | Or fl when List.exists (fun x -> x = True) fl -> True
 
