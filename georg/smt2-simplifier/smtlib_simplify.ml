@@ -529,14 +529,8 @@ let simplify_formula f =
   let f = simplify_formula_2 f in
   f
 
-let beautify_formula f =
-  let rec loop f =
-    let f_simple = simplify_formula f in
-    if f = f_simple then
-      f_simple
-    else
-      loop f_simple
-  in loop (nnf f)
+let beautify_formula f = run_fixpt simplify_formula (nnf f)
+
 
 (*
   In the else branch of x_6_6 = 5
