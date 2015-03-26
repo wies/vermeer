@@ -52,25 +52,25 @@ let rec compare_form f g =
 let rec is_unsat f g =
   match f, g with
   | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
-    (*if t11 = t21 && t12 = t22 then 
-      (match rel1,rel2 with
-      (* equality *)
-      | EQ,LT | EQ,GT | EQ,NEQ
-      | LT,EQ | GT,EQ | NEQ,EQ -> true
-      | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
-      | _ -> false
-      )
-      else if*) t11 = t21 &&
+	(*if t11 = t21 && t12 = t22 then 
+	  (match rel1,rel2 with
+	(* equality *)
+	  | EQ,LT | EQ,GT | EQ,NEQ
+	  | LT,EQ | GT,EQ | NEQ,EQ -> true
+	  | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
+	  | _ -> false
+	  )
+	  else if*) t11 = t21 &&
   (match rel1, t12, rel2, t22 with
-      (* Values *)
-      (* we are using integer arithmatic here 
-       * x > 5 && x < 6 is unsat because no # between 5 and 6
-       *)
+  (* Values *)
+  (* we are using integer arithmatic here 
+   * x > 5 && x < 6 is unsat because no # between 5 and 6
+   *)
   | LT, Value c1, GT, Value c2
   | GT, Value c2, LT, Value c1 
     -> 
     c1+1 >= c2
-      (* cases with one has n an EQ in it *)
+  (* cases with one has n an EQ in it *)
   | LT, Value c1, GEQ, Value c2
   | LEQ, Value c1, GT, Value c2
   | EQ, Value c1, GT, Value c2
@@ -233,7 +233,7 @@ let propagate_truth_context f =
 
     (* in the context of an and, all other clauses in the and
      * are also true in the context of this one *)
-    
+      
     | And fl -> 
       let fl = remove_duplicates true fl in
       And (List.mapi (fun i e -> 
@@ -437,7 +437,7 @@ let rec simplify_term t =
     List.append fs1 (List.concat fs2_extracted)
   in
   match t with
-    (* Handle constants *)
+  (* Handle constants *)
   | UMinus (Value c) -> Value (-c)
   | UMinus (Sum ts) ->
     simplify_term (Sum (List.map (function t -> UMinus t) ts))
@@ -445,9 +445,9 @@ let rec simplify_term t =
     simplify_term (Mult (Value(-1) :: ts))
   | Sum [x] -> x
   | Mult [x] -> x
-    (* do we want to distribute mults across sums ??? *)
+  (* do we want to distribute mults across sums ??? *)
     
-    (* Normalize so that sums and mults always have the variable(s) on the left *)
+  (* Normalize so that sums and mults always have the variable(s) on the left *)
   | Sum(lst) -> 
     let lst = List.map simplify_term lst in
     let (vars,vals,rest) = split_vars_vals lst in
@@ -459,8 +459,8 @@ let rec simplify_term t =
     let (vars,vals,rest) = split_vars_vals lst in
     let vals = simplify_vals vals ( * ) 1 in
     let rest = flatten_nested_mults rest in
-      (* distribute multiplication inside addition
-       * this opens up more normalization oppertunities *)
+    (* distribute multiplication inside addition
+     * this opens up more normalization oppertunities *)
     match vars,vals,rest with
     | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
     | _ -> Mult(vars @ vals  @ rest)
@@ -472,7 +472,7 @@ and simplify_vals vals op identity =
     | Value v -> op a v
     | _ -> failwith "should be only values here"
     ) identity vals in
-    (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
+  (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
   if v = identity then []
   else [Value(v)]
     
@@ -493,34 +493,75 @@ let simplify_terms f =
   in
   aux f
 
+(* simplify the term as much as possible *)
+(* remove the value to the rhs *)
+(* turn to coefficient form *)
+(* sort by variable *)
+(* combine similar vars to one coefficient *)
+(* remove 0 coefficients *)
+
+
 let normalize_relation op lhs rhs = 
+  (* should only be called on terms of the form
+   * -x, a*x, or x
+   *)
+  let convert_to_coeff = function 
+    | UMinus (Variable v) -> (-1,v)
+    | Variable var -> (1,var)
+    | Mult lst -> begin
+      let (vars,vals,rest) = split_vars_vals lst in
+      match (vars,vals,rest) with 
+      | [Variable var],[Value value],[] -> (value,var)
+      | _ -> failwith "cannot convert"
+    end
+    | _ -> failwith "cannot convert to coefficient"
+  in  
+  let simplify_coeff coeffs =
+    let sort_coeff = List.sort (fun (c1,v1) (c2,v2) -> compare v1 v2) in
+    let rec aux = function
+      | [] -> [] 
+      | (c1,v1)::(c2,v2)::rest when v1 = v2 -> aux ((c1+c2,v1)::rest)
+      | a::rest -> a::(aux rest)
+    in 
+    let coeffs = sort_coeff coeffs in
+    let coeffs = aux coeffs in
+    let coeffs = List.filter (fun (c,v) -> c <> 0) coeffs in
+    coeffs
+  in
+  (* returns a sorted, normalized list of coefficients *)
+  let get_coeffs tl = 
+    let coeffs = List.map convert_to_coeff tl in
+    simplify_coeff coeffs
+  in
+  (*ensure that the first coefficient has positive polarity*)
+  let begin_with_positive op lhs value = 
+    let (c,v) = List.hd lhs in
+    if c < 0 then begin
+      let op = negate_rel op in
+      let value = -value in
+      let lhs = List.map (fun (c,v) -> (-c,v)) lhs in
+      LinearRelation(op,lhs,value)
+    end else
+      LinearRelation(op,lhs,value)
+  in
+  let get_value = function 
+    | [] -> 0
+    | [Value v] -> v 
+    | _ -> failwith "should really have been a value here"
+  in
   (*first, move everything interresting to the lhs *)
   (* RHS is implictly 0 now *)
   let newLHS = Sum[lhs;UMinus rhs] in
   let newLHS = run_fixpt simplify_term newLHS in
-  let linearList =  
+  let linearList,newRHS =  
     match newLHS with 
-    | Sum tl -> List.map (
-      function
-      | Variable var -> (1,var)
-      | Mult lst -> begin
-	let (vars,vals,rest) = split_vars_vals lst in
-	match (vars,vals,rest) with 
-	| [Variable var],[Value value],[] -> (value,var)
-	| _ -> failwith "cannot convert"
-      end
-      | _ -> failwith "cannot convert"
-    ) tl
-    | Mult tl -> begin match split_vars_vals tl with
-      | [Variable var],[Value value],[] -> [(value,var)]
-      | _ -> failwith "bad mult form"	
-    end
-    | Variable v -> [(1,v)]
-    | UMinus (Variable v) -> [(-1,v)]
-    | _ -> failwith "wtf"
+    | Sum tl -> 
+      let (vars,vals,sums,mults,rest) = split_term_list tl in
+      assert (sums = []);
+      get_coeffs (vars @ mults @ rest), get_value vals
+    | _ -> get_coeffs[newLHS], 0
   in
-  (* normalize so that we start with a positive constant *)
-  linearList
+  begin_with_positive op linearList newRHS
 
 let simplify_formula_2 f =
   let rec aux f = 
@@ -592,10 +633,10 @@ let simplify_formula_2 f =
           | _, _ -> And [g1; h]
         end
       in
-        (*print_endline "Before simplify: ";
-          print_formula f ""; print_newline ();
-          print_endline "After simplify: ";
-          print_formula f1 ""; print_newline ();*)
+      (*print_endline "Before simplify: ";
+        print_formula f ""; print_newline ();
+        print_endline "After simplify: ";
+        print_formula f1 ""; print_newline ();*)
       f1
     | LinearRelation _ -> failwith "need to handle this"
     | Or(fs) ->
