@@ -478,7 +478,6 @@ and simplify_vals vals op identity =
     
 
 let simplify_terms f = 
-
   let rec aux f = 
     match f with 
     (* base case: something with terms *)
@@ -498,17 +497,30 @@ let normalize_relation op lhs rhs =
   (*first, move everything interresting to the lhs *)
   (* RHS is implictly 0 now *)
   let newLHS = Sum[lhs;UMinus rhs] in
-  let newLHS = run_fixpt simplify_terms newLHS in
-  match newLHS with 
-  | Sum tl -> 
-  | Variable v -> 
-  | Mult tl ->
-  | Uminus (Variable v) ->
-  |  _ -> Relation(op,lhs,rhs)
-    lhs
-  | _ -> failwith "wtf"
-
-
+  let newLHS = run_fixpt simplify_term newLHS in
+  let linearList =  
+    match newLHS with 
+    | Sum tl -> List.map (
+      function
+      | Variable var -> (1,var)
+      | Mult lst -> begin
+	let (vars,vals,rest) = split_vars_vals lst in
+	match (vars,vals,rest) with 
+	| [Variable var],[Value value],[] -> (value,var)
+	| _ -> failwith "cannot convert"
+      end
+      | _ -> failwith "cannot convert"
+    ) tl
+    | Mult tl -> begin match split_vars_vals tl with
+      | [Variable var],[Value value],[] -> [(value,var)]
+      | _ -> failwith "bad mult form"	
+    end
+    | Variable v -> [(1,v)]
+    | UMinus (Variable v) -> [(-1,v)]
+    | _ -> failwith "wtf"
+  in
+  (* normalize so that we start with a positive constant *)
+  linearList
 
 let simplify_formula_2 f =
   let rec aux f = 
