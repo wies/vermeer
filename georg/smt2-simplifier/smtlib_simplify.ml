@@ -411,6 +411,7 @@ let simplify_formula_2_new f =
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
   in
   aux f
+
 let simplify_formula_2 f =
   let rec aux f = 
     match f with
