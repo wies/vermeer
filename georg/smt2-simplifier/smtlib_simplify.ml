@@ -4,8 +4,7 @@ module FormulaSet = Set.Make(
   struct
     let compare = Pervasives.compare
     type t = formula
-  end
-);;
+  end)
 
 
 let rec compare_form f g =
@@ -38,8 +37,8 @@ let rec compare_form f g =
   | f, g -> compare f g
 
 (** Check whether conjunction of the two formulas is unsat.
-    * Assumes formulas are in negation normal form
-*)
+ ** Assumes formulas are in negation normal form.
+ *)
 let rec is_unsat f g =
   match f, g with
   | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
@@ -129,21 +128,16 @@ let propagate_truth_context f =
 	else (i+1, FormulaSet.add (fn e) a)) (0, set) lst
     in result
   in
-  let isTrue trueHere f =
+  let check truth trueHere f =
+    let f1, f2 = if truth then mk_not f, f else f, mk_not f in
     match f with
     | Relation _ | LinearRelation _ ->
-      FormulaSet.exists (is_unsat (mk_not f)) trueHere
-    | _ -> FormulaSet.mem f trueHere
-  in
-  let isFalse trueHere f =
-    match f with
-    | Relation _ | LinearRelation _ ->
-      FormulaSet.exists (is_unsat f) trueHere
-    | _ -> FormulaSet.mem (mk_not f) trueHere
+      FormulaSet.exists (is_unsat f1) trueHere
+    | _ -> FormulaSet.mem f2 trueHere
   in
   let rec aux trueHere  f = 
-    if isTrue trueHere f then True
-    else if isFalse trueHere f then False 
+    if check true trueHere f then True
+    else if check false trueHere f then False 
     else begin match f with
     (* in the context of an And, all other clauses in the And
      * are also true in the context of this one (and dualy for Or) *)  
@@ -200,8 +194,8 @@ let  simplify_constants  f  =
     | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
     | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
 
-    | And fl when List.exists (fun x -> x = False) fl -> False
-    | Or fl when List.exists (fun x -> x = True) fl -> True
+    | And fl when List.mem False fl -> False
+    | Or fl when List.mem True fl -> True
 
     (* Important that this happens after we have done the above test *)
     | And fl -> And(List.map aux (remove_logical_consts fl))
