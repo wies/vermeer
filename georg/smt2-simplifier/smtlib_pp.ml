@@ -3,6 +3,7 @@
 open Smtlib_syntax;;
 open Smtlib_ast;;
 open Smtlib_simplify;;
+open Smtlib_ast_print
 
 module LetMappings = Map.Make(
   struct

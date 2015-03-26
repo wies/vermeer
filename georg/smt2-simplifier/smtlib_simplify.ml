@@ -1,5 +1,7 @@
 open Smtlib_util
 open Smtlib_ast
+open Smtlib_normalize
+open Smtlib_ast_print
 
 module FormulaSet = Set.Make(
   struct
