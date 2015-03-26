@@ -301,7 +301,7 @@ let fold_pairs fn lst =
 let simplify_formula_2 f = 
   let rec aux = function
     | And fs -> And(fold_pairs simplify_and_pair fs)
-    | Or fs -> Or(fold_pairs simplify_and_pair fs)
+    | Or fs -> Or(fold_pairs simplify_or_pair fs)
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
   in
