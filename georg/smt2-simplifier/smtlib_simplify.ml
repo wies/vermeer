@@ -205,7 +205,15 @@ let  simplify_constants  f  =
     | True | False | UnsupportedFormula _ -> f
     (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
     | Boolvar _ -> True
-    | LinearRelation _ -> failwith "need to handle this"
+    | LinearRelation (EQ, [], 0) 
+    | LinearRelation (LEQ, [], 0)
+    | LinearRelation (GEQ, [], 0) -> True
+    | LinearRelation (EQ, [], _)
+    | LinearRelation (NEQ, [], 0) -> False
+    | LinearRelation (LEQ, [], v)
+    | LinearRelation (LT, [], v) -> if v > 0 then True else False
+    | LinearRelation (GEQ, [], v)
+    | LinearRelation (GT, [], v) -> if v < 0 then True else False
 
     (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True
@@ -247,6 +255,7 @@ let  simplify_constants  f  =
     | Not f1 -> mk_not (aux f1)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
     (* Don't simplify terms here *)
+    | LinearRelation _ 
     | Relation _ -> f
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
   in aux f
@@ -255,86 +264,20 @@ let  simplify_constants  f  =
 
 let normalize_formula f = 
   let flatten_nested_ands lst = 
-    let fs1, fs2 =  List.partition 
-      (fun (f) -> match f with | And(_) -> false | _ -> true) lst in
-    let fs2_extracted =
-      List.map (fun (f) -> match f with | And(gs) -> gs | _ -> []) fs2
-    in
-    List.append fs1 (List.concat fs2_extracted)
+    List.fold_right (function And gs -> fun acc -> gs @ acc | f -> fun acc -> f :: acc) lst []
   in
   let flatten_nested_ors lst = 
-    let fs1, fs2 =  List.partition 
-      (fun (f) -> match f with | Or(_) -> false | _ -> true) lst in
-    let fs2_extracted =
-      List.map (fun (f) -> match f with | Or(gs) -> gs | _ -> []) fs2
-    in
-    List.append fs1 (List.concat fs2_extracted)
+    List.fold_right (function Or gs -> fun acc -> gs @ acc | f -> fun acc -> f :: acc) lst []
   in
-
   let rec aux f = 
-    (* Normalize relations.  We want the precendence 
-     * variable (in sorted order), 
-     * non-variable expression,
-     * value
-     *)
-    
     match f with 
-    (* For two vars, put them in lex order *)
-    | Relation(oldOp, Variable x, Variable y) ->
-      if x < y then f else Relation(invert_rel oldOp,Variable y, Variable x)
-	
-    (* move the variable to the left *)
-    | Relation(op,y,Variable x) -> Relation(invert_rel op,Variable(x),y)
-
-    (* move the value to the right *)
-    | Relation(op,Value v,x) -> Relation(invert_rel op,x,Value v)
-
-    (* Deeper look into relations - move constants out of sums *)
-    (* t1 + v1 = v2 ~~~ t1 = v2 - v1*)
-    (* DSN TODO - should be able to make this more general *)
-    | Relation(op,Sum([ t1 ; Value(v1) ]), Value(v2)) -> 
-      Relation(op,t1, Value(v2 - v1))
-
-    (*convert  (x_156_1 +  (x_157_1 * -1)) <= 0 to x_156_1 <= x_157_1 *)
-    | Relation(op,
-	       Sum[Variable x; Mult[Variable y; Value v1]], 
-	       Value v2) -> 
-      Relation(op,
-	       Variable x,
-	       Sum[Mult[Variable y; Value (v1 * (-1))];Value v2])
-
-    (* convert (x_47_1 + (1 + (x_48_1 * -1))) <= 0 to x_47_1 <= x_48_1 - 1 *) 
-    | Relation(op,
-	       Sum[Variable x; Value v0; Mult[Variable y; Value v1]], 
-	       Value v2) ->
-      Relation(op,
-	       Variable x, 
-	       Sum[Mult [Sum[Value v0; Mult[Variable y; Value v1]]; Value (-1)];
-		   Value v2]) 
-	
-    (* x <= y - 1 ~~~ x < y *)
-    (* TODO generalize *)
-    | Relation(LEQ, Variable(v1), Sum([ Variable(v2); Value(-1) ])) ->
-      Relation(LT, Variable(v1), Variable(v2))
-    | Relation(GT, Variable(v1), Sum([ Variable(v2); Value(-1) ])) ->
-      Relation(GEQ, Variable(v1), Variable(v2))
-
-    (* (x_17_3 * -1) <= 0 *)
-    | Relation(op, Mult [Variable v1; Value(-1)], Value v) ->
-      Relation(invert_rel op, Variable v1, Value (v * -1))
-	
-
     (* Structural normalization *)
-    | Not Not f1 -> aux f1
     | And []  -> True
     | And [f1] -> aux f1
-    | And lst -> And(List.map aux (remove_duplicates true (flatten_nested_ands lst)))
+    | And lst -> And (List.map aux (remove_duplicates true (flatten_nested_ands lst)))
     | Or []  -> False
     | Or [f1] -> aux f1
-    | Or lst -> Or(List.map aux (remove_duplicates false (flatten_nested_ors lst)))
-
-    (* recurse down the tree *)
-    | LinearRelation _ -> failwith "need to handle this"
+    | Or lst -> Or (List.map aux (remove_duplicates false (flatten_nested_ors lst)))
     | _ -> f  
   in  
   aux f
