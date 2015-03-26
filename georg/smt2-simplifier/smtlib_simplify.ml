@@ -1,3 +1,4 @@
+open Smtlib_util
 open Smtlib_ast
 
 module FormulaSet = Set.Make(
@@ -282,8 +283,7 @@ let simplify_and_pair f1 f2 =
   | _ ->
     None
 
-let simplify_or_pair f1 f2 = 
-  None
+let simplify_or_pair f1 f2 = Opt.map mk_not (simplify_and_pair (mk_not f1) (mk_not f2))
 
 let fold_pairs fn lst = 
   let rec aux = function  
