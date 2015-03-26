@@ -205,7 +205,15 @@ let  simplify_constants  f  =
     | True | False | UnsupportedFormula _ -> f
     (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
     | Boolvar _ -> True
-    | LinearRelation _ -> failwith "need to handle this"
+    | LinearRelation (EQ, [], 0) 
+    | LinearRelation (LEQ, [], 0)
+    | LinearRelation (GEQ, [], 0) -> True
+    | LinearRelation (EQ, [], _)
+    | LinearRelation (NEQ, [], 0) -> False
+    | LinearRelation (LEQ, [], v)
+    | LinearRelation (LT, [], v) -> if v > 0 then True else False
+    | LinearRelation (GEQ, [], v)
+    | LinearRelation (GT, [], v) -> if v < 0 then True else False
 
     (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True
@@ -247,6 +255,7 @@ let  simplify_constants  f  =
     | Not f1 -> mk_not (aux f1)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
     (* Don't simplify terms here *)
+    | LinearRelation _ 
     | Relation _ -> f
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
   in aux f
@@ -269,6 +278,7 @@ let normalize_formula f =
     | Or []  -> False
     | Or [f1] -> aux f1
     | Or lst -> Or (List.map aux (remove_duplicates false (flatten_nested_ors lst)))
+    | Relation (op,lhs,rhs) -> normalize_relation op lhs rhs
     | _ -> f  
   in  
   aux f
@@ -303,6 +313,7 @@ let simplify_formula_2_new f =
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
   in
   aux f
+
 let simplify_formula_2 f =
   let rec aux f = 
     match f with

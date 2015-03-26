@@ -92,7 +92,7 @@ let print_relation rel =
   print_string " ";
   print_string (string_of_relation rel);
   print_string " "
-  
+    
 let relation_of_linearrelation op lhs rhs= 
   let mults = List.map (fun (coeff,var) ->
     match coeff with 
@@ -110,9 +110,9 @@ let rec nnf = function
   | Not (LinearRelation (rel, t, c)) -> LinearRelation (negate_rel rel, t, c)
   | Not (Not f) -> nnf f
   | Not (And (fs)) ->
-      Or (List.map (function f -> nnf (Not f)) fs)
+    Or (List.map (function f -> nnf (Not f)) fs)
   | Not (Or (fs)) ->
-      And (List.map (function f -> nnf (Not f)) fs)
+    And (List.map (function f -> nnf (Not f)) fs)
   | Not True -> False
   | Not False -> True
   | Not (Implication (f1, f2)) -> And [nnf f1; nnf (Not f2)]
