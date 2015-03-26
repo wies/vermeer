@@ -340,8 +340,7 @@ let simplify_and_pair f1 f2 =
       
   | LinearRelation(LEQ,t1,c1), LinearRelation(GEQ, t2,c2)
   | LinearRelation(GEQ,t1,c1), LinearRelation(LEQ, t2,c2) 
-    when t1 = t2 && c1 = c2
-    ->
+    when t1 = t2 && c1 = c2 ->
     Some (LinearRelation(EQ, t1, c1))
 
   (* DSN this does not feel exhausetive.  
