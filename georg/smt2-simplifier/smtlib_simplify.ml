@@ -7,11 +7,6 @@ module FormulaSet = Set.Make(
   end
 );;
 
-let rec run_fixpt fn term = 
-  let newTerm = fn term in
-  if newTerm = term 
-  then term 
-  else run_fixpt fn newTerm
 
 let rec compare_form f g =
   let rec compare_lex fs gs =
@@ -168,31 +163,6 @@ let formula_size f =
   !size
 
 
-let sort_vars = List.sort 
-  (fun x y -> match x,y with 
-  | Variable x, Variable y -> compare x y
-  | _ -> failwith "not a var???")
-
-(*Could make this slightly faster but who cares *)
-let split_term_list tl = 
-  let (vars,rest) = List.partition 
-    (fun x -> match x with | Variable _ -> true | _ -> false) tl in
-  let vars = sort_vars vars in
-  let (vals,rest) = List.partition
-    (fun x -> match x with  Value _ -> true | _ -> false) rest in
-  let (sums,rest)  = List.partition
-    (fun x -> match x with  Sum _ -> true | _ -> false) rest in
-  let (mults,rest)  = List.partition
-    (fun x -> match x with  Mult _ -> true | _ -> false) rest in
-  (vars,vals,sums,mults,rest)
-
-let split_vars_vals tl : (term list * term list * term list)= 
-  let (vars,rest) = List.partition 
-    (fun x -> match x with | Variable _ | UMinus (Variable _) -> true | _ -> false) tl in
-  let vars = sort_vars vars in
-  let (vals,rest) = List.partition
-    (fun x -> match x with  Value _ -> true | _ -> false) rest in
-  (vars,vals,rest)
 
 
 
@@ -419,69 +389,13 @@ let normalize_formula f =
   in  
   aux f
 
-let rec simplify_term t = 
-  let flatten_nested_mults lst = 
-    let fs1, fs2 =  List.partition 
-      (fun (f) -> match f with | Mult(_) -> false | _ -> true) lst in
-    let fs2_extracted =
-      List.map (fun (f) -> match f with | Mult(gs) -> gs | _ -> []) fs2
-    in
-    List.append fs1 (List.concat fs2_extracted)
-  in
-  let flatten_nested_sums lst = 
-    let fs1, fs2 =  List.partition 
-      (fun (f) -> match f with | Sum(_) -> false | _ -> true) lst in
-    let fs2_extracted =
-      List.map (fun (f) -> match f with | Sum(gs) -> gs | _ -> []) fs2
-    in
-    List.append fs1 (List.concat fs2_extracted)
-  in
-  match t with
-  (* Handle constants *)
-  | UMinus (Value c) -> Value (-c)
-  | UMinus (Sum ts) ->
-    simplify_term (Sum (List.map (function t -> UMinus t) ts))
-  | UMinus (Mult ts) ->
-    simplify_term (Mult (Value(-1) :: ts))
-  | Sum [x] -> x
-  | Mult [x] -> x
-  (* do we want to distribute mults across sums ??? *)
-    
-  (* Normalize so that sums and mults always have the variable(s) on the left *)
-  | Sum(lst) -> 
-    let lst = List.map simplify_term lst in
-    let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals (+) 0 in
-    let rest = flatten_nested_sums rest in
-    Sum(vars @ vals  @ rest)
-  | Mult(lst) -> begin
-    let lst = List.map simplify_term lst in
-    let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals ( * ) 1 in
-    let rest = flatten_nested_mults rest in
-    (* distribute multiplication inside addition
-     * this opens up more normalization oppertunities *)
-    match vars,vals,rest with
-    | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
-    | _ -> Mult(vars @ vals  @ rest)
-  end
-  | Variable _ | Value _ | UnsupportedTerm _ | UMinus _ -> t
-and simplify_vals vals op identity =
-  let v = List.fold_left 
-    (fun a x -> match x with 
-    | Value v -> op a v
-    | _ -> failwith "should be only values here"
-    ) identity vals in
-  (* If + simplified to 0, then no need to add it.  Same for * and 1 *) 
-  if v = identity then []
-  else [Value(v)]
     
 
 let simplify_terms f = 
   let rec aux f = 
     match f with 
     (* base case: something with terms *)
-    | Relation(op,t1,t2) -> Relation(op,simplify_term t1, simplify_term t2)
+    | Relation(op,t1,t2) -> Relation(op,normalize_term t1, normalize_term t2)
 
     (* recurse down the tree *)
     | True|False|UnsupportedFormula _ | Boolvar _ | LinearRelation _ -> f
@@ -500,68 +414,6 @@ let simplify_terms f =
 (* combine similar vars to one coefficient *)
 (* remove 0 coefficients *)
 
-
-let normalize_relation op lhs rhs = 
-  (* should only be called on terms of the form
-   * -x, a*x, or x
-   *)
-  let convert_to_coeff = function 
-    | UMinus (Variable v) -> (-1,v)
-    | Variable var -> (1,var)
-    | Mult lst -> begin
-      let (vars,vals,rest) = split_vars_vals lst in
-      match (vars,vals,rest) with 
-      | [Variable var],[Value value],[] -> (value,var)
-      | _ -> failwith "cannot convert"
-    end
-    | _ -> failwith "cannot convert to coefficient"
-  in  
-  let simplify_coeff coeffs =
-    let sort_coeff = List.sort (fun (c1,v1) (c2,v2) -> compare v1 v2) in
-    let rec aux = function
-      | [] -> [] 
-      | (c1,v1)::(c2,v2)::rest when v1 = v2 -> aux ((c1+c2,v1)::rest)
-      | a::rest -> a::(aux rest)
-    in 
-    let coeffs = sort_coeff coeffs in
-    let coeffs = aux coeffs in
-    let coeffs = List.filter (fun (c,v) -> c <> 0) coeffs in
-    coeffs
-  in
-  (* returns a sorted, normalized list of coefficients *)
-  let get_coeffs tl = 
-    let coeffs = List.map convert_to_coeff tl in
-    simplify_coeff coeffs
-  in
-  (*ensure that the first coefficient has positive polarity*)
-  let begin_with_positive op lhs value = 
-    let (c,v) = List.hd lhs in
-    if c < 0 then begin
-      let op = negate_rel op in
-      let value = -value in
-      let lhs = List.map (fun (c,v) -> (-c,v)) lhs in
-      LinearRelation(op,lhs,value)
-    end else
-      LinearRelation(op,lhs,value)
-  in
-  let get_value = function 
-    | [] -> 0
-    | [Value v] -> v 
-    | _ -> failwith "should really have been a value here"
-  in
-  (*first, move everything interresting to the lhs *)
-  (* RHS is implictly 0 now *)
-  let newLHS = Sum[lhs;UMinus rhs] in
-  let newLHS = run_fixpt simplify_term newLHS in
-  let linearList,newRHS =  
-    match newLHS with 
-    | Sum tl -> 
-      let (vars,vals,sums,mults,rest) = split_term_list tl in
-      assert (sums = []);
-      get_coeffs (vars @ mults @ rest), get_value vals
-    | _ -> get_coeffs[newLHS], 0
-  in
-  begin_with_positive op linearList newRHS
 
 let simplify_formula_2 f =
   let rec aux f = 

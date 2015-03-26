@@ -2,7 +2,7 @@
 
 DIRS="-Is ."
 TARGET="smtlib_main "
-FLAGS="-cflag -g -lflag -g -libs unix,str $DIRS"
+FLAGS="-cflag -g -lflag -g -libs unix,str,nums $DIRS"
 OCAMLBUILD=ocamlbuild
 
 ocb()
