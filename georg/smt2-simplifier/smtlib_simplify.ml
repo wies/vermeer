@@ -185,12 +185,14 @@ let  simplify_constants  f  =
     | LinearRelation (GT, [], v) -> if v < 0 then True else False
 
     (* We can special case a = a *)
-    | Relation(EQ,a,b) when a = b -> True
-    | Relation(LEQ,a,b) when a = b -> True
-    | Relation(LT,a,b) when a = b -> False
-    | Relation(GEQ,a,b) when a = b -> True
-    | Relation(GT,a,b) when a = b -> False
-    | Relation(NEQ,a,b) when a = b -> False
+    | Relation(EQ,a,b) 
+    | Relation(LEQ,a,b)
+    | Relation(GEQ,a,b) 
+	when a = b -> True
+    | Relation(LT,a,b)
+    | Relation(GT,a,b)
+    | Relation(NEQ,a,b) 
+	when a = b -> False
 
     | And fl when List.exists (fun x -> x = False) fl -> False
     | Or fl when List.exists (fun x -> x = True) fl -> True
