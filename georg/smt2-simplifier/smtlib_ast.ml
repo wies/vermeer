@@ -182,7 +182,12 @@ and simplify_vals vals op identity =
   if v = identity then []
   else [Value(v)]
 
-
+(* simplify the term as much as possible *)
+(* remove the value to the rhs *)
+(* turn to coefficient form *)
+(* sort by variable *)
+(* combine similar vars to one coefficient *)
+(* remove 0 coefficients *)
 let normalize_relation op lhs rhs = 
   (* should only be called on terms of the form
    * -x, a*x, or x

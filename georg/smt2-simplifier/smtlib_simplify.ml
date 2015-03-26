@@ -407,14 +407,37 @@ let simplify_terms f =
   in
   aux f
 
-(* simplify the term as much as possible *)
-(* remove the value to the rhs *)
-(* turn to coefficient form *)
-(* sort by variable *)
-(* combine similar vars to one coefficient *)
-(* remove 0 coefficients *)
 
 
+(* we can strengthen this later *)
+(* return Some reduced if reduction possible. None otherwise *)
+let simplify_and_pair f1 f2 = 
+  None
+
+let simplify_or_pair f1 f2 = 
+  None
+
+let fold_pairs fn lst = 
+  let rec aux = function  
+    | [] -> []
+    | [x] -> [x]
+    | t1::t2::rest -> begin
+      match fn t1 t2 with
+      | Some r -> aux (r::rest)
+      | None -> t1 :: (aux (t2::rest))
+    end    
+  in aux lst
+
+let simplify_formula_2_new f = 
+  let rec aux = function
+    | And fs -> And(fold_pairs simplify_and_pair fs)
+    | Or fs -> Or(fold_pairs simplify_and_pair fs)
+    | Not f -> mk_not (aux f)
+    | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
+    | Implication (f1, f2) -> Implication (aux f1, aux f2)
+    | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
+  in
+  aux f
 let simplify_formula_2 f =
   let rec aux f = 
     match f with
