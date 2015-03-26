@@ -22,13 +22,9 @@ let rec compare_form f g =
   in
   match (f, g) with
   | Relation (rel1, t1, t2), Relation (rel2, t3, t4) ->
-    let c13 = compare t1 t3 in
-    if c13 = 0 then
-      let c24 = compare t2 t4 in
-      if c24 = 0
-      then compare rel1 rel2
-      else c24
-    else c13
+      compare (t1, t2, rel1) (t3, t4, rel2)
+  | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
+      compare (t1, c1, rel1) (t2, c2, rel2)        
   | Not f, Not g ->
     compare_form f g
   | And fs, And gs ->
@@ -46,54 +42,31 @@ let rec compare_form f g =
 *)
 let rec is_unsat f g =
   match f, g with
-  | Relation (rel1, t11, t12), Relation (rel2, t21, t22) ->
-	(*if t11 = t21 && t12 = t22 then 
-	  (match rel1,rel2 with
-	(* equality *)
-	  | EQ,LT | EQ,GT | EQ,NEQ
-	  | LT,EQ | GT,EQ | NEQ,EQ -> true
-	  | LEQ,GT | GEQ,LT | LT,GT | GT,LT -> true
-	  | _ -> false
-	  )
-	  else if*) t11 = t21 &&
-  (match rel1, t12, rel2, t22 with
-  (* Values *)
-  (* we are using integer arithmatic here 
-   * x > 5 && x < 6 is unsat because no # between 5 and 6
-   *)
-  | LT, Value c1, GT, Value c2
-  | GT, Value c2, LT, Value c1 
-    -> 
-    c1+1 >= c2
-  (* cases with one has n an EQ in it *)
-  | LT, Value c1, GEQ, Value c2
-  | LEQ, Value c1, GT, Value c2
-  | EQ, Value c1, GT, Value c2
-  | LT, Value c1, EQ, Value c2
-    -> c1 <= c2
-  | GT, Value c1, LEQ, Value c2
-  | GEQ, Value c1, LT, Value c2
-  | GT, Value c1, EQ, Value c2
-  | EQ, Value c1, LT, Value c2
-    -> c1 >= c2
-  | LEQ, Value c1, GEQ, Value c2
-  | EQ, Value c1, GEQ, Value c2
-  | LEQ, Value c1, EQ, Value c2
-    -> c1 < c2
-  | GEQ, Value c1, LEQ, Value c2
-  | EQ, Value c1, LEQ, Value c2
-  | GEQ, Value c1, EQ, Value c2
-    -> c1 > c2
-  | EQ, Value c1, EQ, Value c2
-    -> c1 <> c2
-  | _, Variable _, _, Variable _ ->
-    is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
-      (Relation (rel2, Sum [t21; UMinus t22], Value 0))
-  | _, Variable _, _, Sum [(Variable _ as t); Value c] ->
-    is_unsat (Relation (rel1, Sum [t11; UMinus t12], Value 0))
-      (Relation (rel2, Sum [t21; UMinus t], Value c))
-  | _, _, _, _ ->
-    negate_rel rel1 = rel2 && t12 = t22)
+  | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
+      t1 = t2 && (match rel1, rel2 with
+      (* we are using integer arithmatic here 
+       * x > 5 && x < 6 is unsat because no # between 5 and 6
+       *)
+      | LT, GT -> c1 + 1 >= c2
+      | GT, LT -> c2 + 1 >= c1
+      (* cases with one has n an EQ in it *)
+      | LT, GEQ
+      | LEQ, GT
+      | EQ, GT
+      | LT, EQ -> c1 <= c2
+      | GT, LEQ
+      | GEQ, LT
+      | GT, EQ
+      | EQ, LT -> c1 >= c2
+      | LEQ, GEQ
+      | EQ, GEQ
+      | LEQ, EQ -> c1 < c2
+      | GEQ, LEQ
+      | EQ, LEQ
+      | GEQ, EQ -> c1 > c2
+      | EQ, EQ  -> c1 <> c2
+      | _, _ ->
+          negate_rel rel1 = rel2 && c1 = c2)
   | False, _
   | _, False -> true
   | And fs, g ->

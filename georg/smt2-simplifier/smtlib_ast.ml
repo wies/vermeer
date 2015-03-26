@@ -107,6 +107,7 @@ let relation_of_linearrelation op lhs rhs=
 (** Compute negation normal form of a formula *)
 let rec nnf = function
   | Not (Relation (rel, t1, t2)) -> Relation (negate_rel rel, t1, t2)
+  | Not (LinearRelation (rel, t, c)) -> LinearRelation (negate_rel rel, t, c)
   | Not (Not f) -> nnf f
   | Not (And (fs)) ->
       Or (List.map (function f -> nnf (Not f)) fs)
