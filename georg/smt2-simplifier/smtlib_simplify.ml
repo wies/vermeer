@@ -306,7 +306,33 @@ let simplify_terms f =
 (* we can strengthen this later *)
 (* return Some reduced if reduction possible. None otherwise *)
 let simplify_and_pair f1 f2 = 
-  None
+  match f1,f2 with
+  | LinearRelation(GEQ, t1,  c1) , LinearRelation(GT, t2,  c2) 
+    when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
+    let c = max c1 (c2 + 1) in
+    Some (LinearRelation(GEQ,t1,c))
+  | LinearRelation(GT, t1,  c1) , LinearRelation(LEQ, t2,  c2)
+      when t1 = t2 && c1 + 1 = c2 ->
+    Some (LinearRelation(EQ, t1,  c2))
+  | LinearRelation(LT, t2,  c2) , LinearRelation(GEQ, t1,  c1) 
+      when t1 = t2 && c1 + 1 = c2 ->
+    Some (LinearRelation(EQ, t1,  c1))
+  | LinearRelation(GEQ, t1,  c1) , LinearRelation(GEQ, t2,  c2) 
+      when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
+    let c = max c1 c2 in
+    Some(LinearRelation(GEQ, t1, c))
+  | LinearRelation(GEQ, t1, c1) , LinearRelation(EQ, t2, c2)
+    when t1 = t2 && c1 <= c2 ->
+    Some(LinearRelation(EQ, t2, c2))
+  | LinearRelation(GT, t1, c1) , LinearRelation(EQ, t2, c2) 
+    when t1 = t2 && c1 < c2 ->
+    Some (LinearRelation(EQ, t2, c2))
+  | LinearRelation(LEQ, t1, c1) , LinearRelation(LEQ, t2, c2) 
+    when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
+    let c = min c1 c2 in
+    Some(LinearRelation(LEQ, t1,  c))
+  | _ ->
+    None
 
 let simplify_or_pair f1 f2 = 
   None
@@ -340,30 +366,10 @@ let simplify_formula_2 f =
     | And(fs) ->
       let f1 =
         begin match fs with 
-	| Relation(GEQ, t1, Value c1) :: Relation(GT, t2, Value c2) :: gs
-            when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
-          let c = max c1 (c2 + 1) in
-          aux (And(Relation(GEQ, t1, Value c) :: gs))
-	| Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
-            when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c2) :: gs))
-	| Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
-            when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c1) :: gs))
-	| Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
-            when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
-          let c = max c1 c2 in
-          aux (And(Relation(GEQ, t1, Value c) :: gs))
-	| Relation(GEQ, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
-            when t1 = t2 && c1 <= c2 ->
-          aux (And(Relation(EQ, t2, Value c2) :: gs))
-	| Relation(GT, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
-            when t1 = t2 && c1 < c2 ->
-          aux (And(Relation(EQ, t2, Value c2) :: gs))            
-	| Relation(LEQ, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
-            when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
-          let c = min c1 c2 in
-          aux (And(Relation(LEQ, t1, Value c) :: gs))
+
+
+
+
 	| Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
 	| Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
 	| Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
