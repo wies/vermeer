@@ -111,34 +111,6 @@ let remove_duplicates strengthen fs =
   let sorted = List.sort compare_form fs in
   uniq sorted    
 
-let formula_size f = 
-  let size = ref 0 in
-  let rec aux f = 
-    incr size;
-    match f with 
-    | True | False | UnsupportedFormula _ | Boolvar _ -> ()
-    | Not f -> aux f
-    | And fl -> List.iter aux fl
-    | Or fl -> List.iter aux fl
-    | Implication (f1,f2) -> aux f1;aux f2
-    | ITE(f1,f2,f3) -> aux f1;aux f2; aux f3
-    | Relation (_, t1,t2) -> term_aux t1; term_aux t2
-    | LinearRelation (_,lhs,_) -> size := !size + List.length lhs
-  and term_aux t = 
-    incr size;
-    match t with
-    | Variable _ | Value _ | UnsupportedTerm _ -> ()
-    | Sum tl -> List.iter term_aux tl
-    | Mult tl -> List.iter term_aux tl
-    | UMinus t -> term_aux t
-  in
-  aux f;
-  !size
-
-
-
-
-
 (* DSN there is probably a better way to do this.
  * What I'm trying to do here is to take advantage of the fact that 
  * A && (A || B), can be simplified to A && (True || B)
@@ -151,10 +123,10 @@ let formula_size f =
 
 let propagate_truth_context f =
   let add_all_but_i toAvoid fn lst set = 
-    let (_,result) = 
-      List.fold_left (fun (i,a) e ->
-	if (i = toAvoid) then (i+1,a)
-	else (i+1, FormulaSet.add (fn e) a)) (0,set) lst
+    let _, result = 
+      List.fold_left (fun (i, a) e ->
+	if i = toAvoid then (i+1,a)
+	else (i+1, FormulaSet.add (fn e) a)) (0, set) lst
     in result
   in
   let isTrue trueHere f =
@@ -173,10 +145,8 @@ let propagate_truth_context f =
     if isTrue trueHere f then True
     else if isFalse trueHere f then False 
     else begin match f with
-
-    (* in the context of an and, all other clauses in the and
-     * are also true in the context of this one *)
-      
+    (* in the context of an And, all other clauses in the And
+     * are also true in the context of this one (and dualy for Or) *)  
     | And fl -> 
       let fl = remove_duplicates true fl in
       And (List.mapi (fun i e -> 
@@ -187,24 +157,23 @@ let propagate_truth_context f =
       Or (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i mk_not fl trueHere in
 	aux trueHere e) fl)
+    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | _ -> f
     end
   in
   aux FormulaSet.empty f
 
 
-
-
 let  simplify_constants  f  = 
-  let remove_logical_consts lst = List.filter 
-    (fun x -> match x with | True | False -> false | _ -> true) lst in
+  let remove_logical_consts lst =
+    List.filter (function True | False -> false | _ -> true) lst
+  in
   let rec aux f = 
-
     match f with
     (*constants remain constant *)
     | True | False | UnsupportedFormula _ -> f
     (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
-    | Boolvar _ -> True
+    (* | Boolvar _ -> True *)
     | LinearRelation (EQ, [], 0) 
     | LinearRelation (LEQ, [], 0)
     | LinearRelation (GEQ, [], 0) -> True
@@ -222,7 +191,6 @@ let  simplify_constants  f  =
     | Relation(GEQ,a,b) when a = b -> True
     | Relation(GT,a,b) when a = b -> False
     | Relation(NEQ,a,b) when a = b -> False
-    | ITE(i,t,e) when t = e -> t
 
     (* evaluate according to the known value *)
     | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
@@ -231,18 +199,6 @@ let  simplify_constants  f  =
     | Relation(GEQ,Value(v1), Value(v2)) -> if v1 >= v2 then True else False
     | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
     | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
-    | Implication(False,_) -> True
-    | Implication(_,True) -> True
-    | Implication(True,x) -> x
-    | Implication(x,False) -> mk_not x
-    | Not(False) -> True
-    | Not(True) -> False
-    | ITE(True,t,e) -> t
-    | ITE(False,t,e) -> e
-    | ITE(i,t,False) -> And [aux i; aux t]
-    | ITE(i,False,e) -> And [mk_not (aux i); aux e]
-    | ITE(i,t,True) -> Implication(aux i,aux t)
-    | ITE(i,True,e) -> Implication(mk_not (aux i),aux e)
 
     | And fl when List.exists (fun x -> x = False) fl -> False
     | Or fl when List.exists (fun x -> x = True) fl -> True
@@ -251,23 +207,19 @@ let  simplify_constants  f  =
     | And fl -> And(List.map aux (remove_logical_consts fl))
     | Or fl -> Or(List.map aux  (remove_logical_consts fl))
 
-    (* recurse down the tree *)
-    | Not f1 -> mk_not (aux f1)
-    | Implication (f1,f2) -> Implication(aux f1,aux f2) 
     (* Don't simplify terms here *)
-    | LinearRelation _ 
-    | Relation _ -> f
-    | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
+    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"   
+    | _ -> f
   in aux f
 
 
 
 let normalize_formula f = 
   let flatten_nested_ands lst = 
-    List.fold_right (function And gs -> fun acc -> gs @ acc | f -> fun acc -> f :: acc) lst []
+    List.fold_left (fun acc -> function And gs -> gs @ acc | f -> f :: acc) [] lst
   in
   let flatten_nested_ors lst = 
-    List.fold_right (function Or gs -> fun acc -> gs @ acc | f -> fun acc -> f :: acc) lst []
+    List.fold_left (fun acc -> function Or gs -> gs @ acc | f -> f :: acc) [] lst
   in
   let rec aux f = 
     match f with 
@@ -279,28 +231,10 @@ let normalize_formula f =
     | Or [f1] -> aux f1
     | Or lst -> Or (List.map aux (remove_duplicates false (flatten_nested_ors lst)))
     | Relation (op,lhs,rhs) -> normalize_relation op lhs rhs
+    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | _ -> f  
   in  
   aux f
-
-    
-
-let simplify_terms f = 
-  let rec aux f = 
-    match f with 
-    (* base case: something with terms *)
-    | Relation(op,t1,t2) -> Relation(op,normalize_term t1, normalize_term t2)
-
-    (* recurse down the tree *)
-    | True|False|UnsupportedFormula _ | Boolvar _ | LinearRelation _ -> f
-    | Not f1 -> mk_not (aux f1)
-    | And fl -> And (List.map aux fl)
-    | Or  fl -> Or (List.map aux fl)
-    | Implication (f1,f2) -> Implication(aux f1,aux f2) 
-    | ITE(f1,f2,f3) -> ITE(aux f1,aux f2, aux f3)
-  in
-  aux f
-
 
 
 (* we can strengthen this later *)
@@ -380,19 +314,14 @@ let simplify_formula_2 f =
   let rec aux = function
     | And fs -> And(fold_pairs simplify_and_pair fs)
     | Or fs -> Or(fold_pairs simplify_and_pair fs)
-    | Not f -> mk_not (aux f)
-    | ITE (i,t,e) -> ITE(aux i, aux t, aux e)
-    | Implication (f1, f2) -> Implication (aux f1, aux f2)
+    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
   in
   aux f
 
-
-
 let simplify_formula f = 
   let f = simplify_constants f in
   let f = normalize_formula f in
-  let f = simplify_terms f in
   let f = propagate_truth_context f in
   let f = simplify_formula_2 f in
   f
