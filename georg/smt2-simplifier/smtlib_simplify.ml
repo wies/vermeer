@@ -21,9 +21,9 @@ let rec compare_form f g =
   in
   match (f, g) with
   | Relation (rel1, t1, t2), Relation (rel2, t3, t4) ->
-      compare (t1, t2, rel1) (t3, t4, rel2)
+    compare (t1, t2, rel1) (t3, t4, rel2)
   | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
-      compare (t1, c1, rel1) (t2, c2, rel2)        
+    compare (t1, c1, rel1) (t2, c2, rel2)        
   | Not f, Not g ->
     compare_form f g
   | And fs, And gs ->
@@ -42,30 +42,30 @@ let rec compare_form f g =
 let rec is_unsat f g =
   match f, g with
   | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
-      t1 = t2 && (match rel1, rel2 with
+    t1 = t2 && (match rel1, rel2 with
       (* we are using integer arithmatic here 
        * x > 5 && x < 6 is unsat because no # between 5 and 6
        *)
-      | LT, GT -> c1 + 1 >= c2
-      | GT, LT -> c2 + 1 >= c1
+    | LT, GT -> c1 + 1 >= c2
+    | GT, LT -> c2 + 1 >= c1
       (* cases with one has n an EQ in it *)
-      | LT, GEQ
-      | LEQ, GT
-      | EQ, GT
-      | LT, EQ -> c1 <= c2
-      | GT, LEQ
-      | GEQ, LT
-      | GT, EQ
-      | EQ, LT -> c1 >= c2
-      | LEQ, GEQ
-      | EQ, GEQ
-      | LEQ, EQ -> c1 < c2
-      | GEQ, LEQ
-      | EQ, LEQ
-      | GEQ, EQ -> c1 > c2
-      | EQ, EQ  -> c1 <> c2
-      | _, _ ->
-          negate_rel rel1 = rel2 && c1 = c2)
+    | LT, GEQ
+    | LEQ, GT
+    | EQ, GT
+    | LT, EQ -> c1 <= c2
+    | GT, LEQ
+    | GEQ, LT
+    | GT, EQ
+    | EQ, LT -> c1 >= c2
+    | LEQ, GEQ
+    | EQ, GEQ
+    | LEQ, EQ -> c1 < c2
+    | GEQ, LEQ
+    | EQ, LEQ
+    | GEQ, EQ -> c1 > c2
+    | EQ, EQ  -> c1 <> c2
+    | _, _ ->
+      negate_rel rel1 = rel2 && c1 = c2)
   | False, _
   | _, False -> true
   | And fs, g ->
@@ -186,14 +186,6 @@ let  simplify_constants  f  =
     | Relation(GT,a,b) when a = b -> False
     | Relation(NEQ,a,b) when a = b -> False
 
-    (* evaluate according to the known value *)
-    | Relation(EQ,Value(v1), Value(v2)) -> if v1 = v2 then True else False
-    | Relation(LEQ,Value(v1), Value(v2)) -> if v1 <= v2 then True else False
-    | Relation(LT,Value(v1), Value(v2)) -> if v1 < v2 then True else False
-    | Relation(GEQ,Value(v1), Value(v2)) -> if v1 >= v2 then True else False
-    | Relation(GT,Value(v1), Value(v2)) -> if v1 > v2 then True else False
-    | Relation(NEQ,Value(v1), Value(v2)) -> if v1 <> v2 then True else False
-
     | And fl when List.mem False fl -> False
     | Or fl when List.mem True fl -> True
 
@@ -234,7 +226,61 @@ let normalize_formula f =
 (* we can strengthen this later *)
 (* return Some reduced if reduction possible. None otherwise *)
 let simplify_and_pair f1 f2 = 
-  None
+  match f1,f2 with
+  | LinearRelation(GEQ, t1,  c1) , LinearRelation(GT, t2,  c2) 
+    when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
+    let c = max c1 (c2 + 1) in
+    Some (LinearRelation(GEQ,t1,c))
+  | LinearRelation(GT, t1,  c1) , LinearRelation(LEQ, t2,  c2)
+    when t1 = t2 && c1 + 1 = c2 ->
+    Some (LinearRelation(EQ, t1,  c2))
+  | LinearRelation(LT, t2,  c2) , LinearRelation(GEQ, t1,  c1) 
+    when t1 = t2 && c1 + 1 = c2 ->
+    Some (LinearRelation(EQ, t1,  c1))
+  | LinearRelation(GEQ, t1,  c1) , LinearRelation(GEQ, t2,  c2) 
+    when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
+    let c = max c1 c2 in
+    Some(LinearRelation(GEQ, t1, c))
+  | LinearRelation(GEQ, t1, c1) , LinearRelation(EQ, t2, c2)
+    when t1 = t2 && c1 <= c2 ->
+    Some(LinearRelation(EQ, t2, c2))
+  | LinearRelation(GT, t1, c1) , LinearRelation(EQ, t2, c2) 
+    when t1 = t2 && c1 < c2 ->
+    Some (LinearRelation(EQ, t2, c2))
+  | LinearRelation(LEQ, t1, c1) , LinearRelation(LEQ, t2, c2) 
+    when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
+    let c = min c1 c2 in
+    Some(LinearRelation(LEQ, t1,  c))
+  | LinearRelation(LEQ, t1, t2) , LinearRelation(NEQ, t3, t4)
+    when t1 = t3 && t2 = t4 ->
+    Some (LinearRelation(LT, t1, t2))
+  | LinearRelation(GEQ, t1, t2) , LinearRelation(NEQ, t3, t4)
+    when t1 = t3 && t2 = t4 ->
+    Some(LinearRelation(GT, t1, t2))
+      
+  | LinearRelation(LEQ,t1,c1), LinearRelation(GEQ, t2,c2)
+  | LinearRelation(GEQ,t1,c1), LinearRelation(LEQ, t2,c2) 
+    when t1 = t2 && c1 = c2 ->
+    Some (LinearRelation(EQ, t1, c1))
+
+  (* DSN this does not feel exhausetive.  
+   * Perhaps some way to take advantage of the negate_rel fn*)
+
+  (* Is this needed?  Shouldn't it be handeled by other operations? *)
+  (* | LinearRelation _ as g1, LinearRelation _ as g2 *)
+  (*   when is_unsat g1 g2 -> *)
+  (*   Some False *)
+  (* Removed these for now *)
+  (* | Relation(LEQ, t1, Value c1) :: Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: gs *)
+  (*     when t1 = t2 && c1 = -1 * c2 ->  *)
+  (*   let phi = Relation(EQ,t1, Value c1) in *)
+  (*   aux (And (phi :: gs)) *)
+  (* | Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: Relation(LEQ, t1, Value c1) :: gs *)
+  (*     when t1 = t2 && c1 = -1 * c2 ->  *)
+  (*   let phi = Relation(EQ,t1, Value c1) in *)
+  (*   aux (And(phi :: gs)) *)
+  | _ ->
+    None
 
 let simplify_or_pair f1 f2 = 
   None
@@ -250,120 +296,12 @@ let fold_pairs fn lst =
     end    
   in aux lst
 
-let simplify_formula_2_new f = 
+let simplify_formula_2 f = 
   let rec aux = function
     | And fs -> And(fold_pairs simplify_and_pair fs)
     | Or fs -> Or(fold_pairs simplify_and_pair fs)
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
-  in
-  aux f
-
-let simplify_formula_2 f =
-  let rec aux f = 
-    match f with
-    (* Logical operators *)
-    | And(fs) ->
-      let f1 =
-        begin match fs with 
-	| Relation(GEQ, t1, Value c1) :: Relation(GT, t2, Value c2) :: gs
-            when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
-          let c = max c1 (c2 + 1) in
-          aux (And(Relation(GEQ, t1, Value c) :: gs))
-	| Relation(GT, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
-            when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c2) :: gs))
-	| Relation(LT, t2, Value c2) :: Relation(GEQ, t1, Value c1) :: gs
-            when t1 = t2 && c1 + 1 = c2 ->
-          aux (And (Relation(EQ, t1, Value c1) :: gs))
-	| Relation(GEQ, t1, Value c1) :: Relation(GEQ, t2, Value c2) :: gs
-            when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
-          let c = max c1 c2 in
-          aux (And(Relation(GEQ, t1, Value c) :: gs))
-	| Relation(GEQ, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
-            when t1 = t2 && c1 <= c2 ->
-          aux (And(Relation(EQ, t2, Value c2) :: gs))
-	| Relation(GT, t1, Value c1) :: Relation(EQ, t2, Value c2) :: gs
-            when t1 = t2 && c1 < c2 ->
-          aux (And(Relation(EQ, t2, Value c2) :: gs))            
-	| Relation(LEQ, t1, Value c1) :: Relation(LEQ, t2, Value c2) :: gs
-            when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
-          let c = min c1 c2 in
-          aux (And(Relation(LEQ, t1, Value c) :: gs))
-	| Relation(LT, t1, t2) :: Relation(GEQ, t3, t4) :: gs
-	| Relation(LT, t1, t2) :: Relation(GT, t3, t4) :: gs
-	| Relation(LEQ, t1, t2) :: (Relation(LEQ, t3, t4) :: gs) 
-	| Relation(LEQ, t1, t2) :: (Relation(GEQ, t4, t3) :: gs)
-            when t1 = t4 && t2 = t3 ->
-          aux (And (Relation(EQ, t1, t2) :: gs))
-	| Relation(LEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
-            when t1 = t3 && t2 = t4 ->
-          aux (And (Relation(LT, t1, t2) :: gs))
-	| Relation(GEQ, t1, t2) :: (Relation(NEQ, t3, t4) :: gs)
-            when t1 = t3 && t2 = t4 ->
-          aux (And (Relation(GT, t1, t2) :: gs))
-	| Relation(LEQ, t1, Value c1) :: Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: gs
-            when t1 = t2 && c1 = -1 * c2 -> 
-          let phi = Relation(EQ,t1, Value c1) in
-          aux (And (phi :: gs))
-	| Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: Relation(LEQ, t1, Value c1) :: gs
-            when t1 = t2 && c1 = -1 * c2 -> 
-          let phi = Relation(EQ,t1, Value c1) in
-          aux (And(phi :: gs))
-	| (Relation _ as g1) :: (Relation _ as g2) :: gs
-            when is_unsat g1 g2 ->
-          False
-	| [ g ] -> aux g
-	| [] -> True
-	| g :: gs -> 
-          let g1 = aux g in
-          let
-              h = aux (And(gs))
-          in
-          match g1, h with
-          | False, _
-          | _, False -> False
-          | True, _ -> h
-          | _, True -> g1
-          | _, And(hs) -> And (g1 :: hs)
-          | _, _ -> And [g1; h]
-        end
-      in
-      (*print_endline "Before simplify: ";
-        print_formula f ""; print_newline ();
-        print_endline "After simplify: ";
-        print_formula f1 ""; print_newline ();*)
-      f1
-    | LinearRelation _ -> failwith "need to handle this"
-    | Or(fs) ->
-      begin match fs with  
-      | [ Relation(LEQ, Value c1, t1) ; Relation(LEQ, t2, Value c2) ]
-	  when (t1 = t2 && c1 = c2 + 2) ->
-        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-      | [ Relation(LEQ, t2, Value c2) ; Relation(LEQ, Value c1, t1) ]
-	  when (t1 = t2 && c1 = c2 + 2) ->
-        Relation(NEQ, t1, Value(c1 - 1)) (* overflow issues! *)
-      | [Relation _ as f; Relation _ as g] when f = mk_not g -> True
-      | [] -> False
-      | [f] -> aux f
-      | f :: gs ->
-        let f1 = aux f in
-        let h = aux (Or gs) in
-        match f1, h with
-        | True, _
-        | _, True -> True
-        | False, _ -> h
-        | _, False -> f1
-        | _, Or (hs) -> Or (f1 :: hs)
-        | _, _ -> Or [f1; h]
-      end
-
-
-
-
-    (* recurse *)
-    | True | False | Relation _ | UnsupportedFormula _ | Boolvar _ -> f
-    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
   in
   aux f
 
