@@ -255,10 +255,10 @@ let  simplify_constants  f  =
 
 let normalize_formula f = 
   let flatten_nested_ands lst = 
-    List.fold_right (function And gs -> fun acc -> gs @ acc | f -> fun acc -> f :: acc) lst []
+    List.fold_left (fun acc -> function And gs -> gs @ acc | f -> f :: acc) [] lst
   in
   let flatten_nested_ors lst = 
-    List.fold_right (function Or gs -> fun acc -> gs @ acc | f -> fun acc -> f :: acc) lst []
+    List.fold_left (fun acc -> function Or gs -> gs @ acc | f -> f :: acc) [] lst
   in
   let rec aux f = 
     match f with 
@@ -272,25 +272,6 @@ let normalize_formula f =
     | _ -> f  
   in  
   aux f
-
-    
-
-let simplify_terms f = 
-  let rec aux f = 
-    match f with 
-    (* base case: something with terms *)
-    | Relation(op,t1,t2) -> Relation(op,normalize_term t1, normalize_term t2)
-
-    (* recurse down the tree *)
-    | True|False|UnsupportedFormula _ | Boolvar _ | LinearRelation _ -> f
-    | Not f1 -> mk_not (aux f1)
-    | And fl -> And (List.map aux fl)
-    | Or  fl -> Or (List.map aux fl)
-    | Implication (f1,f2) -> Implication(aux f1,aux f2) 
-    | ITE(f1,f2,f3) -> ITE(aux f1,aux f2, aux f3)
-  in
-  aux f
-
 
 
 (* we can strengthen this later *)
@@ -435,7 +416,6 @@ let simplify_formula_2 f =
 let simplify_formula f = 
   let f = simplify_constants f in
   let f = normalize_formula f in
-  let f = simplify_terms f in
   let f = propagate_truth_context f in
   let f = simplify_formula_2 f in
   f
