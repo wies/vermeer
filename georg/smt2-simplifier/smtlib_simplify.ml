@@ -152,6 +152,7 @@ let propagate_truth_context f =
       Or (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i mk_not fl trueHere in
 	aux trueHere e) fl)
+    | Not Boolvar _ as f -> f
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | _ -> f
     end
@@ -197,6 +198,7 @@ let  simplify_constants  f  =
     | Or fl -> Or(List.map aux  (remove_logical_consts fl))
 
     (* Don't simplify terms here *)
+    | Not Boolvar _ as f -> f
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"   
     | _ -> f
   in aux f
@@ -220,6 +222,7 @@ let normalize_formula f =
     | Or [f1] -> aux f1
     | Or lst -> Or (List.map aux (remove_duplicates false (flatten_nested_ors lst)))
     | Relation (op,lhs,rhs) -> normalize_relation op lhs rhs
+    | Not Boolvar _ as f -> f
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | _ -> f  
   in  
@@ -301,7 +304,8 @@ let fold_pairs fn lst =
 let simplify_formula_2 f = 
   let rec aux = function
     | And fs -> And(fold_pairs simplify_and_pair fs)
-    | Or fs -> Or(fold_pairs simplify_and_pair fs)
+    | Or fs -> Or(fold_pairs simplify_or_pair fs)
+    | Not Boolvar _ as f -> f
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
   in
