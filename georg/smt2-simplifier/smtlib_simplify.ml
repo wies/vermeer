@@ -208,12 +208,12 @@ let  simplify_constants  f  =
     | LinearRelation (EQ, [], 0) 
     | LinearRelation (LEQ, [], 0)
     | LinearRelation (GEQ, [], 0) -> True
-    | LinearRelation (EQ, [], _) -> False
-    | LinearRelation (LEQ, [], v) (* v = 0 is handled above *)
+    | LinearRelation (EQ, [], _)
+    | LinearRelation (NEQ, [], 0) -> False
+    | LinearRelation (LEQ, [], v)
     | LinearRelation (LT, [], v) -> if v > 0 then True else False
-    | LinearRelation (GEQ, [], v) (* v = 0 is handled above *)
+    | LinearRelation (GEQ, [], v)
     | LinearRelation (GT, [], v) -> if v < 0 then True else False
-    | LinearRelation _ -> failwith "need to handle this"
 
     (* We can special case a = a *)
     | Relation(EQ,a,b) when a = b -> True
@@ -255,6 +255,7 @@ let  simplify_constants  f  =
     | Not f1 -> mk_not (aux f1)
     | Implication (f1,f2) -> Implication(aux f1,aux f2) 
     (* Don't simplify terms here *)
+    | LinearRelation _ 
     | Relation _ -> f
     | ITE(f1,f2,f3) -> ITE(aux f1,aux f2,aux f3)
   in aux f
