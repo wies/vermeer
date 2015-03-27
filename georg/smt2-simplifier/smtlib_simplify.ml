@@ -262,13 +262,13 @@ let simplify_and_pair_2 f1 f2 =
       when a < b -> Some(LinearRelation(EQ, t1, b))
     | (LEQ,a),(NEQ,b) | (NEQ,b),(LEQ,a)
       when a = b ->
-      Some(LinearRelation(LT,a))
+      Some(LinearRelation(LT,t1,a))
     | (GEQ,a),(NEQ,b) | (NEQ,b),(GEQ,a)
       when a = b ->
-      Some(LinearRelation(GT,a))
+      Some(LinearRelation(GT,t1,a))
     | (GEQ,a),(LEQ,b) | (LEQ,b),(GEQ,a)
       when a = b->
-      Some(LinearRelation(EQ,a))
+      Some(LinearRelation(EQ,t1,a))
     | _ -> None
   end
   | _ -> None
