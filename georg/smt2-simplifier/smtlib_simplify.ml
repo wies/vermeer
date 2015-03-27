@@ -252,6 +252,23 @@ let simplify_and_pair_2 f1 f2 =
       when (a >= b || b >= a) ->
       let c = max a b in
       Some(LinearRelation(GEQ, t1, c))
+    | (LEQ,a),(LEQ,b)
+      when (a >= b || b >= a) ->
+      let c = min a b in
+      Some(LinearRelation(LEQ, t1, c))
+    | (GEQ,a),(EQ,b) | (EQ,b),(GEQ,a)
+      when a <= b -> Some(LinearRelation(EQ, t1, b))
+    | (GT,a),(EQ,b) | (EQ,b),(GT,a)
+      when a < b -> Some(LinearRelation(EQ, t1, b))
+    | (LEQ,a),(NEQ,b) | (NEQ,b),(LEQ,a)
+      when a = b ->
+      Some(LinearRelation(LT,a))
+    | (GEQ,a),(NEQ,b) | (NEQ,b),(GEQ,a)
+      when a = b ->
+      Some(LinearRelation(GT,a))
+    | (GEQ,a),(LEQ,b) | (LEQ,b),(GEQ,a)
+      when a = b->
+      Some(LinearRelation(EQ,a))
     | _ -> None
   end
   | _ -> None
