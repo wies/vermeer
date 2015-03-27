@@ -125,7 +125,7 @@ let normalize_relation op lhs rhs =
   let begin_with_positive op lhs value = 
     let (c,v) = List.hd lhs in
     if c < 0 then begin
-      let op = negate_rel op in
+      let op = invert_rel op in
       let value = -value in
       let lhs = List.map (fun (c,v) -> (-c,v)) lhs in
       LinearRelation(op,lhs,value)

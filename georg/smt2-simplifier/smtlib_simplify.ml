@@ -141,8 +141,8 @@ let propagate_truth_context f =
   let rec aux trueHere  f = 
     if check true trueHere f then True
     else if check false trueHere f then begin
-      print_endline "\n===Found false===";
-      print_formula f "*";
+      (* print_endline "\n===Found false==="; *)
+      (* print_formula f "*"; *)
       False 
     end else begin match f with
     (* in the context of an And, all other clauses in the And
@@ -317,9 +317,9 @@ let simplify_formula_2 f =
   aux f
 
 let simplify_formula f = 
-  print_endline "************";
-  print_formula f "";
-  print_endline "";
+  (* print_endline "***********"; *)
+  (* print_formula f ""; *)
+  (* print_endline ""; *)
   let f = simplify_constants f in
   let f = normalize_formula f in
   let f = propagate_truth_context f in
