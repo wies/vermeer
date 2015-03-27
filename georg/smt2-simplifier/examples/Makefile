@@ -97,3 +97,7 @@ example23:
 	@echo "example23:"
 	@$(SMT_SIMPLIFIER) < example23.smt2
 
+example24:
+	@echo "example24:"
+	@$(SMT_SIMPLIFIER) < example24.smt2
+
