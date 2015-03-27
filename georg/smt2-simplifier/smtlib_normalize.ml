@@ -61,6 +61,7 @@ let rec normalize_term t =
      * this opens up more normalization oppertunities *)
     match vars,vals,rest with
     | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
+    | [],[],[] -> Value(1) (* if there are no values, then it is the identity of Mult, i.e., 1 *)
     | _ -> Mult(vars @ vals  @ rest)
   end
   | Variable _ | Value _ | UnsupportedTerm _ -> t
