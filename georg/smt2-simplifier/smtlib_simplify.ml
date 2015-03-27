@@ -140,8 +140,11 @@ let propagate_truth_context f =
   in
   let rec aux trueHere  f = 
     if check true trueHere f then True
-    else if check false trueHere f then False 
-    else begin match f with
+    else if check false trueHere f then begin
+      print_endline "\n===Found false===";
+      print_formula f "*";
+      False 
+    end else begin match f with
     (* in the context of an And, all other clauses in the And
      * are also true in the context of this one (and dualy for Or) *)  
     | And fl -> 
@@ -305,8 +308,8 @@ let fold_pairs fn lst =
 
 let simplify_formula_2 f = 
   let rec aux = function
-    | And fs -> And(fold_pairs simplify_and_pair fs)
-    | Or fs -> Or(fold_pairs simplify_or_pair fs)
+    | And fs -> And(fold_pairs simplify_and_pair (List.map aux fs))
+    | Or fs -> Or(fold_pairs simplify_or_pair (List.map aux fs))
     | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
     | Not Boolvar _ as f -> f
     | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
@@ -314,6 +317,9 @@ let simplify_formula_2 f =
   aux f
 
 let simplify_formula f = 
+  print_endline "************";
+  print_formula f "";
+  print_endline "";
   let f = simplify_constants f in
   let f = normalize_formula f in
   let f = propagate_truth_context f in
