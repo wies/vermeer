@@ -269,6 +269,9 @@ let simplify_and_pair_2 f1 f2 =
     | (GEQ,a),(LEQ,b) | (LEQ,b),(GEQ,a)
       when a = b->
       Some(LinearRelation(EQ,t1,a))
+    | (GT,a),(LT,b) | (LT,b),(GT,a)
+      when a + 2 = b ->
+      Some(LinearRelation(NEQ, t1, (a + 1)))
     | _ -> None
   end
   | _ -> None
@@ -276,6 +279,8 @@ let simplify_and_pair_2 f1 f2 =
 (* we can strengthen this later *)
 (* return Some reduced if reduction possible. None otherwise *)
 let simplify_and_pair f1 f2 = 
+  simplify_and_pair_2 f1 f2
+(*
   match f1,f2 with
   | LinearRelation(GEQ, t1,  c1) , LinearRelation(GT, t2,  c2) 
     when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
@@ -317,6 +322,7 @@ let simplify_and_pair f1 f2 =
    * Perhaps some way to take advantage of the negate_rel fn*)
   | _ ->
     None
+*)
 
 let simplify_or_pair f1 f2 = Opt.map mk_not (simplify_and_pair (mk_not f1) (mk_not f2))
 
