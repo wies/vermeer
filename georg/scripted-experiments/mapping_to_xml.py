@@ -4,8 +4,6 @@ import glob
 import subprocess
 import time
 
-trace_file = sys.argv[1]
-
 def read_entities_from_file(filename):
   entities = []
   with open(filename, "r") as f:
@@ -45,5 +43,8 @@ def to_xml(entities, out):
     out.write("</variablemapping>\n")
   out.write("</variablemappings>\n")
 
-entities = read_entities_from_file(trace_file)
-to_xml(entities, sys.stdout)
+if __name__ == "__main__":
+  trace_file = sys.argv[1]
+  entities = read_entities_from_file(trace_file)
+  to_xml(entities, sys.stdout)
+

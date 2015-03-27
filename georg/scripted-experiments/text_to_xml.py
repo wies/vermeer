@@ -4,10 +4,7 @@ import glob
 import subprocess
 import time
 
-explanation_file = sys.argv[1]
-smt_simplifier = os.environ['VERMEER_PATH'] + "/georg/smt2-simplifier/smtlib_main.native"
-
-
+from xml.sax.saxutils import escape
 
 def read_entities_from_file(filename):
   entities = []
@@ -52,7 +49,7 @@ def to_xml(entities, out):
     out.write("<entity>\n")
     # invariant
     invariant = entity[0] # todo: invariant is currently a list of 
-    out.write("<invariant>" + invariant + "</invariant>\n")
+    out.write("<invariant>" + escape(invariant) + "</invariant>\n")
     # what kind of entry is it? (guarded) statement or summary?
     kind = entity[1]
     if kind == "TID":
@@ -70,22 +67,24 @@ def to_xml(entities, out):
         guard = entity[3]
         statement = entity[5]
       out.write("<line>" + line[6:] + "</line>\n")
-      out.write("<statement>" + statement + "</statement>\n")
+      out.write("<statement>" + escape(statement) + "</statement>\n")
       out.write("<guards>\n")
       if guard != "":
         guard = guard[4:-1] # remove if and outer brackets
         guards = guard.split(" && ")
         for g in guards:
-          out.write("<guard>" + g + "</guard>\n")
+          out.write("<guard>" + escape(g) + "</guard>\n")
       out.write("</guards>\n")
     else:
       # it is a summary
       out.write("<kind>SUMMARY</kind>\n")
       summary = entity[2]
-      out.write("<summary>" + summary + "</summary>\n")
+      out.write("<summary>" + escape(summary) + "</summary>\n")
     out.write("</entity>\n")
   out.write("</entities>\n")
 
-entities = read_entities_from_file(explanation_file)
-processed_entities = process_entities(entities)
-to_xml(processed_entities, sys.stdout)
+if __name__ == "__main__":
+  explanation_file = sys.argv[1]
+  entities = read_entities_from_file(explanation_file)
+  processed_entities = process_entities(entities)
+  to_xml(processed_entities, sys.stdout)
