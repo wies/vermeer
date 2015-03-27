@@ -234,6 +234,19 @@ let normalize_formula f =
   aux f
 
 
+let simplify_and_pair_2 f1 f2 = 
+  match f1,f2 with
+  | LinearRelation(op1,t1,c1), LinearRelation(op2,t2,c2) when t1 = t2 -> begin
+    match (op1,c1),(op2,c2) with
+    | (GEQ,a),(GT,b)
+    | (GT,b),(GEQ,a)
+      when  (a >= b + 1 || b + 1 >= a) -> 
+      let c = max a (b + 1) in
+      Some (LinearRelation(GEQ,t1,c))
+    | _ -> None
+  end
+  | _ -> None
+
 (* we can strengthen this later *)
 (* return Some reduced if reduction possible. None otherwise *)
 let simplify_and_pair f1 f2 = 
@@ -276,20 +289,6 @@ let simplify_and_pair f1 f2 =
 
   (* DSN this does not feel exhausetive.  
    * Perhaps some way to take advantage of the negate_rel fn*)
-
-  (* Is this needed?  Shouldn't it be handeled by other operations? *)
-  (* | LinearRelation _ as g1, LinearRelation _ as g2 *)
-  (*   when is_unsat g1 g2 -> *)
-  (*   Some False *)
-  (* Removed these for now *)
-  (* | Relation(LEQ, t1, Value c1) :: Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: gs *)
-  (*     when t1 = t2 && c1 = -1 * c2 ->  *)
-  (*   let phi = Relation(EQ,t1, Value c1) in *)
-  (*   aux (And (phi :: gs)) *)
-  (* | Relation(LEQ, Value(0), Sum([ t2; Value c2 ])) :: Relation(LEQ, t1, Value c1) :: gs *)
-  (*     when t1 = t2 && c1 = -1 * c2 ->  *)
-  (*   let phi = Relation(EQ,t1, Value c1) in *)
-  (*   aux (And(phi :: gs)) *)
   | _ ->
     None
 
