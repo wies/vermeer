@@ -62,7 +62,7 @@ let gcd a b =
 (* assumes that the list has length >1 *)
 let list_gcd = function
   | [] -> 1
-  | [x] -> x
+  | [x] -> abs(x)
   | lst -> List.fold_left gcd (List.hd lst) lst
 
 let rec run_fixpt fn term = 

@@ -123,14 +123,18 @@ let normalize_relation op lhs rhs =
   in
   (*ensure that the first coefficient has positive polarity*)
   let begin_with_positive op lhs value = 
-    let (c,v) = List.hd lhs in
-    if c < 0 then begin
-      let op = invert_rel op in
-      let value = -value in
-      let lhs = List.map (fun (c,v) -> (-c,v)) lhs in
-      LinearRelation(op,lhs,value)
-    end else
-      LinearRelation(op,lhs,value)
+    match lhs with
+    | [] -> LinearRelation(op, lhs, value)
+    | _ -> begin
+      let (c,v) = List.hd lhs in
+      if c < 0 then begin
+        let op = invert_rel op in
+        let value = -value in
+        let lhs = List.map (fun (c,v) -> (-c,v)) lhs in
+        LinearRelation(op,lhs,value)
+      end else
+        LinearRelation(op,lhs,value)
+      end
   in
   let get_value = function 
     | [] -> 0
@@ -147,6 +151,7 @@ let normalize_relation op lhs rhs =
       let (vars,vals,sums,mults,rest) = split_term_list tl in
       assert (sums = []);
       get_coeffs (vars @ mults @ rest), -(get_value vals)
+    | Value v -> [], -v
     | _ -> get_coeffs[newLHS], 0
   in
   let linearList,newRHS = remove_common_factors linearList newRHS in
