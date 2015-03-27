@@ -146,7 +146,7 @@ let normalize_relation op lhs rhs =
     | Sum tl -> 
       let (vars,vals,sums,mults,rest) = split_term_list tl in
       assert (sums = []);
-      get_coeffs (vars @ mults @ rest), get_value vals
+      get_coeffs (vars @ mults @ rest), -(get_value vals)
     | _ -> get_coeffs[newLHS], 0
   in
   let linearList,newRHS = remove_common_factors linearList newRHS in
