@@ -238,11 +238,20 @@ let simplify_and_pair_2 f1 f2 =
   match f1,f2 with
   | LinearRelation(op1,t1,c1), LinearRelation(op2,t2,c2) when t1 = t2 -> begin
     match (op1,c1),(op2,c2) with
-    | (GEQ,a),(GT,b)
-    | (GT,b),(GEQ,a)
+    | (GEQ,a),(GT,b) | (GT,b),(GEQ,a)
       when  (a >= b + 1 || b + 1 >= a) -> 
       let c = max a (b + 1) in
       Some (LinearRelation(GEQ,t1,c))
+    | (GT,a),(LEQ,b) | (LEQ,b),(GT,a)
+      when a + 1 = b ->
+      Some (LinearRelation(EQ,t1,b))
+    | (GEQ,a),(LT,b) | (LT, b),(GEQ, a) 
+      when a + 1 = b ->
+      Some (LinearRelation(EQ,t1,a))
+    | (GEQ,a),(GEQ,b) 
+      when (a >= b || b >= a) ->
+      let c = max a b in
+      Some(LinearRelation(GEQ, t1, c))
     | _ -> None
   end
   | _ -> None
