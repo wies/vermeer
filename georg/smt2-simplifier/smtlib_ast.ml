@@ -86,7 +86,7 @@ let split_term_list tl =
 
 let split_vars_vals tl : (term list * term list * term list)= 
   let (vars,rest) = List.partition 
-    (fun x -> match x with | Variable _ | _ -> false) tl in
+    (fun x -> match x with | Variable _ -> true | _ -> false) tl in
   let vars = sort_vars vars in
   let (vals,rest) = List.partition
     (fun x -> match x with  Value _ -> true | _ -> false) rest in
