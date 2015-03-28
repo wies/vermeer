@@ -45,28 +45,20 @@ let rec compare_form f g =
 let rec is_unsat f g =
   match f, g with
   | LinearRelation (rel1, t1, c1), LinearRelation (rel2, t2, c2) ->
-    t1 = t2 && (match rel1, rel2 with
+    t1 = t2 && (match (rel1,c1), (rel2,c2) with
       (* we are using integer arithmatic here 
        * x > 5 && x < 6 is unsat because no # between 5 and 6
        *)
-    | LT, GT -> c1 + 1 >= c2
-    | GT, LT -> c2 + 1 >= c1
+    | (GT,a), (LT,b) | (LT,b), (GT,a) -> a >= b 
       (* cases with one has n an EQ in it *)
-    | LT, GEQ
-    | LEQ, GT
-    | EQ, GT
-    | LT, EQ -> c1 <= c2
-    | GT, LEQ
-    | GEQ, LT
-    | GT, EQ
-    | EQ, LT -> c1 >= c2
-    | LEQ, GEQ
-    | EQ, GEQ
-    | LEQ, EQ -> c1 < c2
-    | GEQ, LEQ
-    | EQ, LEQ
-    | GEQ, EQ -> c1 > c2
-    | EQ, EQ  -> c1 <> c2
+    | (LT,a), (GEQ,b) | (GEQ,b), (LT,a)
+    | (LEQ,a), (GT,b) | (GT,b), (LEQ,a)
+    | (EQ,a), (GT,b) | (GT,b), (EQ,a)
+    | (LT,a), (EQ,b) | (EQ,b), (LT,a) -> a <= b
+    | (LEQ,a), (GEQ,b) | (GEQ,b), (LEQ,a)
+    | (EQ,a), (GEQ,b) | (GEQ,b), (EQ,a)
+    | (LEQ,a), (EQ,b) | (EQ,b), (LEQ,a) -> a < b
+    | (EQ,a), (EQ,b)  -> a <> b
     | _, _ ->
       negate_rel rel1 = rel2 && c1 = c2)
   | False, _
@@ -139,10 +131,10 @@ let propagate_truth_context f =
     | _ -> FormulaSet.mem f2 trueHere
   in
   let rec aux trueHere  f = 
-    if check true trueHere f then True
+    if check true trueHere f then begin
+      True
+    end
     else if check false trueHere f then begin
-      (* print_endline "\n===Found false==="; *)
-      (* print_formula f "*"; *)
       False 
     end else begin match f with
     (* in the context of an And, all other clauses in the And
@@ -348,9 +340,6 @@ let simplify_formula_2 f =
   aux f
 
 let simplify_formula f = 
-  (* print_endline "***********"; *)
-  (* print_formula f ""; *)
-  (* print_endline ""; *)
   let f = simplify_constants f in
   let f = normalize_formula f in
   let f = propagate_truth_context f in
