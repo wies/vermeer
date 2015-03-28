@@ -225,8 +225,9 @@ let normalize_formula f =
   in  
   aux f
 
-
-let simplify_and_pair_2 f1 f2 = 
+(* we can strengthen this later *)
+(* return Some reduced if reduction possible. None otherwise *)
+let simplify_and_pair f1 f2 = 
   match f1,f2 with
   | LinearRelation(op1,t1,c1), LinearRelation(op2,t2,c2) when t1 = t2 -> begin
     match (op1,c1),(op2,c2) with
@@ -267,54 +268,6 @@ let simplify_and_pair_2 f1 f2 =
     | _ -> None
   end
   | _ -> None
-
-(* we can strengthen this later *)
-(* return Some reduced if reduction possible. None otherwise *)
-let simplify_and_pair f1 f2 = 
-  simplify_and_pair_2 f1 f2
-(*
-  match f1,f2 with
-  | LinearRelation(GEQ, t1,  c1) , LinearRelation(GT, t2,  c2) 
-    when t1 = t2 && (c1 >= c2 + 1 || c2 + 1 >= c1) ->
-    let c = max c1 (c2 + 1) in
-    Some (LinearRelation(GEQ,t1,c))
-  | LinearRelation(GT, t1,  c1) , LinearRelation(LEQ, t2,  c2)
-    when t1 = t2 && c1 + 1 = c2 ->
-    Some (LinearRelation(EQ, t1,  c2))
-  | LinearRelation(LT, t2,  c2) , LinearRelation(GEQ, t1,  c1) 
-    when t1 = t2 && c1 + 1 = c2 ->
-    Some (LinearRelation(EQ, t1,  c1))
-  | LinearRelation(GEQ, t1,  c1) , LinearRelation(GEQ, t2,  c2) 
-    when t1 = t2 && (c1 >= c2 || c2 >= c1) ->
-    let c = max c1 c2 in
-    Some(LinearRelation(GEQ, t1, c))
-  | LinearRelation(GEQ, t1, c1) , LinearRelation(EQ, t2, c2)
-    when t1 = t2 && c1 <= c2 ->
-    Some(LinearRelation(EQ, t2, c2))
-  | LinearRelation(GT, t1, c1) , LinearRelation(EQ, t2, c2) 
-    when t1 = t2 && c1 < c2 ->
-    Some (LinearRelation(EQ, t2, c2))
-  | LinearRelation(LEQ, t1, c1) , LinearRelation(LEQ, t2, c2) 
-    when t1 = t2 && (c1 <= c2 || c2 <= c1) ->
-    let c = min c1 c2 in
-    Some(LinearRelation(LEQ, t1,  c))
-  | LinearRelation(LEQ, t1, t2) , LinearRelation(NEQ, t3, t4)
-    when t1 = t3 && t2 = t4 ->
-    Some (LinearRelation(LT, t1, t2))
-  | LinearRelation(GEQ, t1, t2) , LinearRelation(NEQ, t3, t4)
-    when t1 = t3 && t2 = t4 ->
-    Some(LinearRelation(GT, t1, t2))
-      
-  | LinearRelation(LEQ,t1,c1), LinearRelation(GEQ, t2,c2)
-  | LinearRelation(GEQ,t1,c1), LinearRelation(LEQ, t2,c2) 
-    when t1 = t2 && c1 = c2 ->
-    Some (LinearRelation(EQ, t1, c1))
-
-  (* DSN this does not feel exhausetive.  
-   * Perhaps some way to take advantage of the negate_rel fn*)
-  | _ ->
-    None
-*)
 
 let simplify_or_pair f1 f2 = Opt.map mk_not (simplify_and_pair (mk_not f1) (mk_not f2))
 
