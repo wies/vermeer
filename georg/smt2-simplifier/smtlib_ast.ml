@@ -26,6 +26,18 @@ type formula =
 | UnsupportedFormula of string
 ;; 
 
+let op_of_rel = function
+  | EQ -> (=)
+  | LEQ -> (<=)
+  | LT -> (<)
+  | GEQ -> (>=)
+  | GT -> (>)
+  | NEQ -> (<>)
+
+let apply_op op lhs rhs = 
+  let ocaml_op = op_of_rel op in
+  if (ocaml_op lhs rhs) then True else False
+
 let negate_rel = function
   | EQ -> NEQ
   | LEQ -> GT

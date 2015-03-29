@@ -167,15 +167,7 @@ let  simplify_constants  f  =
     | True | False | UnsupportedFormula _ -> f
     (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
     (* | Boolvar _ -> True *)
-    | LinearRelation (EQ, [], 0) 
-    | LinearRelation (LEQ, [], 0)
-    | LinearRelation (GEQ, [], 0) -> True
-    | LinearRelation (EQ, [], _)
-    | LinearRelation (NEQ, [], 0) -> False
-    | LinearRelation (LEQ, [], v) -> if 0 <= v then True else False
-    | LinearRelation (LT, [], v) -> if 0 < v then True else False
-    | LinearRelation (GEQ, [], v) -> if 0 >= v then True else False
-    | LinearRelation (GT, [], v) -> if 0 > v then True else False
+    | LinearRelation(op,[],v) -> apply_op op 0 v
 
     (* We can special case a = a *)
     | Relation(EQ,a,b) 
