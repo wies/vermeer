@@ -1,6 +1,6 @@
 #!/bin/bash
 TRACE="trace_assertion_failed_5.c"
-ARGS="--smtmultithread=allthreads --flowsensitive --hazardsensitiveall --nointrathreadhazard --runsmtanalysistype=binarysearch " 
+ARGS="--smtmultithread=allthreads --flowsensitive  --nointrathreadhazard --runsmtanalysistype=binarysearch " 
 BEAUTIFY="python $VERMEER_PATH/georg/scripted-experiments/beautify_explanation.py"
 REMAP="$VERMEER_PATH/georg/remap_variables"
 time $VERMEER_PATH/cil-1.7.3/bin/cilly -c --keepunused --dodsnsmt --smtcalcstats $ARGS $TRACE | tee out.txt

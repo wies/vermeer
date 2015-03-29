@@ -172,10 +172,10 @@ let  simplify_constants  f  =
     | LinearRelation (GEQ, [], 0) -> True
     | LinearRelation (EQ, [], _)
     | LinearRelation (NEQ, [], 0) -> False
-    | LinearRelation (LEQ, [], v)
-    | LinearRelation (LT, [], v) -> if v > 0 then True else False
-    | LinearRelation (GEQ, [], v)
-    | LinearRelation (GT, [], v) -> if v < 0 then True else False
+    | LinearRelation (LEQ, [], v) -> if 0 <= v then True else False
+    | LinearRelation (LT, [], v) -> if 0 < v then True else False
+    | LinearRelation (GEQ, [], v) -> if 0 >= v then True else False
+    | LinearRelation (GT, [], v) -> if 0 > v then True else False
 
     (* We can special case a = a *)
     | Relation(EQ,a,b) 
