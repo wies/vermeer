@@ -11,6 +11,9 @@ open Cil
 open Dsnutils
 open Dsnsmtdefs
 
+(* just make it compile smtlib.  Testing purposes only *)
+type foobar = SmtLibSyntax.sort
+
 (* issue if interpolant tries to go past where something is used *)
 
 (* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)

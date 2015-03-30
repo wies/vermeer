@@ -290,7 +290,7 @@ let cond_e e = match e with
            name ^" == "^ val_s, val_a
 
 let join_conds (s1, a1) (s2, a2) =
-  let conj = if s1 = "" or s2 = "" then "" else " && " in
+  let conj = if s1 = "" || s2 = "" then "" else " && " in
   if s2 = "" then s1, a1 else s1 ^ conj ^ s2, a1 @ a2
 
 (* If an expression contains unsupported operations (e.g., bit shifting), get
@@ -515,7 +515,7 @@ class dsnconcreteVisitorClass = object
         let val_s, val_a = lossless_val_lv lv in
         let special_cases = match rhs_s with
           "stdin" | "stdout" | "stderr" -> true | _ -> false in
-        let actual_val = (is_str_lit_asgn e) or (if_s <> "") or special_cases in
+        let actual_val = (is_str_lit_asgn e) || (if_s <> "") || special_cases in
 
         (* Make it assign an actual value directly if needed. *)
         let pr_s2, pr_a2 = if actual_val then val_s, val_a
