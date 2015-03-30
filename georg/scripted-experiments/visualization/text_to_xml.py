@@ -44,20 +44,24 @@ def process_entities(entities):
   return processed_entities
 
 def to_xml(entities, out):
-  out.write("<entities>\n")
+  out.write("<trace>\n")
   for entity in entities:
-    out.write("<entity>\n")
+    attribute_string = ""
+    #out.write("<traceelement>\n")
     # invariant
     invariant = entity[0] # todo: invariant is currently a list of 
-    out.write("<invariant>" + escape(invariant) + "</invariant>\n")
+    content_string = "<invariant>" + escape(invariant) + "</invariant>\n"
+    #out.write("<invariant>" + escape(invariant) + "</invariant>\n")
     # what kind of entry is it? (guarded) statement or summary?
     kind = entity[1]
     if kind == "TID":
       # it is a (guarded) statement
-      out.write("<kind>STATEMENT</kind>\n")
+      attribute_string += " kind=\"STATEMENT\""
+      #out.write("<kind>STATEMENT</kind>\n")
       # thread id
       threadid = entity[2]
-      out.write("<threadid>" + threadid + "</threadid>")
+      attribute_string += " threadid=\"" + threadid + "\""
+      #out.write("<threadid>" + threadid + "</threadid>")
       if entity[3].startswith("#line "):
         line = entity[3]
         guard = ""
@@ -66,22 +70,31 @@ def to_xml(entities, out):
         line = entity[4]
         guard = entity[3]
         statement = entity[5]
-      out.write("<line>" + line[6:] + "</line>\n")
-      out.write("<statement>" + escape(statement) + "</statement>\n")
-      out.write("<guards>\n")
+      attribute_string += " line=\"" + line[6:] + "\""
+      #out.write("<line>" + line[6:] + "</line>\n")
+      content_string += "<statement>" + escape(statement) + "</statement>\n"
+      #out.write("<statement>" + escape(statement) + "</statement>\n")
+      content_string += "<guards>\n"
+      #out.write("<guards>\n")
       if guard != "":
         guard = guard[4:-1] # remove if and outer brackets
         guards = guard.split(" && ")
         for g in guards:
-          out.write("<guard>" + escape(g) + "</guard>\n")
-      out.write("</guards>\n")
+          content_string += "<guard>" + escape(g) + "</guard>\n"
+          #out.write("<guard>" + escape(g) + "</guard>\n")
+      content_string += "</guards>\n"
+      #out.write("</guards>\n")
     else:
       # it is a summary
-      out.write("<kind>SUMMARY</kind>\n")
+      attribute_string += " kind=\"SUMMARY\""
+      #out.write("<kind>SUMMARY</kind>\n")
       summary = entity[2]
-      out.write("<summary>" + escape(summary) + "</summary>\n")
-    out.write("</entity>\n")
-  out.write("</entities>\n")
+      content_string += "<summary>" + escape(summary) + "</summary>\n"
+      #out.write("<summary>" + escape(summary) + "</summary>\n")
+    out.write("<traceelement" + attribute_string + ">\n")
+    out.write(content_string)
+    out.write("</traceelement>\n")
+  out.write("</trace>\n")
 
 if __name__ == "__main__":
   explanation_file = sys.argv[1]

@@ -13,7 +13,7 @@ if __name__ == "__main__":
   mapping_entities = mapping_to_xml.read_entities_from_file(trace_file)
 
   sys.stdout.write("<?xml version=\"1.0\"?>\n")
-  sys.stdout.write("<explanation>\n")
+  sys.stdout.write("<explanation trace_c=\"" + trace_file + "\" explanation=\"" + explanation_file + "\">\n")
   text_to_xml.to_xml(processed_explanation_entities, sys.stdout)
   mapping_to_xml.to_xml(mapping_entities, sys.stdout)
   sys.stdout.write("</explanation>\n")
