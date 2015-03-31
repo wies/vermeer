@@ -312,3 +312,18 @@ install-findlib: cillib uninstall-findlib
 
 uninstall-findlib:
 	$(OCAMLFIND) remove cil
+
+
+BIN_DIR = $(VERMEER_PATH)/cil-1.7.3/bin/
+SIMPLIFIER_DIR = $(VERMEER_PATH)/cil-1.7.3/src/smt/
+SIMPLIFIER_NAME = "smt_simplify"
+
+.PHONY: simplifier
+simplifier: 
+	$(MAKE) -C $(SIMPLIFIER_DIR) all
+	test -f $(BIN_DIR)$(SIMPLIFIER_NAME) || ln -s $(SIMPLIFIER_DIR)smtlib_main.native $(BIN_DIR)$(SIMPLIFIER_NAME)
+
+.PHONY: simplifier-clean
+simplifier-clean:
+	$(MAKE) -C $(SIMPLIFIER_DIR) clean
+	rm $(BIN_DIR)$(NAME)
