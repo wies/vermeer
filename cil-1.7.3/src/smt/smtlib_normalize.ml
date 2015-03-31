@@ -49,19 +49,19 @@ let rec normalize_term t =
   | Sum(lst) -> 
     let lst = List.map normalize_term lst in
     let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals (+) 0 in
+    let vals = simplify_vals vals Int64.add 0L in
     let rest = flatten_nested_sums rest in
     Sum(vars @ vals  @ rest)
   | Mult(lst) -> begin
     let lst = List.map normalize_term lst in
     let (vars,vals,rest) = split_vars_vals lst in
-    let vals = simplify_vals vals ( * ) 1 in
+    let vals = simplify_vals vals (Int64.mul) 1L in
     let rest = flatten_nested_mults rest in
     (* distribute multiplication inside addition
      * this opens up more normalization oppertunities *)
     match vars,vals,rest with
     | [],[Value v],[Sum l] -> Sum (List.map (fun x -> Mult [Value v; x]) l)
-    | [],[],[] -> Value(1) (* if there are no values, then it is the identity of Mult, i.e., 1 *)
+    | [],[],[] -> Value(1L) (* if there are no values, then it is the identity of Mult, i.e., 1 *)
     | _ -> Mult(vars @ vals  @ rest)
   end
   | Variable _ | Value _ | UnsupportedTerm _ -> t
@@ -86,7 +86,7 @@ let normalize_relation op lhs rhs =
    * -x, a*x, or x
    *)
   let convert_to_coeff = function 
-    | Variable var -> (1,var)
+    | Variable var -> (1L,var)
     | Mult lst -> begin
       let (vars,vals,rest) = split_vars_vals lst in
       match (vars,vals,rest) with 
@@ -99,12 +99,12 @@ let normalize_relation op lhs rhs =
     let sort_coeff = List.sort (fun (c1,v1) (c2,v2) -> compare v1 v2) in
     let rec aux = function
       | [] -> [] 
-      | (c1,v1)::(c2,v2)::rest when v1 = v2 -> aux ((c1+c2,v1)::rest)
+      | (c1,v1)::(c2,v2)::rest when v1 = v2 -> aux ((Int64.add c1 c2,v1)::rest)
       | a::rest -> a::(aux rest)
     in 
     let coeffs = sort_coeff coeffs in
     let coeffs = aux coeffs in
-    let coeffs = List.filter (fun (c,v) -> c <> 0) coeffs in
+    let coeffs = List.filter (fun (c,v) -> c <> 0L) coeffs in
     coeffs
   in
   (* returns a sorted, normalized list of coefficients *)
@@ -115,9 +115,9 @@ let normalize_relation op lhs rhs =
   let remove_common_factors lhs value = 
     let coeffs = List.map (fun (c,v) -> c) lhs in
     let common_factor = list_gcd (value::coeffs) in
-    assert(common_factor > 0);
-    if (common_factor <> 1) then 
-      (List.map (fun (c,v) -> (c/common_factor,v)) lhs, value/common_factor)
+    assert(common_factor > 0L);
+    if (common_factor <> 1L) then 
+      (List.map (fun (c,v) -> (Int64.div c common_factor,v)) lhs, Int64.div value common_factor)
     else 
       (lhs,value)
   in
@@ -127,32 +127,32 @@ let normalize_relation op lhs rhs =
     | [] -> LinearRelation(op, lhs, value)
     | _ -> begin
       let (c,v) = List.hd lhs in
-      if c < 0 then begin
+      if c < 0L then begin
         let op = invert_rel op in
-        let value = -value in
-        let lhs = List.map (fun (c,v) -> (-c,v)) lhs in
+        let value = Int64.neg value in
+        let lhs = List.map (fun (c,v) -> (Int64.neg c,v)) lhs in
         LinearRelation(op,lhs,value)
       end else
         LinearRelation(op,lhs,value)
       end
   in
   let get_value = function 
-    | [] -> 0
+    | [] -> 0L
     | [Value v] -> v 
     | _ -> failwith "should really have been a value here"
   in
   (*first, move everything interresting to the lhs *)
   (* RHS is implicitly 0 now *)
-  let newLHS = Sum[lhs; Mult [Value (-1); rhs]] in
+  let newLHS = Sum[lhs; Mult [Value (Int64.minus_one); rhs]] in
   let newLHS = run_fixpt normalize_term newLHS in
   let linearList,newRHS =  
     match newLHS with 
     | Sum tl -> 
       let (vars,vals,sums,mults,rest) = split_term_list tl in
       assert (sums = []);
-      get_coeffs (vars @ mults @ rest), -(get_value vals)
-    | Value v -> [], -v
-    | _ -> get_coeffs[newLHS], 0
+      get_coeffs (vars @ mults @ rest), Int64.neg (get_value vals)
+    | Value v -> [], Int64.neg v
+    | _ -> get_coeffs[newLHS], 0L
   in
   let linearList,newRHS = remove_common_factors linearList newRHS in
   begin_with_positive op linearList newRHS

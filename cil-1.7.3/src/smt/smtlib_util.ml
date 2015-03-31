@@ -75,3 +75,5 @@ let rec find_map fn = function
 
 (** The obligatory flat map *)
 let flat_map f ls = List.flatten (List.map f ls)
+
+let print_int64 x = print_string (Int64.to_string x)

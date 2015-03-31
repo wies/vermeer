@@ -1,4 +1,5 @@
 open Smtlib_ast
+open Smtlib_util
 
 let rec print_formula f indentation =
   match f with
@@ -30,7 +31,7 @@ and
     print_term t = 
   match t with
   | Variable(s) -> print_string(s)
-  | Value(v) -> print_int(v)
+  | Value(v) -> print_int64(v)
   | Sum([ t1 ]) -> print_term t1
   | Sum(t1 :: ts) -> print_string("("); print_term t1; print_string(" + "); print_term (Sum(ts)); print_string(")")
   | Mult [ t1 ]  -> print_term t1

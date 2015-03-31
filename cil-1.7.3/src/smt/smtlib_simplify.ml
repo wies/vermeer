@@ -167,7 +167,7 @@ let  simplify_constants  f  =
     | True | False | UnsupportedFormula _ -> f
     (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
     (* | Boolvar _ -> True *)
-    | LinearRelation(op,[],v) -> apply_op op 0 v
+    | LinearRelation(op,[],v) -> apply_op op 0L v
 
     (* We can special case a = a *)
     | Relation(EQ,a,b) 
@@ -224,14 +224,14 @@ let simplify_and_pair f1 f2 =
   | LinearRelation(op1,t1,c1), LinearRelation(op2,t2,c2) when t1 = t2 -> begin
     match (op1,c1),(op2,c2) with
     | (GEQ,a),(GT,b) | (GT,b),(GEQ,a)
-      when  (a >= b + 1 || b + 1 >= a) -> 
-      let c = max a (b + 1) in
+      when  (a >= Int64.succ b || Int64.succ b >= a) -> 
+      let c = max a (Int64.succ b ) in
       Some (LinearRelation(GEQ,t1,c))
     | (GT,a),(LEQ,b) | (LEQ,b),(GT,a)
-      when a + 1 = b ->
+      when Int64.succ a = b ->
       Some (LinearRelation(EQ,t1,b))
     | (GEQ,a),(LT,b) | (LT, b),(GEQ, a) 
-      when a + 1 = b ->
+      when Int64.succ a = b ->
       Some (LinearRelation(EQ,t1,a))
     | (GEQ,a),(GEQ,b) 
       when (a >= b || b >= a) ->
@@ -255,8 +255,8 @@ let simplify_and_pair f1 f2 =
       when a = b->
       Some(LinearRelation(EQ,t1,a))
     | (GT,a),(LT,b) | (LT,b),(GT,a)
-      when a + 2 = b ->
-      Some(LinearRelation(NEQ, t1, (a + 1)))
+      when Int64.add a 2L = b ->
+      Some(LinearRelation(NEQ, t1, (Int64.succ a )))
     | _ -> None
   end
   | _ -> None
@@ -309,17 +309,4 @@ let beautify_formula f = run_fixpt simplify_formula (nnf f)
   )
 *)
 
-let test () =
-  let x = Variable "x" in
-  let zero = Value 0 in
-  let f = 
-    And [
-      Not (Relation (EQ,x,Value 5));
-      ITE(
-	Relation(LEQ, Sum[x;Value (-4)], zero),
-	Relation(LEQ, zero, Sum[x; Value (-5)]),
-	Or [
-	  Relation(LEQ,Sum[x;Value (-5)],zero);
-	  Relation(LEQ, x, Value 5)])] in
-  let bf = beautify_formula f  in
-  print_formula bf ""
+let test () = ()

@@ -17,19 +17,12 @@ let rec
     translate_to_term smt_term = 
   match smt_term with
   | TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s)))) ->
-    let is_Integer str =
-      try ignore(int_of_string str); true with Failure _ -> false (* from http://pleac.sourceforge.net/pleac_ocaml/numbers.html *)
-    in
-      if is_Integer s then
-        let v = int_of_string s in Value(v)
-      else
-        Variable(s)
+    (try 
+      let v = Int64.of_string s in Value v 
+    with Failure _ -> Variable s)
 
   | TermSpecConst (_, SpecConstNum(_, c)) -> 
-    let
-        v = int_of_string c
-    in
-    Value(v)
+    Value(Int64.of_string c)
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "+"))), (_, [ t1 ])) ->
     let 
@@ -45,10 +38,10 @@ let rec
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, "-"))), (_, [ TermSpecConst (_, SpecConstNum(_, c)) ])) ->
     let
-        v = int_of_string c
+        v = Int64.of_string c
     in
     let
-        v2 = -1 * v
+        v2 = Int64.neg v
     in
     Value(v2)
 
@@ -63,7 +56,7 @@ let rec
 
   | TermQualIdTerm (_, QualIdentifierId(_, IdSymbol (_, Symbol(_, s))), (_, [ TermQualIdentifier (_, QualIdentifierId (_, IdSymbol (_, Symbol(_, s2)))) ])) ->
     let
-	term1 = Value(-1)
+	term1 = Value(Int64.minus_one)
     in
     let
 	term2 = Variable(s2)
