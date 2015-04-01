@@ -14,7 +14,7 @@ type source_position = {
 (** {6 Identifiers, sorts, and symbols} *)
 
 (** identifiers *)
-type ident = string * int
+type ident = string
 type pos = source_position
 module IdSet = Set.Make(struct
     type t = ident
@@ -37,7 +37,7 @@ type symbol =
   | IntConst of int
   | Ident of ident
   | Minus | Plus | Mult | Div
-  | Eq | Gt | Lt | Geq | Leq
+  | Eq | Gt | Lt | Geq | Leq | Neq
   | And | Or | Impl | Not | Ite
 
 type annotation =
