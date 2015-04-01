@@ -26,8 +26,6 @@ module IdMap = Map.Make(struct
     let compare = compare
   end)
 
-
-
 type sort = 
   | IntSort | BoolSort
   | FreeSort of ident * sort list
@@ -143,53 +141,59 @@ let fv_in_term_acc vars t =
 
 let fv_in_term t = fv_in_term_acc IdSet.empty t
 
-(* (\** Substitutes all free variables in term [t] according to substitution [sm]. *)
-(*  ** Capture avoiding. *\) *)
-(* let subst sm t = *)
-(*   let rename_vars vs sm = *)
-(*     let not_bound id _ = not (List.mem_assoc id vs) in *)
-(*     let sm1 = IdMap.filter not_bound sm in  *)
-(*     let occuring = IdMap.fold (fun _ t acc -> fv_in_term_acc acc t) sm IdSet.empty in *)
-(*     let vs1, sm2 =  *)
-(*       List.fold_right  *)
-(* 	(fun (x, srt) (vs1, sm2) -> *)
-(* 	  if IdSet.mem x occuring  *)
-(* 	  then  *)
-(* 	    let x1 = GrassUtil.fresh_ident (GrassUtil.name x) in *)
-(* 	    (x1, srt) :: vs1, IdMap.add x (App (Ident x1, [], None)) sm2 *)
-(* 	  else (x, srt) :: vs1, sm2) *)
-(* 	vs ([], sm1) *)
-(*     in vs1, sm2 *)
-(*   in *)
-(*   let rec sub sm = function *)
-(*     | App (Ident id, [], pos) as t -> *)
-(*         (try IdMap.find id sm  *)
-(*         with Not_found -> t) *)
-(*     | App (sym, ts, pos) ->  *)
-(*         App (sym, List.map (sub sm) ts, pos) *)
-(*     | Binder (b, vs, t, pos) -> *)
-(*         let vs1, sm1 = rename_vars vs sm in *)
-(*         Binder (b, vs1, sub sm1 t, pos) *)
-(*     | Let (defs, t, pos) -> *)
-(*         let vs = List.map (fun (v, _) -> (v, IntSort)) defs in *)
-(*         let vs1, sm1 = rename_vars vs sm in *)
-(*         let defs1 = List.map2 (fun (v, _) (_, t) -> (v, sub sm t)) vs1 defs in *)
-(*         Let (defs1, sub sm1 t, pos) *)
-(*     | Annot (t, a, pos) ->  *)
-(*         Annot (sub sm t, a, pos) *)
-(*   in sub sm t *)
+let identIdx = ref 0
+(* For now, just be really simple here.  Can be more clever later *)
+let fresh_ident s = 
+  incr identIdx;
+  s ^ (string_of_int !identIdx)
 
-(* let unletify t = *)
-(*   let rec ul = function *)
-(*   | App (sym, ts, pos) -> *)
-(*       App (sym, List.map ul ts, pos) *)
-(*   | Binder (b, vs, t, pos) -> *)
-(*       Binder (b, vs, ul t, pos) *)
-(*   | Let (defs, t, pos) -> *)
-(*       let sm =  *)
-(*         List.fold_left (fun sm (v, t) -> IdMap.add v (ul t) sm) IdMap.empty defs *)
-(*       in *)
-(*       ul (subst sm t) *)
-(*   | Annot (t, a, pos) -> *)
-(*       Annot (ul t, a, pos) *)
-(*   in ul t *)
+(** Substitutes all free variables in term [t] according to substitution [sm].
+ ** Capture avoiding. *)
+let subst sm t =
+  let rename_vars vs sm =
+    let not_bound id _ = not (List.mem_assoc id vs) in
+    let sm1 = IdMap.filter not_bound sm in
+    let occuring = IdMap.fold (fun _ t acc -> fv_in_term_acc acc t) sm IdSet.empty in
+    let vs1, sm2 =
+      List.fold_right
+	(fun (x, srt) (vs1, sm2) ->
+	  if IdSet.mem x occuring
+	  then
+	    let x1 = fresh_ident x in
+	    (x1, srt) :: vs1, IdMap.add x (App (Ident x1, [], None)) sm2
+	  else (x, srt) :: vs1, sm2)
+	vs ([], sm1)
+    in vs1, sm2
+  in
+  let rec sub sm = function
+    | App (Ident id, [], pos) as t ->
+        (try IdMap.find id sm
+        with Not_found -> t)
+    | App (sym, ts, pos) ->
+        App (sym, List.map (sub sm) ts, pos)
+    | Binder (b, vs, t, pos) ->
+        let vs1, sm1 = rename_vars vs sm in
+        Binder (b, vs1, sub sm1 t, pos)
+    | Let (defs, t, pos) ->
+        let vs = List.map (fun (v, _) -> (v, IntSort)) defs in
+        let vs1, sm1 = rename_vars vs sm in
+        let defs1 = List.map2 (fun (v, _) (_, t) -> (v, sub sm t)) vs1 defs in
+        Let (defs1, sub sm1 t, pos)
+    | Annot (t, a, pos) ->
+        Annot (sub sm t, a, pos)
+  in sub sm t
+
+let unletify t =
+  let rec ul = function
+  | App (sym, ts, pos) ->
+      App (sym, List.map ul ts, pos)
+  | Binder (b, vs, t, pos) ->
+      Binder (b, vs, ul t, pos)
+  | Let (defs, t, pos) ->
+      let sm =
+        List.fold_left (fun sm (v, t) -> IdMap.add v (ul t) sm) IdMap.empty defs
+      in
+      ul (subst sm t)
+  | Annot (t, a, pos) ->
+      Annot (ul t, a, pos)
+  in ul t
