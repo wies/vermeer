@@ -2,7 +2,7 @@ type variable = string
 
 type term = 
 | Variable of variable
-| Value of int 
+| Value of int64 
 | Sum of term list
 | Mult of term list
 | UnsupportedTerm of string
@@ -20,7 +20,7 @@ type formula =
 | Implication of formula * formula
 (* relations: *)
 | Relation of binop * term * term
-| LinearRelation of binop * (int * variable) list * int
+| LinearRelation of binop * (int64 * variable) list * int64
 | ITE of formula * formula * formula
 | Boolvar of string
 | UnsupportedFormula of string
@@ -63,18 +63,18 @@ let string_of_relation = function
   | NEQ -> "!="
 
 let gcd a b = 
-  if a = 0 || b = 0 then 
-    1
+  if a = 0L || b = 0L then 
+    1L
   else 
     let open Big_int in
-    let result = int_of_big_int (gcd_big_int (big_int_of_int a) (big_int_of_int b)) in
-    assert (result > 0);
+    let result = int64_of_big_int (gcd_big_int (big_int_of_int64 a) (big_int_of_int64 b)) in
+    assert (result > 0L);
     result
 
 (* assumes that the list has length >1 *)
 let list_gcd = function
-  | [] -> 1
-  | [x] -> abs(x)
+  | [] -> 1L
+  | [x] -> Int64.abs x
   | lst -> List.fold_left gcd (List.hd lst) lst
 
 let rec run_fixpt fn term = 
@@ -115,12 +115,12 @@ let print_relation rel =
   print_string (string_of_relation rel);
   print_string " "
     
-let relation_of_linearrelation op lhs rhs= 
+let relation_of_linearrelation op lhs rhs=
   let mults = List.map (fun (coeff,var) ->
-    match coeff with 
-    | 0 -> failwith "shouldn't have 0 coefficients"
-    | 1 -> Variable var
+    match coeff with
+    | 0L -> failwith "shouldn't have 0 coefficients"
+    | 1L -> Variable var
     | x -> Mult[Value x; Variable var]) lhs
   in
   Relation(op,Sum mults,Value rhs)
-(* todo could normalize here to something more readable *)
+(* (\* todo could normalize here to something more readable *\) *)
