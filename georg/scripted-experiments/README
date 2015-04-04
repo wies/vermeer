@@ -1,0 +1,4 @@
+This directory contains several scripts for automatically running experiments.
+
+The directory fse15-data contains the experimental data that was generated for the FSE'15 submission.
+
