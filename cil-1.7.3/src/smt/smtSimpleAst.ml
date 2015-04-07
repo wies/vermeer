@@ -30,6 +30,10 @@ let ocaml_of_op = function
   | Neq -> (<>)
   | _ -> failwith "cannot create ocaml op"
 
+let apply_op op lhs rhs = 
+  let ocaml_op = ocaml_of_op op in
+  if (ocaml_op lhs rhs) then BoolConst true  else BoolConst false
+
 let is_intconst  = function | IntConst _ -> true  | _ -> false
 let is_boolconst = function | BoolConst _ -> true | _ -> false
 let is_trueconst = function | BoolConst true -> true | _ -> false

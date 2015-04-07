@@ -107,6 +107,7 @@ and normalize_term t =
   in 
   let rec aux = function
     (* Handle constants *)
+    | LinearRelation(op,[],v) -> apply_op op 0L v
     | BoolConst _ | IntConst _ | Ident _ | LinearRelation _ as f -> f
     (* 0 list length *)
     | App(And,[],_) -> BoolConst true

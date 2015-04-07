@@ -1,5 +1,7 @@
 open Smtlib_util
 open SmtSimpleAst
+open SmtSimpleNormalize
+
 module FormulaSet = Set.Make(
   struct
     let compare = Pervasives.compare
@@ -122,96 +124,51 @@ let propagate_truth_context f =
   let check truth trueHere f =
     let f1, f2 = if truth then mk_not f, f else f, mk_not f in
     match f with
-    | Relation _ | LinearRelation _ ->
+    | App(o,t,s) when is_relation o ->
+      FormulaSet.exists (is_unsat f1) trueHere
+    | LinearRelation _ ->
       FormulaSet.exists (is_unsat f1) trueHere
     | _ -> FormulaSet.mem f2 trueHere
   in
   let rec aux trueHere  f = 
-    if check true trueHere f then begin
-      True
+    if check true trueHere f then begin 
+      mk_boolConst true
     end
     else if check false trueHere f then begin
-      False 
+      mk_boolConst false
     end else begin match f with
     (* in the context of an And, all other clauses in the And
      * are also true in the context of this one (and dualy for Or) *)  
-    | And fl -> 
+    | App(And,fl,_)-> 
       let fl = remove_duplicates true fl in
-      And (List.mapi (fun i e -> 
+      mk_and (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i (fun f -> f) fl trueHere in
 	aux trueHere e) fl)
-    | Or fl ->
+    | App(Or,fl,_) ->
       let fl = remove_duplicates false fl in
-      Or (List.mapi (fun i e -> 
+      mk_or (List.mapi (fun i e -> 
 	let trueHere = add_all_but_i i mk_not fl trueHere in
 	aux trueHere e) fl)
-    | Not Boolvar _ as f -> f
-    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
+    | App(Not,[Ident _],_) as f -> f
+    | App(Ite,_,_) | App(Impl,_,_) | App(Not,_,_)  -> failwith "expected formula in NNF"
     | _ -> f
     end
   in
   aux FormulaSet.empty f
 
 
-let  simplify_constants  f  = 
-  let remove_logical_consts lst =
-    List.filter (function True | False -> false | _ -> true) lst
-  in
-  let rec aux f = 
-    match f with
+let simplify_constants  f  = 
+  let rec aux = function
     (*constants remain constant *)
-    | True | False | UnsupportedFormula _ -> f
-    (* DSN - this is a bit of a tricky thing, but we know that the flag vars must always be true *)
-    (* | Boolvar _ -> True *)
-    | LinearRelation(op,[],v) -> apply_op op 0L v
-
-    (* We can special case a = a *)
-    | Relation(Eq,a,b) 
-    | Relation(Leq,a,b)
-    | Relation(Geq,a,b) 
-	when a = b -> True
-    | Relation(Lt,a,b)
-    | Relation(Gt,a,b)
-    | Relation(Neq,a,b) 
-	when a = b -> False
-
-    | And fl when List.mem False fl -> False
-    | Or fl when List.mem True fl -> True
-
-    (* Important that this happens after we have done the above test *)
-    | And fl -> And(List.map aux (remove_logical_consts fl))
-    | Or fl -> Or(List.map aux  (remove_logical_consts fl))
-
-    (* Don't simplify terms here *)
-    | Not Boolvar _ as f -> f
-    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"   
-    | _ -> f
+    | BoolConst _ | IntConst _ | Ident _ | LinearRelation _ as f -> f
+    | App(Eq,[a;b],_) | App(Leq,[a;b],_)  | App(Geq,[a;b],_) 
+	when a = b -> mk_boolConst true
+    | App(Neq,[a;b],_) | App(Lt,[a;b],_)  | App(Gt,[a;b],_) 
+	when a = b -> mk_boolConst false
+    | App(And,fl,_) when List.mem (BoolConst false) fl -> mk_boolConst false
+    | App(Or,fl,_) when List.mem (BoolConst true) fl -> mk_boolConst true
+    | App(o,t,s) -> mk_app o (List.map aux t) 
   in aux f
-
-
-
-let normalize_formula f = 
-  let flatten_nested_ands lst = 
-    List.fold_left (fun acc -> function And gs -> gs @ acc | f -> f :: acc) [] lst
-  in
-  let flatten_nested_ors lst = 
-    List.fold_left (fun acc -> function Or gs -> gs @ acc | f -> f :: acc) [] lst
-  in
-  let rec aux f = 
-    match f with 
-    (* Structural normalization *)
-    | And []  -> True
-    | And [f1] -> aux f1
-    | And lst -> And (List.map aux (remove_duplicates true (flatten_nested_ands lst)))
-    | Or []  -> False
-    | Or [f1] -> aux f1
-    | Or lst -> Or (List.map aux (remove_duplicates false (flatten_nested_ors lst)))
-    | Relation (op,lhs,rhs) -> normalize_relation op lhs rhs
-    | Not Boolvar _ as f -> f
-    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
-    | _ -> f  
-  in  
-  aux f
 
 (* we can strengthen this later *)
 (* return Some reduced if reduction possible. None otherwise *)
@@ -272,17 +229,16 @@ let fold_pairs fn lst =
 
 let simplify_formula_2 f = 
   let rec aux = function
-    | And fs -> And(fold_pairs simplify_and_pair (List.map aux fs))
-    | Or fs -> Or(fold_pairs simplify_or_pair (List.map aux fs))
-    | True | False | Relation _ | LinearRelation _ | UnsupportedFormula _ | Boolvar _ as f -> f
-    | Not Boolvar _ as f -> f
-    | ITE _ | Implication _ | Not _ -> failwith "expected formula in NNF"
+    | App(And,fs,_) -> mk_and (fold_pairs simplify_and_pair (List.map aux fs))
+    | App(Or,fs,_) -> mk_or (fold_pairs simplify_or_pair (List.map aux fs))
+    | IntConst _ | BoolConst _ | LinearRelation _ | Ident _ as f -> f
+    | App(o,t,s) -> mk_app o (List.map aux t)
   in
   aux f
 
 let simplify_formula f = 
   let f = simplify_constants f in
-  let f = normalize_formula f in
+  let f = normalize_term f in
   let f = propagate_truth_context f in
   let f = simplify_formula_2 f in
   f
