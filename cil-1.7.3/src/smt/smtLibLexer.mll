@@ -1,5 +1,4 @@
 {
-open Grass
 open Lexing
 open SmtLibSyntax
 open SmtLibParser
