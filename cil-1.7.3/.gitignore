@@ -1,1 +1,2 @@
 bin/smt_simplify
+src/smt/smtlib_main.native

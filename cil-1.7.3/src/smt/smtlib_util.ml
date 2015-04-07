@@ -77,3 +77,24 @@ let rec find_map fn = function
 let flat_map f ls = List.flatten (List.map f ls)
 
 let print_int64 x = print_string (Int64.to_string x)
+
+let gcd a b = 
+  if a = 0L || b = 0L then 
+    1L
+  else 
+    let open Big_int in
+    let result = int64_of_big_int (gcd_big_int (big_int_of_int64 a) (big_int_of_int64 b)) in
+    assert (result > 0L);
+    result
+
+(* assumes that the list has length >1 *)
+let list_gcd = function
+  | [] -> 1L
+  | [x] -> Int64.abs x
+  | lst -> List.fold_left gcd (List.hd lst) lst
+
+let rec run_fixpt fn term = 
+  let newTerm = fn term in
+  if newTerm = term 
+  then term 
+  else run_fixpt fn newTerm
