@@ -51,7 +51,7 @@ rmodel:
 ;
 
 names:
-| IDENT names { (Grass.string_of_ident $1) :: $2 }
+| IDENT names { (SmtLibSyntax.string_of_ident $1) :: $2 }
 | /* empty */ { [] }
 ;
 

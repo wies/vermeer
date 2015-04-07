@@ -10,6 +10,87 @@ type source_position = {
     sp_end_col : int;
   }
 
+let dummy_position = 
+  { sp_file = "";
+    sp_start_line = max_int;
+    sp_start_col = max_int;
+    sp_end_line = 0;
+    sp_end_col = 0 
+  }
+
+let global_scope =
+  { sp_file = "";
+    sp_start_line = 0;
+    sp_start_col = 0;
+    sp_end_line = max_int; 
+    sp_end_col = max_int;
+  }
+
+let string_of_src_pos pos =
+  if pos.sp_end_line = pos.sp_start_line 
+  then 
+    Printf.sprintf "File \"%s\", line %d, columns %d-%d" 
+      pos.sp_file pos.sp_start_line pos.sp_start_col pos.sp_end_col
+  else 
+    Printf.sprintf "File \"%s\", line %d, column %d to line %d, column %d" 
+      pos.sp_file pos.sp_start_line pos.sp_start_col pos.sp_end_line pos.sp_end_col
+
+let string_of_ident ident = ident
+
+let merge_src_pos pos1 pos2 =
+  assert (pos1.sp_file = "" || pos2.sp_file = "" || pos1.sp_file = pos2.sp_file);
+  let file = max pos1.sp_file pos2.sp_file in
+  let start_line, start_col =
+    if pos1.sp_start_line < pos2.sp_start_line 
+    then pos1.sp_start_line, pos1.sp_start_col
+    else if pos2.sp_start_line < pos1.sp_start_line
+    then pos2.sp_start_line, pos2.sp_start_col
+    else if pos1.sp_start_col < pos2.sp_start_col
+    then pos1.sp_start_line, pos1.sp_start_col
+    else pos2.sp_start_line, pos2.sp_start_col
+  in
+  let end_line, end_col =
+    if pos1.sp_end_line > pos2.sp_end_line 
+    then pos1.sp_end_line, pos1.sp_end_col
+    else if pos2.sp_end_line > pos1.sp_end_line
+    then pos2.sp_end_line, pos2.sp_end_col
+    else if pos1.sp_end_col > pos2.sp_end_col
+    then pos1.sp_end_line, pos1.sp_end_col
+    else pos2.sp_end_line, pos2.sp_end_col
+  in
+  { sp_file = file;
+    sp_start_line = start_line;
+    sp_start_col = start_col;
+    sp_end_line = end_line;
+    sp_end_col = end_col;
+  }
+
+let in_same_file pos1 pos2 = 
+  pos1.sp_file = "" ||
+  pos2.sp_file = "" ||
+  pos1.sp_file = pos2.sp_file
+
+let starts_before_src_pos pos1 pos2 =
+  in_same_file pos1 pos2 &&
+  (pos1.sp_start_line < pos2.sp_start_line || 
+   pos1.sp_start_line = pos2.sp_start_line && pos1.sp_start_col <= pos2.sp_start_col)
+  
+let ends_before_src_pos pos1 pos2 =
+  in_same_file pos1 pos2 &&
+  (pos1.sp_end_line < pos2.sp_end_line || 
+  pos1.sp_end_line = pos2.sp_end_line && pos1.sp_end_col <= pos2.sp_end_col)
+
+let contained_in_src_pos pos1 pos2 =
+  starts_before_src_pos pos2 pos1 && ends_before_src_pos pos1 pos2    
+  
+let compare_src_pos pos1 pos2 =
+  let cf = compare pos1.sp_file pos2.sp_file in
+  if cf <> 0 then cf else
+  if starts_before_src_pos pos1 pos2 then
+    if starts_before_src_pos pos2 pos1 then 0
+    else -1
+  else 1
+
 
 (** {6 Identifiers, sorts, and symbols} *)
 
@@ -197,3 +278,4 @@ let unletify t =
   | Annot (t, a, pos) ->
       Annot (ul t, a, pos)
   in ul t
+

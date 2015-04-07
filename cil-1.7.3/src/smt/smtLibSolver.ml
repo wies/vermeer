@@ -1,10 +1,8 @@
 (** SMT-LIB v2 solver interface *)
 
 open SmtLibSyntax
-open Grass
-open GrassUtil
 open Unix
-open Util
+module Util = Smtlib_util
 
 let num_of_sat_queries = ref 0
 
@@ -68,7 +66,6 @@ let z3_v4 = { version = 4;
 	      subversion = 3;
               has_set_theory = false;
 	      smt_options = 
-              (if not !Config.instantiate then [(":auto-config", false)] else []) @
               [(*":smt.mbqi", true;
                ":smt.ematching", true;
                ":model.v2", true;
@@ -131,16 +128,16 @@ let available_solvers =
 
 let selected_solvers = ref []
 
-let select_solver name = 
-  let selected = Str.split (Str.regexp "+") name in
-  selected_solvers := 
-    List.filter 
-      (fun s -> List.mem s.name selected && !Config.verify || 
-      s.info.kind = Logger && !Config.dump_smt_queries) available_solvers;
-  Debug.info (fun () ->
-    "Selected SMT solvers: " ^
-    String.concat ", " (List.map (fun s -> s.name) !selected_solvers) ^
-   "\n")
+(* let select_solver name =  *)
+(*   let selected = Str.split (Str.regexp "+") name in *)
+(*   selected_solvers :=  *)
+(*     List.filter  *)
+(*       (fun s -> List.mem s.name selected && !Config.verify ||  *)
+(*       s.info.kind = Logger && !Config.dump_smt_queries) available_solvers; *)
+(*   Debug.info (fun () -> *)
+(*     "Selected SMT solvers: " ^ *)
+(*     String.concat ", " (List.map (fun s -> s.name) !selected_solvers) ^ *)
+(*    "\n") *)
     
       
 

@@ -1,3 +1,4 @@
+module P = Dsnsolver
 module M = SmtSimpleAst
 module L = SmtSimpleNormalize
 module N = SmtSimplePasses

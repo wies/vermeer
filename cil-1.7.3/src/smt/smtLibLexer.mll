@@ -17,8 +17,8 @@ let _ =
       "define-sort", DEFINE_SORT;
       "define-fun", DEFINE_FUN;
       (* sorts *)
-      Grass.bool_sort_string, SORT(BoolSort);
-      Grass.int_sort_string, SORT(IntSort);
+      "Int", SORT(BoolSort);
+      "Bool", SORT(IntSort);
       (* term constructors *)
       "forall", BINDER(Forall);
       "exists", BINDER(Exists);
@@ -69,13 +69,7 @@ rule token = parse
 | '(' { LPAREN }
 | ')' { RPAREN }
 | ('-'? digitchar*) as num { INT(int_of_string num) }
-| ident as name '_' (digitchar* as num) { IDENT(name, int_of_string num) }
-| ident as kw
-    { try
-        Hashtbl.find keyword_table kw
-      with Not_found ->
-        IDENT(kw, 0)
-    }
+| ident as name { IDENT(name) }
 | '"' [^'"']* as str '"' { STRING(str) }
 | eof { EOF }
 | _ { let pos = lexeme_start_p lexbuf in 
