@@ -159,7 +159,8 @@ let do_on_trace fn at = fn (trace_from_at at)
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
 
-let rec string_of_formula (f : SMT.term) : string = failwith "not implemented"
+let rec string_of_formula (f : SMT.term) : string = 
+  SmtSimpleFns.string_of_term f
 let string_of_term = string_of_formula
 
 let string_of_clause c = 

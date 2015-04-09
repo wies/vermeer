@@ -1,23 +1,13 @@
 (** Abstract syntax tree for GRASS formulas (a sorted first-order logic) *)
 
 open Util
+open SmtLibSyntax
 
 (** {6 Source position} *)
-
-type source_position = {
-    sp_file : string;
-    sp_start_line : int;
-    sp_start_col : int;
-    sp_end_line : int;
-    sp_end_col : int;
-  }
-
 
 (** {6 Identifiers, sorts, and symbols} *)
 
 (** identifiers *)
-type ident = string * int
-
 module IdSet = Set.Make(struct
     type t = ident
     let compare = compare
@@ -28,12 +18,6 @@ module IdMap = Map.Make(struct
     let compare = compare
   end)
 
-(** sorts *)
-type sort =
-  | Bool | Loc | Int (** basic sorts *)
-  | Set of sort (** sets *)
-  | Map of sort * sort (** maps *)
-  | FreeSrt of ident (** uninterpreted sorts *)
 
 module IdSrtSet = Set.Make(struct
     type t = ident * sort
@@ -168,50 +152,6 @@ let string_of_src_pos pos =
     Printf.sprintf "File \"%s\", line %d, column %d to line %d, column %d" 
       pos.sp_file pos.sp_start_line pos.sp_start_col pos.sp_end_line pos.sp_end_col
 
-let string_of_ident0 (name, n) =
-  Printf.sprintf "%s_%d" name n
-
-let string_of_ident (name, n) =
-  if n = 0 then name else
-  Printf.sprintf "%s_%d" name n
-
-let string_of_symbol = function
-  (* function symbols *)
-  | BoolConst b -> Printf.sprintf "%b" b
-  | IntConst i -> string_of_int i
-  | Null -> "null"
-  | Read -> 
-      if !Config.encode_fields_as_arrays 
-      then "select"
-      else "read"
-  | Write -> 
-      if !Config.encode_fields_as_arrays 
-      then "store"
-      else "write"
-  | EntPnt -> "ep"
-  | UMinus -> "-"
-  | Plus -> "+"
-  | Minus -> "-"
-  | Mult -> "*"
-  | Div -> "div"
-  | Empty -> "emptyset"
-  | SetEnum -> "singleton"
-  | Union -> "union"
-  | Inter -> "intersection"
-  | Diff -> "setminus"
-  (* predicate symbols *)
-  | Eq -> "="
-  | LtEq -> "<="
-  | GtEq -> ">="
-  | Lt -> "<"
-  | Gt -> ">"
-  | Btwn -> "Btwn"
-  | Elem -> "member"
-  | SubsetEq -> "subset"
-  | Frame -> "Frame"
-  (* uninterpreted symbols *)
-  | FreeSym id -> string_of_ident id
-
 let pr_ident ppf id = fprintf ppf "%s" (string_of_ident id)
 
 let rec pr_ident_list ppf = function
@@ -225,11 +165,6 @@ let set_sort_string = "Set"
 let bool_sort_string = "Bool"
 let int_sort_string = "Int"
 
-let rec pr_sort0 ppf srt = match srt with
-  | Loc | Bool | Int -> fprintf ppf "%a" pr_sort srt
-  | FreeSrt id -> pr_ident ppf id
-  | _ -> fprintf ppf "@[<1>%a@]" pr_sort srt
-  (*| _ -> fprintf ppf "@[<1>(%a)@]" pr_sort srt*)
 
 and pr_sort ppf = function
   | Loc -> fprintf ppf "%s" loc_sort_string
