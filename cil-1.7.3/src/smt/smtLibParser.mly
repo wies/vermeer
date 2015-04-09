@@ -48,7 +48,7 @@ rerror:
 ;
 
 interpolant:
-| LPAREN cmnd_list RPAREN { $2 }
+| LPAREN term_list RPAREN { $2 }
 ;
 
 
