@@ -11,13 +11,28 @@ open Cil
 open Dsnutils
 open Dsnsmtdefs
 
+module SMT = SmtSimpleAst
+module Parser = SmtLibParser
+
 (* just make it compile smtlib.  Testing purposes only *)
 type foobar = SmtLibSyntax.sort
 let barfoo = Smtlib_main.run
 let baz = SmtLibSimplifierConverter.smtCore_of_smtSimple
 (* issue if interpolant tries to go past where something is used *)
 
-(* consider using https://realworldocaml.org/v1/en/html/data-serialization-with-s-expressions.html *)
+let (get_var_type, set_var_type) = 
+  let typeMap = ref SMT.VarSortMap.empty in
+  (
+    (fun v -> 
+      if (is_flag_var v) then SMT.BoolSort
+      else if (is_ssa_var v) then 
+	SMT.VarSortMap.find v !typeMap
+      else failwith ("Cannot find type for " ^ v)
+    ),
+    (fun v sort -> 
+      typeMap := SMT.VarSortMap.add v sort !typeMap
+    )
+  )
 
 let smtCallTime = ref []
 
@@ -27,7 +42,6 @@ module HazardSet = Dsngraph.HazardSet
 type smtContext = 
   {
     contextName : string;
-    typeMap: varTypeMap;
     seenThreads : TIDSet.t;
     seenGroups : GroupSet.t;
     clauses : clause list;
@@ -39,7 +53,6 @@ let makeDottyFiles = ref false
 (* typemap should go in here too *)
 let privateSmtContext = ref {
   contextName = "ERROR.  EMPTY.";
-  typeMap = emptyTypeMap;
   seenThreads = TIDSet.empty;
   seenGroups = GroupSet.empty;
   clauses = [];
@@ -47,18 +60,16 @@ let privateSmtContext = ref {
 }
 
 (* should only ever update it using this fn *)
-let setSmtContext name typeMap seenThreads seenGroups clauses = 
+let setSmtContext name seenThreads seenGroups clauses = 
   privateSmtContext :=
     {
       contextName = name;
-      typeMap = typeMap;
       seenThreads = seenThreads;
       seenGroups = seenGroups;
       clauses = clauses;
       graph = None;
     }
 
-let getCurrentTypeMap() = !privateSmtContext.typeMap 
 let getCurrentSeenThreads () =  !privateSmtContext.seenThreads
 let getCurrentSeenGroups() =  !privateSmtContext.seenGroups
 let getCurrentClauses () =  !privateSmtContext.clauses
@@ -73,9 +84,8 @@ let getCurrentGraph ?(make) () =
     privateSmtContext := {!privateSmtContext with graph = Some graph};
     graph
 
-let rec make_ssa_map (vars : smtSsaVar list) 
-    (ssaMap : varSSAMap) (defs : VarSet.t) 
-    : (varSSAMap * VarSet.t) =
+let rec make_ssa_map (vars : ssaVar list) (ssaMap : varSSAMap) (defs : SSAVarSet.t) 
+    : (varSSAMap * SSAVarSet.t) =
   let alreadyDefined v = 	
     try let vOld = VarSSAMap.find v.vidx ssaMap in
 	vOld.ssaIdx >= v.ssaIdx 
@@ -86,7 +96,7 @@ let rec make_ssa_map (vars : smtSsaVar list)
     let vidx = v.vidx in
     let ssaMap,defs = 
       if (alreadyDefined v) then (ssaMap,defs)
-      else (VarSSAMap.add vidx v ssaMap, VarSet.add v defs) in 
+      else (VarSSAMap.add vidx v ssaMap, SSAVarSet.add v defs) in 
     make_ssa_map  vs ssaMap defs
       
 (* this rebuilds the clauses, and the graph.  DO NOT USE THE OLD 
@@ -98,7 +108,7 @@ let topoSortCurrent () =
 	(fun (ssaBefore,revClsLst) cls -> 
 	  let v = cls.vars in
 	  let (newSsa,newDefs) = 
-	    make_ssa_map (VarSet.elements v) ssaBefore VarSet.empty in
+	    make_ssa_map (SSAVarSet.elements v) ssaBefore SSAVarSet.empty in
 	  (newSsa,{cls with ssaIdxs = newSsa}::revClsLst)) 
 	(VarSSAMap.empty,[]) clauses in
     List.rev newClausesRev
@@ -122,7 +132,7 @@ type sexpType = | Sexp
 		| SexpLet
 		| SexpIntConst 
 		| SexpBoolConst
-		| SexpSsaVar of smtSsaVar 
+		| SexpSsaVar of ssaVar 
 		| SexpLetVar 
 		| SexpFlagVar 
 
@@ -131,21 +141,13 @@ let smtDir = "./smt/"
 let smtCheckSat = "(check-sat)\n"
 let smtGetUnsatCore = "(get-unsat-core)\n"
 
-let smtZero = SMTConstant(0L)
-let smtOne = SMTConstant(1L)
+let smtZero = SMT.zero
+let smtOne = SMT.one
 let emptyIfContext = []
 
 (******************** Globals *************************)
 
-let typeMap : varTypeMap ref  = ref emptyTypeMap
 let count = ref 1
-
-
-let get_var_type (var : smtSsaVar) : smtVarType = 
-  try IntMap.find var.vidx !typeMap 
-  with Not_found -> SMTUnknown
-
-
 
 let trace_from_at at = 
   let interpolants,trace = List.split at in 
@@ -157,34 +159,7 @@ let do_on_trace fn at = fn (trace_from_at at)
 (******************** Print Functions *************************)
 let string_of_var v = v.fullname
 
-(* DSN TODO replace with list_fold *)
-
-let string_of_vartype typ = 
-  match typ with
-  |SMTInt -> "Int"
-  |SMTBool -> "Bool"
-  |SMTUnknown -> "Unknown"
-
-let rec string_of_formula f = 
-  let rec string_of_args a = 
-    match a with
-    | [] -> ""
-    | arg :: args -> (string_of_formula arg) ^ " " ^ (string_of_args args)
-  in
-  match f with
-  | SMTLet(b,t) ->
-    "(let (" ^ string_of_args b ^ ") " ^ string_of_formula t ^ ")" 
-  | SMTLetBinding(v,b) -> "(" ^ string_of_formula v ^ " " ^ string_of_formula b ^ ")"
-  | SMTRelation(rel, args) -> 
-    "(" ^ rel ^ " " ^(string_of_args args) ^ ")"
-  | SMTConstant(i) -> 
-    if i < Int64.zero then "(- " ^ Int64.to_string (Int64.abs i) ^ ")"
-    else Int64.to_string i
-  | SMTSsaVar(v) -> string_of_var v
-  | SMTLetVar(v) -> v
-  | SMTFlagVar v -> v
-  | SMTFalse -> "false"
-  | SMTTrue -> "true"
+let rec string_of_formula (f : SMT.term) : string = failwith "not implemented"
 let string_of_term = string_of_formula
 
 let string_of_clause c = 
@@ -198,8 +173,6 @@ let string_of_ifcontext ic =
     | x::xs -> aux xs (acc ^ string_of_formula x.iformula ^ " && ") 
   in
   aux ic ""
-
-
 
 let string_of_cprogram c =
   match c.typ with 
@@ -222,22 +195,6 @@ let debug_var v =
   ^  " owner: " ^ (string_of_int v.owner)
   ^  " ssaIdx: " ^ (string_of_int v.ssaIdx)
   ^ "}"
-let rec debug_args a = 
-  match a with
-  | [] -> ""
-  | arg :: args -> (debug_formula arg) ^ " " ^ (debug_args args)
-and debug_formula f = 
-  match f with
-  | SMTLet(b,t) ->
-    "(let ((" ^ debug_args b ^ " " ^ debug_formula t ^ ")) " 
-  | SMTRelation(rel, args) -> 
-    "\t(" ^ "Rel: " ^ rel ^ " args: " ^(debug_args args) ^ ")"
-  | SMTConstant(i) -> Int64.to_string i
-  | SMTSsaVar(v) -> debug_var v
-  | SMTLetVar(v) -> v
-  | SMTFlagVar v -> v
-  | SMTFalse | SMTTrue -> string_of_formula f
-  | SMTLetBinding (v,e) -> debug_formula v ^ " " ^ debug_formula e
 
 (* could make tail rec if I cared *)
 let debug_SSAMap m = 
@@ -245,21 +202,8 @@ let debug_SSAMap m =
   in List.fold_left (fun a e -> (string_of_binding e) ^ a) "" (VarSSAMap.bindings m)
 
 let debug_vars vars = 
-  List.fold_left (fun a e -> "\t" ^ debug_var e ^ "\n" ^ a) "" (VarSet.elements vars)
+  List.fold_left (fun a e -> "\t" ^ debug_var e ^ "\n" ^ a) "" (SSAVarSet.elements vars)
     
-let  debug_clause c = 
-  "\nidx: " ^ (string_of_int(c.idx))
-  ^"\n\tsexp: " ^ string_of_formula c.formula
-  (* ^ "\n\tformula:\n" ^ (debug_formula c.formula)  *)
-  ^ "\n\tSSA:\n" ^ debug_SSAMap c.ssaIdxs
-  ^ "\n\tvars:\n" ^ debug_vars c.vars
-
-let debug_typemap () = 
-  let fold_fn v t a = 
-    a ^ "\n" ^ (string_of_int v) ^ " " ^ (string_of_vartype t)
-  in
-  TypeMap.fold fold_fn !typeMap ""
-
 
 (****************************** Encoding in smt strings ******************************)
 (* Given a clause, and a term, encode that term into a new term
@@ -288,9 +232,8 @@ let currentEncoding = identityEncoding()
 let make_dependent_on (dependencyList: term list) (formula : term) = 
   match dependencyList with
   | [] -> formula
-  | [x] -> SMTRelation ("=>", [x;formula])
-  | _ -> let dependency = SMTRelation("and", dependencyList) in
-	 SMTRelation("=>", [dependency; formula]) 
+  | [x] -> SMT.mk_impl x formula
+  | _ ->  SMT.mk_impl (SMT.mk_and dependencyList) formula 
 
 let make_flowsensitive clause formula = 
   make_dependent_on (List.map (fun x -> x.iformula) clause.ifContext) formula
@@ -310,12 +253,11 @@ let encode_flowsensitive_this_tid tid =
   currentEncoding.makeFlowSensitive <- make_flowsensitive_this_tid tid
 
 let flag_var_string c = "flag_" ^ clause_name c
-let get_flag_var c = SMTFlagVar (flag_var_string c)
+let get_flag_var c = SMT.mk_ident (flag_var_string c) SMT.BoolSort
 
 let make_flag clause formula = 
   match clause.typ with 
-  | ProgramStmt _ ->   
-    SMTRelation("and", [formula;get_flag_var clause])
+  | ProgramStmt _ ->  SMT.mk_and [formula;get_flag_var clause]
   | _ -> formula
 
 let encode_flag () = 
@@ -356,8 +298,11 @@ let encode_formula opts clause =
     
     
 let make_var_decl v =
-  let ts = string_of_vartype (get_var_type v) in
-  "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n" 
+  failwith "todo later"
+  (* let ts = SMT.string_of_sort (get_var_type v) in *)
+  (* "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n"  *)
+
+
 let make_flag_decl c = 
   "(declare-fun " ^ (flag_var_string c)  ^" () Bool )\n" 
 
@@ -382,162 +327,15 @@ let print_annotated_trace  ?(stream = stdout) x =
 
 (****************************** Formula processing ******************************)
 
-let type_check_and_cast_to_bool topForm = 
-  let updatedVar = ref false in
-  let types_match t1 t2 =
-    match t1,t2 with
-    | SMTUnknown,_ | SMTInt,SMTInt | SMTBool,SMTBool -> true
-    | _ -> false
-  in
-  let second_if_matching t1 t2 = 
-    if types_match t1 t2 then t2 else failwith "mismatching types"
-  in
-  let update_type (var : smtSsaVar) newType = 
-    let currentType = get_var_type var  in
-    match (currentType,newType) with 
-    | SMTUnknown,SMTBool | SMTUnknown,SMTInt ->  
-      typeMap := TypeMap.add var.vidx newType !typeMap;
-      updatedVar := true
-    | _ -> ()
-  in
-  let rec analyze_type f = 
-    match f with 
-    | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
-    | SMTLet _ -> failwith "shouldn't be parsing this!"
-    | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-    | SMTFlagVar _ -> failwith "shouldn't be parsing this!"
-    | SMTFalse | SMTTrue -> SMTBool
-    | SMTConstant(_) -> SMTInt
-    | SMTSsaVar(v) -> get_var_type v
-    | SMTRelation(s,l) -> begin
-      match s with 
-      | "ite" -> begin
-	match l with 
-	|	[i;t;e] -> 
-	  if not (types_match (analyze_type i) SMTBool) then failwith "not bool!";
-	  analyze_type_lst [t;e] 
-	| _ -> failwith "bad ite"
-      end 
-      | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
-	SMTBool
-      | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
-	SMTBool
-      | "=" | "distinct" ->
-	SMTBool
-      | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
-	SMTInt
-      | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	failwith "not supporting bit operators"
-      | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
-    end
-  and analyze_type_lst l = List.fold_left 
-    (fun a x -> second_if_matching a (analyze_type x)) SMTUnknown l
-  in
-  let rec assign_vartypes desired f =
-    match f with
-    | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
-    | SMTLet _ -> failwith "shouldn't be parsing this!"
-    | SMTFlagVar _ -> failwith "shouldn't be parsing this!"
-    | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-    | SMTFalse | SMTTrue | SMTConstant _ -> ()
-    | SMTSsaVar(v) -> update_type v desired
-    | SMTRelation(s,l) -> begin
-      match s with 
-      | "ite" -> begin
-	match l with 
-	|	[i;t;e] -> 
-	  assign_vartypes SMTBool i;
-	  let tl = analyze_type_lst [t;e] in
-	  List.iter (assign_vartypes tl) [t;e]
-	| _ -> failwith "bad ite"
-      end 
-      | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
-	List.iter (assign_vartypes SMTInt) l
-      | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
-	List.iter (assign_vartypes SMTBool) l
-      | "=" | "distinct" ->
-	let tl = analyze_type_lst l in
-	List.iter (assign_vartypes tl) l
-      | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
-	List.iter (assign_vartypes SMTInt) l
-      | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	failwith "not supporting bit operators"
-      | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
-    end
-  in
-  let make_cast desired f = 
-    let unknown_to_int t = match t with 
-      | SMTUnknown -> SMTInt
-      | _ -> t
-    in
-    (* treating unknown as int *)
-    match unknown_to_int (analyze_type f), unknown_to_int desired  with
-    | SMTBool, SMTInt ->
-      SMTRelation("ite",[f;smtOne;smtZero])
-    | SMTInt, SMTBool -> 
-      SMTRelation("distinct",[f;smtZero])
-    | SMTBool,SMTBool | SMTInt,SMTInt -> f
-    | _ -> failwith "wtf in make cast"
-  in
-  let rec rec_casts desired f = 
-    match f with
-    | SMTLetBinding _ -> failwith "shouldn't be parsing this!"
-    | SMTLet _ -> failwith "shouldn't be parsing this!"
-    | SMTLetVar _ -> failwith "shouldn't be parsing this!"
-    | SMTFlagVar _ -> failwith "shouldn't be parsing this!"
-    | SMTFalse | SMTTrue | SMTConstant _ | SMTSsaVar _ -> make_cast desired f
-    | SMTRelation(s,l) -> begin
-      match s with 
-      | "ite" -> begin
-	match l with 
-	|	[i;t;e] -> 
-	  let i = rec_casts SMTBool i in
-	  let tl = analyze_type_lst [t;e] in
-	  let t = rec_casts tl t in
-	  let e = rec_casts tl e in
-	  make_cast desired (SMTRelation(s,[i;t;e]))
-	| _ -> failwith "bad ite"
-      end 
-      | "<" | ">" | "<=" | ">=" -> (*int list -> bool *)
-	let l = List.map (rec_casts SMTInt) l in
-	make_cast desired (SMTRelation(s,l))
-      | "and" | "or" | "xor" | "not" -> (*bool list -> bool*)
-	let l = List.map (rec_casts SMTBool) l in
-	make_cast desired (SMTRelation(s,l))
-      | "=" | "distinct" ->
-	let tl = analyze_type_lst l in
-	let l = List.map (rec_casts tl) l in
-	make_cast desired (SMTRelation(s,l))
-      | "+" | "-" | "*" | "div" | "mod" | "abs" -> 
-	let l = List.map (rec_casts SMTInt) l in
-	make_cast desired (SMTRelation(s,l))
-      | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" ->
-	failwith "not supporting bit operators"
-      | _ -> failwith ("unexpected operator in analyze type |" ^ s ^ "|")
-    end
-  in
-  let rec findfixpt top = 
-    updatedVar := false;
-    assign_vartypes SMTBool top;
-    if !updatedVar then findfixpt top else ()
-  in
-  findfixpt topForm;
-  rec_casts SMTBool topForm
+let fold_ssa_vars formula initialSet = 
+  let all_vars = SMT.get_idents formula in
+  SMT.VarSet.fold (fun e a -> match ssaVarOptFromString e with
+  | Some v -> SSAVarSet.add v a
+  | None -> a)  all_vars initialSet
 
-(* not tail recursive *)
-let rec get_vars formulaList set = 
-  match formulaList with 
-  | [] -> set
-  | x::xs ->
-    let set = get_vars xs set in
-    match x with
-    | SMTRelation(s,l) -> get_vars l set
-    | SMTLet(b,t) -> get_vars b (get_vars [t] set)
-    | SMTConstant _ | SMTFalse | SMTTrue | SMTLetVar _ | SMTFlagVar _ -> set
-    | SMTSsaVar(v) -> VarSet.add v set 
-    | SMTLetBinding(v,e) -> get_vars [e] set
+let get_ssa_vars formula = fold_ssa_vars formula SSAVarSet.empty
 
-
+  
 (****************************** Clauses ******************************)
 (* two possibilities: either maintain a mapping at each point
  * or remap as we go starting from one end *)
@@ -551,6 +349,8 @@ let rec get_vars formulaList set =
  * expression.  It also updates the mapping with any newly discovered
  * var -> type mappings
  *)
+let get_ssa_vars_ic icList = 
+  List.fold_left (fun a e -> fold_ssa_vars e.iformula a) SSAVarSet.empty icList
 
 
 let count_basevars clauses = 
@@ -558,19 +358,12 @@ let count_basevars clauses =
 
 let count_basevars_at a = count_basevars (trace_from_at a)
 
-
-
-let get_vars_ic icList set = 
-  List.fold_left (fun a e -> get_vars [e.iformula] a) set icList
-
-
-
 (* the first time we see a new index, we know we have a defn for it *)
 let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList) 
     (ct: clauseType) (tags : clauseTag list)
     : clause = 
-  let rec make_ssa_map (vars : smtSsaVar list) (ssaMap : varSSAMap) (defs : VarSet.t) 
-      : (varSSAMap * VarSet.t) =
+  let rec make_ssa_map (vars : ssaVar list) (ssaMap : varSSAMap) (defs : SSAVarSet.t) 
+      : (varSSAMap * SSAVarSet.t) =
     let alreadyDefined v = 	
       try let vOld = VarSSAMap.find v.vidx ssaMap in
 	  vOld.ssaIdx >= v.ssaIdx 
@@ -581,31 +374,29 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)
       let vidx = v.vidx in
       let ssaMap,defs = 
 	if (alreadyDefined v) then (ssaMap,defs)
-	else (VarSSAMap.add vidx v ssaMap, VarSet.add v defs)
+	else (VarSSAMap.add vidx v ssaMap, SSAVarSet.add v defs)
       in
-      make_ssa_map vs ssaMap defs in
-  incr count;
-  let v  = get_vars [f] emptyVarSet in
-  let v = get_vars_ic ic v in
-  let ssa,defs  = make_ssa_map (VarSet.elements v) ssa VarSet.empty in
-  let f = match ct with
-    | ProgramStmt _ ->  type_check_and_cast_to_bool f
-    | _ -> f
+      make_ssa_map vs ssaMap defs 
   in
-  let c  = {formula = f; 
-	    idx = !count; 
-	    vars = v; 
-	    defs = defs;
-	    ssaIdxs = ssa; 
-	    typ = ct; 
-	    ifContext = ic;
-	    cTags = tags
-	   } in
-  c
+  incr count;
+  let ssaVars = get_ssa_vars f in
+  let icSsaVars = get_ssa_vars_ic ic in
+  let allSSAVars = SSAVarSet.union ssaVars icSsaVars in
+  let ssa,defs  = make_ssa_map (SSAVarSet.elements allSSAVars) ssa SSAVarSet.empty in
+  let f = SMT.cast_to_bool f in
+  {formula = f; 
+   idx = !count; 
+   vars = allSSAVars; 
+   defs = defs;
+   ssaIdxs = ssa; 
+   typ = ct; 
+   ifContext = ic;
+   cTags = tags
+  } 
 
-let make_true_clause () = make_clause SMTTrue emptySSAMap emptyIfContext Constant noTags
-let make_false_clause () =  make_clause SMTFalse emptySSAMap emptyIfContext Constant noTags
-let negate_clause cls = {cls with formula = SMTRelation("not",[cls.formula])}
+let make_true_clause () = make_clause SMT.mk_true emptySSAMap emptyIfContext Constant noTags
+let make_false_clause () =  make_clause SMT.mk_false emptySSAMap emptyIfContext Constant noTags
+let negate_clause cls = {cls with formula = SMT.mk_not cls.formula}
 
 
 (****************************** Remapping ******************************)
@@ -620,22 +411,20 @@ let get_current_var oldVar ssaMap =
   with Not_found -> None
 
 let remap_formula ssaMap form =
+  let remap_var str = 
+    let oldSsaVar = ssaVarFromString str in
+    let newVarOpt = get_current_var oldSsaVar ssaMap in
+    match newVarOpt with
+    | Some (newVar) -> newVar.fullname
+    | None -> raise (CantMap oldSsaVar)
+  in
   let rec aux = function 
-    | SMTLetBinding(v,e) -> SMTLetBinding(v,aux e)
-    | SMTLet(b,t) -> 
-      SMTLet(List.map aux b, aux t)
-    | SMTRelation(s,tl) ->
-      SMTRelation(s,List.map aux tl)
-    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ | SMTFlagVar _ as form -> form
-    | SMTSsaVar(v) ->
-      let newVarOpt = get_current_var v ssaMap in
-      match newVarOpt with
-      | Some (newVar) -> SMTSsaVar(newVar)
-      | None -> 
-	print_endline ("can't map " ^ string_of_var v 
-		       ^ "\nin formula " ^ string_of_formula form);
-	print_ssa_map ssaMap;
-	raise (CantMap v)
+    | SMT.Ident (v,s) when is_ssa_var v -> SMT.mk_ident (remap_var v) s
+    | SMT.BoolConst _ | SMT.IntConst _ | SMT.Ident _ as f -> f
+    | SMT.App (o,tl,s) -> SMT.mk_app o (List.map aux tl)
+    | SMT.LinearRelation(o,tl,v) ->
+      (* we should only have SSA Vars in these relations *)
+      SMT.mk_linearRelation o (List.map (fun (c,v) -> (c,remap_var v)) tl) v
   in
   aux form
     
@@ -687,127 +476,11 @@ let print_annotated_trace_to_file filename trace =
   close_out oc
 
 (******************** Input functions *************************)
-let getFirstArgType str = 
-  let is_cse_var s = Str.string_match (Str.regexp ".cse[0-9]+") s 0 in
-  let is_flag_var s = begins_with  s "flag_" 
-  in
-  let str = trim str in
-  match str.[0] with
-  | '(' 
-    -> Sexp
-  | '0' | '1' | '2' | '3' | '4'
-  | '5' | '6' | '7' | '8' | '9' 
-    -> SexpIntConst
-  | '=' | '<'  | '>' 
-  | '-' | '+'  | '*' 
-    -> SexpRel
-  | _ 
-    -> begin match str with 
-    |  "and" | "distinct" | "or" | "not" | "xor" | "ite" 
-      -> SexpRel
-    | "let" 
-      -> SexpLet
-    | "band" | "bxor" | "bor" | "shiftlt" | "shiftrt" 
-      ->  failwith "not supporting bit operators"
-    | "false" | "true" 
-      -> SexpBoolConst
-    | _ when (is_cse_var str) -> SexpLetVar
-    | _ when (is_flag_var str) -> SexpFlagVar
-    (* if its not a known type, just assume its ssa var.  The conversion function
-     * will throw is this doesn't work *)
-    | _ -> SexpSsaVar (smtSsaVarFromString str) 
-    end
+
 
 let extract_unsat_core (str) : string list = 
   let str = strip_parens str in
   Str.split (Str.regexp "[ \t]+") str
-
-let rec extract_term (str)  : term list = 
-  (* returns the first sexp as a string,
-   * and the remainder as another string *)
-  let extract_first_sexp str = 
-    let str = trim str in
-    let len = String.length str in
-    if len = 0 then failwith "nothing here"
-    else if (str.[0] = '(') then
-      let endIdx = matchParensRec str 1 1 in 
-      let lhs = String.sub str 0 (endIdx +1) in 
-      (* +1 avoid the closing paren *)
-      let rhs = String.sub str (endIdx + 1) (len - endIdx - 1) in
-      (trim lhs, trim rhs)
-    else 
-      let endIdx = findEndOfWord str in
-      if endIdx = len then 
-	(str,"")
-      else 
-	let lhs = String.sub str 0 (endIdx) in 
-	let rhs = String.sub str (endIdx + 1) (String.length str - endIdx - 1) in
-	(trim lhs, trim rhs)
-  in
-  let str = strip_parens (trim str) in
-  if String.length str = 0 then 
-    []
-  else
-    let headStr, tailStr = extract_first_sexp str in
-    match getFirstArgType headStr with
-    | Sexp -> 
-      let headExpLst = extract_term headStr in
-      let tailExp = extract_term tailStr in
-      let rec foldHeadLst l = 
-	match l with
-	| (SMTLetVar _ as v)::t::rest ->
-	  SMTLetBinding(v,t)::(foldHeadLst rest)
-	| x::rest -> 
-	  x::foldHeadLst rest
-	| [] -> []
-      in
-      (foldHeadLst headExpLst) @ tailExp 
-    | SexpLet -> 
-      begin
-	let tailExp = extract_term tailStr in
-	let b,t = split_last tailExp in
-	[SMTLet(b,t)]
-      end
-    | SexpIntConst -> 
-      let tailExp = extract_term tailStr in
-      let c = Int64.of_string headStr in
-      let term = SMTConstant(c) in
-      term :: tailExp
-    | SexpSsaVar v ->
-      let tailExp = extract_term tailStr in
-      let term = SMTSsaVar(v) in
-      term :: tailExp
-    | SexpLetVar ->
-      let tailExp = extract_term tailStr in
-      let term = SMTLetVar(headStr) in
-      term :: tailExp
-    | SexpFlagVar ->
-      let tailExp = extract_term tailStr in
-      let term = SMTFlagVar(headStr) in
-      term :: tailExp
-    | SexpRel -> 
-      let tailExp = extract_term tailStr in
-      let rel = headStr in
-      [SMTRelation(rel,tailExp)]
-    | SexpBoolConst -> 
-      let tailExp = extract_term tailStr in
-      if headStr = "true" then SMTTrue :: tailExp
-      else if headStr = "false" then SMTFalse :: tailExp
-      else failwith "neither true nor false???"
-
-let clause_from_sexp 
-    (sexp: string) 
-    (ssaBefore: varSSAMap) 
-    (ic : ifContextList)
-    (ct : clauseType) 
-    : clause = 
-  match extract_term sexp with 
-  | [t] -> make_clause t ssaBefore ic ct noTags (*DSN TODO No tags at this point*)
-  | _ -> failwith ("should only get one term from the sexp: " ^ sexp)
-
-
-
-
 
 (****************************** Solver definitions ******************************)
 (* This is copied from the smtlib stuff in grasshopper.  Eventually, I should
@@ -897,33 +570,28 @@ let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unkn
   
 let reset_solver solver = write_line_to_solver solver "(reset)\n"
 
+let read_from_chan chan =
+  let lexbuf = Lexing.from_channel chan in
+  (* This is useful for debugging, but not necessary *)
+  (*SmtLibLexer.set_file_name lexbuf session.log_file_name; *)
+  SmtLibParser.output SmtLibLexer.token lexbuf
+
 let line_from_solver solver = 
   let line = input_line solver.in_chan in
   debug_endline line;
   line
 
-let rec read_from_solver (solver) (pt) : smtResult =
-  let l  = line_from_solver solver in
-  if begins_with l "INFO" then 
-    read_from_solver solver pt (*skip *)
-  else if begins_with l "unsat" then 
-    match pt with
-    | CheckSat -> Unsat(GotNothing)
-    | GetUnsatCore -> 
-      let next_line = line_from_solver solver in
-      let coreList = extract_unsat_core (next_line) in
-      let coreSet = List.fold_left (fun a e -> StringSet.add e a) StringSet.empty coreList in
-      Unsat(GotUnsatCore coreSet)
-    | GetInterpolation _ -> 
-      let next_line = line_from_solver solver in
-      let terms = extract_term (next_line) in
-      Unsat(GotInterpolant terms)
-  else if begins_with l "sat" then
-    Sat
-  else if begins_with l "unknown" then
-    Timeout
-  else 
-    failwith ("unmatched line:\n" ^ l ^ "\n")
+let read_from_solver solver =
+  match read_from_chan solver.in_chan with
+  | _ -> failwith "foo"
+  (* | Parser.Sat  *)
+  (* | Parser.Unsat *)
+  (* | Parser.Unknown *)
+  (* | Parser.Model of command list *)
+  (* | Parser.Interpolant of command list *)
+  (* | Parser.UnsatCore sl ->  *)
+  (* | Parser.Error s -> failwith ("parser error " ^ s) *)
+
 
 (* keep a map of active solvers *)
 module SolverMap = Map.Make(String)
@@ -993,7 +661,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   declare_unknown_sort solver;
   (*write the declerations *)
   let allVars = all_vars clauses in
-  VarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
+  SSAVarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
   (* declare the flags vars *)
   (*this is a bit of a hack.  We should really only do this for the ones we need *)
   List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) 
@@ -1012,7 +680,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   write_to_solver solver cmds;
   flush_solver solver;
   if justPrint then NoSMTResult 
-  else read_from_solver solver pt
+  else read_from_solver solver 
 
 let do_smt clauses pt =
   let solver = match pt with
@@ -1050,18 +718,18 @@ let print_smt filenameOpt clauses pt =
 
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
   (* interpolants have no need for ssa variables.  So we can just drop them *)
-  let rec ssa_free_interpolant form = match form with
-    | SMTLetBinding(v,e) -> SMTLetBinding(v,ssa_free_interpolant e)
-    | SMTRelation(s,tl) -> SMTRelation(s,List.map ssa_free_interpolant tl)
-    | SMTConstant(_) | SMTFalse | SMTTrue | SMTLetVar _ | SMTFlagVar _ -> form
-    | SMTSsaVar(v) -> SMTSsaVar {v with ssaIdx=0}
-    | SMTLet(b,t) -> SMTLet(List.map ssa_free_interpolant b,ssa_free_interpolant t)
+  let rec ssa_free_interpolant = function 
+    | SMT.Ident (v,s) when is_ssa_var v -> SMT.mk_ident (remap_ssa_var_str v 0) s
+    | SMT.BoolConst _ | SMT.IntConst _  | SMT.Ident _ as f-> f
+    | SMT.App(o,tl,s) -> SMT.mk_app o (List.map ssa_free_interpolant tl)
+    | SMT.LinearRelation (o,lhs,rhs) ->  
+      SMT.mk_linearRelation o (List.map (fun (c,v) -> (c,remap_ssa_var_str v 0)) lhs) rhs
   in
   let i1form = ssa_free_interpolant i1 in
   let i2form = ssa_free_interpolant i2 in
   if i1form = i2form then true 
   else 
-    let equiv = SMTRelation("distinct",[i1form; i2form]) in
+    let equiv = SMT.mk_rel SMT.Neq i1form i2form in 
     let cls = make_clause equiv emptySSAMap emptyIfContext EqTest noTags in 
     match (do_smt [cls] CheckSat) with
     | Sat -> false

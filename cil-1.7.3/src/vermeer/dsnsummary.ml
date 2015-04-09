@@ -99,7 +99,7 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
   | Unsat (GotInterpolant inters) -> 
     (* the interpolant list will be missing the program precondition
      * so we start with an extra interpolant "true" *)
-    let zipped = List.combine (SMTTrue::inters) clauses in
+    let zipped = List.combine (SMT.mk_true::inters) clauses in
     zipped
   | _ -> failwith "make_cheap_annotated_trace failed"
 
@@ -237,7 +237,7 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	  (* we not in the desired group, now entered it.  Have to build 
 	   * the summary *)
 	  let summary = make_clause 
-	    (SMTRelation("=>",[cond;i])) 
+	    (SMT.mk_impl cond i) 
 	    c.ssaIdxs
 	    emptyIfContext
 	    (Summary(List.rev summaryAccum))

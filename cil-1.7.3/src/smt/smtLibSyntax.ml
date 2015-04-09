@@ -142,6 +142,7 @@ type response =
   | Unsat
   | Unknown
   | Model of command list
+  | Interpolant of command list
   | UnsatCore of string list
   | Error of string
 

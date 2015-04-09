@@ -1,7 +1,15 @@
 type variable = string
+module Variable = struct type t=variable let compare = Pervasives.compare end
 type intsort = int64
 
 type sort = IntSort | BoolSort
+let string_of_sort = function | IntSort -> "Int" | BoolSort -> "Bool"
+
+module VarSortMap = Map.Make(Variable)
+module VarSet = Set.Make(Variable)
+
+type varSortMap = sort VarSortMap.t
+
 
 type op = 
 | Eq | Leq | Lt  | Geq | Gt | Neq 
@@ -111,11 +119,14 @@ let mk_add lst =
 let mk_mult lst =   
   assert(List.for_all is_intsort lst);
   App(Mult,sort_term_list lst,IntSort)
+let mk_uminus t = mk_mult [minus_one;t]
 
 let mk_rel op lhs rhs =
   assert(sorts_match lhs rhs);
   assert(is_relation op);
   App(op, [lhs;rhs], BoolSort)
+
+let mk_eq lhs rhs = mk_rel Eq lhs rhs
 
 let mk_ite i t e = 
   assert(is_boolsort i);
@@ -128,7 +139,11 @@ let mk_impl lhs rhs =
   App(Impl,[lhs;rhs],BoolSort)
 
 let mk_boolConst c = BoolConst c
+let mk_true = mk_boolConst true
+let mk_false = mk_boolConst false
 let mk_intConst c = IntConst c
+let mk_ident v s = Ident(v,s)
+
 let rec mk_app o f = 
   match o with 
   | Eq | Leq | Lt  | Geq | Gt | Neq -> (match f with 
@@ -170,3 +185,33 @@ and mk_not term =
 
 let mk_linearRelation op lhs value = 
   LinearRelation (op,lhs,value)
+
+let get_idents formula  = 
+  let rec aux set formula = 
+    match formula with
+    | BoolConst _ | IntConst _ -> set
+    | Ident (v,s) -> VarSet.add v set
+    | App (o,tl,s) -> List.fold_left aux set tl
+    | LinearRelation(o,tl,v) ->  List.fold_left (fun set (c,v) -> VarSet.add v set) set tl
+  in
+  aux VarSet.empty formula
+
+let relation_of_linearrelation op lhs rhs=
+  let mults = List.map (fun (coeff,var) ->
+    match coeff with
+    | 0L -> failwith "shouldn't have 0 coefficients"
+    | 1L -> mk_ident var IntSort
+    | x -> mk_mult [mk_intConst x; mk_ident var IntSort]
+  ) lhs 
+  in
+  mk_rel op (mk_add mults) (mk_intConst rhs)
+
+let cast_to_bool f = 
+  match get_sort f with
+  | IntSort -> mk_rel Neq f zero
+  | BoolSort -> f
+
+let cast_to_int f = 
+  match get_sort f with   
+  | IntSort -> f
+  | BoolSort -> mk_ite f one zero

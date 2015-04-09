@@ -230,33 +230,33 @@ let make_dependency_graph  ?(dottyFileName = None) clauses =
     let defs = clause.defs in
 
     (* Start by adding the RAW hazards *)
-    VarSet.iter (fun v -> match search_icm v.vidx lastDefn with
+    SSAVarSet.iter (fun v -> match search_icm v.vidx lastDefn with
     | Some c -> 
       G.add_edge_e graph (G.E.create c HAZARD_RAW clause)
     | None -> ()
     ) (uses);
 
     (* Now the WAW *)
-    VarSet.iter (fun v -> match search_icm v.vidx lastDefn with
+    SSAVarSet.iter (fun v -> match search_icm v.vidx lastDefn with
     | Some c -> 
       G.add_edge_e graph (G.E.create c HAZARD_WAW clause)
     | None -> ()
     ) (defs);
 
     (* Now the WAR *)
-    VarSet.iter (fun v -> List.iter
+    SSAVarSet.iter (fun v -> List.iter
       (fun c -> G.add_edge_e graph (G.E.create c HAZARD_WAR clause))
       (search_iclmap v.vidx lastUses)
     ) defs;
 
     (* First add the uses.  Some of these might get overridden in the next step *)
-    let lastUses = VarSet.fold (fun v lastUses -> 
+    let lastUses = SSAVarSet.fold (fun v lastUses -> 
       let oldUses = search_iclmap v.vidx lastUses in
       let updatedUses = clause::oldUses in
       IntClauseMap.add v.vidx updatedUses lastUses
     ) uses lastUses in
 
-    let (lastDefn,lastUses) = VarSet.fold 
+    let (lastDefn,lastUses) = SSAVarSet.fold 
       (fun v (lastDefn,lastUses) -> 
 	(IntClauseMap.add v.vidx clause lastDefn, 
 	 IntClauseMap.remove v.vidx lastUses)

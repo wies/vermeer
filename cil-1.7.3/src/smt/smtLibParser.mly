@@ -39,12 +39,18 @@ output:
 | rmodel { Model $1 }
 | rcore  { UnsatCore $1 }
 | rerror { Error $1 }
+| interpolant { Interpolant $1 }
 | error { ProgError.syntax_error (mk_position 1 1) None }
 ;
     
 rerror:
 | LPAREN ERROR STRING RPAREN { $3 }
 ;
+
+interpolant:
+| LPAREN cmnd_list RPAREN { $2 }
+;
+
 
 rmodel:
 | LPAREN MODEL cmnd_list RPAREN { $3 }
@@ -83,6 +89,9 @@ cmnd_list:
 | term cmnd_list { mk_assert ~pos:(mk_position 1 1) $1 :: $2 }
 | term { [mk_assert ~pos:(mk_position 1 1) $1] }
 ;
+
+interpolant_list:
+| LPAREN term_list RPAREN { $2 }
 
 sort_list_opt:
 | sort_list { $1 }

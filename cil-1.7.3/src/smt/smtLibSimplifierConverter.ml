@@ -1,96 +1,72 @@
-module S = Smtlib_ast
+module S = SmtSimpleAst
 module L =  SmtLibSyntax
 
-type t = Term of S.term | Formula of S.formula 
+let core_sym_of_simple_op = function
+  | S.Eq -> L.Eq
+  | S.Leq -> L.Leq
+  | S.Lt  -> L.Lt
+  | S.Geq -> L.Geq
+  | S.Gt ->L.Gt
+  | S.Neq -> L.Neq
+  | S.And -> L.And
+  | S.Or -> L.Or
+  | S.Not -> L.Not
+  | S.Add  -> L.Plus
+  | S.Mult -> L.Minus
+  | S.Impl -> L.Impl
+  | S.Ite -> L.Ite
 
-let smtSimple_of_smtCore =
-  let convert_relation = function
-    | L.Eq  -> S.EQ
-    | L.Leq -> S.LEQ
-    | L.Lt  -> S.LT
-    | L.Geq -> S.GEQ
-    | L.Gt  -> S.GT
-    | L.Neq -> S.NEQ
-    | _ -> failwith "bad op converstion"
+let smtCore_of_smtSimple f = 
+  let core_sym_of_simple_op = function
+  | S.Eq -> L.Eq
+  | S.Leq -> L.Leq
+  | S.Lt  -> L.Lt
+  | S.Geq -> L.Geq
+  | S.Gt ->L.Gt
+  | S.Neq -> L.Neq
+  | S.And -> L.And
+  | S.Or -> L.Or
+  | S.Not -> L.Not
+  | S.Add  -> L.Plus
+  | S.Mult -> L.Minus
+  | S.Impl -> L.Impl
+  | S.Ite -> L.Ite
+  in 
+  let rec aux = function
+    | S.BoolConst b -> L.mk_const (L.BoolConst b)
+    | S.IntConst i -> L.mk_const (L.IntConst (Int64.to_int i))
+    | S.Ident (v,s) -> L.mk_const (L.Ident v)
+    | S.App (o,tl,s) -> L.mk_app (core_sym_of_simple_op o) (List.map aux tl)
+    | S.LinearRelation (o,lhs,rhs) -> aux (S.relation_of_linearrelation o lhs rhs)
   in
-  let rec l_term_to_s_term = function
-    | L.App (sym,tl,_) -> (
-      let lst = List.map l_term_to_s_term tl in
-      match sym with 
-      | L.Ident v -> assert (tl = []); S.Variable v
-      | L.Minus -> failwith "not supporting subtraction"
-      | L.Plus -> S.Sum lst
-      | L.Mult -> S.Mult lst
-      | L.Div -> failwith "not supporting division"
-      | _ -> failwith "cannot convert to simplifier term"
-    )
-    | _ -> failwith "cannot convert to simplifier term"
-  and l_term_to_s_formula = function
-    | L.App (sym,tl,_) -> (
-      match sym with 
-      | L.BoolConst true-> assert (tl = []); S.True
-      | L.BoolConst false -> assert (tl = []); S.False
-      | L.Ident v -> assert (tl = []); S.Boolvar v
-      | L.Eq 
-      | L.Gt 
-      | L.Lt 
-      | L.Geq 
-      | L.Leq 
-      | L.Neq ->
-	(match tl with
-	|[lhs;rhs] -> 
-	  let op = convert_relation sym in
-	  S.Relation(op,l_term_to_s_term lhs,l_term_to_s_term rhs)
-	|_ -> failwith "can't convert relation")
-      | L.And -> S.And (List.map l_term_to_s_formula tl)
-      | L.Or -> S.Or (List.map l_term_to_s_formula tl)
-      | L.Impl -> (match tl with 
-	|[l;r] -> S.Implication (l_term_to_s_formula l,l_term_to_s_formula r) 
-	| _ -> failwith "can't convert")
-      | L.Not  -> (match tl with 
-	|[l] -> S.Not (l_term_to_s_formula l )
-	| _ -> failwith "can't convert")
-      | L.Ite -> failwith "not yet"
-      | L.IntConst _ | L.Minus | L.Plus | L.Mult | L.Div 
-	-> failwith "cannot convert to simplifier formula"
-    )
-    | L.Binder _ -> failwith "not currently handeling quantifiers"
-    | L.Let _ as t -> l_term_to_s_formula (L.unletify t)
-    | L.Annot _ -> failwith "not converting annotations"
-  in
-()
+  aux f
 
-let smtCore_of_smtSimple = 
-  let convert_relation = function
-    | S.EQ -> L.Eq
-    | S.LEQ -> L.Leq
-    | S.LT  -> L.Lt
-    | S.GEQ -> L.Geq
-    | S.GT -> L.Gt
-    | S.NEQ -> L.Neq
+let smtSimpleofSmtLib typeMap f = 
+  let rec aux = function  
+    | L.App (s,tl,po) -> (
+      let tl = List.map aux tl in
+      match s with
+      | L.BoolConst b -> S.mk_boolConst b
+      | L.IntConst i -> S.mk_intConst (Int64.of_int i)
+      | L.Ident i -> S.mk_ident i (typeMap i)
+      | L.Plus -> S.mk_add tl
+      | L.Mult -> S.mk_mult tl
+      | L.Div | L.Minus -> failwith "not handling div and mult"
+      | L.Eq -> S.mk_app S.Eq tl
+      | L.Gt ->  S.mk_app S.Gt tl
+      | L.Lt -> S.mk_app S.Lt tl
+      | L.Geq -> S.mk_app S.Geq tl
+      | L.Leq -> S.mk_app S.Leq tl
+      | L.Neq ->   S.mk_app S.Neq tl   
+      | L.And -> S.mk_app S.And tl
+      | L.Or -> S.mk_app S.Or tl
+      | L.Impl -> S.mk_app S.Impl tl
+      | L.Not -> S.mk_app S.Not tl
+      | L.Ite -> S.mk_app S.Ite tl
+    )
+    | L.Binder _ -> failwith "not handeling binders"
+    | L.Let _ -> failwith "not handeling lets"
+    | L.Annot (t,a,po) -> aux t (* currently ignore annotations *)
   in
-  let rec convert_term = function
-    | S.Variable v -> L.mk_const (L.Ident v)
-    | S.Value v -> L.mk_const (L.IntConst (*HACK*) (Int64.to_int v))
-    | S.Sum tl -> L.mk_app L.Plus (List.map convert_term tl)
-    | S.Mult tl -> L.mk_app L.Mult (List.map convert_term tl)
-    | S.UnsupportedTerm s -> failwith ("cannot convert " ^ s)
-  in
-  let rec convert_formula = function
-    | S.True -> L.mk_const (L.BoolConst true)
-    | S.False -> L.mk_const (L.BoolConst false)
-    | S.Not f -> L.mk_app L.Not [convert_formula f]
-    | S.And fl -> L.mk_app L.And (List.map convert_formula fl)
-    | S.Or fl ->  L.mk_app L.Or (List.map convert_formula fl)
-    | S.Implication (f1,f2) ->  
-      L.mk_app L.Impl [convert_formula f1; convert_formula f2]
-    | S.Relation (op,lhs,rhs) -> 
-      L.mk_app (convert_relation op) [convert_term lhs;convert_term rhs]
-    | S.LinearRelation (op, lhs,rhs) -> 
-      convert_formula (S.relation_of_linearrelation op lhs rhs)
-    | S.ITE (f1,f2,f3) -> 
-      L.mk_app L.Ite [convert_formula f1; convert_formula f2; convert_formula f3]
-    | S.Boolvar v -> L.mk_const (L.Ident v)
-    | S.UnsupportedFormula s -> failwith ("cannot convert " ^ s)
-  in    
-  convert_formula 
+  aux (SmtLibSyntax.unletify f)
+
