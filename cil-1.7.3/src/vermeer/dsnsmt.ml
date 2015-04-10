@@ -147,7 +147,9 @@ let emptyIfContext = []
 
 (******************** Globals *************************)
 
-let count = ref 1
+let get_new_clause_id = 
+  let count = ref 0 in
+  fun () -> incr count; !count
 
 let trace_from_at at = 
   let interpolants,trace = List.split at in 
@@ -379,14 +381,13 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)
       in
       make_ssa_map vs ssaMap defs 
   in
-  incr count;
   let ssaVars = get_ssa_vars f in
   let icSsaVars = get_ssa_vars_ic ic in
   let allSSAVars = SSAVarSet.union ssaVars icSsaVars in
   let ssa,defs  = make_ssa_map (SSAVarSet.elements allSSAVars) ssa SSAVarSet.empty in
   let f = SMT.cast_to_bool f in
   {formula = f; 
-   idx = !count; 
+   idx = get_new_clause_id(); 
    vars = allSSAVars; 
    defs = defs;
    ssaIdxs = ssa; 
