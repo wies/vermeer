@@ -146,6 +146,7 @@ type command =
   | CheckSat of pos option
   | GetModel of pos option
   | GetUnsatCore of pos option
+  | GetInterpolant of string * pos option
   | Exit of pos option
 
 type response =
@@ -416,6 +417,9 @@ let string_of_term t =
 
 
 let pr_command ppf = function
+  (* DSN what num should go here *)
+  | GetInterpolant (partitions,_) -> 
+    fprintf ppf "@[<10>(get-interpolants@ %s@)@]@\n" partitions
   | SetInfo (i, v, _) ->
       fprintf ppf "@[<10>(set-info@ %s@ %s)@]@\n" i v
   | SetOption (o, v, _) ->
