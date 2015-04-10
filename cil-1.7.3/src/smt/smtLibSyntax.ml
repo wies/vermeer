@@ -414,8 +414,6 @@ let string_of_term t =
   pr_term str_formatter t; 
   flush_str_formatter ()
 
-
-
 let pr_command ppf = function
   (* DSN what num should go here *)
   | GetInterpolant (partitions,_) -> 

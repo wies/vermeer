@@ -126,9 +126,12 @@ type trace = clause list
  * with the term which represents its precondition *)
 type annotatedTrace = (term * clause) list
 type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
-type unsatResult = 
-  GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
-type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
+type smtResult = 
+| Sat 
+| Unsat  
+| Unknown 
+| Interpolant of term list 
+| UnsatCore of StringSet.t 
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
 

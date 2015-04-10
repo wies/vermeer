@@ -13,6 +13,7 @@ open Dsnsmtdefs
 
 module SMT = SmtSimpleAst
 module Parser = SmtLibParser
+module SolverAST = SmtLibSyntax
 
 (* just make it compile smtlib.  Testing purposes only *)
 type foobar = SmtLibSyntax.sort
@@ -444,8 +445,6 @@ let remap_clause ssaMap cls =
     cls.typ    
     cls.cTags
 
-
-
 (******************** File creation ********************)
 
 let make_all_interpolants program =
@@ -585,14 +584,15 @@ let line_from_solver solver =
 
 let read_from_solver solver =
   match read_from_chan solver.in_chan with
-  | _ -> failwith "foo"
-  (* | Parser.Sat  *)
-  (* | Parser.Unsat *)
-  (* | Parser.Unknown *)
-  (* | Parser.Model of command list *)
-  (* | Parser.Interpolant of command list *)
-  (* | Parser.UnsatCore sl ->  *)
-  (* | Parser.Error s -> failwith ("parser error " ^ s) *)
+  | SolverAST.Sat -> Sat
+  | SolverAST.Unsat -> Unsat
+  | SolverAST.Unknown -> failwith "got parser unknown"
+  | SolverAST.Model cl -> failwith "not currently supporting models"
+  | SolverAST.Interpolant tl -> 
+    Interpolant (List.map (SmtLibSimplifierConverter.smtSimpleofSmtLib get_var_type) tl)
+  | SolverAST.UnsatCore sl -> 
+    UnsatCore (List.fold_left (fun a e -> StringSet.add e a) StringSet.empty sl)
+  | SolverAST.Error s -> failwith ("parser error " ^ s)
 
 
 (* keep a map of active solvers *)
@@ -681,7 +681,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   in
   write_to_solver solver cmds;
   flush_solver solver;
-  if justPrint then NoSMTResult 
+  if justPrint then Unknown 
   else read_from_solver solver 
 
 let do_smt clauses pt =
@@ -696,6 +696,15 @@ let do_smt clauses pt =
      ^ ", Time_this=" ^ string_of_float duration
      ^ " Time_total=" ^ string_of_float (List.fold_left (+.) 0. !smtCallTime));
   res
+
+let check_sat clauses = 
+   match do_smt clauses CheckSat with
+   | Sat -> true
+   | Unsat -> false
+   | _ -> failwith "check_sat returned neither sat nor unsat"
+
+let check_unsat clauses = 
+  not (check_sat clauses)
 
 let print_smt filenameOpt clauses pt = 
   match filenameOpt with
@@ -735,23 +744,12 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
     let cls = make_clause equiv emptySSAMap emptyIfContext EqTest noTags in 
     match (do_smt [cls] CheckSat) with
     | Sat -> false
-    | Unsat _ -> true
-    | Timeout -> false (* conservative on timeout *)
-    | NoSMTResult -> failwith "trying to get result from smt logging call"
+    | Unsat  -> true
+    | _ -> failwith "unexptected response"
 
 let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
   let not_inter = negate_clause inter in
-  match do_smt (not_inter :: before) CheckSat  with
-  | NoSMTResult -> failwith "trying to get result from smt logging call"
-  | Timeout -> false
-  | Sat -> false
-  | Unsat(_) -> 
-    match do_smt (inter :: after) CheckSat with
-    | NoSMTResult -> failwith "trying to get result from smt logging call"
-    | Sat -> false
-    | Unsat(_) -> true 
-    | Timeout -> false
-
+  (check_unsat (not_inter :: before)) && (check_unsat (inter :: after))
 
 (****************************** Statistics ******************************)
 

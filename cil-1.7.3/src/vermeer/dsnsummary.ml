@@ -88,7 +88,7 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
 
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
   match do_smt unreducedClauses GetUnsatCore with
-  | Unsat (GotUnsatCore core) ->
+  | UnsatCore core ->
     List.filter (fun c -> StringSet.mem (clause_name c) core) unreducedClauses 
   | _-> failwith "unable to get core"
     
@@ -96,7 +96,7 @@ let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
 let make_cheap_annotated_trace (clauses : trace) : annotatedTrace = 
   let partition =  make_all_interpolants clauses in
   match do_smt clauses (GetInterpolation partition) with
-  | Unsat (GotInterpolant inters) -> 
+  | Interpolant inters -> 
     (* the interpolant list will be missing the program precondition
      * so we start with an extra interpolant "true" *)
     let zipped = List.combine (SMT.mk_true::inters) clauses in
@@ -159,7 +159,7 @@ let reduce_trace_expensive propAlgorithm trace =
       let after = unreducedSuffix in
       let partition = make_interpolate_between before after in
       match do_smt (before @ after) (GetInterpolation partition)  with 
-      | Unsat (GotInterpolant [interpolantTerm]) -> 
+      | Interpolant [interpolantTerm] -> 
 	let interpolant = 
 	  make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
 	(*find_farthest_point_interpolant_valid 
@@ -216,7 +216,7 @@ let get_partition_interpolant partitionP trace =
     | (a,b) -> make_interpolate_between a b in
   let result = do_smt trace (GetInterpolation partitionString) in
   match result with 
-  | Unsat(GotInterpolant [theInterpolant]) -> theInterpolant
+  | Interpolant [theInterpolant] -> theInterpolant
   | _ -> failwith "didn't get interpolant for partition"
     
 (* we can either work on tid or groups, by choosing the idExtractor function *)
