@@ -134,9 +134,6 @@ type smtResult =
 | UnsatCore of StringSet.t 
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
-
-
-
 exception CantMap of ssaVar
 
 let clause_name (c : clause) :string = 

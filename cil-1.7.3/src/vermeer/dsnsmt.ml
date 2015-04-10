@@ -684,11 +684,13 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   if justPrint then Unknown 
   else read_from_solver solver 
 
+let get_solver_for = function
+  | CheckSat | GetUnsatCore -> getZ3 ()
+  | GetInterpolation _ -> getSmtinterpol()
+    
+
 let do_smt clauses pt =
-  let solver = match pt with
-    | CheckSat | GetUnsatCore -> getZ3 ()
-    | GetInterpolation _ -> getSmtinterpol()
-  in
+  let solver = get_solver_for pt in
   let res, duration = Dsnutils.time (fun () -> _do_smt solver clauses pt) () in
   smtCallTime := !smtCallTime @ [duration];
   debug_endline 
@@ -702,6 +704,32 @@ let check_sat clauses =
    | Sat -> true
    | Unsat -> false
    | _ -> failwith "check_sat returned neither sat nor unsat"
+
+(* DSN TODO clean this up *)
+let get_interpolant clauses partition = 
+  match do_smt clauses CheckSat with
+  | Unsat -> (
+    let solver = get_solver_for (GetInterpolation partition) in
+    write_line_to_solver solver partition;
+    flush_solver solver;
+    match read_from_solver solver with
+    | Interpolant _ as f -> f
+    | _ -> failwith "not an interpolant"
+  )
+  | _ -> failwith "check_sat returned neither sat nor unsat"
+
+let get_unsat_core clauses = 
+   match do_smt clauses CheckSat with
+  | Unsat -> (
+    let solver = get_solver_for GetUnsatCore in
+    write_line_to_solver solver smtGetUnsatCore;
+    flush_solver solver;
+    match read_from_solver solver with
+    | UnsatCore _ as f -> f
+    | _ -> failwith "not an unsatcore"
+  )
+  | _ -> failwith "get_unsat_core returned neither sat nor unsat"
+ 
 
 let check_unsat clauses = 
   not (check_sat clauses)
