@@ -15,8 +15,11 @@ module SMT = SmtSimpleAst
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
-let _  = Printexc.register_printer 
-  (fun x ->  Some (Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()));;
+(* DSN this records backtraces.  Might slow down stuff slightly.  Turn on if needed *)
+let _  = 
+  Printexc.record_backtrace true;
+  Printexc.register_printer 
+    (fun x ->  Some (Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()));;
 
 (* issue if interpolant tries to go past where something is used *)
 
