@@ -15,10 +15,6 @@ module SMT = SmtSimpleAst
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
-(* just make it compile smtlib.  Testing purposes only *)
-type foobar = SmtLibSyntax.sort
-let barfoo = Smtlib_main.run
-let baz = SmtLibSimplifierConverter.smtCore_of_smtSimple
 (* issue if interpolant tries to go past where something is used *)
 
 let (get_var_type, set_var_type) = 
