@@ -87,7 +87,7 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
     propegate_interpolant_forward_linear 1 currentState interpolant suffix
 
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
-  match do_smt unreducedClauses GetUnsatCore with
+  match get_unsat_core unreducedClauses with
   | UnsatCore core ->
     List.filter (fun c -> StringSet.mem (clause_name c) core) unreducedClauses 
   | _-> failwith "unable to get core"
@@ -95,7 +95,7 @@ let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
 (* all this does is find the precondition for each statement.  No reductions *)
 let make_cheap_annotated_trace (clauses : trace) : annotatedTrace = 
   let partition =  make_all_interpolants clauses in
-  match do_smt clauses (GetInterpolation partition) with
+  match get_interpolant clauses partition with
   | Interpolant inters -> 
     (* the interpolant list will be missing the program precondition
      * so we start with an extra interpolant "true" *)
@@ -158,7 +158,7 @@ let reduce_trace_expensive propAlgorithm trace =
       let before = [currentState;x] in
       let after = unreducedSuffix in
       let partition = make_interpolate_between before after in
-      match do_smt (before @ after) (GetInterpolation partition)  with 
+      match get_interpolant (before @ after) partition  with 
       | Interpolant [interpolantTerm] -> 
 	let interpolant = 
 	  make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
@@ -214,7 +214,7 @@ let unsat_then_expensive propAlgorithm trace =
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
     | (a,b) -> make_interpolate_between a b in
-  let result = do_smt trace (GetInterpolation partitionString) in
+  let result = get_interpolant trace partitionString in
   match result with 
   | Interpolant [theInterpolant] -> theInterpolant
   | _ -> failwith "didn't get interpolant for partition"

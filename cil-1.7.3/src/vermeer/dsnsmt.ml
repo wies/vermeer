@@ -552,6 +552,8 @@ type solver_state =
     pid: int;
     log_out: out_channel option;
     mutable isSat : bool option;
+    mutable solverOpts : (string * bool) list;
+    mutable clauses : clause list;
   }
 
 let flush_solver solver = 
@@ -570,8 +572,9 @@ let write_to_solver solver lines =
   List.iter (write_line_to_solver solver) lines
 
 let set_solver_options solver opts = 
-  let set_option (opt_name,opt_value) =
+  let set_option ((opt_name,opt_value) as opt) =
     let optStr = Printf.sprintf "(set-option :%s %b)\n" opt_name opt_value in
+    solver.solverOpts <- opt::solver.solverOpts;
     write_line_to_solver solver optStr
   in
   List.iter set_option opts
@@ -584,6 +587,8 @@ let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unkn
   
 let reset_solver solver = 
   solver.isSat <- None;
+  solver.solverOpts <- [];
+  solver.clauses <- [];
   write_line_to_solver solver "(reset)\n"
 
 let read_from_chan chan =
@@ -640,6 +645,8 @@ let _create_or_get_solver session_name solver do_log =
 	  pid = pid;
 	  log_out = log_out;
 	  isSat = None;
+	  clauses = [];
+	  solverOpts = [];
 	} in
     set_solver_options state solver.info.smt_options;
     set_timeout state 10000;
@@ -669,7 +676,7 @@ let _do_smt ?(justPrint = false) solver clauses pt =
   reset_solver solver;
   let opts = match pt with 
     | CheckSat -> smtOnlyOptions
-    | GetUnsatCore -> unsatCoreOptions 
+    | GetUnsatCore -> unsatCoreOptions  
     | GetInterpolation _-> interpolationOptions 
   in 
   set_solver_options solver opts;
@@ -705,7 +712,7 @@ let get_solver_for = function
   | GetInterpolation _ -> getSmtinterpol()
     
 
-let do_smt clauses pt =
+let a_do_smt clauses pt =
   let solver = get_solver_for pt in
   let res, duration = Dsnutils.time (fun () -> _do_smt solver clauses pt) () in
   smtCallTime := !smtCallTime @ [duration];
@@ -715,15 +722,43 @@ let do_smt clauses pt =
      ^ " Time_total=" ^ string_of_float (List.fold_left (+.) 0. !smtCallTime));
   res
 
-let check_sat clauses = 
-   match do_smt clauses CheckSat with
+let add_clause solver clause = 
+  solver.isSat <- None;
+  solver.clauses <- clause::solver.clauses
+
+let add_clauses solver clauses = List.iter add_clause solver clauses
+
+let setup_solver solver clauses opts =
+  reset_solver solver;
+  add_clauses clauses;
+  set_opts opts  
+
+let check_sat solver = 
+  match solver.isSat with
+  | Some s -> s
+  | None -> (
+    set_logic solver "QF_LIA";
+    declare_unknown_sort solver;
+    (*write the declerations *)
+    let allVars = all_vars clauses in
+    SSAVarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
+    (* declare the flags vars *)
+    (*this is a bit of a hack.  We should really only do this for the ones we need *)
+    List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) solver.clauses
+    (* write the program clauses *)
+    List.iter (fun x -> write_line_to_solver solver (encode_formula currentEncoding x)) clauses;
+    
+   match a_do_smt clauses CheckSat with
    | Sat -> true
    | Unsat -> false
    | _ -> failwith "check_sat returned neither sat nor unsat"
 
+let check_unsat clauses = 
+  not (check_sat clauses)
+
 (* DSN TODO clean this up *)
 let get_interpolant clauses partition = 
-  match do_smt clauses CheckSat with
+  match a_do_smt clauses CheckSat with
   | Unsat -> (
     let solver = get_solver_for (GetInterpolation partition) in
     write_line_to_solver solver partition;
@@ -735,7 +770,12 @@ let get_interpolant clauses partition =
   | _ -> failwith "check_sat returned neither sat nor unsat"
 
 let get_unsat_core clauses = 
-   match do_smt clauses CheckSat with
+  let solver = get_solver_for GetUnsatCore in
+  reset_solver solver;
+  set_solver_options solver unsatCoreOptions;
+  
+
+   match a_do_smt clauses CheckSat with
   | Unsat -> (
     let solver = get_solver_for GetUnsatCore in
     write_line_to_solver solver smtGetUnsatCore;
@@ -747,8 +787,6 @@ let get_unsat_core clauses =
   | _ -> failwith "get_unsat_core returned neither sat nor unsat"
  
 
-let check_unsat clauses = 
-  not (check_sat clauses)
 
 let print_smt filenameOpt clauses pt = 
   match filenameOpt with
@@ -760,6 +798,8 @@ let print_smt filenameOpt clauses pt =
       pid = 0;
       log_out = None;
       isSat = None;
+      solverOpts = [];
+      clauses = [];
     } in
     ignore( _do_smt ~justPrint:true solver clauses pt);
     close_out oc;
@@ -770,6 +810,8 @@ let print_smt filenameOpt clauses pt =
       pid = 0;
       log_out = None;
       isSat = None;
+      solverOpts = [];
+      clauses = [];
     } in
     ignore(_do_smt ~justPrint:true solver clauses pt)
 
@@ -789,10 +831,7 @@ let are_interpolants_equiv (i1 :term) (i2 :term)=
   else 
     let equiv = SMT.mk_rel SMT.Neq i1form i2form in 
     let cls = make_clause equiv emptySSAMap emptyIfContext EqTest noTags in 
-    match (do_smt [cls] CheckSat) with
-    | Sat -> false
-    | Unsat  -> true
-    | _ -> failwith "unexptected response"
+    check_unsat [cls]
 
 let is_valid_interpolant (before :clause list) (after : clause list) (inter :clause) = 
   let not_inter = negate_clause inter in
