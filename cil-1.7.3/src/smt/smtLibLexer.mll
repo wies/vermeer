@@ -69,7 +69,11 @@ rule token = parse
 | '(' { LPAREN }
 | ')' { RPAREN }
 | ('-'? digitchar*) as num { INT(int_of_string num) }
-| ident as name { IDENT(name) }
+| ident as name { try
+        Hashtbl.find keyword_table name
+      with Not_found ->
+        IDENT(name)
+    }
 | '"' [^'"']* as str '"' { STRING(str) }
 | eof { EOF }
 | _ { let pos = lexeme_start_p lexbuf in 
