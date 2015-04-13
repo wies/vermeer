@@ -15,6 +15,9 @@ module SMT = SmtSimpleAst
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
+let _  = Printexc.register_printer 
+  (fun x ->  Some (Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()));;
+
 (* issue if interpolant tries to go past where something is used *)
 
 let (get_var_type, set_var_type) = 
@@ -298,10 +301,8 @@ let encode_formula opts clause =
     
     
 let make_var_decl v =
-  failwith "todo later"
-  (* let ts = SMT.string_of_sort (get_var_type v) in *)
-  (* "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n"  *)
-
+  let ts = SMT.string_of_sort (get_var_type v.fullname) in 
+  "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n"  
 
 let make_flag_decl c = 
   "(declare-fun " ^ (flag_var_string c)  ^" () Bool )\n" 
@@ -329,10 +330,12 @@ let print_annotated_trace  ?(stream = stdout) x =
 
 let fold_ssa_vars formula initialSet = 
   let all_vars = SMT.get_idents formula in
-  SMT.VarSet.fold (fun e a -> match ssaVarOptFromString e with
-  | Some v -> SSAVarSet.add v a
-  | None -> a)  all_vars initialSet
-
+  SMT.VarSet.fold 
+    (fun e a -> match ssaVarOptFromString e with
+    | Some v -> SSAVarSet.add v a
+    | None -> a)  
+    all_vars initialSet
+    
 let get_ssa_vars formula = fold_ssa_vars formula SSAVarSet.empty
 
   

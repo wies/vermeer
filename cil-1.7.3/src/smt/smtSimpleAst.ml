@@ -15,7 +15,7 @@ type op =
 | Eq | Leq | Lt  | Geq | Gt | Neq 
 | And | Or
 | Not
-| Add | Mult
+| Add | Mult 
 | Impl | Ite
     
 type term = 
@@ -116,6 +116,7 @@ let mk_or terms =
 let mk_add lst = 
   assert(List.for_all is_intsort lst);
   App(Add,sort_term_list lst,IntSort)
+
 let mk_mult lst =   
   assert(List.for_all is_intsort lst);
   App(Mult,sort_term_list lst,IntSort)

@@ -58,7 +58,8 @@ let smtOpFromBinop = function
   | PlusPI|IndexPI|MinusA|MinusPI|MinusPP|Div|Mod|Shiftlt|Shiftrt|BAnd|BXor|BOr as op
     -> failwith ("unexpected operator in smtopfrombinop |"
     		 ^ (d_string "%a" d_binop op ) ^ "|")
-    
+
+
 
 let formula_from_exp typeMap e =
   let formula_from_lval l = 
@@ -73,7 +74,9 @@ let formula_from_exp typeMap e =
   | Lval(l) -> formula_from_lval l 
   | UnOp(Neg,e1,t) -> SMT.mk_uminus (aux e1)
   | UnOp (o,_,_) -> failwith (d_string "unexpected unop  %a" d_unop o)
-  | BinOp(o,e1,e2,t) ->SMT.mk_rel (smtOpFromBinop o) (aux e1) (aux e2) 
+  (*minus is not in the SMT ast, so we need to handle it ourselves *)
+  | BinOp(MinusA,e1,e2,t) -> SMT.mk_add [aux e1; SMT.mk_uminus (aux e2)] 
+  | BinOp(o,e1,e2,t) ->SMT.mk_app (smtOpFromBinop o) [aux e1;aux e2] 
   | CastE(t,e) -> aux e
   | SizeOf _|SizeOfE _|SizeOfStr _|AlignOf _|AlignOfE _|Question (_, _, _, _)
   | AddrOf _|AddrOfLabel _|StartOf _ as f
