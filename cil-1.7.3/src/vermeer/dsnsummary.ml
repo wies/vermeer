@@ -359,6 +359,14 @@ let dsnsmt (f: file) : unit =
   end ;
   exit_all_solvers() 
       
+let safe_shutdown f = 
+  Printexc.record_backtrace true;
+  try dsnsmt f 
+  with e -> (
+    exit_all_solvers();
+    print_endline (string_of_exn e);
+    exit 1
+  )
 
   let feature : featureDescr = 
     { fd_name = "dsnsmt";
@@ -415,7 +423,7 @@ let dsnsmt (f: file) : unit =
 	    | x -> failwith (x ^ " is not a valid multithread analysis type")), 
 	   " turns on multithreaded analysis");
 	];
-      fd_doit = dsnsmt;
+      fd_doit = safe_shutdown;
       fd_post_check = true
     } 
 

@@ -15,11 +15,21 @@ module SMT = SmtSimpleAst
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
-(* DSN this records backtraces.  Might slow down stuff slightly.  Turn on if needed *)
-let _  = 
-  Printexc.record_backtrace true;
-  Printexc.register_printer 
-    (fun x ->  Some (Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()));;
+let string_of_exn = function 
+  | ProgError.Prog_error _ as e ->
+    ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ()
+  | x -> Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()
+
+
+(* (\* DSN this records backtraces.  Might slow down stuff slightly.  Turn on if needed *\) *)
+(* let _  =  *)
+(*   Printexc.record_backtrace true; *)
+(*   Printexc.register_printer  *)
+(*     (function  *)
+(*     | ProgError.Prog_error _ as e -> *)
+(*       Some (ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ());; *)
+(*       exit 1 *)
+(*     | x -> Some (Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()));; *)
 
 (* issue if interpolant tries to go past where something is used *)
 
@@ -541,6 +551,7 @@ type solver_state =
     in_chan: in_channel;
     pid: int;
     log_out: out_channel option;
+    mutable isSat : bool option;
   }
 
 let flush_solver solver = 
@@ -571,7 +582,9 @@ let set_timeout solver timeout =
 let set_logic solver logic = write_line_to_solver solver ("(set-logic " ^ logic ^ ")\n")
 let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unknown () Int)\n"
   
-let reset_solver solver = write_line_to_solver solver "(reset)\n"
+let reset_solver solver = 
+  solver.isSat <- None;
+  write_line_to_solver solver "(reset)\n"
 
 let read_from_chan chan =
   let lexbuf = Lexing.from_channel chan in
@@ -626,6 +639,7 @@ let _create_or_get_solver session_name solver do_log =
 	  out_chan = Unix.out_channel_of_descr out_write;
 	  pid = pid;
 	  log_out = log_out;
+	  isSat = None;
 	} in
     set_solver_options state solver.info.smt_options;
     set_timeout state 10000;
@@ -744,7 +758,9 @@ let print_smt filenameOpt clauses pt =
       in_chan = stdin;
       out_chan = oc;
       pid = 0;
-      log_out = None} in
+      log_out = None;
+      isSat = None;
+    } in
     ignore( _do_smt ~justPrint:true solver clauses pt);
     close_out oc;
   | None -> 
@@ -753,6 +769,7 @@ let print_smt filenameOpt clauses pt =
       out_chan = stdout;
       pid = 0;
       log_out = None;
+      isSat = None;
     } in
     ignore(_do_smt ~justPrint:true solver clauses pt)
 
