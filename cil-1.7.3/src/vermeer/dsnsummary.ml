@@ -23,7 +23,7 @@ type summaryOpts =
     mutable trackedHazards : HazardSet.t;
     mutable calcStats : bool;
     mutable intrathreadHazards : bool;
-
+    mutable beautifyFormulas : bool;
   }
 let opts = {
   multithread = NOMULTI;
@@ -34,6 +34,7 @@ let opts = {
   trackedHazards = HazardSet.empty;
   calcStats = false;
   intrathreadHazards = true;
+  beautifyFormulas = false;
 }
 
 let addTrackedHazard hazard = opts.trackedHazards <- HazardSet.add hazard opts.trackedHazards
@@ -99,7 +100,7 @@ let make_cheap_annotated_trace (clauses : trace) : annotatedTrace =
   | Interpolant inters -> 
     (* the interpolant list will be missing the program precondition
      * so we start with an extra interpolant "true" *)
-    let zipped = List.combine (SMT.mk_true::inters) clauses in
+    let zipped = List.combine (SB.mk_true::inters) clauses in
     zipped
   | _ -> failwith "make_cheap_annotated_trace failed"
 
@@ -237,7 +238,7 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	  (* we not in the desired group, now entered it.  Have to build 
 	   * the summary *)
 	  let summary = make_clause 
-	    (SMT.mk_impl cond i) 
+	    (SB.mk_impl cond i) 
 	    c.ssaIdxs
 	    emptyIfContext
 	    (Summary(List.rev summaryAccum))
@@ -268,16 +269,14 @@ let reduce_using_technique technique clauses  =
 
 (****************************** Printing to files ******************************)
 
-let annotated_trace_to_smtfile at filename = 
-  let interpolants,trace = List.split at in
-  print_smt (Some filename) trace CheckSat 
+(* let annotated_trace_to_smtfile at filename =  *)
+(*   let interpolants,trace = List.split at in *)
+(*   print_smt (Some filename) trace CheckSat  *)
     
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
   if opts.calcStats then calculate_stats_at "Reduced" reduced;
   print_annotated_trace_to_file filename reduced;
-  if(opts.printReducedSMT) then 
-    annotated_trace_to_smtfile reduced filename;
   reduced
 
 let summarize_to_file ?(filenameOpt = None) technique reduced id = 
@@ -322,7 +321,6 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause() :: getCurrentClauses() in
   if opts.calcStats then calculate_stats "Initial" clauses;
-  if opts.printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
   begin match opts.multithread with
   | PARTITIONTID -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
@@ -412,6 +410,8 @@ let safe_shutdown f =
 	   " Makes the encoding raw hazard sensitive");
 	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
 	   " Makes the encoding raw hazard sensitive");
+	  ("--smtbeautify", Arg.Unit (fun x -> opts.beautifyFormulas <- true),
+	   "beautifies formulas before making them into clauses");
 	  ("--smtmultithread", Arg.String 
 	    (fun x -> match x with
 	    | "partitionTID" -> opts.multithread <- PARTITIONTID

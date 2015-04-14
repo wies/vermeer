@@ -4,6 +4,7 @@ open Cil
 open Dsnutils
 
 module SMT = SmtSimpleAst
+module SB = SmtSimpleAstBuilder
 
 type smtParseInternal = {
   mutable currentFunc: string;
@@ -64,19 +65,19 @@ let smtOpFromBinop = function
 let formula_from_exp typeMap e =
   let formula_from_lval l = 
     match l with 
-    | (Var(v),_) -> SMT.mk_ident v.vname (typeMap v.vname)
+    | (Var(v),_) -> SB.mk_ident v.vname (typeMap v.vname)
     | _ -> failwith "should only have lvals of type var"
   in
   let rec aux = function
-  | Const(CInt64(c,_,_)) -> SMT.mk_intConst c
-  | Const(CChr(c)) -> SMT.mk_intConst (Int64.of_int (int_of_char c))
+  | Const(CInt64(c,_,_)) -> SB.mk_intConst c
+  | Const(CChr(c)) -> SB.mk_intConst (Int64.of_int (int_of_char c))
   | Const(_) as f -> failwith (d_string "Constants should only be of type int: %a" d_exp f)
   | Lval(l) -> formula_from_lval l 
-  | UnOp(Neg,e1,t) -> SMT.mk_uminus (aux e1)
+  | UnOp(Neg,e1,t) -> SB.mk_uminus (aux e1)
   | UnOp (o,_,_) -> failwith (d_string "unexpected unop  %a" d_unop o)
   (*minus is not in the SMT ast, so we need to handle it ourselves *)
-  | BinOp(MinusA,e1,e2,t) -> SMT.mk_add [aux e1; SMT.mk_uminus (aux e2)] 
-  | BinOp(o,e1,e2,t) ->SMT.mk_app (smtOpFromBinop o) [aux e1;aux e2] 
+  | BinOp(MinusA,e1,e2,t) -> SB.mk_add [aux e1; SB.mk_uminus (aux e2)] 
+  | BinOp(o,e1,e2,t) ->SB.mk_app (smtOpFromBinop o) [aux e1;aux e2] 
   | CastE(t,e) -> aux e
   | SizeOf _|SizeOfE _|SizeOfStr _|AlignOf _|AlignOfE _|Question (_, _, _, _)
   | AddrOf _|AddrOfLabel _|StartOf _ as f
@@ -132,10 +133,10 @@ class dsnsmtVisitorClass ig = object (self)
       let rhsForm = formula_from_exp Dsnsmt.get_var_type e in
       let sort = SMT.get_sort rhsForm in
       let lhsVar = get_lhs_var lv in
-      let lhsForm = SMT.mk_ident lhsVar sort in
+      let lhsForm = SB.mk_ident lhsVar sort in
       register_lval_location lhsVar l;
       register_type lhsVar sort;
-      let assgt = SMT.mk_eq lhsForm rhsForm in 
+      let assgt = SB.mk_eq lhsForm rhsForm in 
       let cls = Dsnsmt.make_clause assgt ssaBefore ig.currentIfContext 
 	(ProgramStmt (i,ig.currentThread)) tags in
       ig.currentRevProgram <- cls :: ig.currentRevProgram;
@@ -157,7 +158,7 @@ class dsnsmtVisitorClass ig = object (self)
     match s.skind with
     | If(i,t,e,l) ->
       if e.bstmts <> [] then failwith "else block not handeled";
-      let cond = SMT.cast_to_bool (formula_from_exp  Dsnsmt.get_var_type i) in
+      let cond = SB.cast_to_bool (formula_from_exp  Dsnsmt.get_var_type i) in
       ig.currentIfContext <- {iformula = cond; istmt = s} :: ig.currentIfContext;
       ChangeDoChildrenPost (s,
 			    fun x -> 
