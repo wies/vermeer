@@ -1,5 +1,6 @@
 open Smtlib_util
 open SmtSimpleAst
+open SmtSimpleAstBuilder
 open SmtSimpleNormalize
 
 module FormulaSet = Set.Make(

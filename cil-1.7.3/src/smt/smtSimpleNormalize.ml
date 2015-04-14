@@ -1,4 +1,5 @@
 open SmtSimpleAst
+open SmtSimpleAstBuilder
 open Smtlib_util
 (** Compute negation normal form of a formula *)
 

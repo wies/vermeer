@@ -13,18 +13,17 @@ let summarizeThread = ref false
 type multithreadAnalysis = 
   ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI | PARTITIONTID | PARTITIONGROUP
 
-type summaryOpts = 
-  {
-    mutable multithread : multithreadAnalysis;
-    mutable printTraceSMT : bool;
-    mutable printReducedSMT : bool;
-    mutable toposortInput : bool ;
-    mutable toposortOutput : bool ;
-    mutable trackedHazards : HazardSet.t;
-    mutable calcStats : bool;
-    mutable intrathreadHazards : bool;
-    mutable beautifyFormulas : bool;
-  }
+type summaryOpts =  {
+  mutable multithread : multithreadAnalysis;
+  mutable printTraceSMT : bool;
+  mutable printReducedSMT : bool;
+  mutable toposortInput : bool ;
+  mutable toposortOutput : bool ;
+  mutable trackedHazards : HazardSet.t;
+  mutable calcStats : bool;
+  mutable intrathreadHazards : bool;
+}
+
 let opts = {
   multithread = NOMULTI;
   printTraceSMT = false;
@@ -34,7 +33,6 @@ let opts = {
   trackedHazards = HazardSet.empty;
   calcStats = false;
   intrathreadHazards = true;
-  beautifyFormulas = false;
 }
 
 let addTrackedHazard hazard = opts.trackedHazards <- HazardSet.add hazard opts.trackedHazards
@@ -410,7 +408,7 @@ let safe_shutdown f =
 	   " Makes the encoding raw hazard sensitive");
 	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
 	   " Makes the encoding raw hazard sensitive");
-	  ("--smtbeautify", Arg.Unit (fun x -> opts.beautifyFormulas <- true),
+	  ("--smtbeautify", Arg.Unit (fun x -> Dsnsmt.opts.beautifyFormulas <- true),
 	   "beautifies formulas before making them into clauses");
 	  ("--smtmultithread", Arg.String 
 	    (fun x -> match x with

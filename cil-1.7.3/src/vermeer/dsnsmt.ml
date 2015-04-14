@@ -18,6 +18,17 @@ module VarSet = SmtSimpleAst.VarSet
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
+type smtOpts = 
+  {
+    mutable beautifyFormulas : bool;
+  }
+
+let opts = {
+  beautifyFormulas = false;
+}
+
+
+
 let string_of_exn = function 
   | ProgError.Prog_error _ as e ->
     ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ()
@@ -385,6 +396,7 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)
   let allSSAVars = SSAVarSet.union ssaVars icSsaVars in
   let ssa,defs  = make_ssa_map (SSAVarSet.elements allSSAVars) ssa SSAVarSet.empty in
   let f = SmtSimpleAstBuilder.cast_to_bool f in
+  let f = if opts.beautifyFormulas then SmtSimplePasses.beautify_formula f else f in
   {formula = f; 
    idx = get_new_clause_id(); 
    ssaVars = allSSAVars; 
