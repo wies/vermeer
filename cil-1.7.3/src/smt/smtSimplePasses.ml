@@ -151,7 +151,8 @@ let propagate_truth_context f =
 	let trueHere = add_all_but_i i mk_not fl trueHere in
 	aux trueHere e) fl)
     | App(Not,[Ident _],_) as f -> f
-    | App(Ite,_,_) | App(Impl,_,_) | App(Not,_,_)  -> failwith "expected formula in NNF"
+    | App(Ite,_,_) | App(Impl,_,_) | App(Not,_,_)  -> 
+      failwith ("expected formula in NNF: " ^ SmtSimpleFns.string_of_term f)
     | _ -> f
     end
   in

@@ -362,7 +362,7 @@ let safe_shutdown f =
   try dsnsmt f 
   with e -> (
     exit_all_solvers();
-    print_endline (string_of_exn e);
+    Printf.printf "%s\n" (Printexc.to_string e);
     exit 1
   )
 

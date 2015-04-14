@@ -143,6 +143,16 @@ and normalize_term t =
 	mk_and lst	  
       )
     )
+    | App(Or,lst,_) -> (
+      let lst = List.map aux lst in
+      let lst = flatten_nested Or lst in
+      if (List.exists is_trueconst lst) then
+	mk_boolConst true
+      else (
+	let lst = List.filter (fun x -> not (is_boolconst x)) lst in
+	mk_or lst	  
+      )
+    )
     | App(Not,_,_)  | App(Ite,_,_) | App(Impl,_,_) as f -> nnf f
     | App(op,[lhs;rhs],_) when is_relation op -> 
       let lhs = aux lhs in
@@ -152,5 +162,5 @@ and normalize_term t =
 	with _ -> mk_rel op lhs rhs
       else
 	mk_rel op lhs rhs
-    | _ -> failwith "malformed term"
+    | t -> failwith ("malformed term: " ^ SmtSimpleFns.string_of_term t)
   in run_fixpt aux t
