@@ -12,6 +12,8 @@ open Dsnutils
 open Dsnsmtdefs
 
 module SMT = SmtSimpleAst
+module SMTFn = SmtSimpleFns
+module VarSet = SmtSimpleAst.VarSet
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
@@ -19,17 +21,6 @@ let string_of_exn = function
   | ProgError.Prog_error _ as e ->
     ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ()
   | x -> Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()
-
-
-(* (\* DSN this records backtraces.  Might slow down stuff slightly.  Turn on if needed *\) *)
-(* let _  =  *)
-(*   Printexc.record_backtrace true; *)
-(*   Printexc.register_printer  *)
-(*     (function  *)
-(*     | ProgError.Prog_error _ as e -> *)
-(*       Some (ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ());; *)
-(*       exit 1 *)
-(*     | x -> Some (Printexc.to_string x ^ "\n" ^ Printexc.get_backtrace ()));; *)
 
 (* issue if interpolant tries to go past where something is used *)
 
@@ -119,7 +110,7 @@ let topoSortCurrent () =
     let (_,newClausesRev) = 
       List.fold_left 
 	(fun (ssaBefore,revClsLst) cls -> 
-	  let v = cls.vars in
+	  let v = cls.ssaVars in
 	  let (newSsa,newDefs) = 
 	    make_ssa_map (SSAVarSet.elements v) ssaBefore SSAVarSet.empty in
 	  (newSsa,{cls with ssaIdxs = newSsa}::revClsLst)) 
@@ -307,15 +298,11 @@ let encode_formula opts clause =
   let form = opts.makeFlag clause form in
   let form = opts.makeFlowSensitive clause form in
   let form = opts.makeHazards clause form in
-  "(assert (! " 
-  ^ string_of_formula form
-  ^ " :named " ^ clause_name clause
-  ^ "))\n"
-    
+  form    
     
 let make_var_decl v =
-  let ts = SMT.string_of_sort (get_var_type v.fullname) in 
-  "(declare-fun " ^ (string_of_var v)  ^" () " ^ ts ^ ")\n"  
+  let ts = SMT.string_of_sort (get_var_type v) in 
+  "(declare-fun " ^ (SMT.string_of_var v)  ^" () " ^ ts ^ ")\n"  
 
 let make_flag_decl c = 
   "(declare-fun " ^ (flag_var_string c)  ^" () Bool )\n" 
@@ -401,7 +388,7 @@ let make_clause (f: term) (ssa: varSSAMap) (ic : ifContextList)
   let f = SMT.cast_to_bool f in
   {formula = f; 
    idx = get_new_clause_id(); 
-   vars = allSSAVars; 
+   ssaVars = allSSAVars; 
    defs = defs;
    ssaIdxs = ssa; 
    typ = ct; 
@@ -512,12 +499,15 @@ type solver_info =
     kind: solver_kind; 
   }
 
-let unsatCoreOptions =  
-  ["print-success",false; "produce-proofs",true; "produce-unsat-cores", true]
-let interpolationOptions = 
-  ["print-success",false; "produce-proofs",true; "produce-unsat-cores", false]
-let smtOnlyOptions = 
-  ["print-success",false; "produce-proofs",false; "produce-unsat-cores", false]
+let solver_options = function
+  | CheckSat -> 
+    ["print-success",false; "produce-proofs",false; "produce-unsat-cores", false]
+  | GetUnsatCore -> 
+    ["print-success",false; "produce-proofs",true; "produce-unsat-cores", true]
+  | GetInterpolation -> 
+    ["print-success",false; "produce-proofs",true; "produce-unsat-cores", false]
+
+
 
 let smtinterpol_2_1 = 
   let basedir = get_basedir () in
@@ -526,7 +516,7 @@ let smtinterpol_2_1 =
     version = 2; 
     subversion = 1;
     has_set_theory = false;
-    smt_options = smtOnlyOptions;
+    smt_options = solver_options CheckSat;
     kind = Process("java",["-jar";jarfile;"-q"]);
   }
     
@@ -536,7 +526,7 @@ let z3_4_3 =
     version = 4; 
     subversion = 3;
     has_set_theory = false;
-    smt_options = smtOnlyOptions;
+    smt_options = solver_options CheckSat;
     kind = Process("z3",["-smt2"; "-in"]);
   }
 
@@ -553,7 +543,8 @@ type solver_state =
     log_out: out_channel option;
     mutable isSat : bool option;
     mutable solverOpts : (string * bool) list;
-    mutable clauses : clause list;
+    mutable assertions : SMT.assertion list;
+    mutable vars : VarSet.t;
   }
 
 let flush_solver solver = 
@@ -588,7 +579,7 @@ let declare_unknown_sort solver = write_line_to_solver solver "(define-sort Unkn
 let reset_solver solver = 
   solver.isSat <- None;
   solver.solverOpts <- [];
-  solver.clauses <- [];
+  solver.assertions <- [];
   write_line_to_solver solver "(reset)\n"
 
 let read_from_chan chan =
@@ -645,8 +636,9 @@ let _create_or_get_solver session_name solver do_log =
 	  pid = pid;
 	  log_out = log_out;
 	  isSat = None;
-	  clauses = [];
+	  assertions = [];
 	  solverOpts = [];
+	  vars = VarSet.empty;
 	} in
     set_solver_options state solver.info.smt_options;
     set_timeout state 10000;
@@ -670,88 +662,60 @@ let exit_all_solvers () =
   SolverMap.iter (fun k v -> _exit_solver v) !activeSolvers;
   activeSolvers := emptySolverMap
 
+let declare_var solver v =
+  if (not (VarSet.mem v solver.vars)) then (
+    solver.vars <- VarSet.add v solver.vars;
+    write_line_to_solver solver (make_var_decl v)
+  )
+
+let assertion_of_clause c = 
+  SmtSimpleFns.assertion_of_formula (clause_name c) (encode_formula currentEncoding c)
+
+let assert_assertion solver a = 
+  solver.assertions <- a:: solver.assertions;
+  solver.isSat <- None;
+  write_line_to_solver solver (SMTFn.string_of_assertion a)
+
+
 (* given a set of clauses, do what is necessary to turn it into smt queries *)
-let _do_smt ?(justPrint = false) solver clauses pt =
-  (* print_endline "doing smt"; *)
+let program_to_smt solver clauses opts =
   reset_solver solver;
-  let opts = match pt with 
-    | CheckSat -> smtOnlyOptions
-    | GetUnsatCore -> unsatCoreOptions  
-    | GetInterpolation _-> interpolationOptions 
-  in 
   set_solver_options solver opts;
   set_logic solver "QF_LIA";
-  (* on occation, there are variables that are never used in a way where their type matters
-   * assume they're ints *)
-  declare_unknown_sort solver;
-  (*write the declerations *)
-  let allVars = all_vars clauses in
-  SSAVarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
-  (* declare the flags vars *)
-  (*this is a bit of a hack.  We should really only do this for the ones we need *)
-  List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) 
-    (getCurrentClauses());
-  (* write the program clauses *)
-  List.iter (fun x -> write_line_to_solver solver (encode_formula currentEncoding x)) clauses;
-  (* write the commands *)
-  let cmds = match pt with
-    | CheckSat -> 
-      [smtCheckSat]
-    | GetInterpolation (partition) ->  
-      [smtCheckSat;partition]
-    | GetUnsatCore -> 
-      [smtCheckSat; smtGetUnsatCore]
-  in
-  write_to_solver solver cmds;
-  flush_solver solver;
-  if justPrint then Unknown 
-  else read_from_solver solver 
+  let encodedAssertions = List.map assertion_of_clause clauses in 
+  let allIdents = List.fold_left 
+    (fun a (_,_,idents) -> VarSet.union idents a) VarSet.empty encodedAssertions in
+  VarSet.iter (declare_var solver) allIdents;
+  (* write the assertions *)
+  List.iter (assert_assertion solver) encodedAssertions;
+  flush_solver solver
 
 let get_solver_for = function
   | CheckSat | GetUnsatCore -> getZ3 ()
   | GetInterpolation _ -> getSmtinterpol()
     
 
-let a_do_smt clauses pt =
-  let solver = get_solver_for pt in
-  let res, duration = Dsnutils.time (fun () -> _do_smt solver clauses pt) () in
-  smtCallTime := !smtCallTime @ [duration];
-  debug_endline 
-    ("No. calls=" ^ string_of_int (List.length !smtCallTime) 
-     ^ ", Time_this=" ^ string_of_float duration
-     ^ " Time_total=" ^ string_of_float (List.fold_left (+.) 0. !smtCallTime));
-  res
+(* let check_sat solver =  *)
+(*   match solver.isSat with *)
+(*   | Some s -> s *)
+(*   | None -> ( *)
+(*     set_logic solver "QF_LIA"; *)
+(*     let all_vars =  *)
 
-let add_clause solver clause = 
-  solver.isSat <- None;
-  solver.clauses <- clause::solver.clauses
-
-let add_clauses solver clauses = List.iter add_clause solver clauses
-
-let setup_solver solver clauses opts =
-  reset_solver solver;
-  add_clauses clauses;
-  set_opts opts  
-
-let check_sat solver = 
-  match solver.isSat with
-  | Some s -> s
-  | None -> (
-    set_logic solver "QF_LIA";
-    declare_unknown_sort solver;
-    (*write the declerations *)
-    let allVars = all_vars clauses in
-    SSAVarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars;
-    (* declare the flags vars *)
-    (*this is a bit of a hack.  We should really only do this for the ones we need *)
-    List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) solver.clauses
-    (* write the program clauses *)
-    List.iter (fun x -> write_line_to_solver solver (encode_formula currentEncoding x)) clauses;
+(*     declare_unknown_sort solver; *)
+(*     (\*write the declerations *\) *)
+(*     let allVars = all_vars clauses in *)
+(*     SSAVarSet.iter (fun v -> write_line_to_solver solver (make_var_decl v)) allVars; *)
+(*     (\* declare the flags vars *\) *)
+(*     (\*this is a bit of a hack.  We should really only do this for the ones we need *\) *)
+(*     List.iter (fun c -> write_line_to_solver solver (make_flag_decl c)) solver.clauses *)
+(*     (\* write the program clauses *\) *)
+(*     List.iter (fun x -> write_line_to_solver solver (encode_formula currentEncoding x)) clauses; *)
     
-   match a_do_smt clauses CheckSat with
-   | Sat -> true
-   | Unsat -> false
-   | _ -> failwith "check_sat returned neither sat nor unsat"
+(*    match a_do_smt clauses CheckSat with *)
+(*    | Sat -> true *)
+(*    | Unsat -> false *)
+(*    | _ -> failwith "check_sat returned neither sat nor unsat" *)
 
 let check_unsat clauses = 
   not (check_sat clauses)

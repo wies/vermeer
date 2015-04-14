@@ -1,5 +1,6 @@
 (*******************************TYPES *************************************)
 open Dsnutils
+module SMT = SmtSimpleAst
 
 type varOwner = | Thread of int 
 		| Global
@@ -112,7 +113,7 @@ let rec label_string = function
 
 type clause = {formula : term; 
 	       idx : int; 
-	       vars : SSAVarSet.t;
+	       ssaVars : SSAVarSet.t;
 	       defs : SSAVarSet.t;
 	       ssaIdxs : varSSAMap;
 	       typ : clauseType;
@@ -125,7 +126,7 @@ type trace = clause list
 (* An annotated trace pairs a clause representing an instruction
  * with the term which represents its precondition *)
 type annotatedTrace = (term * clause) list
-type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
+type problemType = CheckSat | GetInterpolation | GetUnsatCore
 type smtResult = 
 | Sat 
 | Unsat  
@@ -179,10 +180,10 @@ let extract_group cls =
   in
   aux cls.cTags
 
-let get_uses clause = SSAVarSet.diff clause.vars clause.defs
-let all_vars clauses = List.fold_left (fun a e -> SSAVarSet.union e.vars a) SSAVarSet.empty clauses
+let get_uses clause = SSAVarSet.diff clause.ssaVars clause.defs
+let all_ssaVars clauses = List.fold_left (fun a e -> SSAVarSet.union e.ssaVars a) SSAVarSet.empty clauses
 let all_basevars clauses = 
-  let allVars = all_vars clauses in
+  let allVars = all_ssaVars clauses in
   SSAVarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
 
 let print_ssa_map map = 

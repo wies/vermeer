@@ -4,12 +4,11 @@ type intsort = int64
 
 type sort = IntSort | BoolSort
 let string_of_sort = function | IntSort -> "Int" | BoolSort -> "Bool"
-
+let string_of_var v = v
 module VarSortMap = Map.Make(Variable)
 module VarSet = Set.Make(Variable)
 
 type varSortMap = sort VarSortMap.t
-
 
 type op = 
 | Eq | Leq | Lt  | Geq | Gt | Neq 
@@ -24,6 +23,9 @@ type term =
 | Ident of variable * sort
 | App of op * term list * sort
 | LinearRelation of op * (intsort * variable) list * intsort
+
+type assertion =  string * term * VarSet.t
+
 
 let zero = IntConst 0L
 let one = IntConst 1L
@@ -216,3 +218,5 @@ let cast_to_int f =
   match get_sort f with   
   | IntSort -> f
   | BoolSort -> mk_ite f one zero
+
+
