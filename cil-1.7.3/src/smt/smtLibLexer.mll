@@ -68,7 +68,7 @@ rule token = parse
 | '!' { BANG }
 | '(' { LPAREN }
 | ')' { RPAREN }
-| ('-'? digitchar*) as num { INT(int_of_string num) }
+| ('-'? digitchar*) as num { INT(Int64.of_string num) }
 | ident as name { try
         Hashtbl.find keyword_table name
       with Not_found ->

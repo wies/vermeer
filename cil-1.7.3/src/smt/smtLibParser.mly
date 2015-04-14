@@ -21,7 +21,7 @@ let mk_position s e =
 %token <SmtLibSyntax.binder> BINDER
 %token LET
 %token <SmtLibSyntax.ident> IDENT
-%token <int> INT
+%token <int64> INT
 %token <string> STRING
 %token ASSERT CHECK_SAT GET_MODEL EXIT
 %token SAT UNSAT UNKNOWN ERROR MODEL

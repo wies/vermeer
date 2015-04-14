@@ -113,7 +113,7 @@ type sort =
 
 type symbol =
   | BoolConst of bool
-  | IntConst of int
+  | IntConst of int64
   | Ident of ident
   | Minus | Plus | Mult | Div
   | Eq | Gt | Lt | Geq | Leq | Neq
@@ -136,7 +136,7 @@ type command =
   | SetInfo of string * string * pos option
   | SetOption of string * string * pos option
   | SetLogic of string * pos option
-  | DeclareSort of ident * int * pos option
+  | DeclareSort of ident * int64 * pos option
   | DefineSort of ident * ident list * sort * pos option
   | DeclareFun of ident * sort list * sort * pos option
   | DefineFun of ident * (ident * sort) list * sort * term * pos option
@@ -165,7 +165,7 @@ let mk_const ?pos sym = App (sym, [], pos)
 let mk_app ?pos sym ts = 
   match sym, ts with
   | Minus, [App (IntConst i, [], _)] -> 
-      App (IntConst (-i), [], pos)
+      App (IntConst (Int64.neg i), [], pos)
   | _, _ -> 
       App (sym, ts, pos)
 
@@ -322,7 +322,8 @@ open Format
 
 let string_of_symbol = function
   | BoolConst b -> Printf.sprintf "%b" b
-  | IntConst i -> string_of_int i
+  | IntConst i -> 
+    if (i < 0L) then "(- " ^ Int64.to_string i ^ ")" else Int64.to_string i
   | Ident id -> string_of_ident id
   | Plus -> "+"
   | Minus -> "-"
@@ -425,7 +426,7 @@ let pr_command ppf = function
   | SetLogic (l, _) ->
       fprintf ppf "@[<11>(set-logic@ %s)@]@\n" l
   | DeclareSort (id, n, _) ->
-      fprintf ppf "@[<14>(declare-sort@ %a@ %d)@]@\n" pr_ident id n
+      fprintf ppf "@[<14>(declare-sort@ %a@ %Ld)@]@\n" pr_ident id n
   | DefineSort (id, svs, srt, _) ->
       fprintf ppf "@[<13>(define-sort@ %a@ (%a)@ %a)@]@\n" pr_ident id pr_idents svs pr_sort srt
   | DeclareFun (id, srts, srt, _) ->

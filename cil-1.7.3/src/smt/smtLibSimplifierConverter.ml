@@ -24,17 +24,17 @@ let smtCore_of_smtSimple f =
       | 0L -> failwith "shouldn't have 0 coefficients"
       | 1L -> vIdent
       | x -> L.mk_app L.Mult 
-	[L.mk_const (L.IntConst (Int64.to_int x));
+	[L.mk_const (L.IntConst x);
 	 vIdent]
     ) lhs 
     in
     let newLhs = L.mk_app L.Plus mults in
-    let newRhs = L.mk_const (L.IntConst (Int64.to_int rhs)) in
+    let newRhs = L.mk_const (L.IntConst rhs) in
     L.mk_app (core_sym_of_simple_op op) [newLhs;newRhs]
   in
   let rec aux = function
     | S.BoolConst b -> L.mk_const (L.BoolConst b)
-    | S.IntConst i -> L.mk_const (L.IntConst (Int64.to_int i))
+    | S.IntConst i -> L.mk_const (L.IntConst i)
     | S.Ident (v,s) -> L.mk_const (L.Ident v)
     | S.App (o,tl,s) -> L.mk_app (core_sym_of_simple_op o) (List.map aux tl)
     | S.LinearRelation (o,lhs,rhs) -> relation_of_linearrelation o lhs rhs

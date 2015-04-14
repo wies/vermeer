@@ -577,6 +577,7 @@ let reset_solver solver =
   solver.isSat <- None;
   solver.solverOpts <- [];
   solver.assertions <- [];
+  solver.vars <- VarSet.empty;
   write_line_to_solver solver "(reset)\n"
 
 let read_from_chan chan =
