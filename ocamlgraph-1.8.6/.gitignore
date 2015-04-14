@@ -1,0 +1,10 @@
+src/version.ml
+META
+Makefile
+dgraph/dgraph.byte
+dgraph/dgraph.opt
+editor/editor.byte
+editor/editor.opt
+view_graph/viewgraph.byte
+view_graph/viewgraph.opt
+src/version.ml

@@ -119,6 +119,9 @@ C constructs.
 
 DSN - I got a make error, which I fixed using 
 http://stackoverflow.com/questions/23498237/compile-program-for-32bit-on-64bit-linux-os-causes-fatal-error
+libgtk2.0-dev
+liblablgtk2-ocaml-dev
+liblablgtk2-gnome-ocaml-dev
 
 ****************** Benchmark Licence **********************************
 A note about the SIR repository benchmarks.  These benchmarks are the
