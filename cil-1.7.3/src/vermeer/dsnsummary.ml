@@ -362,7 +362,9 @@ let safe_shutdown f =
   try dsnsmt f 
   with e -> (
     exit_all_solvers();
-    Printf.printf "%s\n" (Printexc.to_string e);
+    (match e with
+    | Failure s -> print_endline s
+    | _ -> Printf.printf "%s\n" (Printexc.to_string e));
     exit 1
   )
 
