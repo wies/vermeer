@@ -610,7 +610,11 @@ let read_from_solver solver =
   | SolverAST.Unknown -> failwith "got parser unknown"
   | SolverAST.Model cl -> failwith "not currently supporting models"
   | SolverAST.Interpolant tl -> 
-    Interpolant (List.map (SmtSimplifierLibConverter.smtSimpleofSmtLib get_var_type) tl)
+    let i = List.map (SmtSimplifierLibConverter.smtSimpleofSmtLib get_var_type) tl in
+    let i = if opts.beautifyFormulas 
+      then List.map SmtSimplePasses.beautify_formula i 
+      else i in
+    Interpolant i
   | SolverAST.UnsatCore sl -> 
     UnsatCore (List.fold_left (fun a e -> StringSet.add e a) StringSet.empty sl)
   | SolverAST.Error s -> failwith ("parser error " ^ s)
