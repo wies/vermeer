@@ -323,7 +323,7 @@ open Format
 let string_of_symbol = function
   | BoolConst b -> Printf.sprintf "%b" b
   | IntConst i -> 
-    if (i < 0L) then "(- " ^ Int64.to_string i ^ ")" else Int64.to_string i
+    if (i < 0L) then "(- " ^ Int64.to_string (Int64.abs i) ^ ")" else Int64.to_string i
   | Ident id -> string_of_ident id
   | Plus -> "+"
   | Minus -> "-"
