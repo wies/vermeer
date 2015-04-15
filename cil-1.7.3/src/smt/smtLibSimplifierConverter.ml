@@ -18,17 +18,20 @@ let smtCore_of_smtSimple f =
     | S.Ite -> L.Ite
   in 
   let relation_of_linearrelation op lhs rhs =
-    let mults = List.map (fun (coeff,var) ->
-      let vIdent = L.mk_const  (L.Ident var) in
+    let unapply_coefficient (coeff,var) = 
+      let vIdent = L.mk_const (L.Ident var) in
       match coeff with
       | 0L -> failwith "shouldn't have 0 coefficients"
       | 1L -> vIdent
       | x -> L.mk_app L.Mult 
 	[L.mk_const (L.IntConst x);
 	 vIdent]
-    ) lhs 
     in
-    let newLhs = L.mk_app L.Plus mults in
+    let newLhs = (match lhs with
+      | [] -> failwith "bad lhs"
+      | [(c,v) as coeff] -> unapply_coefficient coeff
+      | _ ->  L.mk_app L.Plus (List.map unapply_coefficient lhs)
+    ) in
     let newRhs = L.mk_const (L.IntConst rhs) in
     L.mk_app (core_sym_of_simple_op op) [newLhs;newRhs]
   in

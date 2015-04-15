@@ -56,8 +56,7 @@ let rec make_linear_relation op lhs rhs =
   let begin_with_positive op lhs value = 
     match lhs with
     | [] -> mk_linearRelation op lhs value
-    | _ -> (
-      let (c,v) = List.hd lhs in
+    | (c,v)::rest -> (
       if c < 0L then (
         let op = invert_rel op in
         let value = Int64.neg value in
@@ -74,19 +73,28 @@ let rec make_linear_relation op lhs rhs =
   in
   (*first, move everything interresting to the lhs *)
   (* RHS is implicitly 0 now *)
-  let newLHS = mk_add [lhs; mk_mult [minus_one; rhs]] in
+  let newLHS = mk_add [lhs; mk_uminus rhs] in
   let newLHS = run_fixpt normalize_term newLHS in
+  print_endline ("lhs is : " ^ SmtSimpleFns.string_of_term newLHS);
   let linearList,newRHS =  
     match newLHS with 
     | App(Add,tl,_) -> 
       let sums,rest = List.partition is_sum tl in
       assert (sums = []);
       let vals,rest = List.partition is_intconst rest in
+      List.iter (fun c -> print_endline (SmtSimpleFns.string_of_term c)) vals;
+      List.iter (fun c -> print_endline (SmtSimpleFns.string_of_term c)) rest;
       get_coeffs (rest), Int64.neg (get_value vals)
-    | IntConst v -> [], Int64.neg v
-    | _ -> get_coeffs[newLHS], 0L
+    | IntConst v ->       
+      [], Int64.neg v
+    | _ ->
+      get_coeffs[newLHS], 0L
   in
+  List.iter (fun (c,v) -> Printf.printf "%Ld %s\n" c v) linearList;
+  Printf.printf "%Ld\n" newRHS;
   let linearList,newRHS = remove_common_factors linearList newRHS in
+  List.iter (fun (c,v) -> Printf.printf "%Ld %s\n" c v) linearList;
+  Printf.printf "%Ld\n" newRHS;
   begin_with_positive op linearList newRHS
     
 and normalize_term t = 
@@ -154,12 +162,13 @@ and normalize_term t =
       )
     )
     | App(Not,_,_)  | App(Ite,_,_) | App(Impl,_,_) as f -> nnf f
-    | App(op,[lhs;rhs],_) when is_relation op -> 
+    | App(op,[lhs;rhs],_) as f when is_relation op -> 
       let lhs = aux lhs in
       let rhs = aux rhs in
       if (is_intconst lhs && is_intconst rhs) then
 	try make_linear_relation op lhs rhs 
-	with _ -> mk_rel op lhs rhs
+	with _ -> failwith ("can't make relation out of " ^ SmtSimpleFns.string_of_term f)
+(*mk_rel op lhs rhs*)
       else
 	mk_rel op lhs rhs
     | t -> failwith ("malformed term: " ^ SmtSimpleFns.string_of_term t)

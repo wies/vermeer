@@ -86,6 +86,9 @@ and mk_not term =
   nnf (App(Not, [term], BoolSort))
 
 let mk_linearRelation op lhs value = 
+  (match lhs with 
+  | [] -> failwith "empty relation"
+  | (c,v)::rest -> assert (c>0L));
   LinearRelation (op,lhs,value)
 
 let relation_of_linearrelation op lhs rhs=

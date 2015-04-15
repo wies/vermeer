@@ -262,5 +262,13 @@ let beautify_formula f = run_fixpt simplify_formula (nnf f)
   )
   )
 *)
+(*  (<= 0 (+ (- 1) x_11_1)) (<= 0 (+ (- 1) x_6_1)) (<= x_10_1 0) (<= x_11_1 1) *)
 
-let test () = ()
+let test () = 
+  let t1 = mk_rel Leq zero (mk_add [minus_one;mk_ident "x_11" IntSort]) in
+  let t2 = mk_rel Leq (mk_ident "x_11" IntSort) one in
+  let form = mk_and [t1;t2] in
+  let lr = make_linear_relation Leq zero (mk_add [minus_one;mk_ident "x_11" IntSort]) in
+  print_endline (SmtSimpleFns.string_of_term lr);
+  let beaut = beautify_formula lr in
+  print_endline (SmtSimpleFns.string_of_term beaut)
