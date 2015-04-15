@@ -82,19 +82,11 @@ let rec make_linear_relation op lhs rhs =
       let sums,rest = List.partition is_sum tl in
       assert (sums = []);
       let vals,rest = List.partition is_intconst rest in
-      List.iter (fun c -> print_endline (SmtSimpleFns.string_of_term c)) vals;
-      List.iter (fun c -> print_endline (SmtSimpleFns.string_of_term c)) rest;
       get_coeffs (rest), Int64.neg (get_value vals)
-    | IntConst v ->       
-      [], Int64.neg v
-    | _ ->
-      get_coeffs[newLHS], 0L
+    | IntConst v -> [], Int64.neg v
+    | _ -> get_coeffs[newLHS], 0L
   in
-  List.iter (fun (c,v) -> Printf.printf "%Ld %s\n" c v) linearList;
-  Printf.printf "%Ld\n" newRHS;
   let linearList,newRHS = remove_common_factors linearList newRHS in
-  List.iter (fun (c,v) -> Printf.printf "%Ld %s\n" c v) linearList;
-  Printf.printf "%Ld\n" newRHS;
   begin_with_positive op linearList newRHS
     
 and normalize_term t = 

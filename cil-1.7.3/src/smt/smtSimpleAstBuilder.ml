@@ -68,6 +68,7 @@ and  nnf f =
     let l = nnf l in 
     match l with
     | Ident _ -> f
+    | LinearRelation(r,lhs,rhs) -> mk_linearRelation (negate_rel r) lhs rhs
     | App(r,[t1;t2],s) when is_relation r -> mk_rel (negate_rel r) (nnf t1) (nnf t2)
     | App(Not,[f],s) -> nnf f
     | App(And,fs,s) -> mk_or (List.map nnf (List.map mk_not fs))
@@ -85,7 +86,7 @@ and mk_not term =
   assert(is_boolsort term);
   nnf (App(Not, [term], BoolSort))
 
-let mk_linearRelation op lhs value = 
+and mk_linearRelation op lhs value = 
   (match lhs with 
   | [] -> failwith "empty relation"
   | (c,v)::rest -> assert (c>0L));
