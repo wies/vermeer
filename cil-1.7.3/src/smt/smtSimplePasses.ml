@@ -269,6 +269,9 @@ let test () =
   let t2 = mk_rel Leq (mk_ident "x_11" IntSort) one in
   let form = mk_and [t1;t2] in
   let lr = make_linear_relation Leq zero (mk_add [minus_one;mk_ident "x_11" IntSort]) in
-  print_endline (SmtSimpleFns.string_of_term lr);
-  let beaut = beautify_formula lr in
-  print_endline (SmtSimpleFns.string_of_term beaut)
+  let beaut = beautify_formula form in
+  (match beaut with
+  | App(And,[LinearRelation _; LinearRelation _],s) -> print_endline "linear"
+  | _ -> print_endline "non"
+  );
+print_endline (SmtSimpleFns.string_of_term beaut)

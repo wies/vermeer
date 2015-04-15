@@ -75,7 +75,6 @@ let rec make_linear_relation op lhs rhs =
   (* RHS is implicitly 0 now *)
   let newLHS = mk_add [lhs; mk_uminus rhs] in
   let newLHS = run_fixpt normalize_term newLHS in
-  print_endline ("lhs is : " ^ SmtSimpleFns.string_of_term newLHS);
   let linearList,newRHS =  
     match newLHS with 
     | App(Add,tl,_) -> 
@@ -157,7 +156,7 @@ and normalize_term t =
     | App(op,[lhs;rhs],_) as f when is_relation op -> 
       let lhs = aux lhs in
       let rhs = aux rhs in
-      if (is_intconst lhs && is_intconst rhs) then
+      if (is_intsort lhs && is_intsort rhs) then
 	try make_linear_relation op lhs rhs 
 	with _ -> failwith ("can't make relation out of " ^ SmtSimpleFns.string_of_term f)
 (*mk_rel op lhs rhs*)

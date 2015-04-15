@@ -104,7 +104,56 @@ let is_boolsort form = (get_sort form) = BoolSort
 let is_intsort form = (get_sort form) = IntSort
 let sorts_match t1 t2 = (get_sort t1) = (get_sort t2)
 
+
+let compare_lex compare_fn fs gs = 
+  let rec aux fs gs = 
+    match fs, gs with
+    | f :: fs1, g :: gs1 ->
+      let c = compare_fn f g in
+      if c = 0
+      then aux fs1 gs1
+      else c
+    | [], _ :: _ -> -1
+    | _ :: _, [] -> 1
+    | _, _ -> 0
+  in
+  aux fs gs
+
+let compare_coeffs (c1,v1) (c2,v2) = 
+  match compare v1 v2 with
+  | 0 -> compare c1 c2
+  | x -> x
+
+let rec compare_term t1 t2 = 
+  match t1,t2 with
+  | BoolConst b1, BoolConst b2 -> compare b1 b2
+  | IntConst i1, IntConst i2 -> compare i1 i2
+  | Ident (v1,s1), Ident (v2,s2) -> 
+    (match compare v1 v2 with
+    | 0 -> compare s1 s2
+    | x -> x
+  )  
+  | App (o1,t1,s1), App(o2,t2,s2) -> 
+    (match compare o1 o2 with
+    | 0 -> (match compare_lex compare_term t1 t2 with
+      | 0 -> compare s1 s2
+      | x -> x
+    )
+    | x -> x
+  )
+  | LinearRelation(o1,l1,r1),LinearRelation(o2,l2,r2) -> 
+    (* we want to make sure that thing with similar lists end up side by side *)       
+    (match compare_lex compare_coeffs l1 l2 with
+    | 0 -> (match compare 01 02 with 
+      | 0 -> compare r1 r2
+      | x -> x
+    )
+    | x -> x
+    )
+  | _,_ -> compare t1 t2
+  
+
 let sort_term_list tl = 
-  List.sort compare tl
+  List.sort compare_term tl
 
 
