@@ -239,9 +239,13 @@ let simplify_formula_2 f =
   aux f
 
 let simplify_formula f = 
+  Printf.printf "%s\n%s\n" "*********************" (SmtSimpleFns.string_of_term f);
   let f = simplify_constants f in
+  Printf.printf "%s\n%s\n" "=====================" (SmtSimpleFns.string_of_term f);
   let f = normalize_term f in
+  Printf.printf "%s\n%s\n" "xxxxxxxxxxxxxxxxxxxxx" (SmtSimpleFns.string_of_term f);
   let f = propagate_truth_context f in
+  Printf.printf "%s\n%s\n" "vvvvvvvvvvvvvvvvvvvvv" (SmtSimpleFns.string_of_term f);
   let f = simplify_formula_2 f in
   f
 
@@ -268,7 +272,6 @@ let test () =
   let t1 = mk_rel Leq zero (mk_add [minus_one;mk_ident "x_11" IntSort]) in
   let t2 = mk_rel Leq (mk_ident "x_11" IntSort) one in
   let form = mk_and [t1;t2] in
-  let lr = make_linear_relation Leq zero (mk_add [minus_one;mk_ident "x_11" IntSort]) in
   let beaut = beautify_formula form in
   (match beaut with
   | App(And,[LinearRelation _; LinearRelation _],s) -> print_endline "linear"
