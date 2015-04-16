@@ -2,6 +2,8 @@
 
 let testmode = false
 
+let run () = 
+
 (* let run () =  *)
 (*   let lexbuf = Lexing.from_channel stdin in *)
 (*   let parsed = Smtlib_parse.main Smtlib_lex.token lexbuf in *)

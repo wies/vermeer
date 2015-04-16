@@ -27,8 +27,6 @@ let opts = {
   beautifyFormulas = false;
 }
 
-
-
 let string_of_exn = function 
   | ProgError.Prog_error _ as e ->
     ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ()
@@ -592,19 +590,8 @@ let reset_solver solver =
   solver.vars <- VarSet.empty;
   write_line_to_solver solver "(reset)\n"
 
-let read_from_chan chan =
-  let lexbuf = Lexing.from_channel chan in
-  (* This is useful for debugging, but not necessary *)
-  (*SmtLibLexer.set_file_name lexbuf session.log_file_name; *)
-  SmtLibParser.output SmtLibLexer.token lexbuf
-
-let line_from_solver solver = 
-  let line = input_line solver.in_chan in
-  debug_endline line;
-  line
-
 let read_from_solver solver =
-  match read_from_chan solver.in_chan with
+  match SmtLibSolver.read_from_chan solver.in_chan with
   | SolverAST.Sat -> Sat
   | SolverAST.Unsat -> Unsat
   | SolverAST.Unknown -> failwith "got parser unknown"
@@ -612,7 +599,12 @@ let read_from_solver solver =
   | SolverAST.Interpolant tl -> 
     let i = List.map (SmtSimplifierLibConverter.smtSimpleofSmtLib get_var_type) tl in
     let i = if opts.beautifyFormulas 
-      then List.map SmtSimplePasses.beautify_formula i 
+      then List.map 
+	(fun x -> 
+	  Printf.printf "Old was: %s\n"  (SmtSimpleFns.string_of_term x);
+	  let n = SmtSimplePasses.beautify_formula x in
+	  Printf.printf "New was: %s\n"  (SmtSimpleFns.string_of_term n);
+	  n) i 
       else i in
     Interpolant i
   | SolverAST.UnsatCore sl -> 

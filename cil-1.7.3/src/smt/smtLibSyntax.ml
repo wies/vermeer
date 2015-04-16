@@ -157,6 +157,7 @@ type response =
   | UnsatCore of string list
   | Error of string
   | Interpolant of term list
+  | SingleTerm of term
 
 (** Constructor functions *)
 
@@ -449,3 +450,4 @@ let rec pr_commands ppf = function
 
 let print_command out_ch cmds = fprintf (formatter_of_out_channel out_ch) "%a@?" pr_command cmds
 let print_commands out_ch cmds = fprintf (formatter_of_out_channel out_ch) "%a@?" pr_commands cmds
+

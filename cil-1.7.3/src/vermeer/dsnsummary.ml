@@ -215,9 +215,7 @@ let get_partition_interpolant partitionP trace =
     | (a,b) -> make_interpolate_between a b in
   let result = get_interpolant trace partitionString in
   match result with 
-  | Interpolant [theInterpolant] -> 
-    if Dsnsmt.opts.beautifyFormulas then
-       SmtSimplePasses.beautify_formula theInterpolant else theInterpolant
+  | Interpolant [theInterpolant] -> theInterpolant
   | _ -> failwith "didn't get interpolant for partition"
     
 (* we can either work on tid or groups, by choosing the idExtractor function *)
