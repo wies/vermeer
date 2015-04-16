@@ -599,12 +599,7 @@ let read_from_solver solver =
   | SolverAST.Interpolant tl -> 
     let i = List.map (SmtSimplifierLibConverter.smtSimpleofSmtLib get_var_type) tl in
     let i = if opts.beautifyFormulas 
-      then List.map 
-	(fun x -> 
-	  Printf.printf "Old was: %s\n"  (SmtSimpleFns.string_of_term x);
-	  let n = SmtSimplePasses.beautify_formula x in
-	  Printf.printf "New was: %s\n"  (SmtSimpleFns.string_of_term n);
-	  n) i 
+      then List.map SmtSimplePasses.beautify_formula i 
       else i in
     Interpolant i
   | SolverAST.UnsatCore sl -> 

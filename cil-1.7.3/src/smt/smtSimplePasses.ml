@@ -93,8 +93,8 @@ let remove_duplicates strengthen fs =
     | [] -> []
     | e1 :: e2 :: tl when subsumes e1 e2 ->
       if strengthen
-      then e1 :: uniq tl
-      else e2 :: uniq tl
+      then uniq (e1 :: tl)
+      else uniq (e2 :: tl)
     | e1 :: e2 :: tl when subsumes e2 e1 ->
       if strengthen
       then e2 :: uniq tl
@@ -239,13 +239,9 @@ let simplify_formula_2 f =
   aux f
 
 let simplify_formula f = 
-  Printf.printf "%s\n%s\n" "*********************" (SmtSimpleFns.string_of_term f);
   let f = simplify_constants f in
-  Printf.printf "%s\n%s\n" "=====================" (SmtSimpleFns.string_of_term f);
   let f = normalize_term f in
-  Printf.printf "%s\n%s\n" "xxxxxxxxxxxxxxxxxxxxx" (SmtSimpleFns.string_of_term f);
   let f = propagate_truth_context f in
-  Printf.printf "%s\n%s\n" "vvvvvvvvvvvvvvvvvvvvv" (SmtSimpleFns.string_of_term f);
   let f = simplify_formula_2 f in
   f
 
