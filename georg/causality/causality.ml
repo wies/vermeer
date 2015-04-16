@@ -64,7 +64,7 @@ match var with
 | Var(var_name) ->
 (
 match f with
-| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " ("); print_int(c); print_string("))\n"); ()
+| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " "); (if c < 0 then (print_string("(- ");print_int(abs(c));print_string(")")) else (print_int(c))); print_string("))\n"); ()
 | IntFunction(Var(v)) -> print_string("(assert (= " ^ var_name ^ " " ^ v ^ "))\n"); ()
 | BoolFunction(Relation(EQ, Var(name2), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (= " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
 | BoolFunction(Relation(NEQ, Var(name2), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (not (= " ^ name2 ^ " "); print_int(v); print_string("))))\n"); ()
@@ -108,9 +108,9 @@ let main() =
   let l3 = Var("l3") in
   let l4 = Var("l4") in
   let c0 = Var("c0") in
-  let c0p = Var("c0'") in
+  let c0p = Var("c0p") in
   let c1 = Var("c1") in
-  let c1p = Var("c1'") in
+  let c1p = Var("c1p") in
   let c2 = Var("c2") in
   let c3 = Var("c3") in
   let endogenous_vars = [ c0; c0p; c1; c1p; c2; c3; x0; y0; z0; z1; z2; z3; z4; z5; z6; z7; z8; l0; l1; l2; l3; l4 ] in 
