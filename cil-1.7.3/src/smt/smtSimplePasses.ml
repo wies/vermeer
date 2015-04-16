@@ -97,8 +97,8 @@ let remove_duplicates strengthen fs =
       else uniq (e2 :: tl)
     | e1 :: e2 :: tl when subsumes e2 e1 ->
       if strengthen
-      then e2 :: uniq tl
-      else e1 :: uniq tl
+      then uniq (e2 :: tl)
+      else uniq (e1 :: tl)
     | hd :: tl -> hd :: uniq tl
   in
   let sorted = List.sort compare_form fs in
