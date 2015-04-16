@@ -74,12 +74,20 @@ match var with
 | Var(name, Boolean) -> print_string("(declare-fun " ^ name ^ " () Bool)\n")
 ;;
 
+let int_to_smt2 = fun c ->
+if c < 0 
+then 
+  (print_string("(- "); print_int(abs(c)); print_string(")"))
+else 
+  (print_int(c))
+;;
+
 let equation_to_smt2 = fun var f ->
 match var with
 | Var(var_name, _) ->
 (
 match f with
-| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " "); (if c < 0 then (print_string("(- ");print_int(abs(c));print_string(")")) else (print_int(c))); print_string("))\n"); ()
+| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " "); int_to_smt2(c); print_string("))\n"); ()
 | IntFunction(Var(v, _)) -> print_string("(assert (= " ^ var_name ^ " " ^ v ^ "))\n"); ()
 | BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (= " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
 | BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (not (= " ^ name2 ^ " "); print_int(v); print_string("))))\n"); ()
@@ -102,7 +110,25 @@ print_string(";; activate model generation\n");
 print_string("(set-option :produce-models true)\n\n"); 
 List.iter variable_to_smt2 exogenous_variables; print_string("\n"); 
 List.iter variable_to_smt2 endogenous_variables; print_string("\n"); 
-(* TODO: extend to situation and add assignment for exogenous variables *) 
+VarMap.iter equation_to_smt2 equations; 
+print_string("\n(check-sat)\n"); 
+print_string("(get-value ( "); List.iter print_variable_name exogenous_variables; List.iter print_variable_name endogenous_variables; print_string("))\n"); 
+print_string("(exit)\n")
+;; 
+
+let assignment_to_smt2 = fun var value ->
+match var, value with
+| Var(v, _), Const(c) -> print_string("(assert (= " ^ v ^ " "); int_to_smt2(c); print_string("))\n")
+;;
+
+let situation_to_smt2 = fun m ->
+match m with
+| Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context) -> 
+print_string(";; activate model generation\n"); 
+print_string("(set-option :produce-models true)\n\n"); 
+List.iter variable_to_smt2 exogenous_variables; print_string("\n"); 
+List.iter variable_to_smt2 endogenous_variables; print_string("\n"); 
+VarMap.iter assignment_to_smt2 context;
 VarMap.iter equation_to_smt2 equations; 
 print_string("\n(check-sat)\n"); 
 print_string("(get-value ( "); List.iter print_variable_name exogenous_variables; List.iter print_variable_name endogenous_variables; print_string("))\n"); 
@@ -175,7 +201,7 @@ let main() =
   let situation2 = Situation((modify_model model l2 (ConstIntFunction(one))), assignment) in
     (*print_situation(situation);
     print_situation(situation2);*)
-    model_to_smt2(model)
+    situation_to_smt2(situation)
   ;;
 
 main();;
