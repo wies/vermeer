@@ -609,6 +609,7 @@ let read_from_solver solver =
     Interpolant i
   | SolverAST.UnsatCore sl -> 
     UnsatCore (List.fold_left (fun a e -> StringSet.add e a) StringSet.empty sl)
+  | SolverAST.SingleTerm t -> failwith "did not expect to get a single term"
   | SolverAST.Error s -> failwith ("parser error " ^ s)
 
 
