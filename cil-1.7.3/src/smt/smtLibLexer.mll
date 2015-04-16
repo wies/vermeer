@@ -1,5 +1,4 @@
 {
-open Grass
 open Lexing
 open SmtLibSyntax
 open SmtLibParser
@@ -18,8 +17,8 @@ let _ =
       "define-sort", DEFINE_SORT;
       "define-fun", DEFINE_FUN;
       (* sorts *)
-      Grass.bool_sort_string, SORT(BoolSort);
-      Grass.int_sort_string, SORT(IntSort);
+      "Int", SORT(BoolSort);
+      "Bool", SORT(IntSort);
       (* term constructors *)
       "forall", BINDER(Forall);
       "exists", BINDER(Exists);
@@ -69,13 +68,11 @@ rule token = parse
 | '!' { BANG }
 | '(' { LPAREN }
 | ')' { RPAREN }
-| ('-'? digitchar*) as num { INT(int_of_string num) }
-| ident as name '_' (digitchar* as num) { IDENT(name, int_of_string num) }
-| ident as kw
-    { try
-        Hashtbl.find keyword_table kw
+| ('-'? digitchar*) as num { INT(Int64.of_string num) }
+| ident as name { try
+        Hashtbl.find keyword_table name
       with Not_found ->
-        IDENT(kw, 0)
+        IDENT(name)
     }
 | '"' [^'"']* as str '"' { STRING(str) }
 | eof { EOF }

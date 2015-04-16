@@ -1,5 +1,4 @@
 %{
-open Grass
 open Lexing
 open SmtLibSyntax
 
@@ -22,7 +21,7 @@ let mk_position s e =
 %token <SmtLibSyntax.binder> BINDER
 %token LET
 %token <SmtLibSyntax.ident> IDENT
-%token <int> INT
+%token <int64> INT
 %token <string> STRING
 %token ASSERT CHECK_SAT GET_MODEL EXIT
 %token SAT UNSAT UNKNOWN ERROR MODEL
@@ -40,6 +39,7 @@ output:
 | rmodel { Model $1 }
 | rcore  { UnsatCore $1 }
 | rerror { Error $1 }
+| interpolant { Interpolant $1 }
 | error { ProgError.syntax_error (mk_position 1 1) None }
 ;
     
@@ -47,12 +47,17 @@ rerror:
 | LPAREN ERROR STRING RPAREN { $3 }
 ;
 
+interpolant:
+| LPAREN term_list RPAREN { $2 }
+;
+
+
 rmodel:
 | LPAREN MODEL cmnd_list RPAREN { $3 }
 ;
 
 names:
-| IDENT names { (Grass.string_of_ident $1) :: $2 }
+| IDENT names { (SmtLibSyntax.string_of_ident $1) :: $2 }
 | /* empty */ { [] }
 ;
 
@@ -84,6 +89,9 @@ cmnd_list:
 | term cmnd_list { mk_assert ~pos:(mk_position 1 1) $1 :: $2 }
 | term { [mk_assert ~pos:(mk_position 1 1) $1] }
 ;
+
+interpolant_list:
+| LPAREN term_list RPAREN { $2 }
 
 sort_list_opt:
 | sort_list { $1 }

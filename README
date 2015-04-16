@@ -117,6 +117,12 @@ We have not tested it on Mac or Windows.  There are known issues with
 using the Cilly C front-end on Mac, due to OS X's use of non-standard
 C constructs.
 
+DSN - I got a make error, which I fixed using 
+http://stackoverflow.com/questions/23498237/compile-program-for-32bit-on-64bit-linux-os-causes-fatal-error
+libgtk2.0-dev
+liblablgtk2-ocaml-dev
+liblablgtk2-gnome-ocaml-dev
+
 ****************** Benchmark Licence **********************************
 A note about the SIR repository benchmarks.  These benchmarks are the
 property of the University of Nebraska, who have generously allowed us

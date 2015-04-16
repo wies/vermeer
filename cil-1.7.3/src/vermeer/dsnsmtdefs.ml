@@ -1,22 +1,19 @@
 (*******************************TYPES *************************************)
 open Dsnutils
+module SMT = SmtSimpleAst
 
 type varOwner = | Thread of int 
 		| Global
-
-type smtVarType = SMTBool | SMTInt | SMTUnknown
     
-type smtSsaVar = 
+type ssaVar = 
   {fullname : string; 
    vidx: int; 
    owner : int; 
    ssaIdx : int;
   }
 
-
-
 (* canonical format: x_vidx_ssaidx *)
-let smtSsaVarFromString str = 
+let ssaVarFromString str = 
   match split_on_underscore str with
   | [prefix;vidxStr;ssaIdxStr] -> 
     if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
@@ -27,13 +24,32 @@ let smtSsaVarFromString str =
     }
   | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
 
-    
-module VarM = struct 
-  type t = smtSsaVar
+let ssaVarOptFromString str = 
+  try Some (ssaVarFromString str) with
+  | _ -> None
+
+let is_ssa_var str = 
+  match ssaVarOptFromString str with
+  | Some _ -> true
+  | None -> false
+
+let is_flag_var s = begins_with  s "flag_" 
+let is_cse_var s = Str.string_match (Str.regexp ".cse[0-9]+") s 0 
+
+let remap_ssa_var_str str newIdx =
+  match split_on_underscore str with
+  | [prefix;vidxStr;ssaIdxStr] -> 
+    if prefix <> "x" then failwith ("invalid prefix " ^ prefix);
+    prefix ^ "_" ^ vidxStr ^ "_" ^ string_of_int newIdx
+  | _ -> failwith ("variable " ^ str ^ "is not in the valid format")
+
+
+module SSAVar = struct 
+  type t = ssaVar
   let compare = Pervasives.compare end ;;
 (* Given a variable name determine the correct mapping for it *)
-module VarMap = Map.Make(VarM)
-module VarSet = Set.Make(VarM)
+module SSAVarMap = Map.Make(SSAVar)
+module SSAVarSet = Set.Make(SSAVar)
 module IntMap = Map.Make(Int)
 module VarSSAMap = Map.Make(Int)
 module TypeMap = Map.Make(Int)
@@ -42,17 +58,14 @@ module StringSet = Set.Make(String)
 module TIDSet = Set.Make(Int)
 module GroupSet = Set.Make(Int)
 module BaseVarSet = Set.Make(Int)
-type varSSAMap = smtSsaVar VarSSAMap.t
-type varTypeMap = smtVarType TypeMap.t
+type varSSAMap = ssaVar VarSSAMap.t
 let emptySSAMap : varSSAMap = VarSSAMap.empty
-let emptyTypeMap : varTypeMap = TypeMap.empty
-let emptyVarSet = VarSet.empty
 let emptyStringSet = StringSet.empty
 
-let smtVarDefLoc : Cil.location VarMap.t ref = ref VarMap.empty
+let smtVarDefLoc : Cil.location SSAVarMap.t ref = ref SSAVarMap.empty
 let get_location_line v = 
   let open Cil in
-  let l = VarMap.find v !smtVarDefLoc 
+  let l = SSAVarMap.find v !smtVarDefLoc 
   in l.line
 
 
@@ -62,14 +75,16 @@ let get_location_line v =
  * Eventually, this should all be cleaned up by encoding the whole thing in
  * some proper grammer.
  *)
-type term = | SMTRelation of string * term list
-	    | SMTConstant of int64
-	    | SMTSsaVar of smtSsaVar
-	    | SMTFlagVar of string
-	    | SMTLetVar of string
-	    | SMTLetBinding of term * term 
-	    | SMTLet of term list * term
-	    | SMTTrue | SMTFalse
+type term = SmtSimpleAst.term
+
+(* type term = | SMTRelation of string * term list *)
+(* 	    | SMTConstant of int64 *)
+(* 	    | SMTSsaVar of smtSsaVar *)
+(* 	    | SMTFlagVar of string *)
+(* 	    | SMTLetVar of string *)
+(* 	    | SMTLetBinding of term * term  *)
+(* 	    | SMTLet of term list * term *)
+(* 	    | SMTTrue | SMTFalse *)
 
 
 (* TODO record the program location in the programStmt *)
@@ -98,8 +113,8 @@ let rec label_string = function
 
 type clause = {formula : term; 
 	       idx : int; 
-	       vars : VarSet.t;
-	       defs : VarSet.t;
+	       ssaVars : SSAVarSet.t;
+	       defs : SSAVarSet.t;
 	       ssaIdxs : varSSAMap;
 	       typ : clauseType;
 	       ifContext : ifContextList;
@@ -111,13 +126,16 @@ type trace = clause list
 (* An annotated trace pairs a clause representing an instruction
  * with the term which represents its precondition *)
 type annotatedTrace = (term * clause) list
-type problemType = CheckSat | GetInterpolation of string | GetUnsatCore
-type unsatResult = 
-  GotInterpolant of term list | GotUnsatCore of StringSet.t | GotNothing 
-type smtResult = Sat | Unsat of unsatResult | Timeout | NoSMTResult
+type problemType = CheckSat | GetInterpolation | GetUnsatCore
+type smtResult = 
+| Sat 
+| Unsat  
+| Unknown 
+| Interpolant of term list 
+| UnsatCore of StringSet.t 
 type forwardProp = InterpolantWorks of clause * clause list | NotKLeft | InterpolantFails
 
-exception CantMap of smtSsaVar
+exception CantMap of ssaVar
 
 let clause_name (c : clause) :string = 
   match c.typ with
@@ -162,11 +180,11 @@ let extract_group cls =
   in
   aux cls.cTags
 
-let get_uses clause = VarSet.diff clause.vars clause.defs
-let all_vars clauses = List.fold_left (fun a e -> VarSet.union e.vars a) emptyVarSet clauses
+let get_uses clause = SSAVarSet.diff clause.ssaVars clause.defs
+let all_ssaVars clauses = List.fold_left (fun a e -> SSAVarSet.union e.ssaVars a) SSAVarSet.empty clauses
 let all_basevars clauses = 
-  let allVars = all_vars clauses in
-  VarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
+  let allVars = all_ssaVars clauses in
+  SSAVarSet.fold (fun e a -> BaseVarSet.add e.vidx a) allVars BaseVarSet.empty
 
 let print_ssa_map map = 
   print_endline "id\tname\tdefloc";

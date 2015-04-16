@@ -3,6 +3,9 @@ open Dsnsmtdefs
 open Cil
 open Dsnutils
 
+module SMT = SmtSimpleAst
+module SB = SmtSimpleAstBuilder
+
 type smtParseInternal = {
   mutable currentFunc: string;
   (*keep the program in reverse order, then flip once. Avoid unneccessary list creation*)
@@ -37,45 +40,50 @@ let get_ssa_before () =
   | x::xs -> x.ssaIdxs
 
 (*********************************C to smt converstion *************************************)
-let formula_from_lval l = 
-  match l with 
-  | (Var(v),_) -> SMTSsaVar(smtSsaVarFromString(v.vname))
+let get_lhs_var = function
+  | (Var(v),_) -> v.vname
   | _ -> failwith "should only have lvals of type var"
-
-let smtOpFromBinop op = 
-  match op with
-  | PlusA | MinusA | Mult | Lt | Gt | Le | Ge ->  d_string "%a" d_binop op 
-  | Div -> "div"
-  | Mod -> "mod"
-  | Eq -> "="
-  | Ne -> "distinct"
-  | LAnd -> "and"
-  | LOr -> "or"
-  (* Uninterpreted operators *)
-  | BAnd | BXor | BOr| Shiftlt | Shiftrt -> 
-    failwith "not supporting bit operators"
-  | _ -> failwith ("unexpected operator in smtopfrombinop |" 
-		   ^ (d_string "%a" d_binop op ) ^ "|")
     
+  
+let smtOpFromBinop = function
+  | PlusA -> SMT.Add
+  | Mult -> SMT.Mult
+  | LAnd -> SMT.And
+  | LOr -> SMT.Or
+  | Eq -> SMT.Eq
+  | Ne -> SMT.Neq
+  | Lt -> SMT.Lt
+  | Le -> SMT.Leq
+  | Gt -> SMT.Gt
+  | Ge -> SMT.Geq
+  | PlusPI|IndexPI|MinusA|MinusPI|MinusPP|Div|Mod|Shiftlt|Shiftrt|BAnd|BXor|BOr as op
+    -> failwith ("unexpected operator in smtopfrombinop |"
+    		 ^ (d_string "%a" d_binop op ) ^ "|")
 
-let rec formula_from_exp e = 
-  match e with 
-  | Const(CInt64(c,_,_)) -> SMTConstant(c)
-  | Const(CChr(c)) -> SMTConstant(Int64.of_int (int_of_char c))
-  | Const(_) -> failwith ("Constants should only be of type int: " ^ (d_string "%a" d_exp e))
+
+
+let formula_from_exp typeMap e =
+  let formula_from_lval l = 
+    match l with 
+    | (Var(v),_) -> SB.mk_ident v.vname (typeMap v.vname)
+    | _ -> failwith "should only have lvals of type var"
+  in
+  let rec aux = function
+  | Const(CInt64(c,_,_)) -> SB.mk_intConst c
+  | Const(CChr(c)) -> SB.mk_intConst (Int64.of_int (int_of_char c))
+  | Const(_) as f -> failwith (d_string "Constants should only be of type int: %a" d_exp f)
   | Lval(l) -> formula_from_lval l 
-  | UnOp(o,e1,t) -> 
-    let opArg = d_string "%a" d_unop o in
-    let eForm = formula_from_exp e1 in
-    SMTRelation(opArg,[eForm])
-  | BinOp(o,e1,e2,t) ->
-    let opArg = smtOpFromBinop o in
-    let eForm1 = formula_from_exp e1 in
-    let eForm2 = formula_from_exp e2 in
-    SMTRelation(opArg,[eForm1;eForm2])
-  | CastE(t,e) -> formula_from_exp e
-  | _ -> failwith ("not handelling this yet" ^ (d_string "%a" d_exp e))
-
+  | UnOp(Neg,e1,t) -> SB.mk_uminus (aux e1)
+  | UnOp (o,_,_) -> failwith (d_string "unexpected unop  %a" d_unop o)
+  (*minus is not in the SMT ast, so we need to handle it ourselves *)
+  | BinOp(MinusA,e1,e2,t) -> SB.mk_add [aux e1; SB.mk_uminus (aux e2)] 
+  | BinOp(o,e1,e2,t) ->SB.mk_app (smtOpFromBinop o) [aux e1;aux e2] 
+  | CastE(t,e) -> aux e
+  | SizeOf _|SizeOfE _|SizeOfStr _|AlignOf _|AlignOfE _|Question (_, _, _, _)
+  | AddrOf _|AddrOfLabel _|StartOf _ as f
+    -> failwith (d_string "Unexpected expression %a in %a" d_exp f d_exp e) 
+  in 
+  aux e
 (***************************** Parse file to smt ******************************)
 
 (* we assume that the thread mentioned in the label is good until the next label
@@ -100,11 +108,10 @@ let parseLabel s =
   end
   | _ -> failwith ("unexpected label " ^ d_labels s.labels)
 
-let register_lval_location lval_formula location = 
-  match lval_formula with 
-  | SMTSsaVar v -> smtVarDefLoc := VarMap.add v location !smtVarDefLoc
-  | _ -> failwith "not a var"
+let register_lval_location lval location = 
+  smtVarDefLoc := SSAVarMap.add (ssaVarFromString lval) location !smtVarDefLoc
 
+let register_type v t = Dsnsmt.set_var_type v t
 (* Future work - capture the global variables inside an object. then
  * we can just pass that around *)
 class dsnsmtVisitorClass ig = object (self)
@@ -123,10 +130,13 @@ class dsnsmtVisitorClass ig = object (self)
     let ssaBefore = get_ssa_before () in
     match i with
     |  Set(lv, e, l) -> 
-      let lvForm = formula_from_lval lv in
-      register_lval_location lvForm l;
-      let eForm = formula_from_exp e in
-      let assgt = SMTRelation("=",[lvForm;eForm]) in
+      let rhsForm = formula_from_exp Dsnsmt.get_var_type e in
+      let sort = SMT.get_sort rhsForm in
+      let lhsVar = get_lhs_var lv in
+      let lhsForm = SB.mk_ident lhsVar sort in
+      register_lval_location lhsVar l;
+      register_type lhsVar sort;
+      let assgt = SB.mk_eq lhsForm rhsForm in 
       let cls = Dsnsmt.make_clause assgt ssaBefore ig.currentIfContext 
 	(ProgramStmt (i,ig.currentThread)) tags in
       ig.currentRevProgram <- cls :: ig.currentRevProgram;
@@ -134,7 +144,7 @@ class dsnsmtVisitorClass ig = object (self)
     | Call(lo,e,al,l) ->
       assert_is_assert i;
       let form = match al with 
-	| [x] -> formula_from_exp x
+	| [x] -> formula_from_exp Dsnsmt.get_var_type  x 
 	| _ -> failwith "assert should have exactly one element"
       in
       let cls = Dsnsmt.make_clause form ssaBefore ig.currentIfContext 
@@ -148,7 +158,7 @@ class dsnsmtVisitorClass ig = object (self)
     match s.skind with
     | If(i,t,e,l) ->
       if e.bstmts <> [] then failwith "else block not handeled";
-      let cond = Dsnsmt.type_check_and_cast_to_bool (formula_from_exp i) in
+      let cond = SB.cast_to_bool (formula_from_exp  Dsnsmt.get_var_type i) in
       ig.currentIfContext <- {iformula = cond; istmt = s} :: ig.currentIfContext;
       ChangeDoChildrenPost (s,
 			    fun x -> 
@@ -172,7 +182,6 @@ let parse_file (file: file)h =
   let clauses = List.rev ig.currentRevProgram in
   Dsnsmt.setSmtContext
     ("initialParse" ^ file.fileName)
-    !Dsnsmt.typeMap
     ig.currentSeenGroups
     ig.currentSeenThreads
     clauses

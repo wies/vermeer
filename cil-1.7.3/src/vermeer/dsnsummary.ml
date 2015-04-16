@@ -13,18 +13,17 @@ let summarizeThread = ref false
 type multithreadAnalysis = 
   ALLGROUPS | ALLTHREADS | ABSTRACTENV | NOMULTI | PARTITIONTID | PARTITIONGROUP
 
-type summaryOpts = 
-  {
-    mutable multithread : multithreadAnalysis;
-    mutable printTraceSMT : bool;
-    mutable printReducedSMT : bool;
-    mutable toposortInput : bool ;
-    mutable toposortOutput : bool ;
-    mutable trackedHazards : HazardSet.t;
-    mutable calcStats : bool;
-    mutable intrathreadHazards : bool;
+type summaryOpts =  {
+  mutable multithread : multithreadAnalysis;
+  mutable printTraceSMT : bool;
+  mutable printReducedSMT : bool;
+  mutable toposortInput : bool ;
+  mutable toposortOutput : bool ;
+  mutable trackedHazards : HazardSet.t;
+  mutable calcStats : bool;
+  mutable intrathreadHazards : bool;
+}
 
-  }
 let opts = {
   multithread = NOMULTI;
   printTraceSMT = false;
@@ -87,19 +86,19 @@ let propegate_interpolant_binarysearch currentState interpolant suffix =
     propegate_interpolant_forward_linear 1 currentState interpolant suffix
 
 let reduce_trace_unsatcore (unreducedClauses : trace) : trace =
-  match do_smt unreducedClauses GetUnsatCore with
-  | Unsat (GotUnsatCore core) ->
+  match get_unsat_core unreducedClauses with
+  | UnsatCore core ->
     List.filter (fun c -> StringSet.mem (clause_name c) core) unreducedClauses 
   | _-> failwith "unable to get core"
     
 (* all this does is find the precondition for each statement.  No reductions *)
 let make_cheap_annotated_trace (clauses : trace) : annotatedTrace = 
   let partition =  make_all_interpolants clauses in
-  match do_smt clauses (GetInterpolation partition) with
-  | Unsat (GotInterpolant inters) -> 
+  match get_interpolant clauses partition with
+  | Interpolant inters -> 
     (* the interpolant list will be missing the program precondition
      * so we start with an extra interpolant "true" *)
-    let zipped = List.combine (SMTTrue::inters) clauses in
+    let zipped = List.combine (SB.mk_true::inters) clauses in
     zipped
   | _ -> failwith "make_cheap_annotated_trace failed"
 
@@ -158,8 +157,8 @@ let reduce_trace_expensive propAlgorithm trace =
       let before = [currentState;x] in
       let after = unreducedSuffix in
       let partition = make_interpolate_between before after in
-      match do_smt (before @ after) (GetInterpolation partition)  with 
-      | Unsat (GotInterpolant [interpolantTerm]) -> 
+      match get_interpolant (before @ after) partition  with 
+      | Interpolant [interpolantTerm] -> 
 	let interpolant = 
 	  make_clause interpolantTerm x.ssaIdxs emptyIfContext Interpolant noTags in
 	(*find_farthest_point_interpolant_valid 
@@ -214,9 +213,11 @@ let unsat_then_expensive propAlgorithm trace =
 let get_partition_interpolant partitionP trace =
   let partitionString = match List.partition partitionP trace with
     | (a,b) -> make_interpolate_between a b in
-  let result = do_smt trace (GetInterpolation partitionString) in
+  let result = get_interpolant trace partitionString in
   match result with 
-  | Unsat(GotInterpolant [theInterpolant]) -> theInterpolant
+  | Interpolant [theInterpolant] -> 
+    if Dsnsmt.opts.beautifyFormulas then
+       SmtSimplePasses.beautify_formula theInterpolant else theInterpolant
   | _ -> failwith "didn't get interpolant for partition"
     
 (* we can either work on tid or groups, by choosing the idExtractor function *)
@@ -237,7 +238,7 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	  (* we not in the desired group, now entered it.  Have to build 
 	   * the summary *)
 	  let summary = make_clause 
-	    (SMTRelation("=>",[cond;i])) 
+	    (SB.mk_impl cond i) 
 	    c.ssaIdxs
 	    emptyIfContext
 	    (Summary(List.rev summaryAccum))
@@ -268,16 +269,14 @@ let reduce_using_technique technique clauses  =
 
 (****************************** Printing to files ******************************)
 
-let annotated_trace_to_smtfile at filename = 
-  let interpolants,trace = List.split at in
-  print_smt (Some filename) trace CheckSat 
+(* let annotated_trace_to_smtfile at filename =  *)
+(*   let interpolants,trace = List.split at in *)
+(*   print_smt (Some filename) trace CheckSat  *)
     
 let reduce_to_file technique filename clauses =
   let reduced = reduce_using_technique technique clauses in
   if opts.calcStats then calculate_stats_at "Reduced" reduced;
   print_annotated_trace_to_file filename reduced;
-  if(opts.printReducedSMT) then 
-    annotated_trace_to_smtfile reduced filename;
   reduced
 
 let summarize_to_file ?(filenameOpt = None) technique reduced id = 
@@ -322,7 +321,6 @@ let dsnsmt (f: file) : unit =
   (* add a true assertion at the begining of the program *)
   let clauses = make_true_clause() :: getCurrentClauses() in
   if opts.calcStats then calculate_stats "Initial" clauses;
-  if opts.printTraceSMT then print_smt (Some "fulltrace") clauses CheckSat;
   begin match opts.multithread with
   | PARTITIONTID -> 
     let reducedClauses = reduce_trace_unsatcore clauses in
@@ -359,6 +357,16 @@ let dsnsmt (f: file) : unit =
   end ;
   exit_all_solvers() 
       
+let safe_shutdown f = 
+  Printexc.record_backtrace true;
+  try dsnsmt f 
+  with e -> (
+    exit_all_solvers();
+    (match e with
+    | Failure s -> print_endline s
+    | _ -> Printf.printf "%s\n" (Printexc.to_string e));
+    exit 1
+  )
 
   let feature : featureDescr = 
     { fd_name = "dsnsmt";
@@ -404,6 +412,8 @@ let dsnsmt (f: file) : unit =
 	   " Makes the encoding raw hazard sensitive");
 	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
 	   " Makes the encoding raw hazard sensitive");
+	  ("--smtbeautify", Arg.Unit (fun x -> Dsnsmt.opts.beautifyFormulas <- true),
+	   "beautifies formulas before making them into clauses");
 	  ("--smtmultithread", Arg.String 
 	    (fun x -> match x with
 	    | "partitionTID" -> opts.multithread <- PARTITIONTID
@@ -415,7 +425,7 @@ let dsnsmt (f: file) : unit =
 	    | x -> failwith (x ^ " is not a valid multithread analysis type")), 
 	   " turns on multithreaded analysis");
 	];
-      fd_doit = dsnsmt;
+      fd_doit = safe_shutdown;
       fd_post_check = true
     } 
 
