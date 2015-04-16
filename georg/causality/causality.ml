@@ -64,13 +64,18 @@ match var with
 | Var(var_name) ->
 (
 match f with
-| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " ("); print_int(c); print_string(")\n"); ()
+| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " ("); print_int(c); print_string("))\n"); ()
 | _ -> print_string("TODO\n"); () 
 );; 
 
+let print_variable_name = fun v ->
+match v with
+| Var(name) -> print_string(name ^ " ")
+;;
+
 let model_to_smt2 = fun m ->
 match m with
-| CausalModel(exogenous_variables, endogenous_variables, equations) -> print_string(";; activate model generation\n"); print_string("(set-option :produce-models true)\n\n"); List.iter variable_to_smt2 exogenous_variables; print_string("\n"); List.iter variable_to_smt2 endogenous_variables; print_string("\n"); (* TODO: extend to situation and add assignment for exogenous variables *) (* TODO: print assertions for equations *) print_string("(check-sat)\n"); (* TODO: get values from model *) print_string("(exit)\n")
+| CausalModel(exogenous_variables, endogenous_variables, equations) -> print_string(";; activate model generation\n"); print_string("(set-option :produce-models true)\n\n"); List.iter variable_to_smt2 exogenous_variables; print_string("\n"); List.iter variable_to_smt2 endogenous_variables; print_string("\n"); (* TODO: extend to situation and add assignment for exogenous variables *) VarMap.iter equation_to_smt2 equations; print_string("\n(check-sat)\n"); print_string("(get-value ( "); List.iter print_variable_name exogenous_variables; List.iter print_variable_name endogenous_variables; print_string("))\n"); print_string("(exit)\n")
 ;; 
 
 let main() =
