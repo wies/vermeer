@@ -1,4 +1,24 @@
+type variable_term = Var of string;;
+type const_term = Const of int;;
+type rel_op = EQ | NEQ | GT | LT;;
+type relation_term = Relation of rel_op * variable_term * const_term;;
+type boolean_term = 
+| BoolVar of variable_term
+| And of variable_term * variable_term
+| Not of variable_term
+;;
+type function_term = BoolFunction of relation_term | IntFunction of variable_term | ConstIntFunction of const_term | ITE of boolean_term * variable_term * variable_term;;
 
+let compare_vars = fun v1 v2 ->
+match v1, v2 with
+| Var(n1), Var(n2) -> String.compare n1 n2
+;;
+
+module VarMap = Map.Make(struct type t = variable_term let compare = compare_vars end);;
+
+type causal_model_type = CausalModel of variable_term list * variable_term list * (function_term VarMap.t);;
+
+type situation_type = Situation of causal_model_type * (const_term VarMap.t);;
 
 let print_variable = fun var ->
 match var with
