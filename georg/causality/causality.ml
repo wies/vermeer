@@ -65,7 +65,14 @@ match var with
 (
 match f with
 | ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " ("); print_int(c); print_string("))\n"); ()
-| _ -> print_string("TODO\n"); () 
+| IntFunction(Var(v)) -> print_string("(assert (= " ^ var_name ^ " " ^ v ^ "))\n"); ()
+| BoolFunction(Relation(EQ, Var(name2), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (= " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
+| BoolFunction(Relation(NEQ, Var(name2), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (not (= " ^ name2 ^ " "); print_int(v); print_string("))))\n"); ()
+| BoolFunction(Relation(GT, Var(name2), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (> " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
+| BoolFunction(Relation(LT, Var(name2), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (< " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
+| ITE(BoolVar(Var(name2)), Var(v1), Var(v2)) -> print_string("(assert (= " ^ var_name ^ " (ite " ^ name2 ^ " " ^ v1 ^ " " ^ v2 ^ ")))\n"); ()
+| ITE(And(Var(v1), Var(v2)), Var(v3), Var(v4)) -> print_string("(assert (= " ^ var_name ^ " (ite (and " ^ v1 ^ " " ^ v2 ^ ") " ^ v3 ^ " " ^ v4 ^ ")))\n"); ()
+| ITE(Not(Var(v1)), Var(v2), Var(v3)) -> print_string("(assert (= " ^ var_name ^ " (ite (not " ^ v1 ^ ") " ^ v2 ^ " " ^ v3 ^ ")))\n"); ()
 );; 
 
 let print_variable_name = fun v ->
