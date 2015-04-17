@@ -229,9 +229,9 @@ let main() =
           let l_last_fixed = String.sub last 0 ((String.length last) - 1) in
           let l_fixed = List.rev (l_last_fixed :: (List.tl l_reversed)) in
           let l_split = List.map (fun s -> let sp = Str.bounded_split (Str.regexp " ") s 2 in sp) l_fixed in
-          let l_pairs = List.map (fun s -> [ (List.hd s) ; (Str.global_replace (Str.regexp "[ ()]") "" (List.hd (List.tl s))) ] ) l_split in
-            (* replace '(' and ' ' by '' *)
-            List.iter (fun s -> print_string((List.hd s) ^ " = " ^ (List.hd (List.tl s)) ^ "\n")) l_pairs
+          let l_pairs = List.map (fun [ s1 ; s2 ] -> [ s1 ; (Str.global_replace (Str.regexp "[ ()]") "" s2) ] ) l_split in (* replacing '(' and ' ' by '' *)
+          let aux = (fun [ s1 ; s2 ] -> print_string(s1 ^ " = " ^ s2 ^ "\n")) in 
+            List.iter aux l_pairs
         end
       else 
         print_string("UNSAT\n")
