@@ -197,6 +197,7 @@ let main() =
   let l = situation_to_smt2(situation) in
   let oc = open_out "tmp.smt2" in
     List.iter (fun s -> Printf.fprintf oc "%s\n" s) l;
+    close_out oc;
     let returncode = Unix.system "z3 tmp.smt2 > smt_result.txt" in
       match returncode with | Unix.WEXITED(c) -> print_string("Z3 return code: "); print_int(c); print_string("\n") | _ -> print_string("TODO\n")
   ;;
