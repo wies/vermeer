@@ -1,3 +1,5 @@
+#load "unix.cma";;
+
 type variable_type = Boolean | Int;;
 type variable_term = Var of string * variable_type;;
 type const_term = Const of int;;
@@ -21,32 +23,26 @@ type causal_model_type = CausalModel of variable_term list * variable_term list 
 
 type situation_type = Situation of causal_model_type * (const_term VarMap.t);;
 
-let print_variable = fun var ->
-match var with
-| Var(name, _) -> print_string("    " ^ name ^ "\n"); ()
+let print_variable = fun (Var(name, _)) -> print_string("    " ^ name ^ "\n"); ();;
+
+let print_assignment = fun (Var(name, _)) (Const(v)) -> 
+print_string("    "); print_string(name); print_string(" = "); print_int(v); print_string("\n"); ()
 ;;
 
-let print_assignment = fun var value ->
-match var, value with
-| Var(name, _), Const(v) -> print_string("    "); print_string(name); print_string(" = "); print_int(v); print_string("\n"); ()
+let print_equation = fun (Var(name, _)) value ->
+match value with
+| BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " = "); print_int(v); print_string("\n"); ()
+| BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " != "); print_int(v); print_string("\n"); ()
+| BoolFunction(Relation(GT, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " > "); print_int(v); print_string("\n"); ()
+| BoolFunction(Relation(LT, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " < "); print_int(v); print_string("\n"); ()
+| IntFunction(Var(name2, _)) -> print_string("    " ^ name ^ " <- " ^ name2 ^ "\n"); ()
+| ConstIntFunction(Const(c)) -> print_string("    " ^ name ^ " <- "); print_int(c); print_string("\n"); ()
+| ITE(BoolVar(Var(name2, _)), Var(v1, _), Var(v2, _)) -> print_string("    " ^ name ^ " <- if (" ^ name2 ^ ") then " ^ v1 ^ " else " ^ v2 ^ "\n"); ()
+| ITE(And(Var(v1, _), Var(v2, _)), Var(v3, _), Var(v4, _)) -> print_string("    " ^ name ^ " <- if (" ^ v1 ^ " and " ^ v2 ^ ") then " ^ v3 ^ " else " ^ v4 ^ "\n"); ()
+| ITE(Not(Var(v1, _)), Var(v2, _), Var(v3, _)) -> print_string("    " ^ name ^ " <- if (not(" ^ v1 ^ ")) then " ^ v2 ^ " else " ^ v3 ^ "\n"); ()
 ;;
 
-let print_equation = fun var value ->
-match var, value with
-| Var(name, _), BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " = "); print_int(v); print_string("\n"); ()
-| Var(name, _), BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " != "); print_int(v); print_string("\n"); ()
-| Var(name, _), BoolFunction(Relation(GT, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " > "); print_int(v); print_string("\n"); ()
-| Var(name, _), BoolFunction(Relation(LT, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " < "); print_int(v); print_string("\n"); ()
-| Var(name, _), IntFunction(Var(name2, _)) -> print_string("    " ^ name ^ " <- " ^ name2 ^ "\n"); ()
-| Var(name, _), ConstIntFunction(Const(c)) -> print_string("    " ^ name ^ " <- "); print_int(c); print_string("\n"); ()
-| Var(name, _), ITE(BoolVar(Var(name2, _)), Var(v1, _), Var(v2, _)) -> print_string("    " ^ name ^ " <- if (" ^ name2 ^ ") then " ^ v1 ^ " else " ^ v2 ^ "\n"); ()
-| Var(name, _), ITE(And(Var(v1, _), Var(v2, _)), Var(v3, _), Var(v4, _)) -> print_string("    " ^ name ^ " <- if (" ^ v1 ^ " and " ^ v2 ^ ") then " ^ v3 ^ " else " ^ v4 ^ "\n"); ()
-| Var(name, _), ITE(Not(Var(v1, _)), Var(v2, _), Var(v3, _)) -> print_string("    " ^ name ^ " <- if (not(" ^ v1 ^ ")) then " ^ v2 ^ " else " ^ v3 ^ "\n"); ()
-;;
-
-let print_situation = fun s ->
-match s with
-| Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context) -> 
+let print_situation = fun (Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context)) ->
 print_string("[\n"); 
 print_string("  exogenous variables: {\n"); 
 List.iter print_variable exogenous_variables; 
@@ -63,9 +59,8 @@ print_string("  }\n");
 print_string("]\n"); ()
 ;;
 
-let modify_model = fun m var value ->
-match m with
-| CausalModel(exogenous_variables, endogenous_variables, equations) -> let equs = VarMap.add var value equations in CausalModel(exogenous_variables, endogenous_variables, equs)
+let modify_model = fun (CausalModel(exogenous_variables, endogenous_variables, equations)) var value ->
+let equs = VarMap.add var value equations in CausalModel(exogenous_variables, endogenous_variables, equs)
 ;;
 
 let variable_to_smt2 = fun var ->
@@ -82,10 +77,7 @@ else
   (Pervasives.string_of_int(c))
 ;;
 
-let equation_to_smt2 = fun var f ->
-match var with
-| Var(var_name, _) ->
-(
+let equation_to_smt2 = fun (Var(var_name, _)) f ->
 match f with
 | ConstIntFunction(Const(c)) -> "(assert (= " ^ var_name ^ " " ^ int_to_smt2(c) ^ "))"
 | IntFunction(Var(v, _)) -> "(assert (= " ^ var_name ^ " " ^ v ^ "))"
@@ -96,16 +88,12 @@ match f with
 | ITE(BoolVar(Var(name2, _)), Var(v1, _), Var(v2, _)) -> "(assert (= " ^ var_name ^ " (ite " ^ name2 ^ " " ^ v1 ^ " " ^ v2 ^ ")))"
 | ITE(And(Var(v1, _), Var(v2, _)), Var(v3, _), Var(v4, _)) -> "(assert (= " ^ var_name ^ " (ite (and " ^ v1 ^ " " ^ v2 ^ ") " ^ v3 ^ " " ^ v4 ^ ")))"
 | ITE(Not(Var(v1, _)), Var(v2, _), Var(v3, _)) -> "(assert (= " ^ var_name ^ " (ite (not " ^ v1 ^ ") " ^ v2 ^ " " ^ v3 ^ ")))"
-);; 
+;; 
 
-let print_variable_name = fun v ->
-match v with
-| Var(name, _) -> print_string(name ^ " ")
+let print_variable_name = fun (Var(name, _)) -> print_string(name ^ " ")
 ;;
 
-let model_to_smt2 = fun m ->
-match m with
-| CausalModel(exogenous_variables, endogenous_variables, equations) -> 
+let model_to_smt2 = fun (CausalModel(exogenous_variables, endogenous_variables, equations)) ->
 let l_exogenous_variables = List.map variable_to_smt2 exogenous_variables in
 let l_endogenous_variables = List.map variable_to_smt2 endogenous_variables in
 let l_equations = VarMap.fold (fun var f lold -> (equation_to_smt2 var f) :: lold) equations [] in 
@@ -121,14 +109,10 @@ l_equations) @
 "(exit)" ])
 ;; 
 
-let assignment_to_smt2 = fun var value ->
-match var, value with
-| Var(v, _), Const(c) -> "(assert (= " ^ v ^ " " ^ int_to_smt2(c) ^ "))"
+let assignment_to_smt2 = fun (Var(v, _)) (Const(c)) -> "(assert (= " ^ v ^ " " ^ int_to_smt2(c) ^ "))"
 ;;
 
-let situation_to_smt2 = fun m ->
-match m with
-| Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context) -> 
+let situation_to_smt2 = fun (Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context)) ->
 let l_exogenous_variables = List.map variable_to_smt2 exogenous_variables in
 let l_endogenous_variables = List.map variable_to_smt2 endogenous_variables in
 let l_equations = VarMap.fold (fun var f lold -> (equation_to_smt2 var f) :: lold) equations [] in 
@@ -209,10 +193,12 @@ let main() =
   let assignment = VarMap.add i0 one assignment in
   let assignment = VarMap.add i1 (Const(-1)) assignment in 
   let situation = Situation(model, assignment) in 
-  let situation2 = Situation((modify_model model l2 (ConstIntFunction(one))), assignment) in
+  (*let situation2 = Situation((modify_model model l2 (ConstIntFunction(one))), assignment) in*)
   let l = situation_to_smt2(situation) in
   let oc = open_out "tmp.smt2" in
-    List.iter (fun s -> Printf.fprintf oc "%s\n" s) l
+    List.iter (fun s -> Printf.fprintf oc "%s\n" s) l;
+    let returncode = Unix.system "z3 tmp.smt2 > smt_result.txt" in
+      match returncode with | Unix.WEXITED(c) -> print_string("Z3 return code: "); print_int(c); print_string("\n") | _ -> print_string("TODO\n")
   ;;
 
 main();;
