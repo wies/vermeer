@@ -26,13 +26,13 @@ type causal_model_type = CausalModel of variable_term list * variable_term list 
 
 type situation_type = Situation of causal_model_type * (const_term VarMap.t);;
 
-let print_variable = fun (Var(name, _)) -> print_string("    " ^ name ^ "\n"); ();;
+let print_variable (Var(name, _)) = print_string("    " ^ name ^ "\n"); ();;
 
-let print_assignment = fun (Var(name, _)) (Const(v)) -> 
+let print_assignment (Var(name, _)) (Const(v)) =
 print_string("    "); print_string(name); print_string(" = "); print_int(v); print_string("\n"); ()
 ;;
 
-let print_equation = fun (Var(name, _)) value ->
+let print_equation (Var(name, _)) value =
 match value with
 | BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " = "); print_int(v); print_string("\n"); ()
 | BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> print_string("    " ^ name ^ " <- " ^ name2 ^ " != "); print_int(v); print_string("\n"); ()
@@ -45,7 +45,7 @@ match value with
 | ITE(Not(Var(v1, _)), Var(v2, _), Var(v3, _)) -> print_string("    " ^ name ^ " <- if (not(" ^ v1 ^ ")) then " ^ v2 ^ " else " ^ v3 ^ "\n"); ()
 ;;
 
-let print_situation = fun (Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context)) ->
+let print_situation (Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context)) =
 print_string("[\n"); 
 print_string("  exogenous variables: {\n"); 
 List.iter print_variable exogenous_variables; 
@@ -62,17 +62,17 @@ print_string("  }\n");
 print_string("]\n"); ()
 ;;
 
-let modify_model = fun (CausalModel(exogenous_variables, endogenous_variables, equations)) var value ->
+let modify_model (CausalModel(exogenous_variables, endogenous_variables, equations)) var value =
 let equs = VarMap.add var value equations in CausalModel(exogenous_variables, endogenous_variables, equs)
 ;;
 
-let variable_to_smt2 = fun (Var(name, var_type)) ->
+let variable_to_smt2 (Var(name, var_type)) =
 match var_type with
 | Int -> "(declare-fun " ^ name ^ " () Int)" 
 | Boolean -> "(declare-fun " ^ name ^ " () Bool)" 
 ;;
 
-let int_to_smt2 = fun c ->
+let int_to_smt2 c =
 if c < 0 
 then 
   ("(- " ^ Pervasives.string_of_int(abs(c)) ^ ")")
@@ -80,7 +80,7 @@ else
   (Pervasives.string_of_int(c))
 ;;
 
-let equation_to_smt2 = fun (Var(var_name, _)) f ->
+let equation_to_smt2 (Var(var_name, _)) f =
 match f with
 | ConstIntFunction(Const(c)) -> "(assert (= " ^ var_name ^ " " ^ int_to_smt2(c) ^ "))"
 | IntFunction(Var(v, _)) -> "(assert (= " ^ var_name ^ " " ^ v ^ "))"
@@ -96,7 +96,7 @@ match f with
 let print_variable_name = fun (Var(name, _)) -> print_string(name ^ " ")
 ;;
 
-let model_to_smt2 = fun (CausalModel(exogenous_variables, endogenous_variables, equations)) ->
+let model_to_smt2 (CausalModel(exogenous_variables, endogenous_variables, equations)) =
 let l_exogenous_variables = List.map variable_to_smt2 exogenous_variables in
 let l_endogenous_variables = List.map variable_to_smt2 endogenous_variables in
 let l_equations = VarMap.fold (fun var f lold -> (equation_to_smt2 var f) :: lold) equations [] in 
@@ -112,10 +112,10 @@ l_equations) @
 "(exit)" ])
 ;; 
 
-let assignment_to_smt2 = fun (Var(v, _)) (Const(c)) -> "(assert (= " ^ v ^ " " ^ int_to_smt2(c) ^ "))"
+let assignment_to_smt2 (Var(v, _)) (Const(c)) = "(assert (= " ^ v ^ " " ^ int_to_smt2(c) ^ "))"
 ;;
 
-let situation_to_smt2 = fun (Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context)) ->
+let situation_to_smt2 (Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context)) =
 let l_exogenous_variables = List.map variable_to_smt2 exogenous_variables in
 let l_endogenous_variables = List.map variable_to_smt2 endogenous_variables in
 let l_equations = VarMap.fold (fun var f lold -> (equation_to_smt2 var f) :: lold) equations [] in 
