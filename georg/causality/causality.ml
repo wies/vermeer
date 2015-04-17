@@ -70,15 +70,14 @@ match m with
 
 let variable_to_smt2 = fun var ->
 match var with
-| Var(name, Int) -> print_string("(declare-fun " ^ name ^ " () Int)\n")
-| Var(name, Boolean) -> print_string("(declare-fun " ^ name ^ " () Bool)\n")
+| Var(name, Int) -> "(declare-fun " ^ name ^ " () Int)" 
+| Var(name, Boolean) -> "(declare-fun " ^ name ^ " () Bool)" 
 ;;
 
 let int_to_smt2 = fun c ->
 if c < 0 
 then 
   ("(- " ^ Pervasives.string_of_int(abs(c)) ^ ")")
-(*  (print_string("(- "); print_int(abs(c)); print_string(")")) *)
 else 
   (Pervasives.string_of_int(c))
 ;;
@@ -88,15 +87,15 @@ match var with
 | Var(var_name, _) ->
 (
 match f with
-| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " "); print_string(int_to_smt2(c)); print_string("))\n"); ()
-| IntFunction(Var(v, _)) -> print_string("(assert (= " ^ var_name ^ " " ^ v ^ "))\n"); ()
-| BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (= " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
-| BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (not (= " ^ name2 ^ " "); print_int(v); print_string("))))\n"); ()
-| BoolFunction(Relation(GT, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (> " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
-| BoolFunction(Relation(LT, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (< " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
-| ITE(BoolVar(Var(name2, _)), Var(v1, _), Var(v2, _)) -> print_string("(assert (= " ^ var_name ^ " (ite " ^ name2 ^ " " ^ v1 ^ " " ^ v2 ^ ")))\n"); ()
-| ITE(And(Var(v1, _), Var(v2, _)), Var(v3, _), Var(v4, _)) -> print_string("(assert (= " ^ var_name ^ " (ite (and " ^ v1 ^ " " ^ v2 ^ ") " ^ v3 ^ " " ^ v4 ^ ")))\n"); ()
-| ITE(Not(Var(v1, _)), Var(v2, _), Var(v3, _)) -> print_string("(assert (= " ^ var_name ^ " (ite (not " ^ v1 ^ ") " ^ v2 ^ " " ^ v3 ^ ")))\n"); ()
+| ConstIntFunction(Const(c)) -> "(assert (= " ^ var_name ^ " " ^ int_to_smt2(c) ^ "))"
+| IntFunction(Var(v, _)) -> "(assert (= " ^ var_name ^ " " ^ v ^ "))"
+| BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> "(assert (= " ^ var_name ^ " (= " ^ name2 ^ " " ^ string_of_int(v) ^ ")))"
+| BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> "(assert (= " ^ var_name ^ " (not (= " ^ name2 ^ " " ^ string_of_int(v) ^ "))))"
+| BoolFunction(Relation(GT, Var(name2, _), Const(v))) -> "(assert (= " ^ var_name ^ " (> " ^ name2 ^ " " ^ string_of_int(v) ^ ")))"
+| BoolFunction(Relation(LT, Var(name2, _), Const(v))) -> "(assert (= " ^ var_name ^ " (< " ^ name2 ^ " " ^ string_of_int(v) ^ ")))"
+| ITE(BoolVar(Var(name2, _)), Var(v1, _), Var(v2, _)) -> "(assert (= " ^ var_name ^ " (ite " ^ name2 ^ " " ^ v1 ^ " " ^ v2 ^ ")))"
+| ITE(And(Var(v1, _), Var(v2, _)), Var(v3, _), Var(v4, _)) -> "(assert (= " ^ var_name ^ " (ite (and " ^ v1 ^ " " ^ v2 ^ ") " ^ v3 ^ " " ^ v4 ^ ")))"
+| ITE(Not(Var(v1, _)), Var(v2, _), Var(v3, _)) -> "(assert (= " ^ var_name ^ " (ite (not " ^ v1 ^ ") " ^ v2 ^ " " ^ v3 ^ ")))"
 );; 
 
 let print_variable_name = fun v ->
@@ -107,33 +106,44 @@ match v with
 let model_to_smt2 = fun m ->
 match m with
 | CausalModel(exogenous_variables, endogenous_variables, equations) -> 
-print_string(";; activate model generation\n"); 
-print_string("(set-option :produce-models true)\n\n"); 
-List.iter variable_to_smt2 exogenous_variables; print_string("\n"); 
-List.iter variable_to_smt2 endogenous_variables; print_string("\n"); 
-VarMap.iter equation_to_smt2 equations; 
-print_string("\n(check-sat)\n"); 
-print_string("(get-value ( "); List.iter print_variable_name exogenous_variables; List.iter print_variable_name endogenous_variables; print_string("))\n"); 
-print_string("(exit)\n")
+let l_exogenous_variables = List.map variable_to_smt2 exogenous_variables in
+let l_endogenous_variables = List.map variable_to_smt2 endogenous_variables in
+let l_equations = VarMap.fold (fun var f lold -> (equation_to_smt2 var f) :: lold) equations [] in 
+let l_varnames_exogenous_variables = List.map (fun var -> match var with | Var(v, _) -> v) exogenous_variables in
+let l_varnames_endogenous_variables = List.map (fun var -> match var with | Var(v, _) -> v) endogenous_variables in
+";; activate model generation" :: 
+"(set-option :produce-models true)" :: 
+((l_exogenous_variables @
+l_endogenous_variables @
+l_equations) @
+[ "(check-sat)" ;
+"(get-value ( " ^ (List.fold_right (fun s1 s2 -> s1 ^ s2) l_varnames_exogenous_variables "") ^ (List.fold_right (fun s1 s2 -> s1 ^ s2) l_varnames_endogenous_variables "") ^ "))";
+"(exit)" ])
 ;; 
 
 let assignment_to_smt2 = fun var value ->
 match var, value with
-| Var(v, _), Const(c) -> print_string("(assert (= " ^ v ^ " "); print_string(int_to_smt2(c)); print_string("))\n")
+| Var(v, _), Const(c) -> "(assert (= " ^ v ^ " " ^ int_to_smt2(c) ^ "))"
 ;;
 
 let situation_to_smt2 = fun m ->
 match m with
 | Situation(CausalModel(exogenous_variables, endogenous_variables, equations), context) -> 
-print_string(";; activate model generation\n"); 
-print_string("(set-option :produce-models true)\n\n"); 
-List.iter variable_to_smt2 exogenous_variables; print_string("\n"); 
-List.iter variable_to_smt2 endogenous_variables; print_string("\n"); 
-VarMap.iter assignment_to_smt2 context;
-VarMap.iter equation_to_smt2 equations; 
-print_string("\n(check-sat)\n"); 
-print_string("(get-value ( "); List.iter print_variable_name exogenous_variables; List.iter print_variable_name endogenous_variables; print_string("))\n"); 
-print_string("(exit)\n")
+let l_exogenous_variables = List.map variable_to_smt2 exogenous_variables in
+let l_endogenous_variables = List.map variable_to_smt2 endogenous_variables in
+let l_equations = VarMap.fold (fun var f lold -> (equation_to_smt2 var f) :: lold) equations [] in 
+let l_varnames_exogenous_variables = List.map (fun var -> match var with | Var(v, _) -> v) exogenous_variables in
+let l_varnames_endogenous_variables = List.map (fun var -> match var with | Var(v, _) -> v) endogenous_variables in
+let l_assignments = VarMap.fold (fun var value lold -> (assignment_to_smt2 var value) :: lold) context [] in
+";; activate model generation" :: 
+"(set-option :produce-models true)" :: 
+((l_exogenous_variables @
+l_endogenous_variables @
+l_equations @
+l_assignments) @
+[ "(check-sat)" ;
+"(get-value ( " ^ (List.fold_right (fun s1 s2 -> s1 ^ " " ^ s2) l_varnames_exogenous_variables "") ^ (List.fold_right (fun s1 s2 -> s1 ^ " " ^ s2) l_varnames_endogenous_variables "") ^ "))";
+"(exit)" ])
 ;; 
 
 let main() =
@@ -202,7 +212,8 @@ let main() =
   let situation2 = Situation((modify_model model l2 (ConstIntFunction(one))), assignment) in
     (*print_situation(situation);
     print_situation(situation2);*)
-    situation_to_smt2(situation)
+    let l = situation_to_smt2(situation) in
+      List.iter (fun s -> print_string(s ^ "\n")) l
   ;;
 
 main();;
