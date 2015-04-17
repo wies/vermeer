@@ -63,10 +63,10 @@ let modify_model = fun (CausalModel(exogenous_variables, endogenous_variables, e
 let equs = VarMap.add var value equations in CausalModel(exogenous_variables, endogenous_variables, equs)
 ;;
 
-let variable_to_smt2 = fun var ->
-match var with
-| Var(name, Int) -> "(declare-fun " ^ name ^ " () Int)" 
-| Var(name, Boolean) -> "(declare-fun " ^ name ^ " () Bool)" 
+let variable_to_smt2 = fun (Var(name, var_type)) ->
+match var_type with
+| Int -> "(declare-fun " ^ name ^ " () Int)" 
+| Boolean -> "(declare-fun " ^ name ^ " () Bool)" 
 ;;
 
 let int_to_smt2 = fun c ->
