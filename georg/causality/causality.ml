@@ -160,7 +160,6 @@ let solve_situation situation =
     let trimmed_fst_line = String.trim (List.hd l_output) in
       if String.compare trimmed_fst_line "sat" == 0 then
         begin
-          print_string("SAT\n");
           (* extract solution *)
           let l_processed = List.map (fun s -> let sp = String.sub s 2 ((String.length s) - 3) in sp) (List.tl l_output) in
           let l_reversed = List.rev l_processed in
@@ -177,7 +176,18 @@ let solve_situation situation =
         (UNSAT, VarMap.empty)
 ;;
 
-let main() =
+let print_assignment a = 
+  let aux = (fun (Var(n, _)) v -> print_string(n ^ " = "); (match v with | ConstBool(true) -> print_string("true") | ConstBool(false) -> print_string("false") | ConstInt(i) -> print_int(i)); print_string("\n")) in
+    VarMap.iter aux a
+;;
+
+let print_solver_result r = 
+  match r with
+  | SAT -> print_string("SAT\n")
+  | UNSAT -> print_string("UNSAT\n")
+;;
+
+let create_initial_situation () = 
   (* exogenous variables *)
   let i0 = Var("i0", Int) in
   let i1 = Var("i1", Int) in 
@@ -239,48 +249,15 @@ let main() =
   let assignment = VarMap.empty in
   let assignment = VarMap.add i0 one assignment in
   let assignment = VarMap.add i1 (Const(-1)) assignment in 
-  let situation = Situation(model, assignment) in 
+    Situation(model, assignment)
+;;
+
+let main() =
+  let situation = create_initial_situation() in 
   (*let situation2 = Situation((modify_model model l2 (ConstIntFunction(one))), assignment) in*)
-  (*let l = situation_to_smt2(situation) in*)
   let ret_val, assignment = solve_situation situation in 
-    print_string("bla\n")
-(*  let oc = open_out "tmp.smt2" in
-    List.iter (fun s -> Printf.fprintf oc "%s\n" s) l;
-    close_out oc;
-    (let returncode = Unix.system "z3 tmp.smt2 > smt_result.txt" in
-      match returncode with 
-      | Unix.WEXITED(c) -> 
-        print_string("Z3 return code: "); 
-        print_int(c); 
-        print_string("\n") 
-      | _ -> print_string("TODO\n")
-    );
-    let z3_output = load_file "smt_result.txt" in
-    let l_output = Str.split (Str.regexp "\n") z3_output in
-    let trimmed_fst_line = String.trim (List.hd l_output) in
-      if String.compare trimmed_fst_line "sat" == 0 then
-        begin
-          print_string("SAT\n");
-          (* extract solution *)
-          let l_processed = List.map (fun s -> let sp = String.sub s 2 ((String.length s) - 3) in sp) (List.tl l_output) in
-          let l_reversed = List.rev l_processed in
-          let last = List.hd l_reversed in
-          let l_last_fixed = String.sub last 0 ((String.length last) - 1) in
-          let l_fixed = List.rev (l_last_fixed :: (List.tl l_reversed)) in
-          let l_split = List.map (fun s -> let sp = Str.bounded_split (Str.regexp " ") s 2 in sp) l_fixed in
-          let l_pairs = List.map (fun [ s1 ; s2 ] -> [ s1 ; (Str.global_replace (Str.regexp "[ ()]") "" s2) ] ) l_split in (* replacing '(' and ' ' by '' *)
-          let aux2 = (fun s2 -> match s2 with | "true" -> "HEY" | "false" -> "HOH" | _ -> "INT") in
-          let aux = (fun [ s1 ; s2 ] -> print_string(s1 ^ " = " ^ (aux2 s2) ^ "\n")) in 
-          let aux3 = (fun [ s1 ; s2 ] d -> match s2 with | "true" -> VarMap.add (Var(s1, Boolean)) (ConstBool(true)) d | "false" -> VarMap.add (Var(s1, Boolean)) (ConstBool(false)) d | _ -> VarMap.add (Var(s1, Int)) (ConstInt(int_of_string(s2))) d) in
-          let l_assignment = List.fold_right aux3 l_pairs VarMap.empty in 
-          let aux4 = (fun (Var(s1, _)) v -> print_string(s1 ^ " = "); (match v with | ConstBool(true) -> print_string("true") | ConstBool(false) -> print_string("false") | ConstInt(i) -> print_int(i)); print_string("\n")) in 
-            List.iter aux l_pairs;            
-            VarMap.iter aux4 l_assignment;            
-            ()
-        end
-      else 
-        print_string("UNSAT\n")
-*)
-  ;;
+    print_solver_result ret_val;
+    print_assignment assignment
+;;
 
 main();;
