@@ -88,6 +88,7 @@ let subsumes f g =
   | f, g -> subs true [f] [g]
     
 (* remove duplicates from a list *)
+(* this in some sense replicates the work done by propagate_truth_context but may be faster *)
 let remove_duplicates strengthen fs = 
   let rec uniq = function
     | [] -> []
@@ -102,18 +103,16 @@ let remove_duplicates strengthen fs =
     | hd :: tl -> hd :: uniq tl
   in
   let sorted = List.sort compare_form fs in
-  uniq sorted    
+  uniq sorted
 
 (* DSN there is probably a better way to do this.
  * What I'm trying to do here is to take advantage of the fact that 
  * A && (A || B), can be simplified to A && (True || B)
- * So, maintain a set of things that are known to be contextually "true"
- * I keep two sets, one which is things which are true here, and one which is 
- * only true for the children.
- * This also holds for implications.
- * A ==> (A && B)  ~~~ A ===> B
+ * Similarly (x > 5) && (x>4) simplifies to (x > 5) 
+ * There used to be an issue if we have the same formula more than once
+ * A && A && A used to simplify to true.  I fixed this by 
+ * forcing the calculation to restart once a single reduction has been made.
  *)
-
 let propagate_truth_context f =
   let add_all_but_i toAvoid fn lst set = 
     let _, result = 
