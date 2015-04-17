@@ -1,4 +1,5 @@
 #load "unix.cma";;
+#load "str.cma";;
 
 type variable_type = Boolean | Int;;
 type variable_term = Var of string * variable_type;;
@@ -130,6 +131,15 @@ l_assignments) @
 "(exit)" ])
 ;; 
 
+(* copied from http://rosettacode.org/wiki/Read_entire_file#OCaml *)
+let load_file f =
+  let ic = open_in f in
+  let n = in_channel_length ic in
+  let s = String.create n in
+  really_input ic s 0 n;
+  close_in ic;
+  (s)
+
 let main() =
   (* exogenous variables *)
   let i0 = Var("i0", Int) in
@@ -198,8 +208,18 @@ let main() =
   let oc = open_out "tmp.smt2" in
     List.iter (fun s -> Printf.fprintf oc "%s\n" s) l;
     close_out oc;
-    let returncode = Unix.system "z3 tmp.smt2 > smt_result.txt" in
-      match returncode with | Unix.WEXITED(c) -> print_string("Z3 return code: "); print_int(c); print_string("\n") | _ -> print_string("TODO\n")
+    (let returncode = Unix.system "z3 tmp.smt2 > smt_result.txt" in
+      match returncode with | Unix.WEXITED(c) -> print_string("Z3 return code: "); print_int(c); print_string("\n") | _ -> print_string("TODO\n"));
+    let z3_output = load_file "smt_result.txt" in
+      let l_output = Str.split (Str.regexp "\n") z3_output in
+        let trimmed_fst_line = String.trim (List.hd l_output) in
+          if String.compare trimmed_fst_line "sat" == 0 then
+            begin
+              print_string("SAT\n")
+            end
+          else 
+            print_string("UNSAT\n")
+        (*List.iter (fun s -> print_string(s ^ "\n")) l_output*)
   ;;
 
 main();;
