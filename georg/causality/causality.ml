@@ -210,10 +210,9 @@ let main() =
   let assignment = VarMap.add i1 (Const(-1)) assignment in 
   let situation = Situation(model, assignment) in 
   let situation2 = Situation((modify_model model l2 (ConstIntFunction(one))), assignment) in
-    (*print_situation(situation);
-    print_situation(situation2);*)
-    let l = situation_to_smt2(situation) in
-      List.iter (fun s -> print_string(s ^ "\n")) l
+  let l = situation_to_smt2(situation) in
+  let oc = open_out "tmp.smt2" in
+    List.iter (fun s -> Printf.fprintf oc "%s\n" s) l
   ;;
 
 main();;
