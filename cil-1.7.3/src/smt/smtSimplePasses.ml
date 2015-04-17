@@ -131,32 +131,41 @@ let propagate_truth_context f =
       FormulaSet.exists (is_unsat f1) trueHere
     | _ -> FormulaSet.mem f2 trueHere
   in
-  let rec aux trueHere  f = 
-    if check true trueHere f then begin 
-      mk_boolConst true
-    end
-    else if check false trueHere f then begin
-      mk_boolConst false
-    end else begin match f with
+  let continue = ref true in
+  let rec aux trueHere f = 
+    if not !continue 
+    then f 
+    else (
+      if check true trueHere f then begin 
+	continue := false;
+	mk_boolConst true
+      end
+      else if check false trueHere f then begin
+	continue := false;
+	mk_boolConst false
+      end else begin match f with
     (* in the context of an And, all other clauses in the And
      * are also true in the context of this one (and dualy for Or) *)  
-    | App(And,fl,_)-> 
-      let fl = remove_duplicates true fl in
-      mk_and (List.mapi (fun i e -> 
-	let trueHere = add_all_but_i i (fun f -> f) fl trueHere in
-	aux trueHere e) fl)
-    | App(Or,fl,_) ->
-      let fl = remove_duplicates false fl in
-      mk_or (List.mapi (fun i e -> 
-	let trueHere = add_all_but_i i mk_not fl trueHere in
-	aux trueHere e) fl)
-    | App(Not,[Ident _],_) as f -> f
-    | App(Ite,_,_) | App(Impl,_,_) | App(Not,_,_)  -> 
-      failwith ("expected formula in NNF: " ^ SmtSimpleFns.string_of_term f)
-    | _ -> f
-    end
+      | App(And,fl,_)-> 
+	let fl = remove_duplicates true fl in
+	mk_and (List.mapi (fun i e -> 
+	  let trueHere = add_all_but_i i (fun f -> f) fl trueHere in
+	  aux trueHere e) fl)
+      | App(Or,fl,_) ->
+	let fl = remove_duplicates false fl in
+	mk_or (List.mapi (fun i e -> 
+	  let trueHere = add_all_but_i i mk_not fl trueHere in
+	  aux trueHere e) fl)
+      | App(Not,[Ident _],_) as f -> f
+      | App(Ite,_,_) | App(Impl,_,_) | App(Not,_,_)  -> 
+	failwith ("expected formula in NNF: " ^ SmtSimpleFns.string_of_term f)
+      | _ -> f
+      end
+    )
   in
-  aux FormulaSet.empty f
+  (continue := true;
+   run_fixpt (aux FormulaSet.empty) f
+  )
 
 
 let simplify_constants  f  = 
