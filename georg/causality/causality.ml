@@ -209,17 +209,32 @@ let main() =
     List.iter (fun s -> Printf.fprintf oc "%s\n" s) l;
     close_out oc;
     (let returncode = Unix.system "z3 tmp.smt2 > smt_result.txt" in
-      match returncode with | Unix.WEXITED(c) -> print_string("Z3 return code: "); print_int(c); print_string("\n") | _ -> print_string("TODO\n"));
+      match returncode with 
+      | Unix.WEXITED(c) -> 
+        print_string("Z3 return code: "); 
+        print_int(c); 
+        print_string("\n") 
+      | _ -> print_string("TODO\n")
+    );
     let z3_output = load_file "smt_result.txt" in
-      let l_output = Str.split (Str.regexp "\n") z3_output in
-        let trimmed_fst_line = String.trim (List.hd l_output) in
-          if String.compare trimmed_fst_line "sat" == 0 then
-            begin
-              print_string("SAT\n")
-            end
-          else 
-            print_string("UNSAT\n")
-        (*List.iter (fun s -> print_string(s ^ "\n")) l_output*)
+    let l_output = Str.split (Str.regexp "\n") z3_output in
+    let trimmed_fst_line = String.trim (List.hd l_output) in
+      if String.compare trimmed_fst_line "sat" == 0 then
+        begin
+          print_string("SAT\n");
+          (* extract solution *)
+          let l_processed = List.map (fun s -> let sp = String.sub s 2 ((String.length s) - 3) in sp) (List.tl l_output) in
+          let l_reversed = List.rev l_processed in
+          let last = List.hd l_reversed in
+          let l_last_fixed = String.sub last 0 ((String.length last) - 1) in
+          let l_fixed = List.rev (l_last_fixed :: (List.tl l_reversed)) in
+          let l_split = List.map (fun s -> let sp = Str.bounded_split (Str.regexp " ") s 2 in sp) l_fixed in
+          let l_pairs = List.map (fun s -> [ (List.hd s) ; (Str.global_replace (Str.regexp "[ ()]") "" (List.hd (List.tl s))) ] ) l_split in
+            (* replace '(' and ' ' by '' *)
+            List.iter (fun s -> print_string((List.hd s) ^ " = " ^ (List.hd (List.tl s)) ^ "\n")) l_pairs
+        end
+      else 
+        print_string("UNSAT\n")
   ;;
 
 main();;
