@@ -77,9 +77,10 @@ match var with
 let int_to_smt2 = fun c ->
 if c < 0 
 then 
-  (print_string("(- "); print_int(abs(c)); print_string(")"))
+  ("(- " ^ Pervasives.string_of_int(abs(c)) ^ ")")
+(*  (print_string("(- "); print_int(abs(c)); print_string(")")) *)
 else 
-  (print_int(c))
+  (Pervasives.string_of_int(c))
 ;;
 
 let equation_to_smt2 = fun var f ->
@@ -87,7 +88,7 @@ match var with
 | Var(var_name, _) ->
 (
 match f with
-| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " "); int_to_smt2(c); print_string("))\n"); ()
+| ConstIntFunction(Const(c)) -> print_string("(assert (= " ^ var_name ^ " "); print_string(int_to_smt2(c)); print_string("))\n"); ()
 | IntFunction(Var(v, _)) -> print_string("(assert (= " ^ var_name ^ " " ^ v ^ "))\n"); ()
 | BoolFunction(Relation(EQ, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (= " ^ name2 ^ " "); print_int(v); print_string(")))\n"); ()
 | BoolFunction(Relation(NEQ, Var(name2, _), Const(v))) -> print_string("(assert (= " ^ var_name ^ " (not (= " ^ name2 ^ " "); print_int(v); print_string("))))\n"); ()
@@ -118,7 +119,7 @@ print_string("(exit)\n")
 
 let assignment_to_smt2 = fun var value ->
 match var, value with
-| Var(v, _), Const(c) -> print_string("(assert (= " ^ v ^ " "); int_to_smt2(c); print_string("))\n")
+| Var(v, _), Const(c) -> print_string("(assert (= " ^ v ^ " "); print_string(int_to_smt2(c)); print_string("))\n")
 ;;
 
 let situation_to_smt2 = fun m ->
