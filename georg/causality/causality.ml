@@ -14,6 +14,7 @@ type boolean_term =
 | Not of variable_term
 ;;
 type function_term = BoolFunction of relation_term | IntFunction of variable_term | ConstIntFunction of const_term | ITE of boolean_term * variable_term * variable_term;;
+type primitive_event_type = PrimitiveEvent of variable_term * const_value;;
 
 let compare_vars = fun v1 v2 ->
 match v1, v2 with
@@ -176,15 +177,34 @@ let solve_situation situation =
         (UNSAT, VarMap.empty)
 ;;
 
+let print_variable_and_value (Var(n, _)) value = 
+  print_string(n ^ " = "); 
+  (
+    match value with 
+    | ConstBool(true) -> print_string("true") 
+    | ConstBool(false) -> print_string("false") 
+    | ConstInt(i) -> print_int(i)
+  ); 
+  print_string("\n")
+;;
+
 let print_assignment a = 
-  let aux = (fun (Var(n, _)) v -> print_string(n ^ " = "); (match v with | ConstBool(true) -> print_string("true") | ConstBool(false) -> print_string("false") | ConstInt(i) -> print_int(i)); print_string("\n")) in
-    VarMap.iter aux a
+  VarMap.iter print_variable_and_value a
 ;;
 
 let print_solver_result r = 
   match r with
   | SAT -> print_string("SAT\n")
   | UNSAT -> print_string("UNSAT\n")
+;;
+
+let get_primitive_events_from_assignments a =
+  let aux = (fun var value pes -> PrimitiveEvent(var, value) :: pes) in
+    VarMap.fold aux a []
+;;
+
+let print_primitive_event (PrimitiveEvent(var, value)) = 
+  print_variable_and_value var value
 ;;
 
 let create_initial_situation () = 
