@@ -40,6 +40,7 @@ output:
 | rcore  { UnsatCore $1 }
 | rerror { Error $1 }
 | interpolant { Interpolant $1 }
+| term { SingleTerm $1}
 | error { ProgError.syntax_error (mk_position 1 1) None }
 ;
     

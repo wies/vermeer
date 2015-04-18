@@ -2,14 +2,15 @@
 
 let testmode = false
 
-(* let run () =  *)
-(*   let lexbuf = Lexing.from_channel stdin in *)
-(*   let parsed = Smtlib_parse.main Smtlib_lex.token lexbuf in *)
-(*   (match parsed with *)
-(*   |  None -> () *)
-(*   | Some(x) -> Smtlib_pp.pp x); *)
-(*   print_string "\n";; *)
-
-(* if testmode then Smtlib_simplify.test () else run() *)
-
-let () = SmtSimplePasses.test ()
+let run () = 
+  (* For now, just cheat and assume that all vars have type int *)
+  let typemap t = SmtSimpleAst.IntSort in
+  let open SmtLibSyntax in
+  match SmtLibSolver.read_from_chan stdin with
+  | SingleTerm t -> 
+    let f = SmtSimplifierLibConverter.smtSimpleofSmtLib typemap t in
+    let beaut = SmtSimplePasses.beautify_formula f in
+    print_endline (SmtSimpleFns.string_of_term beaut)
+  | _ -> failwith "not handeling this yet"
+    
+let () = if testmode then SmtSimplePasses.test () else run()

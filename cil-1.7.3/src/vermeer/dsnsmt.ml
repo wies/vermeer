@@ -27,8 +27,6 @@ let opts = {
   beautifyFormulas = false;
 }
 
-
-
 let string_of_exn = function 
   | ProgError.Prog_error _ as e ->
     ProgError.to_string e ^ "\n" ^  Printexc.get_backtrace ()
@@ -592,19 +590,8 @@ let reset_solver solver =
   solver.vars <- VarSet.empty;
   write_line_to_solver solver "(reset)\n"
 
-let read_from_chan chan =
-  let lexbuf = Lexing.from_channel chan in
-  (* This is useful for debugging, but not necessary *)
-  (*SmtLibLexer.set_file_name lexbuf session.log_file_name; *)
-  SmtLibParser.output SmtLibLexer.token lexbuf
-
-let line_from_solver solver = 
-  let line = input_line solver.in_chan in
-  debug_endline line;
-  line
-
 let read_from_solver solver =
-  match read_from_chan solver.in_chan with
+  match SmtLibSolver.read_from_chan solver.in_chan with
   | SolverAST.Sat -> Sat
   | SolverAST.Unsat -> Unsat
   | SolverAST.Unknown -> failwith "got parser unknown"
@@ -617,6 +604,7 @@ let read_from_solver solver =
     Interpolant i
   | SolverAST.UnsatCore sl -> 
     UnsatCore (List.fold_left (fun a e -> StringSet.add e a) StringSet.empty sl)
+  | SolverAST.SingleTerm t -> failwith "did not expect to get a single term"
   | SolverAST.Error s -> failwith ("parser error " ^ s)
 
 
