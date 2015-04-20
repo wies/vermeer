@@ -219,12 +219,38 @@ protected:
 
 };
 
-class COUNTERFACTUAL_causal_logic_formulat : public causal_logic_formulat {
+class BOOLEAN_COUNTERFACTUAL_causal_logic_formulat : public causal_logic_formulat {
 public:
-  COUNTERFACTUAL_causal_logic_formulat();
-  virtual ~COUNTERFACTUAL_causal_logic_formulat();
+  BOOLEAN_COUNTERFACTUAL_causal_logic_formulat(const boolean_variablet& variable, const boolean_constt& value, const causal_logic_formulat& subformula);
+  virtual ~BOOLEAN_COUNTERFACTUAL_causal_logic_formulat();
 
-  // TODO finish
+  virtual void accept(causal_logic_formula_visitort& visitor) const;
+
+  virtual const boolean_variablet& get_variable() const;
+  virtual const boolean_constt& get_value() const;
+
+protected:
+  const boolean_variablet& variable;
+  const boolean_constt& value;
+  const causal_logic_formulat& subformula;
+
+};
+
+class INTEGER_COUNTERFACTUAL_causal_logic_formulat : public causal_logic_formulat {
+public:
+  INTEGER_COUNTERFACTUAL_causal_logic_formulat(const int_variablet& variable, const int_constt& value, const causal_logic_formulat& subformula);
+  virtual ~INTEGER_COUNTERFACTUAL_causal_logic_formulat();
+
+  virtual void accept(causal_logic_formula_visitort& visitor) const;
+
+  virtual const int_variablet& get_variable() const;
+  virtual const int_constt& get_value() const;
+
+protected:
+  const int_variablet& variable;
+  const int_constt& value;
+  const causal_logic_formulat& subformula;
+
 };
 
 class causal_logic_formula_visitort {
@@ -237,10 +263,73 @@ public:
   virtual void visit(const AND_causal_logic_formulat& And) = 0;
   virtual void visit(const BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat& primitive_event) = 0;
   virtual void visit(const INTEGER_PRIMITIVE_EVENT_causal_logic_formulat& primitive_event) = 0;
+  virtual void visit(const BOOLEAN_COUNTERFACTUAL_causal_logic_formulat& counterfactual) = 0;
+  virtual void visit(const INTEGER_COUNTERFACTUAL_causal_logic_formulat& counterfactual) = 0;
 
 };
 
-/*
+class context_visitort;
+
+class contextt {
+public:
+  virtual ~contextt();
+
+  virtual void accept(context_visitort& visitor) const = 0;
+
+};
+
+class empty_contextt : public contextt {
+public:
+  virtual ~empty_contextt();
+
+  virtual void accept(context_visitort& visitor) const;
+
+};
+
+class boolean_contextt : public contextt {
+public:
+  boolean_contextt(const boolean_variablet& variable, const boolean_constt& value, const contextt& subcontext);
+  virtual ~boolean_contextt();
+
+  virtual void accept(context_visitort& visitor) const;
+
+  virtual const boolean_variablet& get_variable() const;
+  virtual const boolean_constt& get_value() const;
+
+protected:
+  const boolean_variablet& variable;
+  const boolean_constt& value;
+  const contextt& subcontext;
+
+};
+
+class int_contextt : public contextt {
+public:
+  int_contextt(const int_variablet& variable, const int_constt& value, const contextt& subcontext);
+  virtual ~int_contextt();
+
+  virtual void accept(context_visitort& visitor) const;
+
+  virtual const int_variablet& get_variable() const;
+  virtual const int_constt& get_value() const;
+
+protected:
+  const int_variablet& variable;
+  const int_constt& value;
+  const contextt& subcontext;
+
+};
+
+class context_visitort {
+public:
+  virtual ~context_visitort();
+
+  virtual void visit(const empty_contextt& context) = 0;
+  virtual void visit(const boolean_contextt& context) = 0;
+  virtual void visit(const int_contextt& context) = 0;
+
+};
+
 class causal_logic_solvert {
 public:
   virtual ~causal_logic_solvert();
@@ -248,7 +337,6 @@ public:
   void solve(causal_modelt& model, contextt& context, causal_logic_formulat& formula);
 
 };
-*/
 
 }
 
