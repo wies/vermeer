@@ -1,5 +1,5 @@
 all:
-	g++ -std=c++11 -Wall -o causality main.cpp cbmc.cpp -lpthread
+	g++ -std=c++11 -Wall -o causality main.cpp cbmc.cpp causality.cpp -lpthread
 
 test_cbmc:
 	g++ -std=c++11 -Wall -o TestCBMC test_cbmc.cpp cbmc.cpp -lpthread
