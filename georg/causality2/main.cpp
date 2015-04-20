@@ -42,8 +42,8 @@ int main(int argc, char* argv[]) {
   ::causality::boolean_variablet c2("c2");
   ::causality::boolean_variablet c3("c3");
 
-  ::causality::relationt< ::causality::boolean_termt > r(::causality::EQ, c0, c1);
-  ::causality::itet< ::causality::int_termt > ite0(r, x0, y0);
+//  ::causality::relationt< ::causality::boolean_termt > r(::causality::EQ, c0, c1);
+//  ::causality::itet< ::causality::int_termt > ite0(r, x0, y0);
 }
 
 
