@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
   ::causality::int_contextt ctxt_i1(i1, one, ctxt_i0);
 
   // formula for which causes have to be determined
-  //::causality::BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat formula(c3, ::causality::boolean_constt(false));
+  ::causality::BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat formula(c3, ::causality::boolean_constt(false));
 
   //solver.solve(model, ctxt_i1, formula);
 }

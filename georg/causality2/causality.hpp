@@ -276,7 +276,7 @@ public:
   virtual ~causal_logic_formulat();
 
   /* TODO can we make return value generic? */
-  virtual void accept(causal_logic_formula_visitort& visitor) = 0;
+  virtual void accept(causal_logic_formula_visitort& visitor) const = 0;
 
 };
 
