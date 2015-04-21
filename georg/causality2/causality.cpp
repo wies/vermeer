@@ -4,6 +4,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <queue>
 
 namespace causality {
 
@@ -863,12 +865,61 @@ void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, con
   // 1) solve the situation (model, context) 
   ::causality::contextt* solution = NULL;
   solve(model, context, explanandum, solution);
+
+  // 2) extract all primitive events (they are the basic blocks for actual causes)
   context_printert printer(::std::cout);
   solution->accept(printer);
 
-  // 2) extract all primitive events (they are the basic blocks for actual causes)
-
   // 3) AC2 ...
+  ::std::vector< bool > bits;
+  ::std::vector< variablet* > vars;
+  // initialize
+  for (auto var : model.get_endogenous_variables()) {
+    bits.push_back(false);
+    vars.push_back(var);
+
+    // TODO remove
+    //if (bits.size() >= 3) break;
+  }
+
+  ::std::queue< ::std::vector< bool > > q;
+  for (unsigned i = 0; i < vars.size(); i++) {
+    bits[i] = true;
+
+    q.push(bits);
+
+    bits[i] = false;
+  }
+
+  while (!q.empty()) {
+    auto b = q.front();
+    q.pop();
+
+    for (bool bit : b) {
+      ::std::cout << bit << " ";
+    }
+    ::std::cout << ::std::endl;
+
+    // check whether b is an actual cause
+
+
+    // if b is not an actual cause then produce all successors
+    unsigned last_set = 0;
+    for (unsigned i = b.size() - 1; i >= 0; i--) {
+      if (b[i]) {
+        last_set = i;
+        break;
+      }
+    }
+
+    for (unsigned i = last_set + 1; i < b.size(); i++) {
+      if (!b[i]) {
+        b[i] = true;
+        q.push(b);
+        b[i] = false;
+      }
+    }
+  }
 
 }
 
