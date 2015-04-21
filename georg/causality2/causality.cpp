@@ -497,6 +497,10 @@ bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& con
 
   inc_cbmc.start("causality_tmp.c", "causality_tmp.out");
 
+  // TODO generate initialization from context
+  inc_cbmc.assume_value("c::foo::1::i0!0@1#1", 0);
+  inc_cbmc.assume_value("c::foo::1::i1!0@1#1", 1);
+
   bool result = inc_cbmc.check();
 
   if (result) {
@@ -508,7 +512,7 @@ bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& con
 
   inc_cbmc.stop();
 
-  return true; // TODO fix
+  return result; // TODO shall we flip this? Think about validity in the causality context!
 }
 
 /*
