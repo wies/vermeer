@@ -480,12 +480,12 @@ class causal_logic_solvert {
 public:
   virtual ~causal_logic_solvert();
 
-  bool solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula);
+  virtual bool solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula);
   //contextt existsContext(const causal_modelt& model, const contextt& partial_context, const causal_logic_formulat& formula);
 
 protected:
 
-  void translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out);
+  virtual void translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out);
 
 };
 

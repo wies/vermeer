@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
 
   ::causality::causal_modelt model(exogenous_variables, endogenous_variables, F_y0);
 
-  ::causality::causal_logic_solvert solver();
+  ::causality::causal_logic_solvert solver;
 
   // values for exogenous variables
   ::causality::int_contextt ctxt_i0(i0, zero, ::causality::empty_contextt());
@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
   // formula for which causes have to be determined
   ::causality::BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat formula(c3, ::causality::boolean_constt(false));
 
-  //solver.solve(model, ctxt_i1, formula);
+  solver.solve(model, ctxt_i1, formula);
 }
 
 
