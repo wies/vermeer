@@ -36,7 +36,7 @@ public:
 
   virtual void accept(variable_visitort& visitor) const = 0;
  
-  virtual const ::std::string& get_name();
+  virtual const ::std::string& get_name() const;
 
 protected:
   ::std::string var_name;

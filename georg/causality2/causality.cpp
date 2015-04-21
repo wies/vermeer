@@ -12,7 +12,7 @@ variablet::~variablet() {
 
 }
 
-const ::std::string& variablet::get_name() {
+const ::std::string& variablet::get_name() const {
   return var_name;
 }
 
@@ -495,18 +495,38 @@ contextt causal_logic_solvert::existsContext(const causal_modelt& model, const c
 }
 */
 
+class variable_declaration_visitort : public variable_visitort {
+public:
+  variable_declaration_visitort(::std::ostream& out) : out(out) {}
+  virtual ~variable_declaration_visitort() {}
+
+  virtual void visit(const int_variablet& variable) {
+    out << "  unsigned char " << variable.get_name() << ";" << ::std::endl;
+  }
+
+  virtual void visit(const boolean_variablet& variable) { 
+    out << "  unsigned char " << variable.get_name() << ";" << ::std::endl; // TODO fix
+  }
+
+protected:
+  ::std::ostream& out;
+
+};
+
 void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out) {
   out << "void foo() {" << ::std::endl;
 
+  variable_declaration_visitort decl_visitor(out);
+
   out << "  // declarations of exogenous variables" << ::std::endl;
   for (variablet* var : model.get_exogenous_variables()) {
-    out << "  " << var->get_name() << ";" << ::std::endl;
+    var->accept(decl_visitor);
   } 
   out << ::std::endl;
 
   out << "  // declarations of endogenous variables" << ::std::endl;
   for (variablet* var : model.get_endogenous_variables()) {
-    out << "  " << var->get_name() << ";" << ::std::endl;
+    var->accept(decl_visitor);
   } 
   out << ::std::endl;
 
