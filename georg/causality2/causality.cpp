@@ -12,6 +12,10 @@ variablet::~variablet() {
 
 }
 
+const ::std::string& variablet::get_name() {
+  return var_name;
+}
+
 
 int_variablet::int_variablet(::std::string var_name) : variablet(var_name) {
 
@@ -493,6 +497,21 @@ contextt causal_logic_solvert::existsContext(const causal_modelt& model, const c
 
 void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out) {
   out << "void foo() {" << ::std::endl;
+
+  out << "  // declarations of exogenous variables" << ::std::endl;
+  for (variablet* var : model.get_exogenous_variables()) {
+    out << "  " << var->get_name() << ";" << ::std::endl;
+  } 
+  out << ::std::endl;
+
+  out << "  // declarations of endogenous variables" << ::std::endl;
+  for (variablet* var : model.get_endogenous_variables()) {
+    out << "  " << var->get_name() << ";" << ::std::endl;
+  } 
+  out << ::std::endl;
+
+  out << "  // structural equations" << ::std::endl;
+  out << "  // formula" << ::std::endl;
   out << "}" << ::std::endl;
 }
 
