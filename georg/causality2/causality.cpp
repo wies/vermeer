@@ -513,6 +513,135 @@ protected:
 
 };
 
+class C_boolean_term_visitort;
+
+class C_int_term_visitort : public int_term_visitort {
+public:
+  C_int_term_visitort(::std::ostream& out);
+  virtual ~C_int_term_visitort();
+
+  virtual void visit(const int_variablet& v) {
+    out << v.get_name();
+  }
+
+  virtual void visit(const int_constt& c) {
+    out << c.get_value();
+  }
+
+  virtual void visit(const itet& i); 
+
+protected:
+  ::std::ostream& out;
+
+};
+
+class C_boolean_term_visitort : public boolean_term_visitort {
+public:
+  C_boolean_term_visitort(::std::ostream& out) : out(out), ivis(out) {}
+  virtual ~C_boolean_term_visitort() {}
+
+  virtual void visit(const boolean_variablet& v) {
+    out << v.get_name();
+  }
+
+  virtual void visit(const boolean_andt& a) {
+    out << "(";
+    a.get_subterm1().accept(*this);
+    out << " && ";
+    a.get_subterm2().accept(*this);
+    out << ")";
+  }
+
+  virtual void visit(const boolean_nott& n) {
+    out << "(!";
+    n.get_subterm().accept(*this);
+    out << ")";
+  }
+
+  virtual void visit(const boolean_constt& c) {
+    out << c.get_value();
+  }
+
+  virtual void visit(const relationt& r) {
+    out << "(";
+    r.get_subterm1().accept(ivis);
+    switch(r.get_operator()) {
+    case EQ:
+      out << " == ";
+      break;
+    case NEQ:
+      out << " != ";
+      break;
+    case GT:
+      out << " > ";
+      break;
+    case LT:
+      out << " < ";
+      break;
+    }
+    r.get_subterm2().accept(ivis);
+    out << ")";
+  }
+
+protected:
+  ::std::ostream& out;
+  C_int_term_visitort ivis;
+
+};
+
+C_int_term_visitort::C_int_term_visitort(::std::ostream& out) : out(out) {
+
+}
+
+C_int_term_visitort::~C_int_term_visitort() {
+
+}
+
+void C_int_term_visitort::visit(const itet& i) {
+  C_boolean_term_visitort bvis(out);
+
+  out << "(";
+  i.get_condition().accept(bvis);
+  out << ") ? (";
+  i.get_then_term().accept(*this);
+  out << ") : (";
+  i.get_else_term().accept(*this);
+  out << ")";
+}
+
+
+class C_equation_visitort : public equation_visitort {
+public:
+  C_equation_visitort(::std::ostream& out) : out(out), ivis(out), bvis(out) {}
+  virtual ~C_equation_visitort() {}
+
+  virtual void visit(const empty_equationt& equation) {
+    // do nothing
+  }
+
+  virtual void visit(const boolean_equationt& equation) {
+    out << "  ";
+    out << equation.get_variable().get_name() << " = ";
+    equation.get_term().accept(bvis);
+    out << ";" << ::std::endl;
+    equation.get_subequation().accept(*this);
+  }
+
+  virtual void visit(const int_equationt& equation) {
+    out << "  ";
+    out << equation.get_variable().get_name() << " = ";
+    equation.get_term().accept(ivis);
+    out << ";" << ::std::endl;
+    equation.get_subequation().accept(*this);
+  }
+
+protected:
+  ::std::ostream& out;
+  C_int_term_visitort ivis;
+  C_boolean_term_visitort bvis;
+
+};
+
 void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out) {
   out << "void foo() {" << ::std::endl;
 
@@ -531,6 +660,10 @@ void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, co
   out << ::std::endl;
 
   out << "  // structural equations" << ::std::endl;
+  C_equation_visitort equ_visitor(out);
+  model.get_equations().accept(equ_visitor);
+  out << ::std::endl;
+
   out << "  // formula" << ::std::endl;
   out << "}" << ::std::endl;
 }
