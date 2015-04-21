@@ -74,12 +74,47 @@ int main(int argc, char* argv[]) {
   ::causality::int_constt three(3);
 
   ::causality::empty_equationt empty_equation; // TODO make static
+
   ::causality::relationt r_F_c3(::causality::EQ, l4, zero);
   ::causality::boolean_equationt F_c3(c3, r_F_c3, empty_equation);
+  ::causality::boolean_nott not_c0p(c0p);
 
-  ::causality::equationt& some_equation = F_c3; // TODO remove
-  // ...
-  ::causality::int_equationt F_z0(z0, zero, some_equation);
+  ::causality::itet ite_F_l4(not_c0p, l3, l1);
+  ::causality::int_equationt F_l4(l4, ite_F_l4, F_c3);
+
+  ::causality::itet ite_F_l3(c2, l2, l0);
+  ::causality::int_equationt F_l3(l3, ite_F_l3, F_l4);
+
+  ::causality::itet ite_F_z8(c0p, z7, z5);
+  ::causality::int_equationt F_z8(z8, ite_F_z8, F_l3);
+
+  ::causality::itet ite_F_z7(c2, z6, z4);
+  ::causality::int_equationt F_z7(z7, ite_F_z7, F_z8);
+
+  ::causality::relationt r_F_c2(::causality::GT, z4, zero);
+  ::causality::boolean_equationt F_c2(c2, r_F_c2, F_z7);
+
+  ::causality::itet ite_F_z4(c1p, z3, z2);
+  ::causality::int_equationt F_z4(z4, ite_F_z4, F_c2);
+
+  ::causality::boolean_andt and_c0_c1(c0, c1);
+  ::causality::itet ite_F_z2(and_c0_c1, z1, z0);
+  ::causality::int_equationt F_z2(z2, ite_F_z2, F_z4);
+
+  ::causality::relationt rel_c0(::causality::EQ, x0, zero);
+  ::causality::boolean_equationt F_c0(c0, rel_c0, F_z2);
+
+  ::causality::relationt rel_c0p(::causality::NEQ, x0, zero);
+  ::causality::boolean_equationt F_c0p(c0p, rel_c0p, F_c0);
+
+  ::causality::relationt rel_c1(::causality::EQ, y0, zero);
+  ::causality::boolean_equationt F_c1(c1, rel_c1, F_c0p);
+
+  ::causality::relationt rel_c1p(::causality::NEQ, y0, zero);
+  ::causality::boolean_equationt F_c1p(c1p, rel_c1p, F_c1);
+
+  ::causality::int_equationt F_z3(z3, y0, F_c1p);
+  ::causality::int_equationt F_z0(z0, zero, F_z3);
   ::causality::int_equationt F_z1(z1, one, F_z0);
   ::causality::int_equationt F_z5(z5, two, F_z1);
   ::causality::int_equationt F_z6(z6, three, F_z5);
