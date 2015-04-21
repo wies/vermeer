@@ -5,7 +5,7 @@ import subprocess
 import xml.etree.ElementTree as etree
 
 def beautify_smt_formula(smt_formula):
-  smt_simplifier = os.environ['VERMEER_PATH'] + "/georg/smt2-simplifier/smtlib_main.native"
+  smt_simplifier = os.environ['VERMEER_PATH'] + "/cil-1.7.3/bin/smt_simplify"
   p = subprocess.Popen([smt_simplifier], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
   p_stdout = p.communicate(input=b"" + "(assert " + smt_formula + ")")[0]
   output = p_stdout.decode()
