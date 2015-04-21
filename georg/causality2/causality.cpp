@@ -138,7 +138,7 @@ const int_termt& relationt::get_subterm2() const {
   return t2;
 }
 
-void relationt::accept(int_term_visitort& visitor) const {
+void relationt::accept(boolean_term_visitort& visitor) const {
   visitor.visit(*this);
 }
 

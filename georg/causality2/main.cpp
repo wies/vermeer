@@ -15,35 +15,82 @@ int main(int argc, char* argv[]) {
   //incremental_cbmct minisat2_cbmc("/home/andi/mpc-synthesis/cbmc-4.9-src/cbmc-4.9-incremental/src/cbmc/cbmc", 20);
 
   // exogenous variables
+  ::std::set< ::causality::variablet* > exogenous_variables;
   ::causality::int_variablet i0("i0");
+  exogenous_variables.insert(&i0);
   ::causality::int_variablet i1("i1");
+  exogenous_variables.insert(&i1);
 
   // endogenous variables
+  ::std::set< ::causality::variablet* > endogenous_variables;
   ::causality::int_variablet x0("x0");
+  endogenous_variables.insert(&x0);
   ::causality::int_variablet y0("y0");
+  endogenous_variables.insert(&y0);
   ::causality::int_variablet z0("z0");
+  endogenous_variables.insert(&z0);
   ::causality::int_variablet z1("z1");
+  endogenous_variables.insert(&z1);
   ::causality::int_variablet z2("z2");
+  endogenous_variables.insert(&z2);
   ::causality::int_variablet z3("z3");
+  endogenous_variables.insert(&z3);
   ::causality::int_variablet z4("z4");
+  endogenous_variables.insert(&z4);
   ::causality::int_variablet z5("z5");
+  endogenous_variables.insert(&z5);
   ::causality::int_variablet z6("z6");
+  endogenous_variables.insert(&z6);
   ::causality::int_variablet z7("z7");
+  endogenous_variables.insert(&z7);
   ::causality::int_variablet z8("z8");
+  endogenous_variables.insert(&z8);
   ::causality::int_variablet l0("l0");
+  endogenous_variables.insert(&l0);
   ::causality::int_variablet l1("l1");
+  endogenous_variables.insert(&l1);
   ::causality::int_variablet l2("l2");
+  endogenous_variables.insert(&l2);
   ::causality::int_variablet l3("l3");
+  endogenous_variables.insert(&l3);
   ::causality::int_variablet l4("l4");
+  endogenous_variables.insert(&l4);
   ::causality::boolean_variablet c0("c0");
+  endogenous_variables.insert(&c0);
   ::causality::boolean_variablet c0p("c0p");
+  endogenous_variables.insert(&c0p);
   ::causality::boolean_variablet c1("c1");
+  endogenous_variables.insert(&c1);
   ::causality::boolean_variablet c1p("c1p");
+  endogenous_variables.insert(&c1p);
   ::causality::boolean_variablet c2("c2");
+  endogenous_variables.insert(&c2);
   ::causality::boolean_variablet c3("c3");
+  endogenous_variables.insert(&c3);
+  
+  ::causality::int_constt zero(0);
+  ::causality::int_constt one(1);
+  ::causality::int_constt two(2);
+  ::causality::int_constt three(3);
 
-//  ::causality::relationt< ::causality::boolean_termt > r(::causality::EQ, c0, c1);
-//  ::causality::itet< ::causality::int_termt > ite0(r, x0, y0);
+  ::causality::empty_equationt empty_equation; // TODO make static
+  ::causality::relationt r_F_c3(::causality::EQ, l4, zero);
+  ::causality::boolean_equationt F_c3(c3, r_F_c3, empty_equation);
+
+  ::causality::equationt& some_equation = F_c3; // TODO remove
+  // ...
+  ::causality::int_equationt F_z0(z0, zero, some_equation);
+  ::causality::int_equationt F_z1(z1, one, F_z0);
+  ::causality::int_equationt F_z5(z5, two, F_z1);
+  ::causality::int_equationt F_z6(z6, three, F_z5);
+  ::causality::int_equationt F_l0(l0, one, F_z6);
+  ::causality::int_equationt F_l1(l1, zero, F_l0);
+  ::causality::int_equationt F_l2(l2, zero, F_l1);
+  ::causality::int_equationt F_x0(x0, i0, F_l2);
+  ::causality::int_equationt F_y0(y0, i1, F_x0);
+
+  ::causality::causal_modelt model(exogenous_variables, endogenous_variables, F_y0);
+
 }
 
 

@@ -110,6 +110,28 @@ protected:
   bool value;
 };
 
+enum relational_operatort {
+  EQ, NEQ, GT, LT
+};
+
+class relationt : public boolean_termt {
+public:
+  relationt(relational_operatort op, int_termt& t1, int_termt& t2);
+  virtual ~relationt();
+
+  virtual const relational_operatort get_operator() const;
+
+  virtual const int_termt& get_subterm1() const;
+  virtual const int_termt& get_subterm2() const;
+
+  virtual void accept(boolean_term_visitort& visitor) const;
+
+protected:
+  const relational_operatort op;
+  const int_termt& t1;
+  const int_termt& t2;
+};
+
 class boolean_term_visitort {
 public:
   virtual ~boolean_term_visitort() {}
@@ -118,6 +140,7 @@ public:
   virtual void visit(const boolean_andt& a) = 0;
   virtual void visit(const boolean_nott& n) = 0;
   virtual void visit(const boolean_constt& c) = 0;
+  virtual void visit(const relationt& r) = 0;
 
 };
 
@@ -132,28 +155,6 @@ public:
 
 protected:
   int value;
-};
-
-enum relational_operatort {
-  EQ, NEQ, GT, LT
-};
-
-class relationt : public int_termt {
-public:
-  relationt(relational_operatort op, int_termt& t1, int_termt& t2);
-  virtual ~relationt();
-
-  virtual const relational_operatort get_operator() const;
-
-  virtual const int_termt& get_subterm1() const;
-  virtual const int_termt& get_subterm2() const;
-
-  virtual void accept(int_term_visitort& visitor) const;
-
-protected:
-  const relational_operatort op;
-  const int_termt& t1;
-  const int_termt& t2;
 };
 
 class itet : public int_termt {
@@ -180,7 +181,6 @@ public:
 
   virtual void visit(const int_variablet& v) = 0;
   virtual void visit(const int_constt& c) = 0;
-  virtual void visit(const relationt& r) = 0;
   virtual void visit(const itet& i) = 0;
 
 };
