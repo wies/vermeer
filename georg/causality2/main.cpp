@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
   ::causality::boolean_constt False(false);
   ::causality::BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat formula(c3, False);
 
-  solver.solve(model, ctxt_i1, formula);
+  solver.compute_actual_causes(model, ctxt_i1, formula);
 }
 
 

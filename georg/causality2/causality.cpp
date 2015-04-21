@@ -518,7 +518,41 @@ protected:
 
 };
 
-bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula) {
+class ExtractValue_variable_visitort : public variable_visitort {
+public:
+  ExtractValue_variable_visitort(incremental_cbmct& cbmc, const contextt& subcontext) : cbmc(cbmc), subcontext(subcontext) {}
+  virtual ~ExtractValue_variable_visitort() {}
+
+  void visit(const int_variablet& var) {
+    ::std::stringstream strstr;
+    strstr << "c::foo::1::" << var.get_name() << "!0@1#2";
+
+    // TODO we have to free the memory
+    int_constt* c = new int_constt((int)cbmc.query_value(strstr.str()));
+    context = new int_contextt(var, *c, subcontext);
+  }
+
+  void visit(const boolean_variablet& var) {
+    ::std::stringstream strstr;
+    strstr << "c::foo::1::" << var.get_name() << "!0@1#2";
+
+    // TODO we have to free the memory
+    boolean_constt* c = new boolean_constt((bool)cbmc.query_value(strstr.str()));
+    context = new boolean_contextt(var, *c, subcontext);
+  }
+
+  contextt* get_context() {
+    return context;
+  }
+
+protected:
+  incremental_cbmct& cbmc;
+  const contextt& subcontext;
+  contextt* context;
+
+};
+
+bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, contextt*& ctxt) {
   ::std::ofstream tmp_c("causality_tmp.c");
 
   translate_to_C_program(model, context, formula, tmp_c);
@@ -530,15 +564,24 @@ bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& con
 
   inc_cbmc.start("causality_tmp.c", "causality_tmp.out");
 
-  inc_cbmc.list_variable_names();
+  //inc_cbmc.list_variable_names();
 
   C_context_visitort context_visitor(inc_cbmc);
   context.accept(context_visitor);
 
   bool result = inc_cbmc.check();
 
+  ctxt = new empty_contextt;
+
   if (result) {
+    // Since the equations are deterministic and the context determines all free variables, if there is a solution it is unique.
     ::std::cout << "SAT" << ::std::endl;
+
+    for (auto variable : model.get_endogenous_variables()) {
+      ExtractValue_variable_visitort evvv(inc_cbmc, *ctxt);
+      variable->accept(evvv);
+      ctxt = evvv.get_context();
+    }
   } 
   else {
     ::std::cout << "UNSAT" << ::std::endl;
@@ -790,6 +833,43 @@ void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, co
 
   out << "));" << ::std::endl;
   out << "}" << ::std::endl;
+}
+
+class context_printert : public context_visitort {
+public:
+  context_printert(::std::ostream& out) : out(out) {}
+  virtual ~context_printert() {}
+  
+  virtual void visit(const empty_contextt& c) {
+    // do nothing
+  }
+
+  virtual void visit(const int_contextt& c) {
+    out << c.get_variable().get_name() << " = " << c.get_value().get_value() << ::std::endl;
+    c.get_subcontext().accept(*this);
+  }
+
+  virtual void visit(const boolean_contextt& c) {
+    out << c.get_variable().get_name() << " = " << (c.get_value().get_value()?"true":"false") << ::std::endl;
+    c.get_subcontext().accept(*this);
+  }
+
+protected:
+  ::std::ostream& out;
+
+};
+
+void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum) {
+  // 1) solve the situation (model, context) 
+  ::causality::contextt* solution = NULL;
+  solve(model, context, explanandum, solution);
+  context_printert printer(::std::cout);
+  solution->accept(printer);
+
+  // 2) extract all primitive events (they are the basic blocks for actual causes)
+
+  // 3) AC2 ...
+
 }
 
 }

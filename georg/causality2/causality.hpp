@@ -483,7 +483,8 @@ class causal_logic_solvert {
 public:
   virtual ~causal_logic_solvert();
 
-  virtual bool solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula);
+  virtual void compute_actual_causes(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum);
+  virtual bool solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, contextt*& ctxt);
   //contextt existsContext(const causal_modelt& model, const contextt& partial_context, const causal_logic_formulat& formula);
 
 protected:
