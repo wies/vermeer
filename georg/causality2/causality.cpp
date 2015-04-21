@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 namespace causality {
 
@@ -485,6 +486,38 @@ causal_logic_solvert::~causal_logic_solvert() {
 
 }
 
+context_visitort::~context_visitort() {
+
+}
+
+class C_context_visitort : public context_visitort {
+public:
+  C_context_visitort(incremental_cbmct& cbmc) : cbmc(cbmc) {}
+  virtual ~C_context_visitort() {}
+
+  virtual void visit(const empty_contextt& context) {
+    // do nothing
+  }
+
+  virtual void visit(const boolean_contextt& context) {
+    ::std::stringstream strstr;
+    strstr << "c::foo::1::" << context.get_variable().get_name() << "!0@1#1";
+    cbmc.assume_value(strstr.str(), context.get_value().get_value()?1:0);
+    context.get_subcontext().accept(*this);
+  }
+
+  virtual void visit(const int_contextt& context) {
+    ::std::stringstream strstr;
+    strstr << "c::foo::1::" << context.get_variable().get_name() << "!0@1#1";
+    cbmc.assume_value(strstr.str(), context.get_value().get_value());
+    context.get_subcontext().accept(*this);
+  }
+
+protected:
+  incremental_cbmct& cbmc;
+
+};
+
 bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula) {
   ::std::ofstream tmp_c("causality_tmp.c");
 
@@ -493,13 +526,14 @@ bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& con
   tmp_c.close();
 
   // TODO make cbmc directory configurable
-  incremental_cbmct inc_cbmc("/home/andi/mpc-synthesis/cbmc-4.9-src/cbmc-4.9-incremental/src/cbmc/cbmc");
+  incremental_cbmct inc_cbmc("/home/andi/mpc-synthesis/cbmc-4.9-src/cbmc-4.9-incremental/src/cbmc/cbmc", 10);
 
   inc_cbmc.start("causality_tmp.c", "causality_tmp.out");
 
-  // TODO generate initialization from context
-  inc_cbmc.assume_value("c::foo::1::i0!0@1#1", 0);
-  inc_cbmc.assume_value("c::foo::1::i1!0@1#1", 1);
+  inc_cbmc.list_variable_names();
+
+  C_context_visitort context_visitor(inc_cbmc);
+  context.accept(context_visitor);
 
   bool result = inc_cbmc.check();
 

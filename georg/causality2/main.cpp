@@ -129,7 +129,8 @@ int main(int argc, char* argv[]) {
   ::causality::causal_logic_solvert solver;
 
   // values for exogenous variables
-  ::causality::int_contextt ctxt_i0(i0, zero, ::causality::empty_contextt());
+  ::causality::empty_contextt empty_context;
+  ::causality::int_contextt ctxt_i0(i0, zero, empty_context);
   ::causality::int_contextt ctxt_i1(i1, one, ctxt_i0);
 
   // formula for which causes have to be determined
