@@ -664,6 +664,64 @@ protected:
 
 };
 
+class C_causal_logic_formula_visitort : public causal_logic_formula_visitort {
+public:
+  C_causal_logic_formula_visitort(::std::ostream& out) : out(out), bvis(out), ivis(out) {}
+  virtual ~C_causal_logic_formula_visitort() {}
+
+  virtual void visit(const TRUE_causal_logic_formulat& True) {
+    out << "1";
+  }
+
+  virtual void visit(const FALSE_causal_logic_formulat& False) {
+    out << "0";
+  }
+
+  virtual void visit(const NOT_causal_logic_formulat& Not) {
+    out << "(!";
+    Not.get_subformula().accept(*this);
+    out << ")";
+  }
+
+  virtual void visit(const AND_causal_logic_formulat& And) {
+    out << "(";
+    And.get_first_subformula().accept(*this);
+    out << " && ";
+    And.get_second_subformula().accept(*this);
+    out << ")";
+  }
+
+  virtual void visit(const BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat& primitive_event) {
+    out << "(";
+    primitive_event.get_variable().accept(bvis);
+    out << " == ";
+    primitive_event.get_value().accept(bvis);
+    out << ")";
+  }
+
+  virtual void visit(const INTEGER_PRIMITIVE_EVENT_causal_logic_formulat& primitive_event) {
+    out << "(";
+    primitive_event.get_variable().accept(ivis);
+    out << " == ";
+    primitive_event.get_value().accept(ivis);
+    out << ")";
+  }
+
+  virtual void visit(const BOOLEAN_COUNTERFACTUAL_causal_logic_formulat& counterfactual) {
+    out << "TODO";
+  }
+
+  virtual void visit(const INTEGER_COUNTERFACTUAL_causal_logic_formulat& counterfactual) {
+    out << "TODO";
+  }
+
+protected:
+  ::std::ostream& out;
+  C_boolean_term_visitort bvis;
+  C_int_term_visitort ivis;
+
+};
+
 void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out) {
   out << "void foo() {" << ::std::endl;
 
@@ -687,7 +745,12 @@ void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, co
   out << ::std::endl;
 
   out << "  // formula" << ::std::endl;
-  out << "  assert(0);" << ::std::endl;
+  out << "  assert(!(";
+  
+  C_causal_logic_formula_visitort logic_visitor(out);
+  formula.accept(logic_visitor);
+
+  out << "));" << ::std::endl;
   out << "}" << ::std::endl;
 }
 

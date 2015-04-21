@@ -111,6 +111,7 @@ public:
 
 protected:
   bool value;
+
 };
 
 enum relational_operatort {
@@ -399,7 +400,7 @@ protected:
 
 class causal_logic_formula_visitort {
 public:
-  virtual ~causal_logic_formula_visitort();
+  virtual ~causal_logic_formula_visitort() {};
 
   virtual void visit(const TRUE_causal_logic_formulat& True) = 0;
   virtual void visit(const FALSE_causal_logic_formulat& False) = 0;
