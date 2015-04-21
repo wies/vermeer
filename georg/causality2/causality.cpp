@@ -1,6 +1,8 @@
 #include "causality.hpp"
+#include "cbmc.h"
 
 #include <iostream>
+#include <fstream>
 
 namespace causality {
 
@@ -484,7 +486,27 @@ causal_logic_solvert::~causal_logic_solvert() {
 }
 
 bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula) {
-  translate_to_C_program(model, context, formula, ::std::cout);
+  ::std::ofstream tmp_c("causality_tmp.c");
+
+  translate_to_C_program(model, context, formula, tmp_c);
+
+  tmp_c.close();
+
+  // TODO make cbmc directory configurable
+  incremental_cbmct inc_cbmc("/home/andi/mpc-synthesis/cbmc-4.9-src/cbmc-4.9-incremental/src/cbmc/cbmc");
+
+  inc_cbmc.start("causality_tmp.c", "causality_tmp.out");
+
+  bool result = inc_cbmc.check();
+
+  if (result) {
+    ::std::cout << "SAT" << ::std::endl;
+  } 
+  else {
+    ::std::cout << "UNSAT" << ::std::endl;
+  }
+
+  inc_cbmc.stop();
 
   return true; // TODO fix
 }
@@ -665,6 +687,7 @@ void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, co
   out << ::std::endl;
 
   out << "  // formula" << ::std::endl;
+  out << "  assert(0);" << ::std::endl;
   out << "}" << ::std::endl;
 }
 
