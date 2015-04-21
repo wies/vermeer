@@ -3,6 +3,7 @@
 
 #include <string>
 #include <set>
+#include <iostream>
 
 namespace causality {
 
@@ -325,6 +326,7 @@ protected:
 
 };
 
+// TODO should be a boolean primitive object either a variable or its negation?
 class BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat : public causal_logic_formulat {
 public:
   BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat(const boolean_variablet& variable, const boolean_constt& value);
@@ -418,6 +420,8 @@ public:
 
 };
 
+
+// TODO create static instance
 class empty_contextt : public contextt {
 public:
   virtual ~empty_contextt();
@@ -476,7 +480,12 @@ class causal_logic_solvert {
 public:
   virtual ~causal_logic_solvert();
 
-  void solve(causal_modelt& model, contextt& context, causal_logic_formulat& formula);
+  bool solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula);
+  //contextt existsContext(const causal_modelt& model, const contextt& partial_context, const causal_logic_formulat& formula);
+
+protected:
+
+  void translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out);
 
 };
 

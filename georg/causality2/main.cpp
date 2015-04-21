@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
   ::causality::itet ite_F_z7(c2, z6, z4);
   ::causality::int_equationt F_z7(z7, ite_F_z7, F_z8);
 
-  ::causality::relationt r_F_c2(::causality::GT, z4, zero);
+  ::causality::relationt r_F_c2(::causality::GT, z4, one /*zero*/ /* modification to omit -1 as a value */);
   ::causality::boolean_equationt F_c2(c2, r_F_c2, F_z7);
 
   ::causality::itet ite_F_z4(c1p, z3, z2);
@@ -126,6 +126,16 @@ int main(int argc, char* argv[]) {
 
   ::causality::causal_modelt model(exogenous_variables, endogenous_variables, F_y0);
 
+  ::causality::causal_logic_solvert solver();
+
+  // values for exogenous variables
+  ::causality::int_contextt ctxt_i0(i0, zero, ::causality::empty_contextt());
+  ::causality::int_contextt ctxt_i1(i1, one, ctxt_i0);
+
+  // formula for which causes have to be determined
+  //::causality::BOOLEAN_PRIMITIVE_EVENT_causal_logic_formulat formula(c3, ::causality::boolean_constt(false));
+
+  //solver.solve(model, ctxt_i1, formula);
 }
 
 

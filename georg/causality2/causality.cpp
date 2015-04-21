@@ -1,5 +1,7 @@
 #include "causality.hpp"
 
+#include <iostream>
+
 namespace causality {
 
 variablet::variablet(::std::string var_name) : var_name(var_name) {
@@ -477,8 +479,21 @@ causal_logic_solvert::~causal_logic_solvert() {
 
 }
 
-void causal_logic_solvert::solve(causal_modelt& model, contextt& context, causal_logic_formulat& formula) {
+bool causal_logic_solvert::solve(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula) {
+  translate_to_C_program(model, context, formula, ::std::cout);
 
+  return true; // TODO fix
+}
+
+/*
+contextt causal_logic_solvert::existsContext(const causal_modelt& model, const contextt& partial_context, const causal_logic_formulat& formula) {
+  return empty_contextt.get_instance();
+}
+*/
+
+void causal_logic_solvert::translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out) {
+  out << "void foo() {" << ::std::endl;
+  out << "}" << ::std::endl;
 }
 
 }
