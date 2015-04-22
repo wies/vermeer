@@ -861,6 +861,72 @@ protected:
 
 };
 
+bool is_actual_cause(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum, const contextt& solution, const ::std::vector< variablet* >& endogenous_variables, const ::std::vector< bool >& candidate) {
+
+  // We have to consider all partitions
+
+  // 1) determine how many 1s are set in candidate
+  unsigned nr_of_ones = 0;
+  //::std::cout << "candidate: ";
+  for (auto b : candidate) {
+    if (b) {
+      nr_of_ones++;
+    }
+    //::std::cout << b << " ";
+  }
+  //::std::cout << ::std::endl;
+
+  // 2) create new bit vector
+  ::std::vector< bool > bits;
+  for (unsigned i = 0; i < candidate.size() - nr_of_ones; i++) {
+    bits.push_back(false);
+  }
+
+  ::std::queue< ::std::vector< bool > > q;
+  q.push(bits);
+
+  while (!q.empty()) {
+    auto b = q.front();
+    q.pop();
+
+    // create partition
+    ::std::vector< bool > partition(candidate);
+    for (unsigned i = 0, j = 0; i < partition.size(); i++) {
+      if (!partition[i]) {
+        partition[i] = partition[i] || b[j];
+        j++;
+      }
+    }
+
+    // do checks
+    for (auto f : partition) {
+      ::std::cout << f << " ";
+    }
+    ::std::cout << ::std::endl;
+    // TODO implement
+
+    unsigned last_set = -1;
+    for (unsigned j = 0; j < b.size(); j++) {
+      unsigned i = b.size() - 1 - j;
+
+      if (b[i]) {
+        last_set = i;
+        break;
+      }
+    }
+
+    for (unsigned i = last_set + 1; i < b.size(); i++) {
+      if (!b[i]) {
+        b[i] = true;
+        q.push(b);
+        b[i] = false;
+      }
+    }
+  }
+
+  return false;
+}
+
 void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum) {
   // 1) solve the situation (model, context) 
   ::causality::contextt* solution = NULL;
@@ -895,13 +961,17 @@ void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, con
     auto b = q.front();
     q.pop();
 
-    for (bool bit : b) {
+/*    for (bool bit : b) {
       ::std::cout << bit << " ";
     }
     ::std::cout << ::std::endl;
-
+*/
     // check whether b is an actual cause
+    if (is_actual_cause(model, context, explanandum, *solution, vars, b)) {
+      // TODO store in special set
 
+      continue;
+    }
 
     // if b is not an actual cause then produce all successors
     unsigned last_set = 0;
