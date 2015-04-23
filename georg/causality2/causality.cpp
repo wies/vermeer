@@ -861,20 +861,94 @@ protected:
 
 };
 
-bool is_actual_cause(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum, const contextt& solution, const ::std::vector< variablet* >& endogenous_variables, const ::std::vector< bool >& candidate) {
+
+class filter_equation_visitort : public equation_visitort {
+public:
+  filter_equation_visitort(::std::set< variablet * >& variables_that_should_not_appear_in_the_equations_anymore) : variables(variables_that_should_not_appear_in_the_equations_anymore) {}
+  virtual ~filter_equation_visitort() {}
+
+  virtual void visit(const empty_equationt& equation) {
+    // TODO we store this first in our new set of equations
+    last_equation = new empty_equationt; // TODO we have to free that again!
+  }
+
+  virtual void visit(const boolean_equationt& equation) {
+    // we want to preserve the order of the equations, therefore we process post-order
+    equation.get_subequation().accept(*this);
+
+    if (variables.find((variablet*)&(equation.get_variable())) == variables.end()) {
+      // keep equation, i.e., create a copy
+      equationt* tmp = new boolean_equationt(equation.get_variable(), equation.get_term(), *last_equation);
+      last_equation = tmp;
+    }
+  }
+
+  virtual void visit(const int_equationt& equation) {
+    // we want to preserve the order of the equations, therefore we process post-order
+    equation.get_subequation().accept(*this);
+
+    if (variables.find((variablet*)&(equation.get_variable())) == variables.end()) {
+      // keep equation, i.e., create a copy
+      equationt* tmp = new int_equationt(equation.get_variable(), equation.get_term(), *last_equation);
+      last_equation = tmp;
+    }
+  }
+
+  virtual equationt* get_filtered_equation() {
+    return last_equation;
+  }
+
+protected:
+  ::std::set< variablet * >& variables;
+  equationt* last_equation;
+};
+
+
+bool causal_logic_solvert::check_AC2a_and_AC2b(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum, const contextt& solution, const ::std::vector< variablet* >& endogenous_variables, const ::std::vector< bool >& candidate, const ::std::vector< bool >& partition) {
+  ::std::set< variablet* > new_exogenous_variables(model.get_exogenous_variables());
+  ::std::set< variablet* > new_endogenous_variables;
+
+  ::std::set< variablet* > gamma_and_W;
+
+  for (unsigned i = 0; i < candidate.size(); i++) {
+    if (candidate[i] || !partition[i]) { // if partition[i] is set to false, then it is a variable in W
+      gamma_and_W.insert(endogenous_variables[i]);
+      new_exogenous_variables.insert(endogenous_variables[i]);
+    }
+    else {
+      new_endogenous_variables.insert(endogenous_variables[i]);
+    }
+  }
+
+  filter_equation_visitort filter(gamma_and_W);
+  model.get_equations().accept(filter);
+  equationt* filtered_equations = filter.get_filtered_equation();
+
+  causal_modelt new_model(new_exogenous_variables, new_endogenous_variables, *filtered_equations);
+
+  contextt* new_solution = NULL;
+  NOT_causal_logic_formulat negated_explanandum(explanandum);
+  if (solve(new_model, context, negated_explanandum, new_solution)) {
+    // this has to become a synthesis loop
+
+  }
+
+  exit(-1);
+
+  return false;
+}
+
+bool causal_logic_solvert::is_actual_cause(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum, const contextt& solution, const ::std::vector< variablet* >& endogenous_variables, const ::std::vector< bool >& candidate) {
 
   // We have to consider all partitions
 
   // 1) determine how many 1s are set in candidate
   unsigned nr_of_ones = 0;
-  //::std::cout << "candidate: ";
   for (auto b : candidate) {
     if (b) {
       nr_of_ones++;
     }
-    //::std::cout << b << " ";
   }
-  //::std::cout << ::std::endl;
 
   // 2) create new bit vector
   ::std::vector< bool > bits;
@@ -899,11 +973,9 @@ bool is_actual_cause(const causal_modelt& model, const contextt& context, const 
     }
 
     // do checks
-    for (auto f : partition) {
-      ::std::cout << f << " ";
+    if (check_AC2a_and_AC2b(model, context, explanandum, solution, endogenous_variables, candidate, partition)) {
+      return true;
     }
-    ::std::cout << ::std::endl;
-    // TODO implement
 
     unsigned last_set = -1;
     for (unsigned j = 0; j < b.size(); j++) {
@@ -936,6 +1008,8 @@ void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, con
   context_printert printer(::std::cout);
   solution->accept(printer);
 
+  // Note that AC3 is already satisfied by our enumeration strategy
+
   // 3) AC2 ...
   ::std::vector< bool > bits;
   ::std::vector< variablet* > vars;
@@ -957,18 +1031,17 @@ void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, con
     bits[i] = false;
   }
 
+  ::std::set< ::std::vector< bool > > actual_causes;
+
   while (!q.empty()) {
     auto b = q.front();
     q.pop();
 
-/*    for (bool bit : b) {
-      ::std::cout << bit << " ";
-    }
-    ::std::cout << ::std::endl;
-*/
     // check whether b is an actual cause
     if (is_actual_cause(model, context, explanandum, *solution, vars, b)) {
-      // TODO store in special set
+      actual_causes.insert(b);
+
+      exit(-1); // just for now TODO: remove
 
       continue;
     }
@@ -990,6 +1063,8 @@ void causal_logic_solvert::compute_actual_causes(const causal_modelt& model, con
       }
     }
   }
+
+  // TODO return actual_causes?
 
 }
 

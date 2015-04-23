@@ -4,6 +4,7 @@
 #include <string>
 #include <set>
 #include <iostream>
+#include <vector>
 
 namespace causality {
 
@@ -489,6 +490,8 @@ public:
 
 protected:
 
+  virtual bool check_AC2a_and_AC2b(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum, const contextt& solution, const ::std::vector< variablet* >& endogenous_variables, const ::std::vector< bool >& candidate, const ::std::vector< bool >& partition);
+  virtual bool is_actual_cause(const causal_modelt& model, const contextt& context, const causal_logic_formulat& explanandum, const contextt& solution, const ::std::vector< variablet* >& endogenous_variables, const ::std::vector< bool >& candidate);
   virtual void translate_to_C_program(const causal_modelt& model, const contextt& context, const causal_logic_formulat& formula, ::std::ostream& out);
 
 };
