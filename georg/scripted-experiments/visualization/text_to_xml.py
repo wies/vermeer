@@ -11,7 +11,7 @@ def read_entities_from_file(filename):
   with open(filename, "r") as f:
     entity = None
     for line in f:
-      line_stripped = line.strip()
+      line_stripped = line.rstrip()
       if line_stripped == "":
         if not entity is None:
           entities.append(entity)
@@ -27,18 +27,29 @@ def process_entities(entities):
   for entity in entities:
     # handle invariant
     smt_formula = entity[0][2:]
+    idx = 1
+    while entity[idx].startswith("  "):
+      smt_formula = smt_formula + " " + entity[idx][2:]
+      idx = idx + 1
     processed_entity = [ smt_formula ]
     # is it a TID or a summary?
-    if entity[1].startswith("//Tid "):
+    if entity[idx].startswith("//Tid "):
       # it is a TID
       processed_entity.append("TID")
-      processed_entity.append(entity[1][6:])
-      for i in range(2, len(entity)):
+      processed_entity.append(entity[idx][6:])
+      for i in range((idx + 1), len(entity)):
         processed_entity.append(entity[i])
     else:
       # it is a summary
       processed_entity.append("SUMMARY")
-      summary_smt_formula = entity[2][2:]
+      idx = idx + 1
+      summary_smt_formula = entity[idx][2:]
+      idx = idx + 1
+      while entity[idx].startswith("  "):
+        summary_smt_formula = summary_smt_formula + " " + entity[idx][2:]
+        idx = idx + 1
+        if idx >= len(entity):
+          break
       processed_entity.append(summary_smt_formula)
     processed_entities.append(processed_entity)
   return processed_entities

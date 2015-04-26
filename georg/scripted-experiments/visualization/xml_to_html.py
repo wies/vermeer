@@ -18,6 +18,7 @@ def beautify_smt_formula(smt_formula):
   return result
 
 def smt_to_text(smt_formula):
+  return smt_formula
   parts = beautify_smt_formula(smt_formula)
   result = ""
   for part in parts:
