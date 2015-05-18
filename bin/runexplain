@@ -8,7 +8,7 @@ elif [ ! -d "$EX_DIR" ]; then
     echo -n "Cannot access example directory: \"$EX_DIR\"; "
     echo    "wrong \$VERMEER_PATH setting?"; exit 1
 elif [ "$#" -lt 1 ]; then
-    echo "usage: runexplain [-a (explain|fast_abs|full_abs)] <prog name>"
+    echo "usage: runexplain [-a (explain|fast_abs|full_abs)] <prog name>"; exit 0
 fi
 
 ANALYSIS=unsatcore
