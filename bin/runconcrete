@@ -8,7 +8,7 @@ elif [ ! -d "$EX_DIR" ]; then
     echo -n "Cannot access example directory: \"$EX_DIR\"; "
     echo    "wrong \$VERMEER_PATH setting?"; exit 1
 elif [ "$#" -ne 1 ]; then
-    echo "Usage: runconcrete <prog name>"; exit 1
+    echo "Usage: runconcrete <prog name>"; exit 0
 fi
 
 PROG=$1
