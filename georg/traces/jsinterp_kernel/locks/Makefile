@@ -1,5 +1,5 @@
 all:
-	../../../scripted-experiments/icse16-user-study/runsmt.sh trace_assertion_failed_4
+	../../../scripted-experiments/icse16-user-study/runsmt.sh trace_assertion_failed_3
 
 clean:
 	rm -f a.out
