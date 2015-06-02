@@ -5,5 +5,5 @@ then echo "needs an argument";
 fi
 
 $VERMEER_PATH/cil-1.7.3/bin/cilly -c --keepunused --dodsnsmt --runsmtanalysistype=binarysearch --smtmultithread=allthreads --flowsensitive --toposortinput --hazardsensitiveall --nointrathreadhazard --smtbeautify "$1.c" -lm
-rm *.o
+rm -f *.o
 
