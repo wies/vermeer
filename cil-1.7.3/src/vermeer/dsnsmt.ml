@@ -18,6 +18,16 @@ module VarSet = SmtSimpleAst.VarSet
 module Parser = SmtLibParser
 module SolverAST = SmtLibSyntax
 
+module IntCLMap = Map.Make(Int)
+type intCLMap = (clause list) IntCLMap.t
+let emptyICLMap : intCLMap = IntCLMap.empty
+let search_iclmap id icm : clause list= 
+  try IntCLMap.find id icm
+  with Not_found -> []
+let add_to_iclmap id cls icm = 
+  let oldList = search_iclmap id icm in
+  IntCLMap.add id (cls::oldList) icm
+
 type smtOpts = 
   {
     mutable beautifyFormulas : bool;
@@ -39,6 +49,7 @@ let (get_var_type, set_var_type) =
   (
     (fun v -> 
       if (is_flag_var v) then SmtSimpleAst.BoolSort
+      else if (is_hb_var v) then SmtSimpleAst.IntSort
       else if (is_ssa_var v) then 
 	SmtSimpleAst.VarSortMap.find v !typeMap
       else failwith ("Cannot find type for " ^ v)
@@ -58,6 +69,9 @@ type smtContext =
     seenGroups : GroupSet.t;
     clauses : clause list;
     graph : Dsngraph.G.t option; (*lazy var *)
+    varDefClauses : intCLMap option;
+    varUseClauses : intCLMap option;
+    threadClauses : intCLMap option;
   }
 
 (* a bit of a hack - yet another global :( *)
@@ -69,6 +83,9 @@ let privateSmtContext = ref {
   seenGroups = GroupSet.empty;
   clauses = [];
   graph = None;
+  varDefClauses = None;
+  varUseClauses = None;
+  threadClauses  = None;
 }
 
 (* should only ever update it using this fn *)
@@ -80,11 +97,16 @@ let setSmtContext name seenThreads seenGroups clauses =
       seenGroups = seenGroups;
       clauses = clauses;
       graph = None;
+      varDefClauses = None;
+      varUseClauses = None;
+      threadClauses = None;
     }
 
 let getCurrentSeenThreads () =  !privateSmtContext.seenThreads
 let getCurrentSeenGroups() =  !privateSmtContext.seenGroups
 let getCurrentClauses () =  !privateSmtContext.clauses
+let getProgramClauses () =  
+  List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) (getCurrentClauses()) 
 let getCurrentGraph ?(make) () = 
   match !privateSmtContext.graph with
   | Some g -> g 
@@ -95,6 +117,44 @@ let getCurrentGraph ?(make) () =
       ~dottyFileName:dottyFileName (getCurrentClauses()) in
     privateSmtContext := {!privateSmtContext with graph = Some graph};
     graph
+
+let getVarDefClauses () = 
+  match !privateSmtContext.varDefClauses with
+    | Some x -> x
+    | None -> 
+      let vdc = 
+	List.fold_left (fun a1 cls -> 
+	  SSAVarSet.fold (fun v a2 -> add_to_iclmap v.vidx cls a2) cls.defs a1
+	) emptyICLMap (getProgramClauses())
+      in
+      privateSmtContext := {!privateSmtContext with varDefClauses = Some vdc};
+      vdc
+
+let getVarUseClauses () =
+  match !privateSmtContext.varUseClauses with
+    | Some x -> x
+    | None -> 
+      let vuc = 
+	List.fold_left (fun a1 cls -> 
+	  SSAVarSet.fold (fun v a2 -> add_to_iclmap v.vidx cls a2) cls.defs a1
+	) emptyICLMap (getProgramClauses())
+      in
+      privateSmtContext := {!privateSmtContext with varUseClauses = Some vuc};
+      vuc
+
+let getThreadClauses () =
+  match !privateSmtContext.threadClauses with
+    | Some x -> x
+    | None -> 
+      let reversed = 
+	List.fold_left (fun a cls -> add_to_iclmap (extract_tid cls) cls a
+	) emptyICLMap (getProgramClauses())
+      in
+      let forwards = IntCLMap.fold 
+	(fun k v a -> IntCLMap.add k (List.rev v) a) reversed emptyICLMap
+      in
+      privateSmtContext := {!privateSmtContext with threadClauses = Some forwards};
+      forwards
 
 let rec make_ssa_map (vars : ssaVar list) (ssaMap : varSSAMap) (defs : SSAVarSet.t) 
     : (varSSAMap * SSAVarSet.t) =
@@ -227,17 +287,20 @@ let debug_vars vars =
  * Since we are using functions, can hide lots of interresting stuff in the 
  * curried variables *)
 type encodingFn = clause -> term -> term
+type axiomFn = clause list -> term list
 type encodingFunctions = 
   {mutable makeFlowSensitive : encodingFn;
    mutable makeFlag : encodingFn;
    mutable makeHazards : encodingFn;
+   mutable makeAxioms : axiomFn;
   }
 let identityEncodingFn clause formula = formula
-
+let identityAxiomFn clauses = []
 let identityEncoding () = {
   makeFlowSensitive = identityEncodingFn;
   makeFlag =  identityEncodingFn;
   makeHazards = identityEncodingFn;
+  makeAxioms = identityAxiomFn;
 }
 
 (*this is mutable, so we can change the default encoding *)
@@ -266,6 +329,14 @@ let make_flowsensitive_this_tid tid clause formula =
 
 let encode_flowsensitive_this_tid tid = 
   currentEncoding.makeFlowSensitive <- make_flowsensitive_this_tid tid
+
+let hb_var_string c = "hb_" ^ clause_name c
+let get_hb_var c = SB.mk_ident (hb_var_string c) SmtSimpleAst.IntSort
+let makeHbAxioms () = 
+  IntCLMap.fold 
+    (fun tid vl a -> 
+      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl)
+      in term::a) (getThreadClauses()) []
 
 let flag_var_string c = "flag_" ^ clause_name c
 let get_flag_var c = SB.mk_ident (flag_var_string c) SmtSimpleAst.BoolSort
@@ -312,6 +383,7 @@ let make_var_decl v =
   let ts = SmtSimpleAst.string_of_sort (get_var_type v) in 
   "(declare-fun " ^ (SmtSimpleAst.string_of_var v)  ^" () " ^ ts ^ ")\n"  
 
+(* This is not needed anymore because it will get declared with the make_var_decl *)
 let make_flag_decl c = 
   "(declare-fun " ^ (flag_var_string c)  ^" () Bool )\n" 
 

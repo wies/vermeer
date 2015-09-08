@@ -34,6 +34,7 @@ let is_ssa_var str =
   | None -> false
 
 let is_flag_var s = begins_with  s "flag_" 
+let is_hb_var s = begins_with s "hb_"
 let is_cse_var s = Str.string_match (Str.regexp ".cse[0-9]+") s 0 
 
 let remap_ssa_var_str str newIdx =

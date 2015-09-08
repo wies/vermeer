@@ -103,8 +103,15 @@ let get_sort = function
 let is_boolsort form = (get_sort form) = BoolSort
 let is_intsort form = (get_sort form) = IntSort
 let sorts_match t1 t2 = (get_sort t1) = (get_sort t2)
-
-
+let list_sorts_match lst = 
+  let rec f = function
+    | [] -> true
+    | [x] -> true
+    | x::y::rest -> 
+      if (not (sorts_match x y)) then false
+      else f (y::rest)
+  in f lst
+ 
 let compare_lex compare_fn fs gs = 
   let rec aux fs gs = 
     match fs, gs with

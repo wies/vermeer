@@ -27,6 +27,12 @@ let mk_rel op lhs rhs =
   assert(is_relation op);
   App(op, [lhs;rhs], BoolSort)
 
+let mk_list_rel op lst = 
+  assert(list_sorts_match lst);
+  assert(is_relation op);
+  if (List.length lst > 1) then App(op, lst, BoolSort)
+  else BoolConst true
+
 let mk_eq lhs rhs = mk_rel Eq lhs rhs
 
 let mk_ite i t e = 

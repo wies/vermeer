@@ -193,11 +193,15 @@ let search_icm id icm : clause option =
   try Some(IntClauseMap.find id icm) 
   with Not_found -> None
 
-type intCLMap = (clause list) IntClauseMap.t
-let emptyICLMap : intCLMap = IntClauseMap.empty
+module IntCLMap = Map.Make(Int)
+type intCLMap = (clause list) IntCLMap.t
+let emptyICLMap : intCLMap = IntCLMap.empty
 let search_iclmap id icm : clause list= 
-  try IntClauseMap.find id icm
+  try IntCLMap.find id icm
   with Not_found -> []
+let add_to_iclmap id cls icm = 
+  let oldList = search_iclmap id icm in
+  IntCLMap.add id (cls::oldList) icm
 
 let make_dotty_file filename graph = 
   let file = open_out_bin (filename ^ ".dot") in
@@ -289,3 +293,5 @@ let get_hazard_preds graph hazards vertex =
       else acc
     ) graph vertex ClauseSet.empty
     
+
+
