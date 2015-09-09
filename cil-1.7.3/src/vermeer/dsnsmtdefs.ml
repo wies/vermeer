@@ -181,6 +181,8 @@ let extract_group cls =
   in
   aux cls.cTags
 
+let clause_defines cls v = SSAVarSet.mem v cls.defs
+
 let get_uses clause = SSAVarSet.diff clause.ssaVars clause.defs
 let all_ssaVars clauses = List.fold_left (fun a e -> SSAVarSet.union e.ssaVars a) SSAVarSet.empty clauses
 let all_basevars clauses = 

@@ -136,7 +136,7 @@ let getVarUseClauses () =
     | None -> 
       let vuc = 
 	List.fold_left (fun a1 cls -> 
-	  SSAVarSet.fold (fun v a2 -> add_to_iclmap v.vidx cls a2) cls.defs a1
+	  SSAVarSet.fold (fun v a2 -> add_to_iclmap v.vidx cls a2) (get_uses cls) a1
 	) emptyICLMap (getProgramClauses())
       in
       privateSmtContext := {!privateSmtContext with varUseClauses = Some vuc};
@@ -332,11 +332,14 @@ let encode_flowsensitive_this_tid tid =
 
 let hb_var_string c = "hb_" ^ clause_name c
 let get_hb_var c = SB.mk_ident (hb_var_string c) SmtSimpleAst.IntSort
-let makeHbAxioms () = 
+
+(* for now, just ignore the clauses and make all the axioms *)
+let makeHbAxioms cls =
   IntCLMap.fold 
     (fun tid vl a -> 
       let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl)
       in term::a) (getThreadClauses()) []
+let encodeHbAxioms () = currentEncoding.makeAxioms = makeHbAxioms
 
 let flag_var_string c = "flag_" ^ clause_name c
 let get_flag_var c = SB.mk_ident (flag_var_string c) SmtSimpleAst.BoolSort
@@ -370,6 +373,22 @@ let make_hazards graph hazards intrathreadHazards clause formula =
 let encode_hazards graph hazards intrathreadHazards = 
   encode_flag ();
   currentEncoding.makeHazards <- make_hazards graph hazards intrathreadHazards
+
+let make_hb (clause : clause) formula =
+  let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2)
+  in let make_hb_onevar v = 
+    (* this should never fail *)
+    let defClauses = IntCLMap.find v.vidx (getVarDefClauses()) in
+    SB.mk_and (
+      List.map (fun (x:clause) -> 
+	if (clause_defines x v) then mkHbRel x clause
+	else if (clause <> x) then (SB.mk_or [mkHbRel x clause; mkHbRel clause x])  
+	else SB.mk_true (* no op *)
+      ) defClauses)
+  in
+  let hb_constraints = SSAVarSet.fold (fun e a -> (make_hb_onevar e) :: a) (get_uses clause) [] 
+  in
+  make_dependent_on hb_constraints formula
 
 (* Important that we make the flag first, cause it has to go inside the dependency *)
 let encode_formula opts clause = 
