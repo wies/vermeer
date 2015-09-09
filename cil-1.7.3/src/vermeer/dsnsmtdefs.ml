@@ -92,6 +92,7 @@ type term = SmtSimpleAst.term
 type clauseType = ProgramStmt of Cil.instr * int option 
 		  | Interpolant | Constant | EqTest  
 		  | Summary of  (Cil.instr * int option ) list
+		  | Axiom of string
 
 
 type ifContextElem = {iformula : term; istmt : Cil.stmt}
@@ -148,6 +149,7 @@ let clause_name (c : clause) :string =
   | Interpolant -> "IP_" ^ (string_of_int c.idx)
   | Constant -> "CON_" ^ (string_of_int c.idx)
   | EqTest -> "EQTEST_" ^ (string_of_int c.idx)
+  | Axiom s -> "AXIOM_" ^ s
   | Summary _ -> failwith "should not be asserting summaries"
 
 let extract_tid_opt cls = 

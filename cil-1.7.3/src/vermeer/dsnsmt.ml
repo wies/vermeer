@@ -260,6 +260,7 @@ let string_of_cprogram c =
   | Interpolant | Constant -> "//" ^ string_of_formula c.formula
   | EqTest -> failwith "shouldn't have equality tests in the final program"
   | Summary _ -> "//(Summary)\n//" ^ string_of_formula c.formula
+  | Axiom s -> "//(Axiom)\n//" ^ string_of_formula c.formula
 
 let string_of_cl cl = List.fold_left (fun a e -> a ^ string_of_clause e ^ "\n") "" cl
 let string_of_formlist fl = List.fold_left (fun a e -> a ^ string_of_formula e ^ "\n") "" fl
@@ -287,7 +288,7 @@ let debug_vars vars =
  * Since we are using functions, can hide lots of interresting stuff in the 
  * curried variables *)
 type encodingFn = clause -> term -> term
-type axiomFn = clause list -> term list
+type axiomFn = clause list -> (string * term) list
 type encodingFunctions = 
   {mutable makeFlowSensitive : encodingFn;
    mutable makeFlag : encodingFn;
@@ -334,12 +335,17 @@ let hb_var_string c = "hb_" ^ clause_name c
 let get_hb_var c = SB.mk_ident (hb_var_string c) SmtSimpleAst.IntSort
 
 (* for now, just ignore the clauses and make all the axioms *)
-let makeHbAxioms cls =
+(* assert po for each thread *)
+let makeHbAxioms clsList =
   IntCLMap.fold 
     (fun tid vl a -> 
-      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl)
-      in term::a) (getThreadClauses()) []
-let encodeHbAxioms () = currentEncoding.makeAxioms = makeHbAxioms
+      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl) in 
+      let axiomName = "po" ^ string_of_int tid in
+      (axiomName, term ) :: a)
+    (getThreadClauses()) []
+
+let encodeHbAxioms () : unit = 
+  currentEncoding.makeAxioms <- makeHbAxioms
 
 let flag_var_string c = "flag_" ^ clause_name c
 let get_flag_var c = SB.mk_ident (flag_var_string c) SmtSimpleAst.BoolSort
@@ -375,20 +381,27 @@ let encode_hazards graph hazards intrathreadHazards =
   currentEncoding.makeHazards <- make_hazards graph hazards intrathreadHazards
 
 let make_hb (clause : clause) formula =
-  let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2)
-  in let make_hb_onevar v = 
+  match clause.typ with
+    | ProgramStmt _ -> 
+      let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2)
+      in let make_hb_onevar v = 
     (* this should never fail *)
-    let defClauses = IntCLMap.find v.vidx (getVarDefClauses()) in
-    SB.mk_and (
-      List.map (fun (x:clause) -> 
-	if (clause_defines x v) then mkHbRel x clause
-	else if (clause <> x) then (SB.mk_or [mkHbRel x clause; mkHbRel clause x])  
-	else SB.mk_true (* no op *)
-      ) defClauses)
-  in
-  let hb_constraints = SSAVarSet.fold (fun e a -> (make_hb_onevar e) :: a) (get_uses clause) [] 
-  in
-  make_dependent_on hb_constraints formula
+	   let defClauses = IntCLMap.find v.vidx (getVarDefClauses()) in
+	   SB.mk_and (
+	     List.map (fun (x:clause) -> 
+	       if (clause_defines x v) then mkHbRel x clause
+	       else if (clause <> x) then (SB.mk_or [mkHbRel x clause; mkHbRel clause x])  
+	       else SB.mk_true (* no op *)
+	     ) defClauses)
+	 in
+	 let hb_constraints = SSAVarSet.fold (fun e a -> (make_hb_onevar e) :: a) (get_uses clause) [] 
+	 in
+	 make_dependent_on hb_constraints formula
+    | _ -> formula
+
+let encode_hb () = 
+  encodeHbAxioms ();
+  currentEncoding.makeHazards <- make_hb
 
 (* Important that we make the flag first, cause it has to go inside the dependency *)
 let encode_formula opts clause = 
@@ -775,12 +788,15 @@ let program_to_smt solver clauses opts =
   reset_solver solver;
   set_solver_options solver opts;
   set_logic solver "QF_LIA";
+  let axioms = (currentEncoding.makeAxioms clauses) in
+  let axiomAssertions = List.map (fun (n,t) -> SmtSimpleFns.assertion_of_formula n t) axioms in
   let encodedAssertions = List.map assertion_of_clause clauses in 
+  let allAssertions = axiomAssertions @ encodedAssertions in
   let allIdents = List.fold_left 
-    (fun a (_,_,idents) -> VarSet.union idents a) VarSet.empty encodedAssertions in
+    (fun a (_,_,idents) -> VarSet.union idents a) VarSet.empty allAssertions in
   VarSet.iter (declare_var solver) allIdents;
   (* write the assertions *)
-  List.iter (assert_assertion solver) encodedAssertions;
+  List.iter (assert_assertion solver) allAssertions;
   flush_solver solver
 
 let get_solver_for = function

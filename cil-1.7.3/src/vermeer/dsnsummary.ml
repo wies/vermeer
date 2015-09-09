@@ -410,6 +410,8 @@ let safe_shutdown f =
 	   " Makes the encoding raw hazard sensitive");
 	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
 	   " Makes the encoding raw hazard sensitive");
+	  ("--hbsensitive", Arg.Unit (fun x -> encode_hb()),
+	   " Makes the encoding happens-before sensitive");
 	  ("--smtbeautify", Arg.Unit (fun x -> Dsnsmt.opts.beautifyFormulas <- true),
 	   "beautifies formulas before making them into clauses");
 	  ("--smtmultithread", Arg.String 
