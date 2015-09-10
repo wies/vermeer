@@ -544,19 +544,25 @@ let get_current_var oldVar ssaMap =
 
 let remap_formula ssaMap form =
   let remap_var str = 
-    let oldSsaVar = ssaVarFromString str in
-    let newVarOpt = get_current_var oldSsaVar ssaMap in
-    match newVarOpt with
-    | Some (newVar) -> newVar.fullname
-    | None -> raise (CantMap oldSsaVar)
+    match ssaVarOptFromString str with
+      | Some oldSsaVar -> (
+	let newVarOpt = get_current_var oldSsaVar ssaMap in
+	match newVarOpt with
+	  | Some (newVar) -> newVar.fullname
+	  | None -> raise (CantMap oldSsaVar)
+      )
+      | None -> str
   in
   let rec aux = function 
-    | SmtSimpleAst.Ident (v,s) when is_ssa_var v -> SB.mk_ident (remap_var v) s
-    | SmtSimpleAst.BoolConst _ | SmtSimpleAst.IntConst _ | SmtSimpleAst.Ident _ as f -> f
-    | SmtSimpleAst.App (o,tl,s) -> SB.mk_app o (List.map aux tl)
+    | SmtSimpleAst.Ident (v,s) when is_ssa_var v ->  
+      SB.mk_ident (remap_var v) s
+    | SmtSimpleAst.BoolConst _ | SmtSimpleAst.IntConst _ | SmtSimpleAst.Ident _ as f -> 
+      f
+    | SmtSimpleAst.App (o,tl,s) -> 
+      SB.mk_app o (List.map aux tl)
     | SmtSimpleAst.LinearRelation(o,tl,v) ->
       (* we should only have SSA Vars in these relations *)
-      SB.mk_linearRelation o (List.map (fun (c,v) -> (c,remap_var v)) tl) v
+      SB.mk_linearRelation o (List.map (fun (c,v) -> print_endline v; (c,remap_var v)) tl) v
   in
   aux form
     
@@ -872,7 +878,9 @@ let get_unsat_core clauses =
 let are_interpolants_equiv (i1 :term) (i2 :term)= 
   (* interpolants have no need for ssa variables.  So we can just drop them *)
   let rec ssa_free_interpolant = function 
-    | SmtSimpleAst.Ident (v,s) when is_ssa_var v -> SB.mk_ident (remap_ssa_var_str v 0) s
+    | SmtSimpleAst.Ident (v,s) when is_ssa_var v -> 
+      
+SB.mk_ident (remap_ssa_var_str v 0) s
     | SmtSimpleAst.BoolConst _ | SmtSimpleAst.IntConst _  | SmtSimpleAst.Ident _ as f-> f
     | SmtSimpleAst.App(o,tl,s) -> SB.mk_app o (List.map ssa_free_interpolant tl)
     | SmtSimpleAst.LinearRelation (o,lhs,rhs) ->  
