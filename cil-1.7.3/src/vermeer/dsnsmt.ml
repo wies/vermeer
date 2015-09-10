@@ -60,6 +60,8 @@ let (get_var_type, set_var_type) =
   )
 
 module HazardSet = Dsngraph.HazardSet
+type ssaDefMap = clause SSAVarMap.t
+let emptySSADefMap : ssaDefMap = SSAVarMap.empty
 
 (* DSN TODO just pass this around *)
 type smtContext = 
@@ -68,45 +70,70 @@ type smtContext =
     seenThreads : TIDSet.t;
     seenGroups : GroupSet.t;
     clauses : clause list;
+    programClauses : clause list option;
     graph : Dsngraph.G.t option; (*lazy var *)
     varDefClauses : intCLMap option;
     varUseClauses : intCLMap option;
     threadClauses : intCLMap option;
+    ssaDefs : ssaDefMap option;
   }
 
-(* a bit of a hack - yet another global :( *)
-let makeDottyFiles = ref false
-(* typemap should go in here too *)
-let privateSmtContext = ref {
+let emptySmtContext =  {
   contextName = "ERROR.  EMPTY.";
   seenThreads = TIDSet.empty;
   seenGroups = GroupSet.empty;
   clauses = [];
+  programClauses = None;
   graph = None;
   varDefClauses = None;
   varUseClauses = None;
-  threadClauses  = None;
+  threadClauses = None;
+  ssaDefs = None;
 }
+
+(* a bit of a hack - yet another global :( *)
+let makeDottyFiles = ref false
+(* typemap should go in here too *)
+let privateSmtContext = ref emptySmtContext
 
 (* should only ever update it using this fn *)
 let setSmtContext name seenThreads seenGroups clauses = 
-  privateSmtContext :=
-    {
+  privateSmtContext := 
+    {emptySmtContext with 
       contextName = name;
       seenThreads = seenThreads;
       seenGroups = seenGroups;
       clauses = clauses;
-      graph = None;
-      varDefClauses = None;
-      varUseClauses = None;
-      threadClauses = None;
     }
 
 let getCurrentSeenThreads () =  !privateSmtContext.seenThreads
 let getCurrentSeenGroups() =  !privateSmtContext.seenGroups
 let getCurrentClauses () =  !privateSmtContext.clauses
-let getProgramClauses () =  
-  List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) (getCurrentClauses()) 
+let getProgramClauses () =  match !privateSmtContext.programClauses with
+  | Some pc -> pc
+  | None -> 
+    let pc = 
+      List.filter (fun c -> match c.typ with ProgramStmt _ -> true | _ -> false) 
+	(getCurrentClauses()) in
+    privateSmtContext := {!privateSmtContext with programClauses = Some pc};
+    pc
+
+let smtDefMap clauses = 
+  List.fold_left 
+    (fun a c -> SSAVarSet.fold 
+      (fun v a -> SSAVarMap.add v c a) c.defs a)
+    emptySSADefMap clauses
+
+let getSsaDefs () = match !privateSmtContext.ssaDefs with
+  | Some d -> d
+  | None -> 
+    let d = smtDefMap (getProgramClauses()) in
+    privateSmtContext := {!privateSmtContext with ssaDefs= Some d};
+    d
+
+let getDefiningClause v = SSAVarMap.find v (getSsaDefs())
+let wasDefiningClause v c = (getDefiningClause v) = c
+  
 let getCurrentGraph ?(make) () = 
   match !privateSmtContext.graph with
   | Some g -> g 
@@ -187,12 +214,11 @@ let topoSortCurrent () =
   in
   let newClauses = Dsngraph.topo_sort_graph (getCurrentGraph()) in
   let newClauses = remake_ssa_map newClauses in
-  privateSmtContext := {
-    !privateSmtContext with 
-      contextName = "post_topo_sort";
-      clauses = newClauses; 
-      graph = None;
-  }
+  setSmtContext 
+    "post_topo_sort" 
+    (getCurrentSeenThreads())
+    (getCurrentSeenGroups())
+    newClauses
 
 (******************************** Optimizations ***************************)
 (* keep around the vars for a partition
@@ -288,12 +314,11 @@ let debug_vars vars =
  * Since we are using functions, can hide lots of interresting stuff in the 
  * curried variables *)
 type encodingFn = clause -> term -> term
-type axiomFn = clause list -> (string * term) list
+type axiomFn = unit -> clause list
 type encodingFunctions = 
   {mutable makeFlowSensitive : encodingFn;
    mutable makeFlag : encodingFn;
    mutable makeHazards : encodingFn;
-   mutable makeAxioms : axiomFn;
   }
 let identityEncodingFn clause formula = formula
 let identityAxiomFn clauses = []
@@ -301,7 +326,6 @@ let identityEncoding () = {
   makeFlowSensitive = identityEncodingFn;
   makeFlag =  identityEncodingFn;
   makeHazards = identityEncodingFn;
-  makeAxioms = identityAxiomFn;
 }
 
 (*this is mutable, so we can change the default encoding *)
@@ -334,18 +358,12 @@ let encode_flowsensitive_this_tid tid =
 let hb_var_string c = "hb_" ^ clause_name c
 let get_hb_var c = SB.mk_ident (hb_var_string c) SmtSimpleAst.IntSort
 
-(* for now, just ignore the clauses and make all the axioms *)
-(* assert po for each thread *)
-let makeHbAxioms clsList =
-  IntCLMap.fold 
-    (fun tid vl a -> 
-      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl) in 
-      let axiomName = "po" ^ string_of_int tid in
-      (axiomName, term ) :: a)
-    (getThreadClauses()) []
-
-let encodeHbAxioms () : unit = 
-  currentEncoding.makeAxioms <- makeHbAxioms
+let make_axiom_clause name term = 
+  {emptyClause with 
+    formula = term; 
+    idx = get_new_clause_id();
+    typ = Axiom name;
+  }
 
 let flag_var_string c = "flag_" ^ clause_name c
 let get_flag_var c = SB.mk_ident (flag_var_string c) SmtSimpleAst.BoolSort
@@ -383,24 +401,23 @@ let encode_hazards graph hazards intrathreadHazards =
 let make_hb (clause : clause) formula =
   match clause.typ with
     | ProgramStmt _ -> 
-      let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2)
-      in let make_hb_onevar v = 
-    (* this should never fail *)
-	   let defClauses = IntCLMap.find v.vidx (getVarDefClauses()) in
-	   SB.mk_and (
-	     List.map (fun (x:clause) -> 
-	       if (clause_defines x v) then mkHbRel x clause
-	       else if (clause <> x) then (SB.mk_or [mkHbRel x clause; mkHbRel clause x])  
-	       else SB.mk_true (* no op *)
-	     ) defClauses)
-	 in
-	 let hb_constraints = SSAVarSet.fold (fun e a -> (make_hb_onevar e) :: a) (get_uses clause) [] 
-	 in
-	 make_dependent_on hb_constraints formula
+      let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2) in
+      let make_hb_onevar v = 
+	let readFrom = getDefiningClause v in
+	let defClauses = IntCLMap.find v.vidx (getVarDefClauses()) in
+	SB.mk_and (
+	  List.map (fun (x:clause) -> 
+	    if (x = readFrom) then mkHbRel x clause
+	    else if (clause <> x) then (SB.mk_or [mkHbRel x readFrom; mkHbRel clause x])  
+	    else SB.mk_true (* no op *)
+	  ) defClauses)
+      in
+      let hb_constraints = SSAVarSet.fold (fun e a -> (make_hb_onevar e) :: a) (get_uses clause) [] 
+      in
+      make_dependent_on hb_constraints formula
     | _ -> formula
-
+      
 let encode_hb () = 
-  encodeHbAxioms ();
   currentEncoding.makeHazards <- make_hb
 
 (* Important that we make the flag first, cause it has to go inside the dependency *)
@@ -788,10 +805,8 @@ let program_to_smt solver clauses opts =
   reset_solver solver;
   set_solver_options solver opts;
   set_logic solver "QF_LIA";
-  let axioms = (currentEncoding.makeAxioms clauses) in
-  let axiomAssertions = List.map (fun (n,t) -> SmtSimpleFns.assertion_of_formula n t) axioms in
   let encodedAssertions = List.map assertion_of_clause clauses in 
-  let allAssertions = axiomAssertions @ encodedAssertions in
+  let allAssertions = encodedAssertions in
   let allIdents = List.fold_left 
     (fun a (_,_,idents) -> VarSet.union idents a) VarSet.empty allAssertions in
   VarSet.iter (declare_var solver) allIdents;

@@ -78,16 +78,6 @@ let get_location_line v =
  *)
 type term = SmtSimpleAst.term
 
-(* type term = | SMTRelation of string * term list *)
-(* 	    | SMTConstant of int64 *)
-(* 	    | SMTSsaVar of smtSsaVar *)
-(* 	    | SMTFlagVar of string *)
-(* 	    | SMTLetVar of string *)
-(* 	    | SMTLetBinding of term * term  *)
-(* 	    | SMTLet of term list * term *)
-(* 	    | SMTTrue | SMTFalse *)
-
-
 (* TODO record the program location in the programStmt *)
 type clauseType = ProgramStmt of Cil.instr * int option 
 		  | Interpolant | Constant | EqTest  
@@ -122,6 +112,18 @@ type clause = {formula : term;
 	       ifContext : ifContextList;
 	       cTags : clauseTag list
 	      }
+
+let emptyClause = {
+  formula = SmtSimpleAstBuilder.mk_true;
+  idx = -1;
+  ssaVars = SSAVarSet.empty;
+  defs = SSAVarSet.empty;
+  ssaIdxs = VarSSAMap.empty;
+  typ = Constant;
+  ifContext = [];
+  cTags = [];
+}
+
 
 type trace = clause list
 

@@ -250,7 +250,8 @@ let summerize_annotated_trace (idExtractor : clause -> int)
 	  (* we are out of the desired thread, and have been for at least one statment*)
 	  aux xs groupAccum groupExitCond ((instr,Some thatTid)::summaryAccum)
       end
-      | _ -> failwith "not a programstatment in summirization"
+      | Axiom s -> aux xs (hd::groupAccum) None [] (* TODO make sure this works *)
+      | _ -> failwith "not a program statment in summarization"
     end
   in
   aux fullTrace [] None []
@@ -294,6 +295,24 @@ let partition_to_file technique reduced id =
     (fun x -> (technique x) = id) reduced in
   print_endline (string_of_formula interpolant)
 
+
+(* for now, just ignore the clauses and make all the axioms *)
+(* assert po for each thread *)
+let makeProgramOrderAxioms () =
+  IntCLMap.fold 
+    (fun tid vl a -> 
+      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl) in 
+      let axiomName = "po" ^ string_of_int tid in
+      (make_axiom_clause axiomName term) :: a)
+    (getThreadClauses()) []
+
+let makeTotalOrderAxioms () =
+  let cc = getCurrentClauses () in
+  let term = SB.mk_list_rel SmtSimpleAst.Lt (SB.mk_intConst 0L :: (List.map get_hb_var cc)) in
+  [make_axiom_clause "TotalOrder" term]
+
+let getCurrentAxioms = makeTotalOrderAxioms
+
 (******************** Actually do the pass over the code ********************)
 
 let dsnsmt (f: file) : unit =
@@ -317,7 +336,9 @@ let dsnsmt (f: file) : unit =
   end;
 
   (* add a true assertion at the begining of the program *)
-  let clauses = make_true_clause() :: getCurrentClauses() in
+  let axioms = getCurrentAxioms() in
+  print_endline (string_of_int (List.length axioms));
+  let clauses = make_true_clause() :: (axioms @ getCurrentClauses()) in
   if opts.calcStats then calculate_stats "Initial" clauses;
   begin match opts.multithread with
   | PARTITIONTID -> 
@@ -373,14 +394,14 @@ let safe_shutdown f =
       fd_extraopt = 
 	[ ("--runsmtanalysistype", 
 	   Arg.String 
-	     (fun x -> match x with 
-	     | "noreduction" -> analysis := NOREDUCTION
-	     | "unsatcore" -> analysis := UNSATCORE
-	     | "linearsearch" -> analysis := LINEARSEARCH
-	     | "binarysearch" -> analysis := BINARYSEARCH
-	     | "window" -> analysis := WINDOW
-	     | "noninductive" -> analysis := NONINDUCTIVE
-	     | x -> failwith (x ^ " is not a valid analysis type")),
+	     (function 
+	       | "noreduction" -> analysis := NOREDUCTION
+	       | "unsatcore" -> analysis := UNSATCORE
+	       | "linearsearch" -> analysis := LINEARSEARCH
+	       | "binarysearch" -> analysis := BINARYSEARCH
+	       | "window" -> analysis := WINDOW
+	       | "noninductive" -> analysis := NONINDUCTIVE
+	       | x -> failwith (x ^ " is not a valid analysis type")),
 	   " the analysis to use unsatcore linearsearch binarysearch");
 	  ("--smtdebug", Arg.Unit (fun x -> debugLevel := 2), 
 	   " turns on printing debug messages");
@@ -410,7 +431,10 @@ let safe_shutdown f =
 	   " Makes the encoding raw hazard sensitive");
 	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
 	   " Makes the encoding raw hazard sensitive");
-	  ("--hbsensitive", Arg.Unit (fun x -> encode_hb()),
+	  ("--hbsensitive", Arg.String 
+	    (function 
+	      | "totalorder" -> encode_hb()
+	      | x -> failwith (x ^ " is not a valid argument for --hbsensitive")),
 	   " Makes the encoding happens-before sensitive");
 	  ("--smtbeautify", Arg.Unit (fun x -> Dsnsmt.opts.beautifyFormulas <- true),
 	   "beautifies formulas before making them into clauses");

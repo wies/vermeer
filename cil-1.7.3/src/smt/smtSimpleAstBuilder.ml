@@ -50,6 +50,7 @@ let mk_true = mk_boolConst true
 let mk_false = mk_boolConst false
 let mk_intConst c = IntConst c
 let mk_ident v s = Ident(v,s)
+let mk_eqIntConst arg c = mk_eq arg (mk_intConst c) 
 
 let rec mk_app o f = 
   match o with 
