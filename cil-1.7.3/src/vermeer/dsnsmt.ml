@@ -320,8 +320,8 @@ type encodingFunctions =
    mutable makeFlag : encodingFn;
    mutable makeHazards : encodingFn;
   }
+
 let identityEncodingFn clause formula = formula
-let identityAxiomFn clauses = []
 let identityEncoding () = {
   makeFlowSensitive = identityEncodingFn;
   makeFlag =  identityEncodingFn;
@@ -376,6 +376,37 @@ let make_flag clause formula =
 let encode_flag () = 
   currentEncoding.makeFlag <- make_flag
 
+let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2)
+
+
+(* for now, just ignore the clauses and make all the axioms *)
+(* assert po for each thread *)
+let makeProgramOrderAxioms () =
+  IntCLMap.fold 
+    (fun tid vl a -> 
+      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl) in 
+      let axiomName = "po" ^ string_of_int tid in
+      (make_axiom_clause axiomName term) :: a)
+    (getThreadClauses()) []
+
+let makeTotalOrderAxioms () =
+  let cc = getCurrentClauses () in
+  let term = SB.mk_list_rel SmtSimpleAst.Lt (SB.mk_intConst 0L :: (List.map get_hb_var cc)) in
+  [make_axiom_clause "TotalOrder" term]
+
+let makeEmptyAxioms() = []
+let makeGraphAxioms graph = 
+  Dsngraph.G.fold_edges_e 
+    (fun e a -> 
+      let src = Dsngraph.G.E.src e in
+      let dst = Dsngraph.G.E.dst e in
+      let label = Dsngraph.G.E.label e in
+      let term = mkHbRel src dst in
+      let name = (Dsngraph.string_of_hazard label) ^ (clause_name src) ^ (clause_name dst) in
+      (make_axiom_clause name term) :: a
+    ) graph []
+let makeHazardAxioms() = makeGraphAxioms (getCurrentGraph())
+
 (* make sure that make_flags is set if we use this!*)
 let make_hazards graph hazards intrathreadHazards clause formula = 
   if HazardSet.is_empty hazards then 
@@ -401,7 +432,6 @@ let encode_hazards graph hazards intrathreadHazards =
 let make_hb (clause : clause) formula =
   match clause.typ with
     | ProgramStmt _ -> 
-      let mkHbRel c1 c2 = SB.mk_rel SmtSimpleAst.Lt (get_hb_var c1) (get_hb_var c2) in
       let make_hb_onevar v = 
 	let readFrom = getDefiningClause v in
 	let defClauses = IntCLMap.find v.vidx (getVarDefClauses()) in
@@ -427,6 +457,8 @@ let encode_formula opts clause =
   let form = opts.makeFlowSensitive clause form in
   let form = opts.makeHazards clause form in
   form    
+
+
     
 let make_var_decl v =
   let ts = SmtSimpleAst.string_of_sort (get_var_type v) in 

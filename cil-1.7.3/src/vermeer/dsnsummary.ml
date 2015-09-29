@@ -22,6 +22,7 @@ type summaryOpts =  {
   mutable trackedHazards : HazardSet.t;
   mutable calcStats : bool;
   mutable intrathreadHazards : bool;
+  mutable axiomMaker : axiomFn;
 }
 
 let opts = {
@@ -33,6 +34,7 @@ let opts = {
   trackedHazards = HazardSet.empty;
   calcStats = false;
   intrathreadHazards = true;
+  axiomMaker = makeEmptyAxioms;
 }
 
 let addTrackedHazard hazard = opts.trackedHazards <- HazardSet.add hazard opts.trackedHazards
@@ -295,24 +297,6 @@ let partition_to_file technique reduced id =
     (fun x -> (technique x) = id) reduced in
   print_endline (string_of_formula interpolant)
 
-
-(* for now, just ignore the clauses and make all the axioms *)
-(* assert po for each thread *)
-let makeProgramOrderAxioms () =
-  IntCLMap.fold 
-    (fun tid vl a -> 
-      let term = SB.mk_list_rel SmtSimpleAst.Lt (List.map get_hb_var vl) in 
-      let axiomName = "po" ^ string_of_int tid in
-      (make_axiom_clause axiomName term) :: a)
-    (getThreadClauses()) []
-
-let makeTotalOrderAxioms () =
-  let cc = getCurrentClauses () in
-  let term = SB.mk_list_rel SmtSimpleAst.Lt (SB.mk_intConst 0L :: (List.map get_hb_var cc)) in
-  [make_axiom_clause "TotalOrder" term]
-
-let getCurrentAxioms = makeTotalOrderAxioms
-
 (******************** Actually do the pass over the code ********************)
 
 let dsnsmt (f: file) : unit =
@@ -336,7 +320,7 @@ let dsnsmt (f: file) : unit =
   end;
 
   (* add a true assertion at the begining of the program *)
-  let axioms = getCurrentAxioms() in
+  let axioms = opts.axiomMaker() in
   print_endline (string_of_int (List.length axioms));
   let clauses = make_true_clause() :: (axioms @ getCurrentClauses()) in
   if opts.calcStats then calculate_stats "Initial" clauses;
@@ -431,9 +415,11 @@ let safe_shutdown f =
 	   " Makes the encoding raw hazard sensitive");
 	  ("--hazardsensitivewaw", Arg.Unit (fun x -> addTrackedHazard Dsngraph.HAZARD_WAW),  
 	   " Makes the encoding raw hazard sensitive");
-	  ("--hbsensitive", Arg.String 
-	    (function 
-	      | "totalorder" -> encode_hb()
+	  ("--hbsensitive", Arg.String (fun x ->
+	    encode_hb();
+	    match x with
+	      | "totalorder" -> opts.axiomMaker <- makeTotalOrderAxioms
+	      | "partialorder" -> opts.axiomMaker <- makeHazardAxioms
 	      | x -> failwith (x ^ " is not a valid argument for --hbsensitive")),
 	   " Makes the encoding happens-before sensitive");
 	  ("--smtbeautify", Arg.Unit (fun x -> Dsnsmt.opts.beautifyFormulas <- true),
