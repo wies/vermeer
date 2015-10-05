@@ -42,16 +42,16 @@
 ) :named TRACES))
 
 ; requiring different values for the timestamps of the blocks
-(assert (! (not (= b1 b2)) :named NEQ_B1_B2)
-(assert (! (not (= b1 b3)) :named NEQ_B1_B3)
-(assert (! (not (= b1 b4)) :named NEQ_B1_B4)
-(assert (! (not (= b1 b5)) :named NEQ_B1_B5)
-(assert (! (not (= b2 b3)) :named NEQ_B2_B3)
-(assert (! (not (= b2 b4)) :named NEQ_B2_B4)
-(assert (! (not (= b2 b5)) :named NEQ_B2_B5)
-(assert (! (not (= b3 b4)) :named NEQ_B3_B4)
-(assert (! (not (= b3 b5)) :named NEQ_B3_B5)
-(assert (! (not (= b4 b5)) :named NEQ_B4_B5)
+(assert (! (not (= b1 b2)) :named NEQ_B1_B2))
+(assert (! (not (= b1 b3)) :named NEQ_B1_B3))
+(assert (! (not (= b1 b4)) :named NEQ_B1_B4))
+(assert (! (not (= b1 b5)) :named NEQ_B1_B5))
+(assert (! (not (= b2 b3)) :named NEQ_B2_B3))
+(assert (! (not (= b2 b4)) :named NEQ_B2_B4))
+(assert (! (not (= b2 b5)) :named NEQ_B2_B5))
+(assert (! (not (= b3 b4)) :named NEQ_B3_B4))
+(assert (! (not (= b3 b5)) :named NEQ_B3_B5))
+(assert (! (not (= b4 b5)) :named NEQ_B4_B5))
 
 (check-sat)
 
