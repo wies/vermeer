@@ -2,7 +2,7 @@
 
 DIRS="-Is ."
 TARGET="merge_main "
-FLAGS="-cflag -g -lflag -g -libs unix,str,nums $DIRS"
+FLAGS="-cflag -g -lflag -g -libs unix,str,nums,xml-light $DIRS"
 OCAMLBUILD=ocamlbuild
 
 ocb()
