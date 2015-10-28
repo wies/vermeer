@@ -3,3 +3,4 @@ test.exe
 xml_lexer.ml
 xml_parser.ml
 xml_parser.mli
+test_opt.exe
