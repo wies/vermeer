@@ -1,0 +1,142 @@
+<trace>
+<declarations size="19">
+<variable-declaration id="0" variable="0" ssa-index="0" type="int" thread="global"/>
+<variable-declaration id="1" variable="0" ssa-index="1" type="int" thread="global"/>
+<variable-declaration id="2" variable="0" ssa-index="2" type="int" thread="global"/>
+<variable-declaration id="3" variable="0" ssa-index="3" type="int" thread="global"/>
+<variable-declaration id="4" variable="0" ssa-index="4" type="int" thread="global"/>
+<variable-declaration id="5" variable="1" ssa-index="0" type="int" thread="global"/>
+<variable-declaration id="6" variable="1" ssa-index="1" type="int" thread="global"/>
+<variable-declaration id="7" variable="1" ssa-index="2" type="int" thread="global"/>
+<variable-declaration id="8" variable="2" ssa-index="0" type="int" thread="global"/>
+<variable-declaration id="9" variable="2" ssa-index="1" type="int" thread="global"/>
+<variable-declaration id="10" variable="2" ssa-index="2" type="int" thread="global"/>
+<variable-declaration id="11" variable="101000000" ssa-index="0" type="int" thread="1"/>
+<variable-declaration id="12" variable="101000000" ssa-index="1" type="int" thread="1"/>
+<variable-declaration id="13" variable="101000000" ssa-index="2" type="int" thread="1"/>
+<variable-declaration id="14" variable="101000000" ssa-index="3" type="int" thread="1"/>
+<variable-declaration id="15" variable="101000000" ssa-index="4" type="int" thread="1"/>
+<variable-declaration id="16" variable="102000000" ssa-index="0" type="int" thread="2"/>
+<variable-declaration id="17" variable="102000000" ssa-index="1" type="int" thread="2"/>
+<variable-declaration id="18" variable="102000000" ssa-index="2" type="int" thread="2"/>
+</declarations>
+<statements size="20">
+<statement type="assignment" position="0" thread="0">
+<lhs variable-id="0"/>
+<rhs const="0">
+</rhs>
+</statement>
+<statement type="assignment" position="1" thread="0">
+<lhs variable-id="5"/>
+<rhs const="0">
+</rhs>
+</statement>
+<statement type="assignment" position="2" thread="0">
+<lhs variable-id="8"/>
+<rhs const="0">
+</rhs>
+</statement>
+<statement type="assignment" position="3" thread="0">
+<lhs variable-id="1"/>
+<rhs const="50">
+</rhs>
+</statement>
+<statement type="assignment" position="4" thread="0">
+<lhs variable-id="6"/>
+<rhs const="0">
+</rhs>
+</statement>
+<statement type="assignment" position="5" thread="0">
+<lhs variable-id="9"/>
+<rhs const="0">
+</rhs>
+</statement>
+<statement type="assignment" position="6" thread="1">
+<lhs variable-id="11"/>
+<rhs const="11144">
+</rhs>
+</statement>
+<statement type="assignment" position="7" thread="2">
+<lhs variable-id="16"/>
+<rhs const="0">
+</rhs>
+</statement>
+<statement type="assignment" position="8" thread="1">
+<lhs variable-id="12"/>
+<rhs const="0">
+<term variable-id="1" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="9" thread="1">
+<lhs variable-id="13"/>
+<rhs const="10">
+<term variable-id="12" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="10" thread="1">
+<lhs variable-id="2"/>
+<rhs const="0">
+<term variable-id="13" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="11" thread="1">
+<lhs variable-id="14"/>
+<rhs const="0">
+<term variable-id="2" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="12" thread="1">
+<lhs variable-id="15"/>
+<rhs const="5">
+<term variable-id="14" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="13" thread="1">
+<lhs variable-id="3"/>
+<rhs const="0">
+<term variable-id="15" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="14" thread="2">
+<lhs variable-id="17"/>
+<rhs const="0">
+<term variable-id="1" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="15" thread="2">
+<lhs variable-id="18"/>
+<rhs const="-5">
+<term variable-id="17" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="16" thread="2">
+<lhs variable-id="4"/>
+<rhs const="0">
+<term variable-id="18" factor="1"/>
+</rhs>
+</statement>
+<statement type="assignment" position="17" thread="1">
+<lhs variable-id="7"/>
+<rhs const="1">
+</rhs>
+</statement>
+<statement type="assignment" position="18" thread="2">
+<lhs variable-id="10"/>
+<rhs const="1">
+</rhs>
+</statement>
+<statement type="assert" position="19" thread="0">
+<expression operator="EQ" const="-60">
+<term variable-id="4" factor="1"/>
+</expression>
+<guards size="2">
+<expression operator="NEQ" const="0">
+<term variable-id="7" factor="1"/>
+</expression>
+<expression operator="NEQ" const="0">
+<term variable-id="10" factor="1"/>
+</expression>
+</guards>
+</statement>
+</statements>
+</trace>
