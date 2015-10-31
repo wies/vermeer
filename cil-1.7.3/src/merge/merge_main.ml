@@ -8,7 +8,14 @@ let handle_statements xml =
 
 let rec process_trace_children l = 
   match l with 
-  | x :: m -> print_endline (Xml.tag x); process_trace_children m
+  | x :: m -> 
+    process_trace_children m;
+    (
+      match (Xml.tag x) with
+      | "declarations" -> handle_variable_declarations x
+      | "statements" -> handle_statements x
+      | _ -> ()
+    )
   | [] -> ()
 
 let handle_trace xml = 
