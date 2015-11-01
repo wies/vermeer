@@ -167,15 +167,6 @@ type statement_info = {
   guards : expression list
 };;
 
-type assertion_statement = {
-  info : statement_info;
-  condition : expression
-};;
-
-type assume_statement = {
-  info : statement_info;
-  condition : expression
-};;
 
 type assignment_statement = {
   assigned_variable : int;
