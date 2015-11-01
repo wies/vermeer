@@ -1,9 +1,25 @@
 open Xml
 
+type variable_declaration = {
+  id : int;
+  variable : int;
+  ssa_index : int;
+  variable_type : string;
+  thread : string
+};;
+
 let handle_variable_declarations xml =
-  let aux decls xml_child = (Xml.attrib xml_child "id") :: decls in
+  let aux decls xml_child = 
+    {
+      id = int_of_string (Xml.attrib xml_child "id");
+      variable = int_of_string (Xml.attrib xml_child "variable");
+      ssa_index = int_of_string (Xml.attrib xml_child "ssa-index");
+      variable_type = (Xml.attrib xml_child "type");
+      thread = (Xml.attrib xml_child "thread")
+    } :: decls 
+  in
   let var_decls = List.rev (Xml.fold aux [] xml) in
-  let aux_two element = print_endline element in
+  let aux_two element = print_endline (string_of_int element.id) in
   List.iter aux_two var_decls
 
 let handle_statements xml = 
