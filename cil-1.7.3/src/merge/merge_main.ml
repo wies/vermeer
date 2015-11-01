@@ -122,51 +122,12 @@ let expression_of_xml xml =
   }
 ;;
 
-(*
-type statement = {
-  position : int;
-  thread : int;
-  stmt_type : statement_type;
-  guards : expression list
-};;
-
-let statement_type_of_string type_str = 
-  match type_str with
-  | "assignment" -> Assignment
-  | "assert" -> Assert
-  | "assume" -> Assume
-  | _ -> raise (Invalid_argument "Not a valid statement type")
-;;
-
-let string_of_statement_type stmt_type = 
-  match stmt_type with
-  | Assignment -> "assignment"
-  | Assert -> "assert"
-  | Assume -> "assume"
-;;
-
-
-let xml_format_of_statement stmt = 
-  "<statement position=\"" ^ (string_of_int stmt.position) ^ " thread=\"" ^ (string_of_int stmt.thread) ^ "\" type=\"" ^ (string_of_statement_type stmt.stmt_type) ^ "\"></statement>"
-;;
-
-let statement_of_xml xml = 
-  { 
-    position = int_of_string (Xml.attrib xml "position");
-    thread = int_of_string (Xml.attrib xml "thread");
-    stmt_type = statement_type_of_string (Xml.attrib xml "type");
-    guards = [] (* TODO fix *)
-  }
-;;
-*)
-
 
 type statement_info = {
   position : int;
   thread : int;
   guards : expression list
 };;
-
 
 type assignment_statement = {
   assigned_variable : int;
