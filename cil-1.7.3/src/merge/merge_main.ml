@@ -5,8 +5,8 @@ type variable_declaration = {
   id : int;
   variable : int;
   ssa_index : int;
-  variable_type : string;
-  thread : string
+  variable_type : string; (* TODO turn this into an enum type *)
+  thread : string (* TODO turn this into an enum type *)
 };;
 
 let xml_format_of_variable_declaration vdecl = 
@@ -36,7 +36,7 @@ let handle_variable_declarations xml =
 type statement = {
   position : int;
   thread : int;
-  statement_type : string
+  statement_type : string (* TODO: make this an enum type *)
 };;
 
 let xml_format_of_statement stmt = 
