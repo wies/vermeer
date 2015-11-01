@@ -58,6 +58,21 @@ let handle_variable_declarations xml =
 ;;
 
 
+type term = {
+  variable_id : int;
+  factor : int;
+};;
+
+let term_of_xml xml =
+{
+  variable_id = int_of_string (Xml.attrib xml "variable-id");
+  factor = int_of_string (Xml.attrib xml "factor");
+};;
+
+let xml_format_of_term t = 
+  "<term variable-id=\"" ^ (string_of_int t.variable_id) ^ "\" factor=\"" ^ (string_of_int t.factor) ^ "\"/>"
+;;
+
 type statement = {
   position : int;
   thread : int;
