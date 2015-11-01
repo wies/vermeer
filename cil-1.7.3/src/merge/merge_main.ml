@@ -13,15 +13,19 @@ let xml_format_of_variable_declaration vdecl =
   "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ vdecl.variable_type ^ "\" thread=\"" ^ vdecl.thread ^ "\"/>"
 ;;
 
+let variable_declaration_of_xml xml = 
+{
+  id = int_of_string (Xml.attrib xml "id");
+  variable = int_of_string (Xml.attrib xml "variable");
+  ssa_index = int_of_string (Xml.attrib xml "ssa-index");
+  variable_type = (Xml.attrib xml "type");
+  thread = (Xml.attrib xml "thread")
+}
+;;
+
 let handle_variable_declarations xml =
   let aux decls xml_child = 
-    decls @ [ {
-      id = int_of_string (Xml.attrib xml_child "id");
-      variable = int_of_string (Xml.attrib xml_child "variable");
-      ssa_index = int_of_string (Xml.attrib xml_child "ssa-index");
-      variable_type = (Xml.attrib xml_child "type");
-      thread = (Xml.attrib xml_child "thread")
-    } ]
+    decls @ [ (variable_declaration_of_xml xml_child) ]
   in
   let var_decls = Xml.fold aux [] xml in
   let aux_two element = print_endline (xml_format_of_variable_declaration element) in
