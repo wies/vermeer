@@ -2,14 +2,25 @@ open Xml
 
 type statement_type = Assert | Assume | Assignment;;
 type visibility = Global | Local of int;;
+type variable_type = Int;;
 
 type variable_declaration = {
   id : int;
   variable : int;
   ssa_index : int;
-  var_type : string; (* TODO turn this into an enum type *)
+  var_type : variable_type;
   thread : visibility
 };;
+
+let variable_type_of_string var_type_str = 
+  match var_type_str with
+  | "int" -> Int
+  | _ -> raise (Invalid_argument "Unsupported variable type")
+;;
+
+let string_of_variable_type var_type = 
+  "int"
+;;
 
 let visibility_of_string vis_str = 
   match vis_str with
@@ -24,7 +35,7 @@ let string_of_visibility vis_type =
 ;;
 
 let xml_format_of_variable_declaration vdecl = 
-  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ vdecl.var_type ^ "\" thread=\"" ^ (string_of_visibility vdecl.thread) ^ "\"/>"
+  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ (string_of_variable_type vdecl.var_type) ^ "\" thread=\"" ^ (string_of_visibility vdecl.thread) ^ "\"/>"
 ;;
 
 let variable_declaration_of_xml xml = 
@@ -32,7 +43,7 @@ let variable_declaration_of_xml xml =
   id = int_of_string (Xml.attrib xml "id");
   variable = int_of_string (Xml.attrib xml "variable");
   ssa_index = int_of_string (Xml.attrib xml "ssa-index");
-  var_type = (Xml.attrib xml "type");
+  var_type = (variable_type_of_string (Xml.attrib xml "type"));
   thread = (visibility_of_string (Xml.attrib xml "thread"))
 }
 ;;
