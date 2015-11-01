@@ -1,5 +1,6 @@
 open Xml
 
+
 type variable_declaration = {
   id : int;
   variable : int;
@@ -9,7 +10,8 @@ type variable_declaration = {
 };;
 
 let xml_format_of_variable_declaration vdecl = 
-  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ vdecl.variable_type ^ "\" thread=\"" ^ vdecl.thread ^ "\"/>";;
+  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ vdecl.variable_type ^ "\" thread=\"" ^ vdecl.thread ^ "\"/>"
+;;
 
 let handle_variable_declarations xml =
   let aux decls xml_child = 
@@ -24,9 +26,26 @@ let handle_variable_declarations xml =
   let var_decls = Xml.fold aux [] xml in
   let aux_two element = print_endline (xml_format_of_variable_declaration element) in
   List.iter aux_two var_decls
+;;
+
+
+type statement = {
+  position : int
+};;
+
+let xml_format_of_statement stmt = 
+  "<statement position=\"" ^ (string_of_int stmt.position) ^ "\"></statement>"
+;;
 
 let handle_statements xml = 
-  print_endline "TODO: handle_statements"
+  let aux stmts xml_child =
+    stmts @ [ { position = 0 } ]
+  in
+  let stmts = Xml.fold aux [] xml in
+  let aux_two element = print_endline (xml_format_of_statement element) in
+  List.iter aux_two stmts
+;;
+
 
 let rec process_trace_children l = 
   match l with 
