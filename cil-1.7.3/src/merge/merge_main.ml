@@ -8,18 +8,21 @@ type variable_declaration = {
   thread : string
 };;
 
+let xml_format_of_variable_declaration vdecl = 
+  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ vdecl.variable_type ^ "\" thread=\"" ^ vdecl.thread ^ "\"/>";;
+
 let handle_variable_declarations xml =
   let aux decls xml_child = 
-    {
+    decls @ [ {
       id = int_of_string (Xml.attrib xml_child "id");
       variable = int_of_string (Xml.attrib xml_child "variable");
       ssa_index = int_of_string (Xml.attrib xml_child "ssa-index");
       variable_type = (Xml.attrib xml_child "type");
       thread = (Xml.attrib xml_child "thread")
-    } :: decls 
+    } ]
   in
-  let var_decls = List.rev (Xml.fold aux [] xml) in
-  let aux_two element = print_endline (string_of_int element.id) in
+  let var_decls = Xml.fold aux [] xml in
+  let aux_two element = print_endline (xml_format_of_variable_declaration element) in
   List.iter aux_two var_decls
 
 let handle_statements xml = 
