@@ -185,7 +185,27 @@ type assignment_statement = {
 
 type statement = Assertion of statement_info * expression | Assume of statement_info * expression | Assignment of statement_info * assignment_statement;;
 
-let xml_format_of_statement stmt = "unimplemented"
+let xml_format_of_statement stmt = 
+  let position_str = 
+    match stmt with
+    | Assertion(stmt_info, _) -> string_of_int stmt_info.position
+    | Assume(stmt_info, _) -> string_of_int stmt_info.position
+    | Assignment(stmt_info, _) -> string_of_int stmt_info.position
+  in
+  let thread_str = 
+    match stmt with
+    | Assertion(stmt_info, _) -> string_of_int stmt_info.thread
+    | Assume(stmt_info, _) -> string_of_int stmt_info.thread
+    | Assignment(stmt_info, _) -> string_of_int stmt_info.thread
+  in
+  let type_str = 
+    match stmt with
+    | Assertion(_, _) -> "assert"
+    | Assume(_, _) -> "assume"
+    | Assignment(_, _) -> "assignment"
+  in
+  "<statement position=\"" ^ position_str ^ " thread=\"" ^ thread_str ^ "\" type=\"" ^ type_str ^ "\">\n" ^
+  "</statement>"
 ;;
 
 let guards_of_xml xml = 
@@ -220,10 +240,6 @@ let assume_of_xml xml stmt_info =
   in 
   let c = List.hd (List.fold_left aux [] (Xml.children xml)) in 
   Assume(stmt_info, c)
-;;
-
-let assigned_variable_from_xml xml = 
-  0
 ;;
 
 let assignment_of_xml xml stmt_info = 
