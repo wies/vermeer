@@ -93,7 +93,7 @@ let term_of_xml xml =
 };;
 
 let xml_format_of_term t = 
-  "<term variable-id=\"" ^ (string_of_int t.variable_id) ^ "\" factor=\"" ^ (string_of_int t.factor) ^ "\"/>"
+  "<term variable-id=\"" ^ (string_of_int t.variable_id) ^ "\" factor=\"" ^ (string_of_int t.factor) ^ "\"/>\n"
 ;;
 
 type expression = {
@@ -156,7 +156,17 @@ let xml_format_of_statement stmt =
     | Assume(_, _) -> "assume"
     | Assignment(_, _) -> "assignment"
   in
+  let guards_str = "" (* TODO implement *)
+  in
+  let stmt_str = 
+    match stmt with
+    | Assertion(_, expr) -> xml_format_of_expression expr
+    | Assume(_, expr) -> xml_format_of_expression expr
+    | Assignment(_, _) -> "" (* TODO implement *)
+  in
   "<statement position=\"" ^ position_str ^ " thread=\"" ^ thread_str ^ "\" type=\"" ^ type_str ^ "\">\n" ^
+  guards_str ^
+  stmt_str ^
   "</statement>"
 ;;
 
