@@ -58,6 +58,29 @@ let handle_variable_declarations xml =
 ;;
 
 
+type expression_operator = EQ | NEQ | LT | GT | LEQ | GEQ;;
+
+let expression_operator_of_string str = 
+  match str with
+  | "EQ" -> EQ
+  | "NEQ" -> NEQ
+  | "LT" -> LT
+  | "LEQ" -> LEQ
+  | "GT" -> GT
+  | "GEQ" -> GEQ
+  | _ -> raise (Invalid_argument "Unsupported operator")
+;;
+
+let string_of_expression_operator op =
+  match op with
+  | EQ -> "EQ"
+  | NEQ -> "NEQ"
+  | LT -> "LT"
+  | LEQ -> "LEQ"
+  | GT -> "GT"
+  | GEQ -> "GEQ"
+;;
+
 type term = {
   variable_id : int;
   factor : int;
@@ -71,6 +94,20 @@ let term_of_xml xml =
 
 let xml_format_of_term t = 
   "<term variable-id=\"" ^ (string_of_int t.variable_id) ^ "\" factor=\"" ^ (string_of_int t.factor) ^ "\"/>"
+;;
+
+type expression = {
+  operator : expression_operator;
+  constant : int;
+  terms : term list;
+};;
+
+let xml_format_of_expression e = 
+  let aux str term_element = 
+    str ^ (xml_format_of_term term_element)
+  in
+  let str = List.fold_left aux "" e.terms in
+  "<expression operator=\"" ^ (string_of_expression_operator e.operator) ^ "\" const=\"" ^ (string_of_int e.constant) ^ "\">\n" ^ str ^ "</expression>\n"
 ;;
 
 type statement = {
