@@ -1,6 +1,5 @@
 open Xml
 
-(*type statement_type = Assert | Assume | Assignment;;*)
 type visibility = Global | Local of int;;
 type variable_type = Int;;
 
