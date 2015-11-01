@@ -162,7 +162,10 @@ let xml_format_of_statement stmt =
     match stmt with
     | Assertion(_, expr) -> xml_format_of_expression expr
     | Assume(_, expr) -> xml_format_of_expression expr
-    | Assignment(_, _) -> "" (* TODO implement *)
+    | Assignment(_, astmt) -> 
+      let aux_term s t = s ^ (xml_format_of_term t) in
+      let term_str = List.fold_left aux_term "" astmt.terms in 
+      "<lhs variable-id=\"" ^ (string_of_int astmt.assigned_variable) ^ "\"/>\n<rhs const=\"" ^ (string_of_int astmt.constant) ^ "\">\n" ^ term_str ^ "</rhs>\n"
   in
   "<statement position=\"" ^ position_str ^ " thread=\"" ^ thread_str ^ "\" type=\"" ^ type_str ^ "\">\n" ^
   guards_str ^
