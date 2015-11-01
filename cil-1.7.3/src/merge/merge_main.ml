@@ -311,11 +311,11 @@ let handle_trace xml =
   if String.compare (Xml.tag xml) "trace" == 0 then
     let trace = process_trace_children (Xml.children xml) in print_endline (xml_format_of_trace trace)
   else
-    print_endline "ERROR: malformed xml file!"
+    raise (Invalid_argument "Malformed xml file!")
 
 let run () = 
   (try
-    let x = Xml.parse_file "example.xml" (*(Xml.parse_string "<bla>hello</bla>")*)
+    let x = Xml.parse_file "example.xml"
     in 
       handle_trace x
   with
