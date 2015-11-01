@@ -173,7 +173,7 @@ let xml_format_of_statement stmt =
       let term_str = List.fold_left aux_term "" astmt.terms in 
       "<lhs variable-id=\"" ^ (string_of_int astmt.assigned_variable) ^ "\"/>\n<rhs const=\"" ^ (string_of_int astmt.constant) ^ "\">\n" ^ term_str ^ "</rhs>\n"
   in
-  "<statement position=\"" ^ position_str ^ " thread=\"" ^ thread_str ^ "\" type=\"" ^ type_str ^ "\">\n" ^
+  "<statement position=\"" ^ position_str ^ "\" thread=\"" ^ thread_str ^ "\" type=\"" ^ type_str ^ "\">\n" ^
   guards_str ^
   stmt_str ^
   "</statement>\n"
