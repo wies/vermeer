@@ -156,7 +156,22 @@ let xml_format_of_statement stmt =
     | Assume(_, _) -> "assume"
     | Assignment(_, _) -> "assignment"
   in
-  let guards_str = "" (* TODO implement *)
+  let guards_str =     
+    match stmt with
+    | Assertion(stmt_info, _) -> 
+      let l = (List.length stmt_info.guards) in 
+      let expr_str = 
+        let aux s expr = s ^ (xml_format_of_expression expr) in
+        List.fold_left aux "" stmt_info.guards
+      in
+      if (l > 0) then 
+        "<guards size=\"" ^ (string_of_int l) ^ "\">\n" ^
+        expr_str ^ 
+        "</guards>\n" 
+      else 
+        ""
+    | Assume(stmt_info, _) -> "TODO: unimplemented\n"
+    | Assignment(stmt_info, _) -> "TODO: unimplemented\n"
   in
   let stmt_str = 
     match stmt with
