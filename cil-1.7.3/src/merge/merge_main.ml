@@ -140,15 +140,11 @@ type statement = Assertion of statement_info * expression | Assume of statement_
 let xml_format_of_statement stmt = 
   let position_str = 
     match stmt with
-    | Assertion(stmt_info, _) -> string_of_int stmt_info.position
-    | Assume(stmt_info, _) -> string_of_int stmt_info.position
-    | Assignment(stmt_info, _) -> string_of_int stmt_info.position
+    | Assertion(stmt_info, _) | Assume(stmt_info, _) | Assignment(stmt_info, _) -> string_of_int stmt_info.position
   in
   let thread_str = 
     match stmt with
-    | Assertion(stmt_info, _) -> string_of_int stmt_info.thread
-    | Assume(stmt_info, _) -> string_of_int stmt_info.thread
-    | Assignment(stmt_info, _) -> string_of_int stmt_info.thread
+    | Assertion(stmt_info, _) | Assume(stmt_info, _) | Assignment(stmt_info, _) -> string_of_int stmt_info.thread
   in
   let type_str = 
     match stmt with
@@ -158,7 +154,7 @@ let xml_format_of_statement stmt =
   in
   let guards_str =     
     match stmt with
-    | Assertion(stmt_info, _) -> 
+    | Assertion(stmt_info, _) | Assume(stmt_info, _) | Assignment(stmt_info, _) -> 
       let l = (List.length stmt_info.guards) in 
       let expr_str = 
         let aux s expr = s ^ (xml_format_of_expression expr) in
@@ -170,13 +166,10 @@ let xml_format_of_statement stmt =
         "</guards>\n" 
       else 
         ""
-    | Assume(stmt_info, _) -> "TODO: unimplemented\n"
-    | Assignment(stmt_info, _) -> "TODO: unimplemented\n"
   in
   let stmt_str = 
     match stmt with
-    | Assertion(_, expr) -> xml_format_of_expression expr
-    | Assume(_, expr) -> xml_format_of_expression expr
+    | Assertion(_, expr) | Assume(_, expr) -> xml_format_of_expression expr
     | Assignment(_, astmt) -> 
       let aux_term s t = s ^ (xml_format_of_term t) in
       let term_str = List.fold_left aux_term "" astmt.terms in 
