@@ -34,7 +34,7 @@ let string_of_visibility vis_type =
 ;;
 
 let xml_format_of_variable_declaration vdecl = 
-  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ (string_of_variable_type vdecl.var_type) ^ "\" thread=\"" ^ (string_of_visibility vdecl.thread) ^ "\"/>"
+  "<variable-declaration id=\"" ^ (string_of_int vdecl.id) ^ "\" variable=\"" ^ (string_of_int vdecl.variable) ^ "\" ssa-index=\"" ^ (string_of_int vdecl.ssa_index) ^ "\" type=\"" ^ (string_of_variable_type vdecl.var_type) ^ "\" thread=\"" ^ (string_of_visibility vdecl.thread) ^ "\"/>\n"
 ;;
 
 let variable_declaration_of_xml xml = 
@@ -52,8 +52,10 @@ let handle_variable_declarations xml =
     decls @ [ (variable_declaration_of_xml xml_child) ]
   in
   let var_decls = Xml.fold aux [] xml in
+  var_decls
+(*
   let aux_two element = print_endline (xml_format_of_variable_declaration element) in
-  List.iter aux_two var_decls
+  List.iter aux_two var_decls*)
 ;;
 
 
@@ -177,7 +179,7 @@ let xml_format_of_statement stmt =
   "<statement position=\"" ^ position_str ^ " thread=\"" ^ thread_str ^ "\" type=\"" ^ type_str ^ "\">\n" ^
   guards_str ^
   stmt_str ^
-  "</statement>"
+  "</statement>\n"
 ;;
 
 let guards_of_xml xml = 
@@ -264,26 +266,55 @@ let handle_statements xml =
     stmts @ [ (statement_of_xml xml_child) ]
   in
   let stmts = Xml.fold aux [] xml in
-  let aux_two element = print_endline (xml_format_of_statement element) in
-  List.iter aux_two stmts
+  stmts
+  (*let aux_two element = print_endline (xml_format_of_statement element) in
+  List.iter aux_two stmts*)
 ;;
 
 
+type trace = {
+  variable_declarations : variable_declaration list;
+  statements : statement list
+};;
+
+let xml_format_of_trace t = 
+  let nr_of_decls = List.length t.variable_declarations in 
+  let nr_of_stmts = List.length t.statements in 
+  let aux_decls s decl = s ^ (xml_format_of_variable_declaration decl) in
+  let decls_str = List.fold_left aux_decls "" t.variable_declarations in
+  let aux_stmts s stmt = s ^ (xml_format_of_statement stmt) in
+  let stmts_str = List.fold_left aux_stmts "" t.statements in
+  "<trace>\n" ^
+  "<declarations size=\"" ^ (string_of_int nr_of_decls) ^ "\">\n" ^
+  decls_str ^
+  "</declarations>\n" ^
+  "<statements size=\"" ^ (string_of_int nr_of_stmts) ^ "\">\n" ^
+  stmts_str ^
+  "</statements>\n" ^
+  "</trace>\n"
+;;
+
 let rec process_trace_children l = 
-  match l with 
-  | x :: m -> 
-    process_trace_children m;
-    (
-      match (Xml.tag x) with
-      | "declarations" -> handle_variable_declarations x
-      | "statements" -> handle_statements x
-      | _ -> ()
-    )
-  | [] -> ()
+  let aux_decls ds xml_child = 
+    if String.compare (Xml.tag xml_child) "declarations" == 0 then
+      (handle_variable_declarations xml_child) @ ds
+    else 
+      ds
+  in
+  let decls = List.fold_left aux_decls [] l in
+  let aux_stmts ss xml_child = 
+    if String.compare (Xml.tag xml_child) "statements" == 0 then
+      (handle_statements xml_child) @ ss
+    else 
+      ss
+  in
+  let stmts = List.fold_left aux_stmts [] l in
+  { variable_declarations = decls; statements = stmts }
+;;
 
 let handle_trace xml = 
   if String.compare (Xml.tag xml) "trace" == 0 then
-    process_trace_children (Xml.children xml)
+    let trace = process_trace_children (Xml.children xml) in print_endline (xml_format_of_trace trace)
   else
     print_endline "ERROR: malformed xml file!"
 
