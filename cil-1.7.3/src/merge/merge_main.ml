@@ -34,16 +34,26 @@ let handle_variable_declarations xml =
 
 
 type statement = {
-  position : int
+  position : int;
+  thread : int;
+  statement_type : string
 };;
 
 let xml_format_of_statement stmt = 
-  "<statement position=\"" ^ (string_of_int stmt.position) ^ "\"></statement>"
+  "<statement position=\"" ^ (string_of_int stmt.position) ^ " thread=\"" ^ (string_of_int stmt.thread) ^ "\" type=\"" ^ stmt.statement_type ^ "\"></statement>"
+;;
+
+let statement_of_xml xml = 
+{ 
+  position = int_of_string (Xml.attrib xml "position");
+  thread = int_of_string (Xml.attrib xml "thread");
+  statement_type = Xml.attrib xml "type";
+}
 ;;
 
 let handle_statements xml = 
   let aux stmts xml_child =
-    stmts @ [ { position = 0 } ]
+    stmts @ [ (statement_of_xml xml_child) ]
   in
   let stmts = Xml.fold aux [] xml in
   let aux_two element = print_endline (xml_format_of_statement element) in
