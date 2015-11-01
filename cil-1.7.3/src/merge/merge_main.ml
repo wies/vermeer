@@ -53,9 +53,6 @@ let handle_variable_declarations xml =
   in
   let var_decls = Xml.fold aux [] xml in
   var_decls
-(*
-  let aux_two element = print_endline (xml_format_of_variable_declaration element) in
-  List.iter aux_two var_decls*)
 ;;
 
 
@@ -267,8 +264,6 @@ let handle_statements xml =
   in
   let stmts = Xml.fold aux [] xml in
   stmts
-  (*let aux_two element = print_endline (xml_format_of_statement element) in
-  List.iter aux_two stmts*)
 ;;
 
 
