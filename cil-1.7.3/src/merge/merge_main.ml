@@ -192,7 +192,7 @@ let guards_of_xml xml =
   (* iterate through children and keep guards *)
   let aux guards xml_child = 
     match (Xml.tag xml_child) with
-    | "guard" -> let aux exprs xml_guard = (expression_of_xml xml_guard) :: exprs in List.fold_left aux [] (Xml.children xml_child)
+    | "guards" -> let aux exprs xml_guard = (expression_of_xml xml_guard) :: exprs in List.fold_left aux [] (Xml.children xml_child)
     | _ -> guards
   in
   List.fold_left aux [] (Xml.children xml)
