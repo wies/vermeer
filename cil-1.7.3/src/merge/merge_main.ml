@@ -178,18 +178,12 @@ type assume_statement = {
 };;
 
 type assignment_statement = {
-  bla : string
-};;
-(*
-  info : statement_info;
   assigned_variable : int;
   constant : int;
   terms : term list
 };;
-*)
 
-
-type statement = Assertion of statement_info * expression | Assume of statement_info * expression | Assignment of assignment_statement;;
+type statement = Assertion of statement_info * expression | Assume of statement_info * expression | Assignment of statement_info * assignment_statement;;
 
 let xml_format_of_statement stmt = "unimplemented"
 ;;
@@ -228,8 +222,40 @@ let assume_of_xml xml stmt_info =
   Assume(stmt_info, c)
 ;;
 
+let assigned_variable_from_xml xml = 
+  0
+;;
+
 let assignment_of_xml xml stmt_info = 
-  Assignment({ bla = "" })
+  let aux_lhs vars xml_child = 
+    (
+      match (Xml.tag xml_child) with 
+      | "lhs" -> [ int_of_string (Xml.attrib xml_child "variable-id") ] 
+      | _ -> vars 
+    )
+  in 
+  let var_id = List.hd (List.fold_left aux_lhs [] (Xml.children xml)) in
+  let aux_rhs_constant cs xml_child = 
+    (
+      match (Xml.tag xml_child) with
+      | "rhs" -> [ int_of_string (Xml.attrib xml_child "const") ]
+      | _ -> cs
+    )
+  in
+  let c = List.hd (List.fold_left aux_rhs_constant [] (Xml.children xml)) in
+  let aux_rhs_terms ts xml_child = 
+    (
+      match (Xml.tag xml_child) with
+      | "rhs" -> 
+        (
+          let aux_terms ds xml_term = (term_of_xml xml_term) :: ds in
+          List.fold_left aux_terms [] (Xml.children xml_child)
+        )
+      | _ -> ts
+    )
+  in
+  let ts = List.fold_left aux_rhs_terms [] (Xml.children xml)  in
+  Assignment(stmt_info, { assigned_variable = var_id; constant = c; terms = ts })
 ;;
 
 let statement_of_xml xml = 
