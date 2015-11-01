@@ -178,20 +178,58 @@ type assume_statement = {
 };;
 
 type assignment_statement = {
+  bla : string
+};;
+(*
   info : statement_info;
   assigned_variable : int;
   constant : int;
   terms : term list
 };;
+*)
 
-type statement = Assertion of assertion_statement | Assume of assume_statement | Assignment of assignment_statement;;
+
+type statement = Assertion of statement_info * expression | Assume of statement_info * expression | Assignment of assignment_statement;;
 
 let xml_format_of_statement stmt = "unimplemented"
 ;;
 
 let guards_of_xml xml = 
   (* iterate through children and keep guards *)
-  []
+  let aux guards xml_child = 
+    match (Xml.tag xml_child) with
+    | "guard" -> let aux exprs xml_guard = (expression_of_xml xml_guard) :: exprs in List.fold_left aux [] (Xml.children xml_child)
+    | _ -> guards
+  in
+  List.fold_left aux [] (Xml.children xml)
+;;
+
+let assertion_of_xml xml stmt_info = 
+  let aux conditions xml_child = 
+    (
+      match (Xml.tag xml_child) with 
+      | "expression" -> [ expression_of_xml xml_child ] 
+      | _ -> conditions 
+    )
+  in 
+  let c = List.hd (List.fold_left aux [] (Xml.children xml)) in 
+  Assertion(stmt_info, c)
+;;
+
+let assume_of_xml xml stmt_info = 
+  let aux conditions xml_child = 
+    (
+      match (Xml.tag xml_child) with 
+      | "expression" -> [ expression_of_xml xml_child ] 
+      | _ -> conditions 
+    )
+  in 
+  let c = List.hd (List.fold_left aux [] (Xml.children xml)) in 
+  Assume(stmt_info, c)
+;;
+
+let assignment_of_xml xml stmt_info = 
+  Assignment({ bla = "" })
 ;;
 
 let statement_of_xml xml = 
@@ -201,9 +239,9 @@ let statement_of_xml xml =
     guards = guards_of_xml xml
   } in 
   match (Xml.attrib xml "type") with
-  | "assert" -> (*let stmt = { info = stmt_info; condition = *)"assert"
-  | "assume" -> "assume"
-  | "assignment" -> "assignment"
+  | "assert" -> assertion_of_xml xml stmt_info
+  | "assume" -> assume_of_xml xml stmt_info
+  | "assignment" -> assignment_of_xml xml stmt_info
   | _ -> raise (Invalid_argument "Unsupported statement type")
 ;;
 
