@@ -1,6 +1,6 @@
 open Xml
 
-type statement_type = Assert | Assume | Assignment;;
+(*type statement_type = Assert | Assume | Assignment;;*)
 type visibility = Global | Local of int;;
 type variable_type = Int;;
 
@@ -110,10 +110,24 @@ let xml_format_of_expression e =
   "<expression operator=\"" ^ (string_of_expression_operator e.operator) ^ "\" const=\"" ^ (string_of_int e.constant) ^ "\">\n" ^ str ^ "</expression>\n"
 ;;
 
+let expression_of_xml xml = 
+  let op = expression_operator_of_string (Xml.attrib xml "operator") in
+  let c = int_of_string (Xml.attrib xml "const") in
+  let aux terms xml_child = (term_of_xml xml_child) :: terms in
+  let ts = List.fold_left aux [] (Xml.children xml) in
+  {
+    operator = op;
+    constant = c;
+    terms = ts
+  }
+;;
+
+(*
 type statement = {
   position : int;
   thread : int;
-  stmt_type : statement_type
+  stmt_type : statement_type;
+  guards : expression list
 };;
 
 let statement_type_of_string type_str = 
@@ -131,6 +145,7 @@ let string_of_statement_type stmt_type =
   | Assume -> "assume"
 ;;
 
+
 let xml_format_of_statement stmt = 
   "<statement position=\"" ^ (string_of_int stmt.position) ^ " thread=\"" ^ (string_of_int stmt.thread) ^ "\" type=\"" ^ (string_of_statement_type stmt.stmt_type) ^ "\"></statement>"
 ;;
@@ -139,8 +154,57 @@ let statement_of_xml xml =
   { 
     position = int_of_string (Xml.attrib xml "position");
     thread = int_of_string (Xml.attrib xml "thread");
-    stmt_type = statement_type_of_string (Xml.attrib xml "type")
+    stmt_type = statement_type_of_string (Xml.attrib xml "type");
+    guards = [] (* TODO fix *)
   }
+;;
+*)
+
+
+type statement_info = {
+  position : int;
+  thread : int;
+  guards : expression list
+};;
+
+type assertion_statement = {
+  info : statement_info;
+  condition : expression
+};;
+
+type assume_statement = {
+  info : statement_info;
+  condition : expression
+};;
+
+type assignment_statement = {
+  info : statement_info;
+  assigned_variable : int;
+  constant : int;
+  terms : term list
+};;
+
+type statement = Assertion of assertion_statement | Assume of assume_statement | Assignment of assignment_statement;;
+
+let xml_format_of_statement stmt = "unimplemented"
+;;
+
+let guards_of_xml xml = 
+  (* iterate through children and keep guards *)
+  []
+;;
+
+let statement_of_xml xml = 
+  let stmt_info = { 
+    position = int_of_string (Xml.attrib xml "position");
+    thread = int_of_string (Xml.attrib xml "thread");
+    guards = guards_of_xml xml
+  } in 
+  match (Xml.attrib xml "type") with
+  | "assert" -> (*let stmt = { info = stmt_info; condition = *)"assert"
+  | "assume" -> "assume"
+  | "assignment" -> "assignment"
+  | _ -> raise (Invalid_argument "Unsupported statement type")
 ;;
 
 let handle_statements xml = 
