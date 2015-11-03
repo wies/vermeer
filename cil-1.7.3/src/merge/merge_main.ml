@@ -337,10 +337,6 @@ let decompose_trace trace =
       let new_list = old_list @ [ stmt ] in
       ThreadMap.add k new_list map
     ) in
-  (*let aux k v = 
-    print_endline (string_of_int (Int32.to_int k)) in
-  (ThreadMap.iter aux m;
-  print_endline "Hello trace")*)
   List.fold_left aux_stmts m trace.statements
 ;;
 
