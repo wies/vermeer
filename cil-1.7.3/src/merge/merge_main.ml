@@ -290,30 +290,26 @@ let xml_format_of_trace t =
   "</trace>\n"
 ;;
 
-let process_trace_children l = 
-  let aux_decls ds xml_child = 
-    if String.compare (Xml.tag xml_child) "declarations" == 0 then
-      (handle_variable_declarations xml_child) @ ds
-    else 
-      ds
-  in
-  let decls = List.fold_left aux_decls [] l in
-  let aux_stmts ss xml_child = 
-    if String.compare (Xml.tag xml_child) "statements" == 0 then
-      (handle_statements xml_child) @ ss
-    else 
-      ss
-  in
-  let stmts = List.fold_left aux_stmts [] l in
-  { nr_of_threads = 0; variable_declarations = decls; statements = stmts }
-;;
-
 let read_trace filename =
   (try
     let xml = Xml.parse_file filename in 
     if String.compare (Xml.tag xml) "trace" == 0 then
-      let trace = process_trace_children (Xml.children xml) in 
-      trace
+      let l = (Xml.children xml) in
+      let aux_decls ds xml_child = 
+        if String.compare (Xml.tag xml_child) "declarations" == 0 then
+          (handle_variable_declarations xml_child) @ ds
+        else 
+          ds
+      in
+      let decls = List.fold_left aux_decls [] l in
+      let aux_stmts ss xml_child = 
+        if String.compare (Xml.tag xml_child) "statements" == 0 then
+          (handle_statements xml_child) @ ss
+        else 
+          ss
+      in
+      let stmts = List.fold_left aux_stmts [] l in
+      { nr_of_threads = (int_of_string (Xml.attrib xml "nr-of-threads")); variable_declarations = decls; statements = stmts }
     else
       raise (Invalid_argument "Malformed xml file!")
   with
