@@ -1,4 +1,4 @@
-<trace>
+<trace nr-of-threads="3">
 <declarations size="19">
 <variable-declaration id="0" variable="0" ssa-index="0" type="int" thread="global"/>
 <variable-declaration id="1" variable="0" ssa-index="1" type="int" thread="global"/>

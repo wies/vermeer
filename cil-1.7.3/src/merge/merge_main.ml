@@ -268,6 +268,7 @@ let handle_statements xml =
 
 
 type trace = {
+  nr_of_threads : int;
   variable_declarations : variable_declaration list;
   statements : statement list
 };;
@@ -279,7 +280,7 @@ let xml_format_of_trace t =
   let decls_str = List.fold_left aux_decls "" t.variable_declarations in
   let aux_stmts s stmt = s ^ (xml_format_of_statement stmt) in
   let stmts_str = List.fold_left aux_stmts "" t.statements in
-  "<trace>\n" ^
+  "<trace nr-of-threads\"" ^ (string_of_int t.nr_of_threads) ^ "\">\n" ^
   "<declarations size=\"" ^ (string_of_int nr_of_decls) ^ "\">\n" ^
   decls_str ^
   "</declarations>\n" ^
@@ -289,7 +290,7 @@ let xml_format_of_trace t =
   "</trace>\n"
 ;;
 
-let rec process_trace_children l = 
+let process_trace_children l = 
   let aux_decls ds xml_child = 
     if String.compare (Xml.tag xml_child) "declarations" == 0 then
       (handle_variable_declarations xml_child) @ ds
@@ -304,7 +305,7 @@ let rec process_trace_children l =
       ss
   in
   let stmts = List.fold_left aux_stmts [] l in
-  { variable_declarations = decls; statements = stmts }
+  { nr_of_threads = 0; variable_declarations = decls; statements = stmts }
 ;;
 
 let read_trace filename =
