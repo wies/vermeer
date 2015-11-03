@@ -330,16 +330,28 @@ let rec init_map i =
 
 let decompose_trace trace = 
   let m = init_map (trace.nr_of_threads - 1) in
-  let aux k v = 
+  let aux_stmts map stmt = 
+    (
+      let k = match stmt with | Assertion(si, _) | Assume(si, _) | Assignment(si, _) -> (Int32.of_int si.thread) in 
+      let old_list = ThreadMap.find k map in 
+      let new_list = old_list @ [ stmt ] in
+      ThreadMap.add k new_list map
+    ) in
+  (*let aux k v = 
     print_endline (string_of_int (Int32.to_int k)) in
   (ThreadMap.iter aux m;
-  print_endline "Hello trace")
+  print_endline "Hello trace")*)
+  List.fold_left aux_stmts m trace.statements
 ;;
 
 let run () = 
   let trace = read_trace "example.xml" in
   print_endline (xml_format_of_trace trace);
-  decompose_trace trace
+  let m = decompose_trace trace in
+  let aux k v = 
+    print_endline ((string_of_int (Int32.to_int k)) ^ " " ^ (string_of_int (List.length v))) in
+  ThreadMap.iter aux m
 ;;
     
 let () = run()
+
