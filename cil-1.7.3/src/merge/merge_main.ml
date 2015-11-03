@@ -307,19 +307,22 @@ let rec process_trace_children l =
   { variable_declarations = decls; statements = stmts }
 ;;
 
-let handle_trace xml = 
-  if String.compare (Xml.tag xml) "trace" == 0 then
-    let trace = process_trace_children (Xml.children xml) in print_endline (xml_format_of_trace trace)
-  else
-    raise (Invalid_argument "Malformed xml file!")
+let read_trace filename =
+  (try
+    let xml = Xml.parse_file filename in 
+    if String.compare (Xml.tag xml) "trace" == 0 then
+      let trace = process_trace_children (Xml.children xml) in 
+      trace
+    else
+      raise (Invalid_argument "Malformed xml file!")
+  with
+    | Xml.Error msg -> raise (Failure "XML error: ...") (*Printf.printf "Xml error: %s\n" (Xml.error msg)*)
+  )
+;;
 
 let run () = 
-  (try
-    let x = Xml.parse_file "example.xml"
-    in 
-      handle_trace x
-  with
-    | Xml.Error msg -> Printf.printf "Xml error: %s\n" (Xml.error msg)
-  )
+  let trace = read_trace "example.xml" in
+  print_endline (xml_format_of_trace trace)
+;;
     
 let () = run()
