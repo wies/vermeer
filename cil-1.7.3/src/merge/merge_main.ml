@@ -317,9 +317,29 @@ let read_trace filename =
   )
 ;;
 
+module ThreadMap = Map.Make(Int32)
+
+let rec init_map i = 
+  if i == 0 then
+    let m = ThreadMap.empty in
+    ThreadMap.add (Int32.of_int i) [] m
+  else
+    let m = init_map (i - 1) in
+    ThreadMap.add (Int32.of_int i) [] m
+;;
+
+let decompose_trace trace = 
+  let m = init_map (trace.nr_of_threads - 1) in
+  let aux k v = 
+    print_endline (string_of_int (Int32.to_int k)) in
+  (ThreadMap.iter aux m;
+  print_endline "Hello trace")
+;;
+
 let run () = 
   let trace = read_trace "example.xml" in
-  print_endline (xml_format_of_trace trace)
+  print_endline (xml_format_of_trace trace);
+  decompose_trace trace
 ;;
     
 let () = run()
