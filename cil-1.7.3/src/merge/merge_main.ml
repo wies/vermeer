@@ -11,6 +11,30 @@ type variable_declaration = {
   thread : visibility
 };;
 
+module VariableDeclarationMap = Map.Make(Int32);;
+
+class variable_declaration_map =
+  object(self)
+
+    val mutable var_map = VariableDeclarationMap.empty
+
+    method add vd = 
+      var_map <- VariableDeclarationMap.add (Int32.of_int vd.id) vd var_map
+
+    method add_all vds = 
+      let aux vd = self#add vd in
+      List.iter aux vds
+
+    method get id = 
+      VariableDeclarationMap.find (Int32.of_int id) var_map
+
+    method print = 
+      let aux key vd = print_endline (Int32.to_string key) in
+      VariableDeclarationMap.iter aux var_map
+
+  end;;
+
+
 let variable_type_of_string var_type_str = 
   match var_type_str with
   | "int" -> Int
@@ -340,9 +364,16 @@ let decompose_trace trace =
   List.fold_left aux_stmts m trace.statements
 ;;
 
+let santas_little_aux vds = 
+  let m = new variable_declaration_map in
+  m#add_all vds;
+  m#print
+;;
+
 let run () = 
   let trace = read_trace "example.xml" in
   print_endline (xml_format_of_trace trace);
+  santas_little_aux trace.variable_declarations;
   let m = decompose_trace trace in
   let aux k v = 
     print_endline ((string_of_int (Int32.to_int k)) ^ " " ^ (string_of_int (List.length v))) in
