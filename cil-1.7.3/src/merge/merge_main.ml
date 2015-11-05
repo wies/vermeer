@@ -364,6 +364,16 @@ let decompose_trace trace =
   List.fold_left aux_stmts m trace.statements
 ;;
 
+class set_of_traces = 
+  object(self)
+  
+  val mutable set_of_sets_of_dataflows = []
+
+  method add = 1
+  
+  end
+;;
+
 let santas_little_aux vds = 
   let m = new variable_declaration_map in
   m#add_all vds;
