@@ -368,6 +368,7 @@ class set_of_traces =
   object(self)
   
   val mutable set_of_sets_of_dataflows = []
+  val mutable thread_local_executions = ThreadMap.empty
 
   method add = 1
   
