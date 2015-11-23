@@ -44,6 +44,12 @@ int main(int argc, char* argv[]) {
 
   std::cout << doc.first_node()->name() << std::endl;
 
+  rapidxml::xml_node<char>* n = doc.first_node()->first_node("declarations");
+
+  if (n) {
+    std::cout << n->name() << std::endl;
+  }
+
   delete[] document_string;
 
   return EXIT_SUCCESS;
