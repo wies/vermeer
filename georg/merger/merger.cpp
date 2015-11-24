@@ -71,6 +71,8 @@ struct statement_t {
   int variable_id;
   term_t rhs;
   guard_t guard;
+  int position;
+  int thread;
 };
 
 struct trace_t {
@@ -161,8 +163,98 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
   return vd;
 }
 
+multiplication_t extract_multiplication(rapidxml::xml_node<char>& n_term) {
+  multiplication_t m;
+
+  return m;
+}
+
 statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
+
   statement_t s;
+
+  rapidxml::xml_attribute<char>* type_attr = n_stmt.first_attribute("type");
+
+  if (type_attr) {
+    if (strcmp(type_attr->value(), "assignment") == 0) {
+      s.type = ASSIGNMENT;
+
+      rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
+
+      if (n_lhs) {
+        rapidxml::xml_attribute<char>* n_var_id_attr = n_lhs->first_attribute("variable-id");
+
+        if (n_var_id_attr) {
+          s.variable_id = atoi(n_var_id_attr->value());
+        }
+        else {
+          // TODO error handling
+        }
+      }
+      else {
+        // TODO error handling
+      }
+
+      rapidxml::xml_node<char>* n_rhs = n_stmt.first_node("rhs");
+
+      if (n_rhs) {
+        // a) extract const value
+        rapidxml::xml_attribute<char>* n_const_attr = n_rhs->first_attribute("const");
+        if (n_const_attr) {
+          s.rhs.constant = atoi(n_const_attr->value());
+        }
+        else {
+          // TODO error handling
+        }
+
+        // b) extract terms
+        for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
+          s.rhs.mults.push_back(extract_multiplication(*n_term));
+        }
+      }
+      else {
+        // TODO error handling
+      }
+    }
+    else if (strcmp(type_attr->value(), "assert") == 0) {
+      s.type = ASSERTION;
+
+      // TODO handle assertion specific things
+
+    }
+    else if (strcmp(type_attr->value(), "assume") == 0) {
+      s.type = ASSUMPTION;
+
+      // TODO handle assumption specific things
+
+    }
+    else {
+      // TODO error handling
+    }
+  }
+  else {
+    // TODO error handling
+  }
+
+  rapidxml::xml_attribute<char>* position_attr = n_stmt.first_attribute("position");
+
+  if (position_attr) {
+    s.position = atoi(position_attr->value());
+  }
+  else {
+    // TODO error handling
+  }
+
+  rapidxml::xml_attribute<char>* thread_attr = n_stmt.first_attribute("thread");
+
+  if (thread_attr) {
+    s.thread = atoi(thread_attr->value());
+  }
+  else {
+    // TODO error handling
+  }
+
+  // TODO extract guards
 
   return s;
 }
