@@ -51,8 +51,14 @@ struct product_t {
   int factor;
 };
 
+std::ostream& operator<<(std::ostream& out, const product_t& p) {
+  out << "<term variable-id=\"" << p.variable_id << "\" factor=\"" << p.factor << "\"/>";
+
+  return out;
+}
+
 struct term_t {
-  std::vector<product_t> mults;
+  std::vector<product_t> products;
   int constant;
 };
 
@@ -123,7 +129,10 @@ struct expression_t {
 };
 
 std::ostream& operator<<(std::ostream& out, const expression_t& e) {
-  out << "<expression operator=\"" << ops2str(e.op) << "\">" << std::endl;
+  out << "<expression operator=\"" << ops2str(e.op) << "\" const=\"" << e.term.constant << "\">" << std::endl;
+  for (auto const& p : e.term.products) {
+    out << p << std::endl;
+  }
   out << "</expression>";
 
   return out;
@@ -283,9 +292,16 @@ expression_t extract_expression(rapidxml::xml_node<char>& n_expr) {
   */
 
   rapidxml::xml_attribute<char>* a_op = n_expr.first_attribute("operator");
-  if (!a_op) { ERROR("Missing operator attribute!"); }
+  if (!a_op) { ERROR("Missing operator attribute in expression node!"); }
   e.op = str2ops(a_op->value());
 
+  rapidxml::xml_attribute<char>* a_const = n_expr.first_attribute("const");
+  if (!a_const) { ERROR("Missing const attribute in expression node!"); }
+  e.term.constant = atoi(a_const->value());
+
+  for (rapidxml::xml_node<char>* n_term = n_expr.first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
+    e.term.products.push_back(extract_product(*n_term));
+  }
 
   return e;
 }
@@ -317,7 +333,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
     // b) extract terms
     for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-      s.rhs.mults.push_back(extract_product(*n_term));
+      s.rhs.products.push_back(extract_product(*n_term));
     }
   }
   else if (strcmp(type_attr->value(), "assert") == 0) {
