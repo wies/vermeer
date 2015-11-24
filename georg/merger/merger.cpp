@@ -84,6 +84,52 @@ char* read_document(const std::string& filename) {
   return NULL;
 }
 
+variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_var_decl) {
+  variable_declaration_t vd;
+
+  return vd;
+}
+
+statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
+  statement_t s;
+
+  return s;
+}
+
+trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
+  trace_t t;
+
+  rapidxml::xml_node<char>* n_variable_declarations = n_trace.first_node("declarations");
+
+  if (n_variable_declarations) {
+    rapidxml::xml_node<char>* n_var_declaration = n_variable_declarations->first_node("variable-declaration");
+
+    while (n_var_declaration) {
+      t.variable_declarations.push_back(extract_variable_declaration(*n_var_declaration));
+      n_var_declaration = n_var_declaration->next_sibling("variable-declaration");
+    }
+  }
+  else {
+    // TODO error handling
+  }
+
+  rapidxml::xml_node<char>* n_statements = n_trace.first_node("statements");
+
+  if (n_statements) {
+    rapidxml::xml_node<char>* n_statement = n_statements->first_node("statement");
+
+    while (n_statement) {
+      t.statements.push_back(extract_statement(*n_statement));
+      n_statement = n_statement->next_sibling("statement");
+    }
+  }
+  else {
+    // TODO error handling
+  }
+
+  return t;
+}
+
 int main(int argc, char* argv[]) {
 
   char* document_string = read_document("example.xml");
@@ -98,6 +144,12 @@ int main(int argc, char* argv[]) {
   rapidxml::xml_document<char> doc;
   doc.parse<0>(document_string);
 
+  trace_t t = extract_trace(*doc.first_node());
+
+  std::cout << "t.statements.size() = " << t.statements.size() << std::endl;
+  std::cout << "t.variable_declarations.size() = " << t.variable_declarations.size() << std::endl;
+
+  /*
   std::cout << doc.first_node()->name() << std::endl;
 
   rapidxml::xml_node<char>* n_declarations = doc.first_node()->first_node("declarations");
@@ -110,7 +162,7 @@ int main(int argc, char* argv[]) {
 
   if (n_statements) {
     std::cout << n_statements->name() << std::endl;
-  }
+  }*/
 
   delete[] document_string;
 
