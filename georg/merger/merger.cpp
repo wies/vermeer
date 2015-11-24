@@ -82,10 +82,33 @@ struct statement_t {
   int thread;
 };
 
+std::ostream& operator<<(std::ostream& out, const statement_t& vd) {
+  out << "<statement/>";
+
+  return out;
+}
+
 struct trace_t {
   std::vector<variable_declaration_t> variable_declarations;
   std::vector<statement_t> statements;
 };
+
+std::ostream& operator<<(std::ostream& out, const trace_t& t) {
+  out << "<trace>" << std::endl;
+  out << "<declarations>" << std::endl;
+  for (auto const& vd : t.variable_declarations) {
+    out << vd << std::endl;
+  }
+  out << "</declarations>" << std::endl;
+  out << "<statements>" << std::endl;
+  for (auto const& s : t.statements) {
+    out << s << std::endl;
+  }
+  out << "</statements>" << std::endl;
+  out << "</trace>";
+
+  return out;
+}
 
 char* read_document(const std::string& filename) {
 
@@ -326,9 +349,12 @@ int main(int argc, char* argv[]) {
   std::cout << "t.statements.size() = " << t.statements.size() << std::endl;
   std::cout << "t.variable_declarations.size() = " << t.variable_declarations.size() << std::endl;
 
+  std::cout << t << std::endl;
+/*
   for (auto const& vd : t.variable_declarations) {
     std::cout << vd << std::endl;
   }
+*/
 
   delete[] document_string;
 
