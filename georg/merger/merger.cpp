@@ -216,85 +216,54 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
   statement_t s;
 
   rapidxml::xml_attribute<char>* type_attr = n_stmt.first_attribute("type");
+  if (!type_attr) { ERROR("No type attribute in statement!"); }
 
-  if (type_attr) {
-    if (strcmp(type_attr->value(), "assignment") == 0) {
-      s.type = ASSIGNMENT;
+  if (strcmp(type_attr->value(), "assignment") == 0) {
+    s.type = ASSIGNMENT;
 
-      rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
+    rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
+    if (!n_lhs) { ERROR("No lhs in assignment!"); }
 
-      if (n_lhs) {
-        rapidxml::xml_attribute<char>* n_var_id_attr = n_lhs->first_attribute("variable-id");
+    rapidxml::xml_attribute<char>* n_var_id_attr = n_lhs->first_attribute("variable-id");
+    if (!n_var_id_attr) { ERROR("No variable-id attribute in lhs of assignment!"); }
+    s.variable_id = atoi(n_var_id_attr->value());
 
-        if (n_var_id_attr) {
-          s.variable_id = atoi(n_var_id_attr->value());
-        }
-        else {
-          ERROR("No variable-id attribute in lhs of assignment!");
-        }
-      }
-      else {
-        ERROR("No lhs in assignment!");
-      }
+    rapidxml::xml_node<char>* n_rhs = n_stmt.first_node("rhs");
+    if (!n_rhs) { ERROR("No rhs in assignment!"); }
 
-      rapidxml::xml_node<char>* n_rhs = n_stmt.first_node("rhs");
+    // a) extract const value
+    rapidxml::xml_attribute<char>* n_const_attr = n_rhs->first_attribute("const");
+    if (!n_const_attr) { ERROR("No const attribute in rhs of assignment!"); }
+    s.rhs.constant = atoi(n_const_attr->value());
 
-      if (n_rhs) {
-        // a) extract const value
-        rapidxml::xml_attribute<char>* n_const_attr = n_rhs->first_attribute("const");
-        if (n_const_attr) {
-          s.rhs.constant = atoi(n_const_attr->value());
-        }
-        else {
-          ERROR("No const attribute in rhs of assignment!");
-        }
-
-        // b) extract terms
-        for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-          s.rhs.mults.push_back(extract_product(*n_term));
-        }
-      }
-      else {
-        ERROR("No rhs in assignment!");
-      }
-    }
-    else if (strcmp(type_attr->value(), "assert") == 0) {
-      s.type = ASSERTION;
-
-      // TODO handle assertion specific things
-
-    }
-    else if (strcmp(type_attr->value(), "assume") == 0) {
-      s.type = ASSUMPTION;
-
-      // TODO handle assumption specific things
-
-    }
-    else {
-      ERROR("Unknown value for type attribute in statement!");
+    // b) extract terms
+    for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
+      s.rhs.mults.push_back(extract_product(*n_term));
     }
   }
+  else if (strcmp(type_attr->value(), "assert") == 0) {
+    s.type = ASSERTION;
+
+    // TODO handle assertion specific things
+
+  }
+  else if (strcmp(type_attr->value(), "assume") == 0) {
+    s.type = ASSUMPTION;
+
+    // TODO handle assumption specific things
+
+  }
   else {
-    ERROR("No type attribute in statement!");
+    ERROR("Unknown value for type attribute in statement!");
   }
 
   rapidxml::xml_attribute<char>* position_attr = n_stmt.first_attribute("position");
-
-  if (position_attr) {
-    s.position = atoi(position_attr->value());
-  }
-  else {
-    ERROR("No position attribute in statement!");
-  }
+  if (!position_attr) { ERROR("No position attribute in statement!"); }
+  s.position = atoi(position_attr->value());
 
   rapidxml::xml_attribute<char>* thread_attr = n_stmt.first_attribute("thread");
-
-  if (thread_attr) {
-    s.thread = atoi(thread_attr->value());
-  }
-  else {
-    ERROR("No thread attribute in statement!");
-  }
+  if (!thread_attr) { ERROR("No thread attribute in statement!"); }
+  s.thread = atoi(thread_attr->value());
 
   // TODO extract guards
 
@@ -333,11 +302,7 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
 int main(int argc, char* argv[]) {
 
   char* document_string = read_document("example.xml");
-
-  if (!document_string) {
-    std::cerr << "Error reading file \"example.xml\"" << std::endl;
-    return EXIT_FAILURE;
-  }
+  if (!document_string) { ERROR("Error reading file \"example.xml\"!"); }
 
   std::cout << document_string << std::endl;
 
