@@ -96,12 +96,12 @@ struct trace_t {
 
 std::ostream& operator<<(std::ostream& out, const trace_t& t) {
   out << "<trace nr-of-threads=\"" << t.nr_of_threads << "\">" << std::endl;
-  out << "<declarations>" << std::endl;
+  out << "<declarations size=\"" << t.variable_declarations.size() << "\">" << std::endl;
   for (auto const& vd : t.variable_declarations) {
     out << vd << std::endl;
   }
   out << "</declarations>" << std::endl;
-  out << "<statements>" << std::endl;
+  out << "<statements size=\"" << t.statements.size() << "\">" << std::endl;
   for (auto const& s : t.statements) {
     out << s << std::endl;
   }
@@ -247,10 +247,12 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
   trace_t t;
 
+  // extract number of threads
   rapidxml::xml_attribute<char>* n_nr_of_threads_attrib = n_trace.first_attribute("nr-of-threads");
   if (!n_nr_of_threads_attrib) { ERROR("Missing number-of-threads attribute in trace node!"); }
   t.nr_of_threads = atoi(n_nr_of_threads_attrib->value());
 
+  // extract variable declarations
   rapidxml::xml_node<char>* n_var_decls = n_trace.first_node("declarations");
   if (!n_var_decls) { ERROR("No variable declaration node!"); }
 
@@ -262,7 +264,13 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
     t.variable_declarations.push_back(extract_variable_declaration(*n_var_decl));
   }
 
+  rapidxml::xml_attribute<char>* a_nr_of_vds = n_var_decls->first_attribute("size");
+  if (!a_nr_of_vds) { ERROR("Missing number of variable declarations!"); }
+  int tmp_nr_of_vds = atoi(a_nr_of_vds->value());
+  if (tmp_nr_of_vds != (int)t.variable_declarations.size()) { ERROR("Number of variable declarations does not match!"); }
 
+
+  // extract statements
   rapidxml::xml_node<char>* n_stmts = n_trace.first_node("statements");
   if (!n_stmts) { ERROR("No statements node!"); }
 
@@ -273,6 +281,12 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
   ) {
     t.statements.push_back(extract_statement(*n_stmt));
   }
+
+  rapidxml::xml_attribute<char>* a_nr_of_stmts = n_stmts->first_attribute("size");
+  if (!a_nr_of_stmts) { ERROR("Missing number of statements!"); }
+  int tmp_nr_of_stmts = atoi(a_nr_of_stmts->value());
+  if (tmp_nr_of_stmts != (int)t.statements.size()) { ERROR("Number of statements does not match!"); }
+
 
   return t;
 }
@@ -288,9 +302,6 @@ int main(int argc, char* argv[]) {
   doc.parse<0>(document_string);
 
   trace_t t = extract_trace(*doc.first_node());
-
-  std::cout << "t.statements.size() = " << t.statements.size() << std::endl;
-  std::cout << "t.variable_declarations.size() = " << t.variable_declarations.size() << std::endl;
 
   std::cout << t << std::endl;
 
