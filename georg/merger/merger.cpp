@@ -65,6 +65,13 @@ struct expression_t {
   term_t term;
 };
 
+std::ostream& operator<<(std::ostream& out, const expression_t& e) {
+  out << "<expression>" << std::endl;
+  out << "</expression>";
+
+  return out;
+}
+
 struct guard_t {
   std::vector<expression_t> exprs;
 };
@@ -101,7 +108,9 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
 
   if (s.guard.exprs.size() > 0) {
     out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
-    // TODO expressions
+    for (auto const& e : s.guard.exprs) {
+      out << e << std::endl;
+    }
     out << "</guards>" << std::endl;
   }
 
