@@ -108,17 +108,26 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
   if (id_attr) {
     vd.id = atoi(id_attr->value());
   }
+  else {
+    // TODO error handling
+  }
 
   rapidxml::xml_attribute<char>* variable_attr = n_var_decl.first_attribute("variable");
 
   if (variable_attr) {
     vd.variable = atoi(variable_attr->value());
   }
+  else {
+    // TODO error handling
+  }
 
   rapidxml::xml_attribute<char>* ssa_index_attr = n_var_decl.first_attribute("ssa-index");
 
   if (ssa_index_attr) {
     vd.ssa_index = atoi(ssa_index_attr->value());
+  }
+  else {
+    // TODO error handling
   }
 
   rapidxml::xml_attribute<char>* type_attr = n_var_decl.first_attribute("type");
@@ -127,6 +136,12 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
     if (strcmp(type_attr->value(), "int") == 0) {
       vd.type = INT;
     }
+    else {
+      // TODO error handling
+    }
+  }
+  else {
+    // TODO error handling
   }
 
   rapidxml::xml_attribute<char>* thread_attr = n_var_decl.first_attribute("thread");
@@ -138,6 +153,9 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
     else {
       vd.thread = atoi(thread_attr->value());
     }
+  }
+  else {
+    // TODO error handling
   }
 
   return vd;
