@@ -20,6 +20,25 @@ struct variable_declaration_t {
   int thread;
 };
 
+std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
+  std::string thread_str;
+  if (vd.thread < 0) {
+    thread_str = "global";
+  }
+  else {
+    thread_str = '0' + vd.thread;
+  }
+
+  out << "<variable-declaration "
+      << "id=\"" << vd.id << "\" "
+      << "variable=\"" << vd.variable << "\" "
+      << "ssa_index=\"" << vd.ssa_index << "\" "
+      << "type=\"int\" "
+      << "thread=\"" << thread_str << "\"/>";
+
+  return out;
+}
+
 struct multiplication_t {
   int variable_id;
   int factor;
@@ -82,6 +101,44 @@ char* read_document(const std::string& filename) {
 
 variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_var_decl) {
   variable_declaration_t vd;
+
+  // <variable-declaration id="11" variable="101000000" ssa-index="0" type="int" thread="1"/>
+  rapidxml::xml_attribute<char>* id_attr = n_var_decl.first_attribute("id");
+
+  if (id_attr) {
+    vd.id = atoi(id_attr->value());
+  }
+
+  rapidxml::xml_attribute<char>* variable_attr = n_var_decl.first_attribute("variable");
+
+  if (variable_attr) {
+    vd.variable = atoi(variable_attr->value());
+  }
+
+  rapidxml::xml_attribute<char>* ssa_index_attr = n_var_decl.first_attribute("ssa-index");
+
+  if (ssa_index_attr) {
+    vd.ssa_index = atoi(ssa_index_attr->value());
+  }
+
+  rapidxml::xml_attribute<char>* type_attr = n_var_decl.first_attribute("type");
+
+  if (type_attr) {
+    if (strcmp(type_attr->value(), "int") == 0) {
+      vd.type = INT;
+    }
+  }
+
+  rapidxml::xml_attribute<char>* thread_attr = n_var_decl.first_attribute("thread");
+
+  if (thread_attr) {
+    if (strcmp(thread_attr->value(), "global") == 0) {
+      vd.thread = -1;
+    }
+    else {
+      vd.thread = atoi(thread_attr->value());
+    }
+  }
 
   return vd;
 }
@@ -146,6 +203,10 @@ int main(int argc, char* argv[]) {
 
   std::cout << "t.statements.size() = " << t.statements.size() << std::endl;
   std::cout << "t.variable_declarations.size() = " << t.variable_declarations.size() << std::endl;
+
+  for (auto const& vd : t.variable_declarations) {
+    std::cout << vd << std::endl;
+  }
 
   delete[] document_string;
 

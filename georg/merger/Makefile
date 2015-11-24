@@ -1,5 +1,5 @@
 all:
-	g++ -o merger merger.cpp
+	g++ -std=c++11 -Wall -o merger merger.cpp
 
 clean:
 	rm -f ./merger
