@@ -46,13 +46,13 @@ std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
   return out;
 }
 
-struct multiplication_t {
+struct product_t {
   int variable_id;
   int factor;
 };
 
 struct term_t {
-  std::vector<multiplication_t> mults;
+  std::vector<product_t> mults;
   int constant;
 };
 
@@ -170,22 +170,22 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
   return vd;
 }
 
-multiplication_t extract_multiplication(rapidxml::xml_node<char>& n_term) {
-  multiplication_t m;
+product_t extract_product(rapidxml::xml_node<char>& n_term) {
+  product_t p;
 
   // <term variable-id="12" factor="1"/>
 
   rapidxml::xml_attribute<char>* var_attr = n_term.first_attribute("variable-id");
   if (!var_attr) { ERROR("Missing variable-id attribute in term!"); }
 
-  m.variable_id = atoi(var_attr->value());
+  p.variable_id = atoi(var_attr->value());
 
   rapidxml::xml_attribute<char>* factor_attr = n_term.first_attribute("factor");
   if (!factor_attr) { ERROR("Missing factor attribute in term!"); }
 
-  m.factor = atoi(factor_attr->value());
+  p.factor = atoi(factor_attr->value());
 
-  return m;
+  return p;
 }
 
 statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
@@ -228,7 +228,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
         // b) extract terms
         for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-          s.rhs.mults.push_back(extract_multiplication(*n_term));
+          s.rhs.mults.push_back(extract_product(*n_term));
         }
       }
       else {
