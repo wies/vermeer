@@ -60,13 +60,70 @@ enum ops {
   EQ, NEQ, LT, LEQ, GT, GEQ
 };
 
+ops str2ops(const char* str) {
+  ops o;
+
+  if (strcmp(str, "EQ") == 0) {
+    o = EQ;
+  }
+  else if (strcmp(str, "NEQ") == 0) {
+    o = NEQ;
+  }
+  else if (strcmp(str, "LT") == 0) {
+    o = LT;
+  }
+  else if (strcmp(str, "LEQ") == 0) {
+    o = LEQ;
+  }
+  else if (strcmp(str, "GT") == 0) {
+    o = GT;
+  }
+  else if (strcmp(str, "GEQ") == 0) {
+    o = GEQ;
+  }
+  else {
+    ERROR("Unrecognized expression operator!");
+  }
+
+  return o;
+}
+
+std::string ops2str(ops o) {
+  std::string s;
+
+  switch (o) {
+    case EQ:
+      s = "EQ";
+      break;
+    case NEQ:
+      s = "NEQ";
+      break;
+    case LT:
+      s = "LT";
+      break;
+    case LEQ:
+      s = "LEQ";
+      break;
+    case GT:
+      s = "GT";
+      break;
+    case GEQ:
+      s = "GEQ";
+      break;
+    default:
+      ERROR("Unrecognized operator!");
+  }
+
+  return s;
+}
+
 struct expression_t {
   ops op;
   term_t term;
 };
 
 std::ostream& operator<<(std::ostream& out, const expression_t& e) {
-  out << "<expression>" << std::endl;
+  out << "<expression operator=\"" << ops2str(e.op) << "\">" << std::endl;
   out << "</expression>";
 
   return out;
@@ -218,6 +275,17 @@ product_t extract_product(rapidxml::xml_node<char>& n_term) {
 
 expression_t extract_expression(rapidxml::xml_node<char>& n_expr) {
   expression_t e;
+
+  /*
+<expression operator="NEQ" const="0">
+<term variable-id="7" factor="1"/>
+</expression>
+  */
+
+  rapidxml::xml_attribute<char>* a_op = n_expr.first_attribute("operator");
+  if (!a_op) { ERROR("Missing operator attribute!"); }
+  e.op = str2ops(a_op->value());
+
 
   return e;
 }
