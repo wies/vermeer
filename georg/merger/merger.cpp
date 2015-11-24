@@ -275,34 +275,27 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
   trace_t t;
 
-  rapidxml::xml_node<char>* n_variable_declarations = n_trace.first_node("declarations");
+  rapidxml::xml_node<char>* n_var_decls = n_trace.first_node("declarations");
+  if (!n_var_decls) { ERROR("No variable declaration node!"); }
 
-  if (n_variable_declarations) {
-    for (
-      rapidxml::xml_node<char>* n_var_declaration = n_variable_declarations->first_node("variable-declaration");
-      n_var_declaration;
-      n_var_declaration = n_var_declaration->next_sibling("variable-declaration")
-    ) {
-      t.variable_declarations.push_back(extract_variable_declaration(*n_var_declaration));
-    }
+  for (
+    rapidxml::xml_node<char>* n_var_decl = n_var_decls->first_node("variable-declaration");
+    n_var_decl;
+    n_var_decl = n_var_decl->next_sibling("variable-declaration")
+  ) {
+    t.variable_declarations.push_back(extract_variable_declaration(*n_var_decl));
   }
-  else {
-    ERROR("No variable declaration node!");
-  }
+
 
   rapidxml::xml_node<char>* n_statements = n_trace.first_node("statements");
+  if (!n_statements) { ERROR("No statements node!"); }
 
-  if (n_statements) {
-    for (
-      rapidxml::xml_node<char>* n_statement = n_statements->first_node("statement");
-      n_statement;
-      n_statement = n_statement->next_sibling("statement")
-    ) {
-      t.statements.push_back(extract_statement(*n_statement));
-    }
-  }
-  else {
-    ERROR("No statements node!");
+  for (
+    rapidxml::xml_node<char>* n_statement = n_statements->first_node("statement");
+    n_statement;
+    n_statement = n_statement->next_sibling("statement")
+  ) {
+    t.statements.push_back(extract_statement(*n_statement));
   }
 
   return t;
