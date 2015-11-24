@@ -39,7 +39,7 @@ std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
   out << "<variable-declaration "
       << "id=\"" << vd.id << "\" "
       << "variable=\"" << vd.variable << "\" "
-      << "ssa_index=\"" << vd.ssa_index << "\" "
+      << "ssa-index=\"" << vd.ssa_index << "\" "
       << "type=\"int\" "
       << "thread=\"" << thread_str << "\"/>";
 
@@ -154,10 +154,10 @@ std::string stmttype2str(statement_type_t t) {
       type_str = "assignment";
       break;
     case ASSERTION:
-      type_str = "assertion";
+      type_str = "assert";
       break;
     case ASSUMPTION:
-      type_str = "assumption";
+      type_str = "assume";
       break;
     default:
       ERROR("Unrecognized statement type!");
@@ -182,8 +182,13 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
 
   switch (s.type) {
     case ASSIGNMENT:
-      // TODO lhs
-      // TODO rhs
+      // <lhs variable-id="10"/>
+      out << "<lhs variable-id=\"" << s.variable_id << "\"/>" << std::endl;
+      out << "<rhs const=\"" << s.rhs.constant << "\">" << std::endl;
+      for (auto const& p : s.rhs.products) {
+        out << p << std::endl;
+      }
+      out << "</rhs>" << std::endl;
       break;
     case ASSERTION:
     case ASSUMPTION:
@@ -452,8 +457,6 @@ int main(int argc, char* argv[]) {
 
   char* document_string = read_document("example.xml");
   if (!document_string) { ERROR("Error reading file \"example.xml\"!"); }
-
-  std::cout << document_string << std::endl;
 
   rapidxml::xml_document<char> doc;
   doc.parse<0>(document_string);
