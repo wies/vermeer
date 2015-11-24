@@ -263,15 +263,15 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
   }
 
 
-  rapidxml::xml_node<char>* n_statements = n_trace.first_node("statements");
-  if (!n_statements) { ERROR("No statements node!"); }
+  rapidxml::xml_node<char>* n_stmts = n_trace.first_node("statements");
+  if (!n_stmts) { ERROR("No statements node!"); }
 
   for (
-    rapidxml::xml_node<char>* n_statement = n_statements->first_node("statement");
-    n_statement;
-    n_statement = n_statement->next_sibling("statement")
+    rapidxml::xml_node<char>* n_stmt = n_stmts->first_node("statement");
+    n_stmt;
+    n_stmt = n_stmt->next_sibling("statement")
   ) {
-    t.statements.push_back(extract_statement(*n_statement));
+    t.statements.push_back(extract_statement(*n_stmt));
   }
 
   return t;
