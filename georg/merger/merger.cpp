@@ -8,6 +8,13 @@
 
 #include "rapidxml-1.13/rapidxml.hpp"
 
+void merge_error(const char* file, int line, const char* text) {
+  std::cerr << std::endl << "*** ERROR at line " << line << " in file \"" << file << "\": " << text << std::endl;
+  exit(EXIT_FAILURE);
+}
+
+#define ERROR(text) merge_error(__FILE__, __LINE__, text)
+
 enum variable_types_t {
   INT
 };
@@ -111,7 +118,7 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
     vd.id = atoi(id_attr->value());
   }
   else {
-    // TODO error handling
+    ERROR("No id attribute in variable declaration!");
   }
 
   rapidxml::xml_attribute<char>* variable_attr = n_var_decl.first_attribute("variable");
@@ -120,7 +127,7 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
     vd.variable = atoi(variable_attr->value());
   }
   else {
-    // TODO error handling
+    ERROR("No variable attribute in variable declaration!");
   }
 
   rapidxml::xml_attribute<char>* ssa_index_attr = n_var_decl.first_attribute("ssa-index");
@@ -129,7 +136,7 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
     vd.ssa_index = atoi(ssa_index_attr->value());
   }
   else {
-    // TODO error handling
+    ERROR("No ssa-index attribute in variable declaration!");
   }
 
   rapidxml::xml_attribute<char>* type_attr = n_var_decl.first_attribute("type");
@@ -139,11 +146,11 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
       vd.type = INT;
     }
     else {
-      // TODO error handling
+      ERROR("Unsupported data type in type attribute of variable declaration!");
     }
   }
   else {
-    // TODO error handling
+    ERROR("No type attribute in variable declaration!");
   }
 
   rapidxml::xml_attribute<char>* thread_attr = n_var_decl.first_attribute("thread");
@@ -157,7 +164,7 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
     }
   }
   else {
-    // TODO error handling
+    ERROR("No thread attribute in variable declaration!");
   }
 
   return vd;
@@ -165,6 +172,12 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
 
 multiplication_t extract_multiplication(rapidxml::xml_node<char>& n_term) {
   multiplication_t m;
+
+  // <term variable-id="12" factor="1"/>
+
+  //rapidxml::xml_attribute<char>* var_attr = n_term.first_attribute("variable-id");
+
+
 
   return m;
 }
@@ -188,11 +201,11 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
           s.variable_id = atoi(n_var_id_attr->value());
         }
         else {
-          // TODO error handling
+          ERROR("No variable-id attribute in lhs of assignment!");
         }
       }
       else {
-        // TODO error handling
+        ERROR("No lhs in assignment!");
       }
 
       rapidxml::xml_node<char>* n_rhs = n_stmt.first_node("rhs");
@@ -204,7 +217,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
           s.rhs.constant = atoi(n_const_attr->value());
         }
         else {
-          // TODO error handling
+          ERROR("No const attribute in rhs of assignment!");
         }
 
         // b) extract terms
@@ -213,7 +226,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
         }
       }
       else {
-        // TODO error handling
+        ERROR("No rhs in assignment!");
       }
     }
     else if (strcmp(type_attr->value(), "assert") == 0) {
@@ -229,11 +242,11 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
     }
     else {
-      // TODO error handling
+      ERROR("Unknown value for type attribute in statement!");
     }
   }
   else {
-    // TODO error handling
+    ERROR("No type attribute in statement!");
   }
 
   rapidxml::xml_attribute<char>* position_attr = n_stmt.first_attribute("position");
@@ -242,7 +255,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
     s.position = atoi(position_attr->value());
   }
   else {
-    // TODO error handling
+    ERROR("No position attribute in statement!");
   }
 
   rapidxml::xml_attribute<char>* thread_attr = n_stmt.first_attribute("thread");
@@ -251,7 +264,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
     s.thread = atoi(thread_attr->value());
   }
   else {
-    // TODO error handling
+    ERROR("No thread attribute in statement!");
   }
 
   // TODO extract guards
@@ -274,7 +287,7 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
     }
   }
   else {
-    // TODO error handling
+    ERROR("No variable declaration node!");
   }
 
   rapidxml::xml_node<char>* n_statements = n_trace.first_node("statements");
@@ -289,7 +302,7 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
     }
   }
   else {
-    // TODO error handling
+    ERROR("No statements node!");
   }
 
   return t;
