@@ -149,21 +149,6 @@ int main(int argc, char* argv[]) {
   std::cout << "t.statements.size() = " << t.statements.size() << std::endl;
   std::cout << "t.variable_declarations.size() = " << t.variable_declarations.size() << std::endl;
 
-  /*
-  std::cout << doc.first_node()->name() << std::endl;
-
-  rapidxml::xml_node<char>* n_declarations = doc.first_node()->first_node("declarations");
-
-  if (n_declarations) {
-    std::cout << n_declarations->name() << std::endl;
-  }
-
-  rapidxml::xml_node<char>* n_statements = doc.first_node()->first_node("statements");
-
-  if (n_statements) {
-    std::cout << n_statements->name() << std::endl;
-  }*/
-
   delete[] document_string;
 
   return EXIT_SUCCESS;
