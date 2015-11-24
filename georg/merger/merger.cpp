@@ -175,9 +175,15 @@ multiplication_t extract_multiplication(rapidxml::xml_node<char>& n_term) {
 
   // <term variable-id="12" factor="1"/>
 
-  //rapidxml::xml_attribute<char>* var_attr = n_term.first_attribute("variable-id");
+  rapidxml::xml_attribute<char>* var_attr = n_term.first_attribute("variable-id");
+  if (!var_attr) { ERROR("Missing variable-id attribute in term!"); }
 
+  m.variable_id = atoi(var_attr->value());
 
+  rapidxml::xml_attribute<char>* factor_attr = n_term.first_attribute("factor");
+  if (!factor_attr) { ERROR("Missing factor attribute in term!"); }
+
+  m.factor = atoi(factor_attr->value());
 
   return m;
 }
