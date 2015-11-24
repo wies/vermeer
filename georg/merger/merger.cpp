@@ -91,10 +91,11 @@ std::ostream& operator<<(std::ostream& out, const statement_t& vd) {
 struct trace_t {
   std::vector<variable_declaration_t> variable_declarations;
   std::vector<statement_t> statements;
+  int nr_of_threads;
 };
 
 std::ostream& operator<<(std::ostream& out, const trace_t& t) {
-  out << "<trace>" << std::endl;
+  out << "<trace nr-of-threads=\"" << t.nr_of_threads << "\">" << std::endl;
   out << "<declarations>" << std::endl;
   for (auto const& vd : t.variable_declarations) {
     out << vd << std::endl;
@@ -245,6 +246,10 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
 trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
   trace_t t;
+
+  rapidxml::xml_attribute<char>* n_nr_of_threads_attrib = n_trace.first_attribute("nr-of-threads");
+  if (!n_nr_of_threads_attrib) { ERROR("Missing number-of-threads attribute in trace node!"); }
+  t.nr_of_threads = atoi(n_nr_of_threads_attrib->value());
 
   rapidxml::xml_node<char>* n_var_decls = n_trace.first_node("declarations");
   if (!n_var_decls) { ERROR("No variable declaration node!"); }
