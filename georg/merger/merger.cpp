@@ -146,19 +146,10 @@ enum statement_type_t {
   ASSIGNMENT, ASSERTION, ASSUMPTION
 };
 
-struct statement_t {
-  statement_type_t type;
-  int variable_id;
-  term_t rhs;
-  guard_t guard;
-  int position;
-  int thread;
-};
-
-std::ostream& operator<<(std::ostream& out, const statement_t& s) {
-
+std::string stmttype2str(statement_type_t t) {
   std::string type_str;
-  switch (s.type) {
+
+  switch (t) {
     case ASSIGNMENT:
       type_str = "assignment";
       break;
@@ -168,9 +159,39 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
     case ASSUMPTION:
       type_str = "assumption";
       break;
+    default:
+      ERROR("Unrecognized statement type!");
   }
 
-  out << "<statement type=\"" << type_str << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+  return type_str;
+}
+
+struct statement_t {
+  statement_type_t type;
+  int variable_id;
+  term_t rhs;
+  guard_t guard;
+  int position;
+  int thread;
+  std::vector<expression_t> exprs;
+};
+
+std::ostream& operator<<(std::ostream& out, const statement_t& s) {
+
+  out << "<statement type=\"" << stmttype2str(s.type) << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+
+  switch (s.type) {
+    case ASSIGNMENT:
+      // TODO lhs
+      // TODO rhs
+      break;
+    case ASSERTION:
+    case ASSUMPTION:
+      for (auto const& e : s.exprs) {
+        out << e << std::endl;
+      }
+      break;
+  }
 
   if (s.guard.exprs.size() > 0) {
     out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
@@ -339,14 +360,18 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
   else if (strcmp(type_attr->value(), "assert") == 0) {
     s.type = ASSERTION;
 
-    // TODO handle assertion specific things
-
+    // extract expressions
+    for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
+      s.exprs.push_back(extract_expression(*n_expr));
+    }
   }
   else if (strcmp(type_attr->value(), "assume") == 0) {
     s.type = ASSUMPTION;
 
-    // TODO handle assumption specific things
-
+    // extract expressions
+    for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
+      s.exprs.push_back(extract_expression(*n_expr));
+    }
   }
   else {
     ERROR("Unknown value for type attribute in statement!");
