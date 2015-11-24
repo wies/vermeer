@@ -136,58 +136,33 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
 
   // <variable-declaration id="11" variable="101000000" ssa-index="0" type="int" thread="1"/>
   rapidxml::xml_attribute<char>* id_attr = n_var_decl.first_attribute("id");
-
-  if (id_attr) {
-    vd.id = atoi(id_attr->value());
-  }
-  else {
-    ERROR("No id attribute in variable declaration!");
-  }
+  if (!id_attr) { ERROR("No id attribute in variable declaration!"); }
+  vd.id = atoi(id_attr->value());
 
   rapidxml::xml_attribute<char>* variable_attr = n_var_decl.first_attribute("variable");
-
-  if (variable_attr) {
-    vd.variable = atoi(variable_attr->value());
-  }
-  else {
-    ERROR("No variable attribute in variable declaration!");
-  }
+  if (!variable_attr) { ERROR("No variable attribute in variable declaration!"); }
+  vd.variable = atoi(variable_attr->value());
 
   rapidxml::xml_attribute<char>* ssa_index_attr = n_var_decl.first_attribute("ssa-index");
-
-  if (ssa_index_attr) {
-    vd.ssa_index = atoi(ssa_index_attr->value());
-  }
-  else {
-    ERROR("No ssa-index attribute in variable declaration!");
-  }
+  if (!ssa_index_attr) { ERROR("No ssa-index attribute in variable declaration!"); }
+  vd.ssa_index = atoi(ssa_index_attr->value());
 
   rapidxml::xml_attribute<char>* type_attr = n_var_decl.first_attribute("type");
+  if (!type_attr) { ERROR("No type attribute in variable declaration!"); }
 
-  if (type_attr) {
-    if (strcmp(type_attr->value(), "int") == 0) {
-      vd.type = INT;
-    }
-    else {
-      ERROR("Unsupported data type in type attribute of variable declaration!");
-    }
+  if (strcmp(type_attr->value(), "int") == 0) {
+    vd.type = INT;
   }
-  else {
-    ERROR("No type attribute in variable declaration!");
-  }
+  else { ERROR("Unsupported data type in type attribute of variable declaration!"); }
 
   rapidxml::xml_attribute<char>* thread_attr = n_var_decl.first_attribute("thread");
+  if (!thread_attr) { ERROR("No thread attribute in variable declaration!"); }
 
-  if (thread_attr) {
-    if (strcmp(thread_attr->value(), "global") == 0) {
-      vd.thread = -1;
-    }
-    else {
-      vd.thread = atoi(thread_attr->value());
-    }
+  if (strcmp(thread_attr->value(), "global") == 0) {
+    vd.thread = -1;
   }
   else {
-    ERROR("No thread attribute in variable declaration!");
+    vd.thread = atoi(thread_attr->value());
   }
 
   return vd;
@@ -200,12 +175,10 @@ product_t extract_product(rapidxml::xml_node<char>& n_term) {
 
   rapidxml::xml_attribute<char>* var_attr = n_term.first_attribute("variable-id");
   if (!var_attr) { ERROR("Missing variable-id attribute in term!"); }
-
   p.variable_id = atoi(var_attr->value());
 
   rapidxml::xml_attribute<char>* factor_attr = n_term.first_attribute("factor");
   if (!factor_attr) { ERROR("Missing factor attribute in term!"); }
-
   p.factor = atoi(factor_attr->value());
 
   return p;
