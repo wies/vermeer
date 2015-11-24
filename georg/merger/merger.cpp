@@ -98,6 +98,13 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
   }
 
   out << "<statement type=\"" << type_str << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+
+  if (s.guard.exprs.size() > 0) {
+    out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
+    // TODO expressions
+    out << "</guards>" << std::endl;
+  }
+
   out << "</statement>";
 
   return out;
@@ -200,6 +207,12 @@ product_t extract_product(rapidxml::xml_node<char>& n_term) {
   return p;
 }
 
+expression_t extract_expression(rapidxml::xml_node<char>& n_expr) {
+  expression_t e;
+
+  return e;
+}
+
 statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
   statement_t s;
@@ -254,7 +267,18 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
   if (!thread_attr) { ERROR("No thread attribute in statement!"); }
   s.thread = atoi(thread_attr->value());
 
-  // TODO extract guards
+
+  rapidxml::xml_node<char>* n_guards = n_stmt.first_node("guards");
+  if (n_guards) {
+    for (rapidxml::xml_node<char>* n_expr = n_guards->first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
+      s.guard.exprs.push_back(extract_expression(*n_expr));
+    }
+
+    rapidxml::xml_attribute<char>* a_guards_size = n_guards->first_attribute("size");
+    if (!a_guards_size) { ERROR("Missing size in guards node!"); }
+    int tmp_guards_size = atoi(a_guards_size->value());
+    if (tmp_guards_size != (int)s.guard.exprs.size()) { ERROR("Size of guards does not match size attribute!"); }
+  }
 
   return s;
 }
