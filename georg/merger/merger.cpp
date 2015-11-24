@@ -350,11 +350,6 @@ int main(int argc, char* argv[]) {
   std::cout << "t.variable_declarations.size() = " << t.variable_declarations.size() << std::endl;
 
   std::cout << t << std::endl;
-/*
-  for (auto const& vd : t.variable_declarations) {
-    std::cout << vd << std::endl;
-  }
-*/
 
   delete[] document_string;
 
