@@ -82,8 +82,23 @@ struct statement_t {
   int thread;
 };
 
-std::ostream& operator<<(std::ostream& out, const statement_t& vd) {
-  out << "<statement/>";
+std::ostream& operator<<(std::ostream& out, const statement_t& s) {
+
+  std::string type_str;
+  switch (s.type) {
+    case ASSIGNMENT:
+      type_str = "assignment";
+      break;
+    case ASSERTION:
+      type_str = "assertion";
+      break;
+    case ASSUMPTION:
+      type_str = "assumption";
+      break;
+  }
+
+  out << "<statement type=\"" << type_str << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+  out << "</statement>";
 
   return out;
 }
