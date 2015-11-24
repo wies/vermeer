@@ -20,10 +20,6 @@ struct variable_declaration_t {
   int thread;
 };
 
-struct variable_declarations_t {
-  std::vector<variable_declaration_t> decls;
-};
-
 struct multiplication_t {
   int variable_id;
   int factor;
