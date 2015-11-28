@@ -20,11 +20,11 @@ std::ostream& operator<<(std::ostream& out, const trace_t& t);
 
 char* read_document(const std::string& filename);
 
-variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_var_decl);
-product_t extract_product(rapidxml::xml_node<char>& n_term);
-expression_t extract_expression(rapidxml::xml_node<char>& n_expr);
-statement_t extract_statement(rapidxml::xml_node<char>& n_stmt);
-trace_t extract_trace(rapidxml::xml_node<char>& n_trace);
+variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_decl);
+product_t xml2product(rapidxml::xml_node<char>& n_term);
+expression_t xml2expression(rapidxml::xml_node<char>& n_expr);
+statement_t xml2statement(rapidxml::xml_node<char>& n_stmt);
+trace_t xml2trace(rapidxml::xml_node<char>& n_trace);
 
 trace_t read_trace(const char* xml_file);
 

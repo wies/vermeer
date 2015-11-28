@@ -198,7 +198,7 @@ char* read_document(const std::string& filename) {
   return NULL;
 }
 
-variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_var_decl) {
+variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_decl) {
   variable_declaration_t vd;
 
   // <variable-declaration id="11" variable="101000000" ssa-index="0" type="int" thread="1"/>
@@ -235,7 +235,7 @@ variable_declaration_t extract_variable_declaration(rapidxml::xml_node<char>& n_
   return vd;
 }
 
-product_t extract_product(rapidxml::xml_node<char>& n_term) {
+product_t xml2product(rapidxml::xml_node<char>& n_term) {
   product_t p;
 
   // <term variable-id="12" factor="1"/>
@@ -251,7 +251,7 @@ product_t extract_product(rapidxml::xml_node<char>& n_term) {
   return p;
 }
 
-expression_t extract_expression(rapidxml::xml_node<char>& n_expr) {
+expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
   expression_t e;
 
   /*
@@ -269,13 +269,13 @@ expression_t extract_expression(rapidxml::xml_node<char>& n_expr) {
   e.term.constant = atoi(a_const->value());
 
   for (rapidxml::xml_node<char>* n_term = n_expr.first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-    e.term.products.push_back(extract_product(*n_term));
+    e.term.products.push_back(xml2product(*n_term));
   }
 
   return e;
 }
 
-statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
+statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
   statement_t s;
 
@@ -302,7 +302,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
     // b) extract terms
     for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-      s.rhs.products.push_back(extract_product(*n_term));
+      s.rhs.products.push_back(xml2product(*n_term));
     }
   }
   else if (strcmp(type_attr->value(), "assert") == 0) {
@@ -310,7 +310,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s.exprs.push_back(extract_expression(*n_expr));
+      s.exprs.push_back(xml2expression(*n_expr));
     }
   }
   else if (strcmp(type_attr->value(), "assume") == 0) {
@@ -318,7 +318,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s.exprs.push_back(extract_expression(*n_expr));
+      s.exprs.push_back(xml2expression(*n_expr));
     }
   }
   else {
@@ -337,7 +337,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
   rapidxml::xml_node<char>* n_guards = n_stmt.first_node("guards");
   if (n_guards) {
     for (rapidxml::xml_node<char>* n_expr = n_guards->first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s.guard.exprs.push_back(extract_expression(*n_expr));
+      s.guard.exprs.push_back(xml2expression(*n_expr));
     }
 
     rapidxml::xml_attribute<char>* a_guards_size = n_guards->first_attribute("size");
@@ -349,7 +349,7 @@ statement_t extract_statement(rapidxml::xml_node<char>& n_stmt) {
   return s;
 }
 
-trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
+trace_t xml2trace(rapidxml::xml_node<char>& n_trace) {
   trace_t t;
 
   // extract number of threads
@@ -366,7 +366,7 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
     n_var_decl;
     n_var_decl = n_var_decl->next_sibling("variable-declaration")
   ) {
-    t.variable_declarations.push_back(extract_variable_declaration(*n_var_decl));
+    t.variable_declarations.push_back(xml2variable_declaration(*n_var_decl));
   }
 
   rapidxml::xml_attribute<char>* a_nr_of_vds = n_var_decls->first_attribute("size");
@@ -384,7 +384,7 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
     n_stmt;
     n_stmt = n_stmt->next_sibling("statement")
   ) {
-    t.statements.push_back(extract_statement(*n_stmt));
+    t.statements.push_back(xml2statement(*n_stmt));
   }
 
   rapidxml::xml_attribute<char>* a_nr_of_stmts = n_stmts->first_attribute("size");
@@ -407,7 +407,7 @@ trace_t read_trace(const char* xml_file) {
   rapidxml::xml_document<char> doc;
   doc.parse<0>(document_string);
 
-  trace_t t = extract_trace(*doc.first_node());
+  trace_t t = xml2trace(*doc.first_node());
 
   delete[] document_string;
 
