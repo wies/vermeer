@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <map>
+#include <set>
 #include <vector>
 
 #include "error.h"
@@ -42,6 +43,16 @@ struct thread_local_position_t {
   }
 };
 
+std::set<int> extract_variables(const expression_t& e) {
+  std::set<int> variable_ids;
+
+  for (const product_t& p : e.term.products) {
+    variable_ids.insert(p.variable_id);
+  }
+
+  return variable_ids;
+}
+
 std::vector<thread_local_position_t> extract_thread_local_positions(const execution_t& e) {
   std::vector<thread_local_position_t> v;
 
@@ -51,15 +62,53 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
   // variable_id x global position
   std::map<int, int> variable_definitions;
 
+  // variable_id x set of global positions
+  std::map<int, std::set<int> > variable_uses;
+
   // TODO do we assume that statements are ordered according to their position attribute?
   for (auto const& s : e.statements) {
     int pos = thread_local_counters[s.thread];
     v.push_back({ s.thread, pos });
     thread_local_counters[s.thread] = pos + 1;
+
+    // track variable definition
     if (s.type == ASSIGNMENT) {
       variable_definitions[s.variable_id] = s.position;
       std::cout << "Variable " << s.variable_id << " is defined at " << v[variable_definitions[s.variable_id]] << std::endl;
     }
+
+    // track variable usage
+    // a) guards
+    std::set<int> variable_ids;
+    for (auto const& e : s.guard.exprs) {
+      auto var_ids = extract_variables(e);
+      variable_ids.insert(var_ids.begin(), var_ids.end());
+    }
+
+    // b) variables in other expressions
+    switch (s.type) {
+      case ASSIGNMENT:
+        for (auto const& p : s.rhs.products) {
+          variable_ids.insert(p.variable_id);
+        }
+        break;
+      case ASSERTION:
+      case ASSUMPTION:
+        for (auto const& e : s.exprs) {
+          auto var_ids = extract_variables(e);
+          variable_ids.insert(var_ids.begin(), var_ids.end());
+        }
+        break;
+    }
+
+    for (int var_id : variable_ids) {
+      std::cout << var_id << " ";
+    }
+    std::cout << std::endl;
+  }
+
+  for (auto const& p : variable_uses) {
+    std::cout << p.first << std::endl;
   }
 
   return v;
