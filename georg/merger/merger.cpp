@@ -10,17 +10,7 @@
 
 #include "error.h"
 
-enum variable_types_t {
-  INT
-};
-
-struct variable_declaration_t {
-  int id;
-  int variable;
-  int ssa_index;
-  variable_types_t type;
-  int thread;
-};
+#include "trace.h"
 
 std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
   std::string thread_str;
@@ -41,25 +31,11 @@ std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
   return out;
 }
 
-struct product_t {
-  int variable_id;
-  int factor;
-};
-
 std::ostream& operator<<(std::ostream& out, const product_t& p) {
   out << "<term variable-id=\"" << p.variable_id << "\" factor=\"" << p.factor << "\"/>";
 
   return out;
 }
-
-struct term_t {
-  std::vector<product_t> products;
-  int constant;
-};
-
-enum ops {
-  EQ, NEQ, LT, LEQ, GT, GEQ
-};
 
 ops str2ops(const char* str) {
   ops o;
@@ -118,11 +94,6 @@ std::string ops2str(ops o) {
   return s;
 }
 
-struct expression_t {
-  ops op;
-  term_t term;
-};
-
 std::ostream& operator<<(std::ostream& out, const expression_t& e) {
   out << "<expression operator=\"" << ops2str(e.op) << "\" const=\"" << e.term.constant << "\">" << std::endl;
   for (auto const& p : e.term.products) {
@@ -132,14 +103,6 @@ std::ostream& operator<<(std::ostream& out, const expression_t& e) {
 
   return out;
 }
-
-struct guard_t {
-  std::vector<expression_t> exprs;
-};
-
-enum statement_type_t {
-  ASSIGNMENT, ASSERTION, ASSUMPTION
-};
 
 std::string stmttype2str(statement_type_t t) {
   std::string type_str;
@@ -160,16 +123,6 @@ std::string stmttype2str(statement_type_t t) {
 
   return type_str;
 }
-
-struct statement_t {
-  statement_type_t type;
-  int variable_id;
-  term_t rhs;
-  guard_t guard;
-  int position;
-  int thread;
-  std::vector<expression_t> exprs;
-};
 
 std::ostream& operator<<(std::ostream& out, const statement_t& s) {
 
@@ -205,12 +158,6 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
 
   return out;
 }
-
-struct trace_t {
-  std::vector<variable_declaration_t> variable_declarations;
-  std::vector<statement_t> statements;
-  int nr_of_threads;
-};
 
 std::ostream& operator<<(std::ostream& out, const trace_t& t) {
   out << "<trace nr-of-threads=\"" << t.nr_of_threads << "\">" << std::endl;
