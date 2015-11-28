@@ -397,4 +397,22 @@ trace_t extract_trace(rapidxml::xml_node<char>& n_trace) {
   return t;
 }
 
+trace_t read_trace(const char* xml_file) {
+  char* document_string = read_document(xml_file);
+  if (!document_string) {
+    std::stringstream sstr;
+    sstr << "Error reading file \"" << xml_file << "\"!";
+    ERROR(sstr.str().c_str());
+  }
+
+  rapidxml::xml_document<char> doc;
+  doc.parse<0>(document_string);
+
+  trace_t t = extract_trace(*doc.first_node());
+
+  delete[] document_string;
+
+  return t;
+}
+
 #endif // XML_H_INCLUDED

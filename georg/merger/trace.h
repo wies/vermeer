@@ -1,6 +1,8 @@
 #ifndef TRACE_H_INCLUDED
 #define TRACE_H_INCLUDED
 
+#include <vector>
+
 enum variable_types_t {
   INT
 };
