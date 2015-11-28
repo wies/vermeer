@@ -52,7 +52,7 @@ struct statement_t {
   std::vector<expression_t> exprs;
 };
 
-struct trace_t {
+struct execution_t {
   std::vector<variable_declaration_t> variable_declarations;
   std::vector<statement_t> statements;
   int nr_of_threads;

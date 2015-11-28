@@ -160,7 +160,7 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
   return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const trace_t& t) {
+std::ostream& operator<<(std::ostream& out, const execution_t& t) {
   out << "<trace nr-of-threads=\"" << t.nr_of_threads << "\">" << std::endl;
   out << "<declarations size=\"" << t.variable_declarations.size() << "\">" << std::endl;
   for (auto const& vd : t.variable_declarations) {
@@ -349,8 +349,8 @@ statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
   return s;
 }
 
-trace_t xml2trace(rapidxml::xml_node<char>& n_trace) {
-  trace_t t;
+execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
+  execution_t t;
 
   // extract number of threads
   rapidxml::xml_attribute<char>* n_nr_of_threads_attrib = n_trace.first_attribute("nr-of-threads");
@@ -396,7 +396,7 @@ trace_t xml2trace(rapidxml::xml_node<char>& n_trace) {
   return t;
 }
 
-trace_t read_trace(const char* xml_file) {
+execution_t read_execution(const char* xml_file) {
   char* document_string = read_document(xml_file);
   if (!document_string) {
     std::stringstream sstr;
@@ -407,7 +407,7 @@ trace_t read_trace(const char* xml_file) {
   rapidxml::xml_document<char> doc;
   doc.parse<0>(document_string);
 
-  trace_t t = xml2trace(*doc.first_node());
+  execution_t t = xml2execution(*doc.first_node());
 
   delete[] document_string;
 

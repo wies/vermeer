@@ -6,9 +6,9 @@
 #include "xml.h"
 
 int main(int argc, char* argv[]) {
-  trace_t t = read_trace("example.xml");
+  execution_t e = read_execution("example.xml");
 
-  std::cout << t << std::endl;
+  std::cout << e << std::endl;
 
   return EXIT_SUCCESS;
 }
