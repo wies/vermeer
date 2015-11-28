@@ -45,14 +45,21 @@ struct thread_local_position_t {
 std::vector<thread_local_position_t> extract_thread_local_positions(const execution_t& e) {
   std::vector<thread_local_position_t> v;
 
-
+  // thread_id x thread-local position
   std::map<int, int> thread_local_counters;
+
+  // variable_id x global position
+  std::map<int, int> variable_definitions;
 
   // TODO do we assume that statements are ordered according to their position attribute?
   for (auto const& s : e.statements) {
     int pos = thread_local_counters[s.thread];
     v.push_back({ s.thread, pos });
     thread_local_counters[s.thread] = pos + 1;
+    if (s.type == ASSIGNMENT) {
+      variable_definitions[s.variable_id] = s.position;
+      std::cout << "Variable " << s.variable_id << " is defined at " << v[variable_definitions[s.variable_id]] << std::endl;
+    }
   }
 
   return v;
