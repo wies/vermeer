@@ -15,13 +15,13 @@ struct variable_declaration_t {
   int thread;
 };
 
-struct product_t {
+struct linear_product_t {
   int variable_id;
   int factor;
 };
 
 struct term_t {
-  std::vector<product_t> products;
+  std::vector<linear_product_t> products;
   int constant;
 };
 

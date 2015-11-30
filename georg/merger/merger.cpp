@@ -46,7 +46,7 @@ struct thread_local_position_t {
 std::set<int> extract_variables(const expression_t& e) {
   std::set<int> variable_ids;
 
-  for (const product_t& p : e.term.products) {
+  for (const linear_product_t& p : e.term.products) {
     variable_ids.insert(p.variable_id);
   }
 

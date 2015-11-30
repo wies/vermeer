@@ -32,7 +32,7 @@ std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
   return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const product_t& p) {
+std::ostream& operator<<(std::ostream& out, const linear_product_t& p) {
   out << "<term variable-id=\"" << p.variable_id << "\" factor=\"" << p.factor << "\"/>";
 
   return out;
@@ -235,8 +235,8 @@ variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_
   return vd;
 }
 
-product_t xml2product(rapidxml::xml_node<char>& n_term) {
-  product_t p;
+linear_product_t xml2product(rapidxml::xml_node<char>& n_term) {
+  linear_product_t p;
 
   // <term variable-id="12" factor="1"/>
 
