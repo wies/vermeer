@@ -9,6 +9,8 @@
 #include "trace.h"
 #include "xml.h"
 
+#include "alphabet.h"
+
 #if 0
 struct thread_id_t {
 
