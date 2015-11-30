@@ -14,12 +14,14 @@ struct ssa_variable_t {
 struct pi_assignment_t;
 struct local_assignment_t;
 struct phi_assignment_t;
+struct local_execution_t;
 
 struct stmt_visitor_t {
 
   virtual void visit_pi_assignment(pi_assignment_t& a) = 0;
   virtual void visit_local_assignment(local_assignment_t& a) = 0;
   virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
+  virtual void visit_local_execution(local_execution_t& e) = 0;
 
 };
 
@@ -58,8 +60,13 @@ struct phi_assignment_t : public stmt_t {
 
 };
 
-struct local_execution_t {
+struct local_execution_t : public stmt_t {
   std::vector<stmt_t*> stmts;
+
+  void accept(stmt_visitor_t& visitor) override {
+    visitor.visit_local_execution(*this);
+  }
+
 };
 
 }
