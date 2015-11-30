@@ -102,6 +102,9 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
     }
 
     for (int var_id : variable_ids) {
+      if (e.variable_declarations[var_id].thread < 0) { // global variable
+        std::cout << "g";
+      }
       std::cout << var_id << " ";
     }
     std::cout << std::endl;
