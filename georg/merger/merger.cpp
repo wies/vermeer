@@ -89,6 +89,9 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
     switch (s.type) {
       case ASSIGNMENT:
         for (auto const& p : s.rhs.products) {
+          if (e.variable_declarations[p.variable_id].thread < 0) { // global variable
+            std::cout << "G" << p.variable_id;
+          }
           variable_ids.insert(p.variable_id);
         }
         break;
