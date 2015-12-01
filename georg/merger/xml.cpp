@@ -160,28 +160,71 @@ std::ostream& operator<<(std::ostream& out, const exe::statement_t& s) {
   return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const exe::stmt_t& s) {
-  out << "<statement type=\"" << "-----" << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+struct type_visitor : exe::stmt_visitor_t {
 
-#if 0
-  switch (s.type) {
-    case exe::ASSIGNMENT:
-      // <lhs variable-id="10"/>
-      out << "<lhs variable-id=\"" << s.variable_id << "\"/>" << std::endl;
-      out << "<rhs const=\"" << s.rhs.constant << "\">" << std::endl;
-      for (auto const& p : s.rhs.products) {
-        out << p << std::endl;
-      }
-      out << "</rhs>" << std::endl;
-      break;
-    case exe::ASSERTION:
-    case exe::ASSUMPTION:
-      for (auto const& e : s.exprs) {
-        out << e << std::endl;
-      }
-      break;
+  std::string type_string;
+
+  void visit_execution(exe::execution_t& e) override {
+    type_string = "-----";
   }
-#endif
+
+  void visit_assignment(exe::assignment_t& a) override {
+    type_string = "assignment";
+  }
+
+  void visit_assertion(exe::assertion_t& a) override {
+    type_string = "assert";
+  }
+
+  void visit_assumption(exe::assumption_t& a) override {
+    type_string = "assume";
+  }
+
+};
+
+struct xml_output_visitor : exe::stmt_visitor_t {
+
+  std::ostream& out;
+
+  xml_output_visitor(std::ostream& o) : out(o) {
+
+  }
+
+  void visit_execution(exe::execution_t& e) override {
+    out << "-----" << std::endl; // TODO make that better
+  }
+
+  void visit_assignment(exe::assignment_t& a) override {
+    // <lhs variable-id="10"/>
+    out << "<lhs variable-id=\"" << a.variable_id << "\"/>" << std::endl;
+    out << "<rhs const=\"" << a.rhs.constant << "\">" << std::endl;
+    for (auto const& p : a.rhs.products) {
+      out << p << std::endl;
+    }
+    out << "</rhs>" << std::endl;
+  }
+
+  void visit_assertion(exe::assertion_t& a) override {
+    for (auto const& e : a.exprs) {
+      out << e << std::endl;
+    }
+  }
+
+  void visit_assumption(exe::assumption_t& a) override {
+    for (auto const& e : a.exprs) {
+      out << e << std::endl;
+    }
+  }
+
+};
+
+std::ostream& operator<<(std::ostream& out, exe::stmt_t& s) {
+  type_visitor v;
+  s.accept(v);
+  out << "<statement type=\"" << v.type_string << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+
+  xml_output_visitor xml_v(out);
+  s.accept(xml_v);
 
   if (s.guard.exprs.size() > 0) {
     out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
