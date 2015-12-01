@@ -45,17 +45,17 @@ struct thread_local_position_t {
   }
 };
 
-std::set<int> extract_variables(const expression_t& e) {
+std::set<int> extract_variables(const exe::expression_t& e) {
   std::set<int> variable_ids;
 
-  for (const linear_product_t& p : e.term.products) {
+  for (const exe::linear_product_t& p : e.term.products) {
     variable_ids.insert(p.variable_id);
   }
 
   return variable_ids;
 }
 
-std::vector<thread_local_position_t> extract_thread_local_positions(const execution_t& e) {
+std::vector<thread_local_position_t> extract_thread_local_positions(const exe::execution_t& e) {
   std::vector<thread_local_position_t> v;
 
   // thread_id x thread-local position
@@ -74,7 +74,7 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
     thread_local_counters[s.thread] = pos + 1;
 
     // track variable definition
-    if (s.type == ASSIGNMENT) {
+    if (s.type == exe::ASSIGNMENT) {
       variable_definitions[s.variable_id] = s.position;
       std::cout << "Variable " << s.variable_id << " is defined at " << v[variable_definitions[s.variable_id]] << std::endl;
     }
@@ -89,7 +89,7 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
 
     // b) variables in other expressions
     switch (s.type) {
-      case ASSIGNMENT:
+      case exe::ASSIGNMENT:
         for (auto const& p : s.rhs.products) {
           if (e.variable_declarations[p.variable_id].thread < 0) { // global variable
             std::cout << "G" << p.variable_id;
@@ -97,8 +97,8 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
           variable_ids.insert(p.variable_id);
         }
         break;
-      case ASSERTION:
-      case ASSUMPTION:
+      case exe::ASSERTION:
+      case exe::ASSUMPTION:
         for (auto const& e : s.exprs) {
           auto var_ids = extract_variables(e);
           variable_ids.insert(var_ids.begin(), var_ids.end());
@@ -123,7 +123,7 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const execut
 }
 
 int main(int argc, char* argv[]) {
-  execution_t e = read_execution("example.xml");
+  exe::execution_t e = read_execution("example.xml");
 
   std::cout << e << std::endl;
 

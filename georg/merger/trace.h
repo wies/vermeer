@@ -3,6 +3,8 @@
 
 #include <vector>
 
+namespace exe {
+
 enum variable_types_t {
   INT
 };
@@ -58,5 +60,7 @@ struct execution_t {
   std::vector<statement_t> statements;
   int nr_of_threads;
 };
+
+}
 
 #endif // TRACE_H_INCLUDED

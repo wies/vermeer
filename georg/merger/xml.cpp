@@ -13,7 +13,7 @@
 #include "error.h"
 #include "trace.h"
 
-std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
+std::ostream& operator<<(std::ostream& out, const exe::variable_declaration_t& vd) {
   std::string thread_str;
   if (vd.thread < 0) {
     thread_str = "global";
@@ -32,32 +32,32 @@ std::ostream& operator<<(std::ostream& out, const variable_declaration_t& vd) {
   return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const linear_product_t& p) {
+std::ostream& operator<<(std::ostream& out, const exe::linear_product_t& p) {
   out << "<term variable-id=\"" << p.variable_id << "\" factor=\"" << p.factor << "\"/>";
 
   return out;
 }
 
-ops str2ops(const char* str) {
-  ops o;
+exe::ops str2ops(const char* str) {
+  exe::ops o;
 
   if (strcmp(str, "EQ") == 0) {
-    o = EQ;
+    o = exe::EQ;
   }
   else if (strcmp(str, "NEQ") == 0) {
-    o = NEQ;
+    o = exe::NEQ;
   }
   else if (strcmp(str, "LT") == 0) {
-    o = LT;
+    o = exe::LT;
   }
   else if (strcmp(str, "LEQ") == 0) {
-    o = LEQ;
+    o = exe::LEQ;
   }
   else if (strcmp(str, "GT") == 0) {
-    o = GT;
+    o = exe::GT;
   }
   else if (strcmp(str, "GEQ") == 0) {
-    o = GEQ;
+    o = exe::GEQ;
   }
   else {
     ERROR("Unrecognized expression operator!");
@@ -66,26 +66,26 @@ ops str2ops(const char* str) {
   return o;
 }
 
-std::string ops2str(ops o) {
+std::string ops2str(exe::ops o) {
   std::string s;
 
   switch (o) {
-    case EQ:
+    case exe::EQ:
       s = "EQ";
       break;
-    case NEQ:
+    case exe::NEQ:
       s = "NEQ";
       break;
-    case LT:
+    case exe::LT:
       s = "LT";
       break;
-    case LEQ:
+    case exe::LEQ:
       s = "LEQ";
       break;
-    case GT:
+    case exe::GT:
       s = "GT";
       break;
-    case GEQ:
+    case exe::GEQ:
       s = "GEQ";
       break;
     default:
@@ -95,7 +95,7 @@ std::string ops2str(ops o) {
   return s;
 }
 
-std::ostream& operator<<(std::ostream& out, const expression_t& e) {
+std::ostream& operator<<(std::ostream& out, const exe::expression_t& e) {
   out << "<expression operator=\"" << ops2str(e.op) << "\" const=\"" << e.term.constant << "\">" << std::endl;
   for (auto const& p : e.term.products) {
     out << p << std::endl;
@@ -105,17 +105,17 @@ std::ostream& operator<<(std::ostream& out, const expression_t& e) {
   return out;
 }
 
-std::string stmttype2str(statement_type_t t) {
+std::string stmttype2str(exe::statement_type_t t) {
   std::string type_str;
 
   switch (t) {
-    case ASSIGNMENT:
+    case exe::ASSIGNMENT:
       type_str = "assignment";
       break;
-    case ASSERTION:
+    case exe::ASSERTION:
       type_str = "assert";
       break;
-    case ASSUMPTION:
+    case exe::ASSUMPTION:
       type_str = "assume";
       break;
     default:
@@ -125,12 +125,12 @@ std::string stmttype2str(statement_type_t t) {
   return type_str;
 }
 
-std::ostream& operator<<(std::ostream& out, const statement_t& s) {
+std::ostream& operator<<(std::ostream& out, const exe::statement_t& s) {
 
   out << "<statement type=\"" << stmttype2str(s.type) << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
 
   switch (s.type) {
-    case ASSIGNMENT:
+    case exe::ASSIGNMENT:
       // <lhs variable-id="10"/>
       out << "<lhs variable-id=\"" << s.variable_id << "\"/>" << std::endl;
       out << "<rhs const=\"" << s.rhs.constant << "\">" << std::endl;
@@ -139,8 +139,8 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
       }
       out << "</rhs>" << std::endl;
       break;
-    case ASSERTION:
-    case ASSUMPTION:
+    case exe::ASSERTION:
+    case exe::ASSUMPTION:
       for (auto const& e : s.exprs) {
         out << e << std::endl;
       }
@@ -160,7 +160,7 @@ std::ostream& operator<<(std::ostream& out, const statement_t& s) {
   return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const execution_t& t) {
+std::ostream& operator<<(std::ostream& out, const exe::execution_t& t) {
   out << "<trace nr-of-threads=\"" << t.nr_of_threads << "\">" << std::endl;
   out << "<declarations size=\"" << t.variable_declarations.size() << "\">" << std::endl;
   for (auto const& vd : t.variable_declarations) {
@@ -198,8 +198,8 @@ char* read_document(const std::string& filename) {
   return NULL;
 }
 
-variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_decl) {
-  variable_declaration_t vd;
+exe::variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_decl) {
+  exe::variable_declaration_t vd;
 
   // <variable-declaration id="11" variable="101000000" ssa-index="0" type="int" thread="1"/>
   rapidxml::xml_attribute<char>* id_attr = n_var_decl.first_attribute("id");
@@ -218,7 +218,7 @@ variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_
   if (!type_attr) { ERROR("No type attribute in variable declaration!"); }
 
   if (strcmp(type_attr->value(), "int") == 0) {
-    vd.type = INT;
+    vd.type = exe::INT;
   }
   else { ERROR("Unsupported data type in type attribute of variable declaration!"); }
 
@@ -235,8 +235,8 @@ variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n_var_
   return vd;
 }
 
-linear_product_t xml2product(rapidxml::xml_node<char>& n_term) {
-  linear_product_t p;
+exe::linear_product_t xml2product(rapidxml::xml_node<char>& n_term) {
+  exe::linear_product_t p;
 
   // <term variable-id="12" factor="1"/>
 
@@ -251,8 +251,8 @@ linear_product_t xml2product(rapidxml::xml_node<char>& n_term) {
   return p;
 }
 
-expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
-  expression_t e;
+exe::expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
+  exe::expression_t e;
 
   /*
 <expression operator="NEQ" const="0">
@@ -275,15 +275,15 @@ expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
   return e;
 }
 
-statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
+exe::statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
-  statement_t s;
+  exe::statement_t s;
 
   rapidxml::xml_attribute<char>* type_attr = n_stmt.first_attribute("type");
   if (!type_attr) { ERROR("No type attribute in statement!"); }
 
   if (strcmp(type_attr->value(), "assignment") == 0) {
-    s.type = ASSIGNMENT;
+    s.type = exe::ASSIGNMENT;
 
     rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
     if (!n_lhs) { ERROR("No lhs in assignment!"); }
@@ -306,7 +306,7 @@ statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
     }
   }
   else if (strcmp(type_attr->value(), "assert") == 0) {
-    s.type = ASSERTION;
+    s.type = exe::ASSERTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
@@ -314,7 +314,7 @@ statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
     }
   }
   else if (strcmp(type_attr->value(), "assume") == 0) {
-    s.type = ASSUMPTION;
+    s.type = exe::ASSUMPTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
@@ -349,8 +349,8 @@ statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
   return s;
 }
 
-execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
-  execution_t t;
+exe::execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
+  exe::execution_t t;
 
   // extract number of threads
   rapidxml::xml_attribute<char>* n_nr_of_threads_attrib = n_trace.first_attribute("nr-of-threads");
@@ -396,7 +396,7 @@ execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
   return t;
 }
 
-execution_t read_execution(const char* xml_file) {
+exe::execution_t read_execution(const char* xml_file) {
   char* document_string = read_document(xml_file);
   if (!document_string) {
     std::stringstream sstr;
@@ -407,7 +407,7 @@ execution_t read_execution(const char* xml_file) {
   rapidxml::xml_document<char> doc;
   doc.parse<0>(document_string);
 
-  execution_t t = xml2execution(*doc.first_node());
+  exe::execution_t t = xml2execution(*doc.first_node());
 
   delete[] document_string;
 
