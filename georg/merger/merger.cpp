@@ -126,6 +126,12 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const exe::e
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
+  std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
+
+  std::vector<alphabet::stmt_t*>& get_or_create(int thread_id) {
+    return local_executions[thread_id];
+  }
+
   void visit_execution(exe::execution_t& e) override {
     for (auto& s : e.statements) {
       s->accept(*this);
@@ -133,6 +139,9 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   }
 
   void visit_assignment(exe::assignment_t& a) override {
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+    v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
+
     /*for (auto& p : a.rhs.products) {
       std::cout << p.variable_id << std::endl;
     }
@@ -142,11 +151,17 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   }
 
   void visit_assertion(exe::assertion_t& a) override {
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+    v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
+
     //ERROR("I cannot handle this case for the moment");
     std::cout << "thread: " << a.thread << std::endl;
   }
 
   void visit_assumption(exe::assumption_t& a) override {
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+    v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
+
     //ERROR("I cannot handle this case for the moment");
     std::cout << "thread: " << a.thread << std::endl;
   }
@@ -160,6 +175,10 @@ int main(int argc, char* argv[]) {
 
   local_execution_extractor_t lee;
   e.accept(lee);
+
+  for (auto& p : lee.local_executions) {
+    std::cout << "Thread " << p.first << ": " << p.second.size() << std::endl;
+  }
 
 #if 0
   auto pos = extract_thread_local_positions(e);
