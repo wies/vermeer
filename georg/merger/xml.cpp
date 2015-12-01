@@ -160,6 +160,30 @@ std::ostream& operator<<(std::ostream& out, const exe::statement_t& s) {
   return out;
 }
 
+std::ostream& operator<<(std::ostream& out, const exe::stmt_t& s) {
+  out << "stmt_t";
+
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const exe::assertion_t& a) {
+  out << "assertion";
+
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const exe::assignment_t& a) {
+  out << "assignment";
+
+   return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const exe::assumption_t& a) {
+  out << "assumption";
+
+  return out;
+}
+
 std::ostream& operator<<(std::ostream& out, const exe::execution_t& t) {
   out << "<trace nr-of-threads=\"" << t.nr_of_threads << "\">" << std::endl;
   out << "<declarations size=\"" << t.variable_declarations.size() << "\">" << std::endl;
@@ -169,7 +193,7 @@ std::ostream& operator<<(std::ostream& out, const exe::execution_t& t) {
   out << "</declarations>" << std::endl;
   out << "<statements size=\"" << t.statements.size() << "\">" << std::endl;
   for (auto const& s : t.statements) {
-    out << s << std::endl;
+    out << *s << std::endl;
   }
   out << "</statements>" << std::endl;
   out << "</trace>";
