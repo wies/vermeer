@@ -114,6 +114,11 @@ struct execution_t {
       delete s;
     }
   }
+
+  void accept(stmt_visitor_t& v) {
+    v.visit_execution(*this);
+  }
+
 };
 
 }

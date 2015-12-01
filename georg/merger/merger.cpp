@@ -124,10 +124,42 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const exe::e
 }
 #endif
 
+struct local_execution_extractor_t : public exe::stmt_visitor_t {
+
+  void visit_execution(exe::execution_t& e) override {
+    for (auto& s : e.statements) {
+      s->accept(*this);
+    }
+  }
+
+  void visit_assignment(exe::assignment_t& a) override {
+    /*for (auto& p : a.rhs.products) {
+      std::cout << p.variable_id << std::endl;
+    }
+    ERROR("I cannot handle this case for the moment");*/
+    // TODO put the statement into its respective thread
+    std::cout << "thread: " << a.thread << std::endl;
+  }
+
+  void visit_assertion(exe::assertion_t& a) override {
+    //ERROR("I cannot handle this case for the moment");
+    std::cout << "thread: " << a.thread << std::endl;
+  }
+
+  void visit_assumption(exe::assumption_t& a) override {
+    //ERROR("I cannot handle this case for the moment");
+    std::cout << "thread: " << a.thread << std::endl;
+  }
+
+};
+
 int main(int argc, char* argv[]) {
   exe::execution_t e = read_execution("example.xml");
 
   std::cout << e << std::endl;
+
+  local_execution_extractor_t lee;
+  e.accept(lee);
 
 #if 0
   auto pos = extract_thread_local_positions(e);
