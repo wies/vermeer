@@ -128,10 +128,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
 
-  std::vector<alphabet::stmt_t*>& get_or_create(int thread_id) {
-    return local_executions[thread_id];
-  }
-
   void visit_execution(exe::execution_t& e) override {
     for (auto& s : e.statements) {
       s->accept(*this);
