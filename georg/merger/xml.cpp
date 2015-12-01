@@ -275,22 +275,22 @@ exe::expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
   return e;
 }
 
-exe::statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
+exe::statement_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
-  exe::statement_t s;
+  exe::statement_t* s = new exe::statement_t;
 
   rapidxml::xml_attribute<char>* type_attr = n_stmt.first_attribute("type");
   if (!type_attr) { ERROR("No type attribute in statement!"); }
 
   if (strcmp(type_attr->value(), "assignment") == 0) {
-    s.type = exe::ASSIGNMENT;
+    s->type = exe::ASSIGNMENT;
 
     rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
     if (!n_lhs) { ERROR("No lhs in assignment!"); }
 
     rapidxml::xml_attribute<char>* n_var_id_attr = n_lhs->first_attribute("variable-id");
     if (!n_var_id_attr) { ERROR("No variable-id attribute in lhs of assignment!"); }
-    s.variable_id = atoi(n_var_id_attr->value());
+    s->variable_id = atoi(n_var_id_attr->value());
 
     rapidxml::xml_node<char>* n_rhs = n_stmt.first_node("rhs");
     if (!n_rhs) { ERROR("No rhs in assignment!"); }
@@ -298,27 +298,27 @@ exe::statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
     // a) extract const value
     rapidxml::xml_attribute<char>* n_const_attr = n_rhs->first_attribute("const");
     if (!n_const_attr) { ERROR("No const attribute in rhs of assignment!"); }
-    s.rhs.constant = atoi(n_const_attr->value());
+    s->rhs.constant = atoi(n_const_attr->value());
 
     // b) extract terms
     for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-      s.rhs.products.push_back(xml2product(*n_term));
+      s->rhs.products.push_back(xml2product(*n_term));
     }
   }
   else if (strcmp(type_attr->value(), "assert") == 0) {
-    s.type = exe::ASSERTION;
+    s->type = exe::ASSERTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s.exprs.push_back(xml2expression(*n_expr));
+      s->exprs.push_back(xml2expression(*n_expr));
     }
   }
   else if (strcmp(type_attr->value(), "assume") == 0) {
-    s.type = exe::ASSUMPTION;
+    s->type = exe::ASSUMPTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s.exprs.push_back(xml2expression(*n_expr));
+      s->exprs.push_back(xml2expression(*n_expr));
     }
   }
   else {
@@ -327,23 +327,23 @@ exe::statement_t xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
   rapidxml::xml_attribute<char>* position_attr = n_stmt.first_attribute("position");
   if (!position_attr) { ERROR("No position attribute in statement!"); }
-  s.position = atoi(position_attr->value());
+  s->position = atoi(position_attr->value());
 
   rapidxml::xml_attribute<char>* thread_attr = n_stmt.first_attribute("thread");
   if (!thread_attr) { ERROR("No thread attribute in statement!"); }
-  s.thread = atoi(thread_attr->value());
+  s->thread = atoi(thread_attr->value());
 
 
   rapidxml::xml_node<char>* n_guards = n_stmt.first_node("guards");
   if (n_guards) {
     for (rapidxml::xml_node<char>* n_expr = n_guards->first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s.guard.exprs.push_back(xml2expression(*n_expr));
+      s->guard.exprs.push_back(xml2expression(*n_expr));
     }
 
     rapidxml::xml_attribute<char>* a_guards_size = n_guards->first_attribute("size");
     if (!a_guards_size) { ERROR("Missing size in guards node!"); }
     int tmp_guards_size = atoi(a_guards_size->value());
-    if (tmp_guards_size != (int)s.guard.exprs.size()) { ERROR("Size of guards does not match size attribute!"); }
+    if (tmp_guards_size != (int)s->guard.exprs.size()) { ERROR("Size of guards does not match size attribute!"); }
   }
 
   return s;

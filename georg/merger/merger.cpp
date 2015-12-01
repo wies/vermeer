@@ -69,28 +69,28 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const exe::e
 
   // TODO do we assume that statements are ordered according to their position attribute?
   for (auto const& s : e.statements) {
-    int pos = thread_local_counters[s.thread];
-    v.push_back({ s.thread, pos });
-    thread_local_counters[s.thread] = pos + 1;
+    int pos = thread_local_counters[s->thread];
+    v.push_back({ s->thread, pos });
+    thread_local_counters[s->thread] = pos + 1;
 
     // track variable definition
-    if (s.type == exe::ASSIGNMENT) {
-      variable_definitions[s.variable_id] = s.position;
-      std::cout << "Variable " << s.variable_id << " is defined at " << v[variable_definitions[s.variable_id]] << std::endl;
+    if (s->type == exe::ASSIGNMENT) {
+      variable_definitions[s->variable_id] = s->position;
+      std::cout << "Variable " << s->variable_id << " is defined at " << v[variable_definitions[s->variable_id]] << std::endl;
     }
 
     // track variable usage
     // a) guards
     std::set<int> variable_ids;
-    for (auto const& e : s.guard.exprs) {
+    for (auto const& e : s->guard.exprs) {
       auto var_ids = extract_variables(e);
       variable_ids.insert(var_ids.begin(), var_ids.end());
     }
 
     // b) variables in other expressions
-    switch (s.type) {
+    switch (s->type) {
       case exe::ASSIGNMENT:
-        for (auto const& p : s.rhs.products) {
+        for (auto const& p : s->rhs.products) {
           if (e.variable_declarations[p.variable_id].thread < 0) { // global variable
             std::cout << "G" << p.variable_id;
           }
@@ -99,7 +99,7 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const exe::e
         break;
       case exe::ASSERTION:
       case exe::ASSUMPTION:
-        for (auto const& e : s.exprs) {
+        for (auto const& e : s->exprs) {
           auto var_ids = extract_variables(e);
           variable_ids.insert(var_ids.begin(), var_ids.end());
         }
