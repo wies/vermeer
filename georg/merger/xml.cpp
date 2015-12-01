@@ -275,22 +275,23 @@ exe::expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
   return e;
 }
 
-exe::statement_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
+exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
-  exe::statement_t* s = new exe::statement_t;
+  exe::stmt_t* s;// = new exe::statement_t;
 
   rapidxml::xml_attribute<char>* type_attr = n_stmt.first_attribute("type");
   if (!type_attr) { ERROR("No type attribute in statement!"); }
 
   if (strcmp(type_attr->value(), "assignment") == 0) {
-    s->type = exe::ASSIGNMENT;
+    exe::assignment_t* a = new exe::assignment_t;
+    //s->type = exe::ASSIGNMENT;
 
     rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
     if (!n_lhs) { ERROR("No lhs in assignment!"); }
 
     rapidxml::xml_attribute<char>* n_var_id_attr = n_lhs->first_attribute("variable-id");
     if (!n_var_id_attr) { ERROR("No variable-id attribute in lhs of assignment!"); }
-    s->variable_id = atoi(n_var_id_attr->value());
+    a->variable_id = atoi(n_var_id_attr->value());
 
     rapidxml::xml_node<char>* n_rhs = n_stmt.first_node("rhs");
     if (!n_rhs) { ERROR("No rhs in assignment!"); }
@@ -298,28 +299,36 @@ exe::statement_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
     // a) extract const value
     rapidxml::xml_attribute<char>* n_const_attr = n_rhs->first_attribute("const");
     if (!n_const_attr) { ERROR("No const attribute in rhs of assignment!"); }
-    s->rhs.constant = atoi(n_const_attr->value());
+    a->rhs.constant = atoi(n_const_attr->value());
 
     // b) extract terms
     for (rapidxml::xml_node<char>* n_term = n_rhs->first_node("term"); n_term; n_term = n_term->next_sibling("term")) {
-      s->rhs.products.push_back(xml2product(*n_term));
+      a->rhs.products.push_back(xml2product(*n_term));
     }
+
+    s = a;
   }
   else if (strcmp(type_attr->value(), "assert") == 0) {
-    s->type = exe::ASSERTION;
+    exe::assertion_t* a  = new exe::assertion_t;
+    //s->type = exe::ASSERTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s->exprs.push_back(xml2expression(*n_expr));
+      a->exprs.push_back(xml2expression(*n_expr));
     }
+
+    s = a;
   }
   else if (strcmp(type_attr->value(), "assume") == 0) {
-    s->type = exe::ASSUMPTION;
+    exe::assumption_t* a = new exe::assumption_t;
+    //s->type = exe::ASSUMPTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
-      s->exprs.push_back(xml2expression(*n_expr));
+      a->exprs.push_back(xml2expression(*n_expr));
     }
+
+    s = a;
   }
   else {
     ERROR("Unknown value for type attribute in statement!");

@@ -120,7 +120,7 @@ struct assumption_t : public stmt_t {
 // TODO we have to make sure that variable_declarations and statements are ordered according to their id and position, respectively. We don't need vectors, we can preallocate arrays.
 struct execution_t {
   std::vector<variable_declaration_t> variable_declarations;
-  std::vector<statement_t*> statements;
+  std::vector<stmt_t*> statements;
   int nr_of_threads;
 
   ~execution_t() {

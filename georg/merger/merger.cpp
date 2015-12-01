@@ -34,6 +34,7 @@ struct thread_id_t {
 };
 #endif
 
+#if 0
 struct thread_local_position_t {
   //thread_id_t thread;
   int thread;
@@ -121,17 +122,20 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const exe::e
 
   return v;
 }
+#endif
 
 int main(int argc, char* argv[]) {
   exe::execution_t e = read_execution("example.xml");
 
   std::cout << e << std::endl;
 
+#if 0
   auto pos = extract_thread_local_positions(e);
 
   for (auto const& p : pos) {
     std::cout << p << std::endl;
   }
+#endif
 
   return EXIT_SUCCESS;
 }
