@@ -54,20 +54,6 @@ struct guard_t {
   std::vector<expression_t> exprs;
 };
 
-enum statement_type_t {
-  ASSIGNMENT, ASSERTION, ASSUMPTION
-};
-
-struct statement_t {
-  statement_type_t type;
-  int variable_id;
-  term_t rhs;
-  guard_t guard;
-  int position;
-  int thread;
-  std::vector<expression_t> exprs;
-};
-
 struct stmt_t {
 
   virtual ~stmt_t() {}

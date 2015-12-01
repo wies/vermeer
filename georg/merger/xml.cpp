@@ -105,61 +105,6 @@ std::ostream& operator<<(std::ostream& out, const exe::expression_t& e) {
   return out;
 }
 
-std::string stmttype2str(exe::statement_type_t t) {
-  std::string type_str;
-
-  switch (t) {
-    case exe::ASSIGNMENT:
-      type_str = "assignment";
-      break;
-    case exe::ASSERTION:
-      type_str = "assert";
-      break;
-    case exe::ASSUMPTION:
-      type_str = "assume";
-      break;
-    default:
-      ERROR("Unrecognized statement type!");
-  }
-
-  return type_str;
-}
-
-std::ostream& operator<<(std::ostream& out, const exe::statement_t& s) {
-
-  out << "<statement type=\"" << stmttype2str(s.type) << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
-
-  switch (s.type) {
-    case exe::ASSIGNMENT:
-      // <lhs variable-id="10"/>
-      out << "<lhs variable-id=\"" << s.variable_id << "\"/>" << std::endl;
-      out << "<rhs const=\"" << s.rhs.constant << "\">" << std::endl;
-      for (auto const& p : s.rhs.products) {
-        out << p << std::endl;
-      }
-      out << "</rhs>" << std::endl;
-      break;
-    case exe::ASSERTION:
-    case exe::ASSUMPTION:
-      for (auto const& e : s.exprs) {
-        out << e << std::endl;
-      }
-      break;
-  }
-
-  if (s.guard.exprs.size() > 0) {
-    out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
-    for (auto const& e : s.guard.exprs) {
-      out << e << std::endl;
-    }
-    out << "</guards>" << std::endl;
-  }
-
-  out << "</statement>";
-
-  return out;
-}
-
 struct type_visitor : exe::stmt_visitor_t {
 
   std::string type_string;
