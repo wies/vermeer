@@ -127,6 +127,7 @@ std::vector<thread_local_position_t> extract_thread_local_positions(const exe::e
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
+  std::vector<exe::variable_declaration_t> variable_declarations;
 
   void visit_execution(exe::execution_t& e) override {
     for (auto& s : e.statements) {
@@ -135,6 +136,20 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   }
 
   void visit_assignment(exe::assignment_t& a) override {
+
+    // a) is lhs a global variable?
+    auto& vd = variable_declarations[a.variable_id];
+
+    if (vd.thread < 0) {
+      // assignment to a shared variable
+      std::cout << "Assignment to a shared variable: " /*<< a*/ << std::endl;
+    }
+    else {
+      // assignment to a local variable
+      std::cout << "Assignment to a local variable: " /*<< a*/ << std::endl;
+    }
+
+
     std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
     v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
 
@@ -170,6 +185,7 @@ int main(int argc, char* argv[]) {
   std::cout << e << std::endl;
 
   local_execution_extractor_t lee;
+  lee.variable_declarations.insert(lee.variable_declarations.end(), e.variable_declarations.begin(), e.variable_declarations.end()); // TODO replace
   e.accept(lee);
 
   for (auto& p : lee.local_executions) {

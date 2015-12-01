@@ -39,22 +39,22 @@ struct stmt_t {
 
 };
 
-struct pi_assignment_t : public stmt_t {
-  ssa_variable_t global_variable; // lhs
-  // TODO how do we connect data flows with this assignment?
-
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_pi_assignment(*this);
-  }
-
-};
-
 struct local_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
   /* ... */ // rhs consists only of local variables or constants
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_local_assignment(*this);
+  }
+
+};
+
+struct pi_assignment_t : public stmt_t {
+  ssa_variable_t shared_variable; // lhs
+  // TODO how do we connect data flows with this assignment?
+
+  void accept(stmt_visitor_t& visitor) override {
+    visitor.visit_pi_assignment(*this);
   }
 
 };
