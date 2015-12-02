@@ -13,6 +13,12 @@ struct linear_product_t {
 
     return out;
   }
+
+  template <class VisitorType>
+  void accept(VisitorType& v) {
+    v.visit_linear_product(*this);
+  }
+
 };
 
 template <class VariableType>
@@ -29,6 +35,12 @@ struct term_t {
 
     return out;
   }
+
+  template <class VisitorType>
+  void accept(VisitorType& v) {
+    v.visit_term(*this);
+  }
+
 };
 
 template <class VariableType>
@@ -67,9 +79,13 @@ struct expr_t {
 
     return out;
   }
+
+  template <class VisitorType>
+  void accept(VisitorType& v) {
+    v.visit_expr(*this);
+  }
+
 };
-
-
 
 }
 

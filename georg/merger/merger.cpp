@@ -186,6 +186,26 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
 };
 
+struct my_test_visitor {
+
+  void visit_expr(expr::expr_t<char>& e) {
+    std::cout << "expression...";
+    e.term.accept(*this);
+  }
+
+  void visit_term(expr::term_t<char>& t) {
+    std::cout << "term...";
+    for (auto& p : t.products) {
+      p.accept(*this);
+    }
+  }
+
+  void visit_linear_product(expr::linear_product_t<char>& p) {
+    std::cout << "linear product...";
+  }
+
+};
+
 int main(int argc, char* argv[]) {
   exe::execution_t e = read_execution("example.xml");
 
@@ -219,6 +239,9 @@ int main(int argc, char* argv[]) {
   ex.term.products.push_back(p2);
 
   std::cout << ex << std::endl;
+
+  my_test_visitor v;
+  ex.accept(v);
 
 #if 0
   auto pos = extract_thread_local_positions(e);
