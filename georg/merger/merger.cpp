@@ -242,6 +242,7 @@ int main(int argc, char* argv[]) {
 
   my_test_visitor v;
   ex.accept(v);
+  std::cout << std::endl;
 
 #if 0
   auto pos = extract_thread_local_positions(e);
