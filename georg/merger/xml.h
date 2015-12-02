@@ -9,8 +9,6 @@
 #include "trace.h"
 
 std::ostream& operator<<(std::ostream& out, const exe::variable_declaration_t& vd);
-std::ostream& operator<<(std::ostream& out, const exe::linear_product_t& p);
-std::ostream& operator<<(std::ostream& out, const exe::expression_t& e);
 std::ostream& operator<<(std::ostream& out, const exe::execution_t& t);
 
 exe::execution_t read_execution(const char* xml_file);

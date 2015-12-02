@@ -1,6 +1,8 @@
 #ifndef TRACE_H_INCLUDED
 #define TRACE_H_INCLUDED
 
+#include "expr.h"
+
 #include <vector>
 
 namespace exe {
@@ -31,27 +33,8 @@ struct variable_declaration_t {
   int thread;
 };
 
-struct linear_product_t {
-  int variable_id;
-  int factor;
-};
-
-struct term_t {
-  std::vector<linear_product_t> products;
-  int constant;
-};
-
-enum ops {
-  EQ, NEQ, LT, LEQ, GT, GEQ
-};
-
-struct expression_t {
-  ops op;
-  term_t term;
-};
-
 struct guard_t {
-  std::vector<expression_t> exprs;
+  std::vector<expr::expr_t<int>> exprs;
 };
 
 struct stmt_t {
@@ -71,7 +54,7 @@ struct assignment_t : public stmt_t {
   virtual ~assignment_t() {}
 
   int variable_id;
-  term_t rhs;
+  expr::term_t<int> rhs;
 
   virtual void accept(stmt_visitor_t& v) override {
     v.visit_assignment(*this);
@@ -83,7 +66,7 @@ struct assertion_t : public stmt_t {
 
   virtual ~assertion_t() {}
 
-  std::vector<expression_t> exprs;
+  std::vector<expr::expr_t<int>> exprs;
 
   virtual void accept(stmt_visitor_t& v) override {
     v.visit_assertion(*this);
@@ -95,7 +78,7 @@ struct assumption_t : public stmt_t {
 
   virtual ~assumption_t() {}
 
-  std::vector<expression_t> exprs;
+  std::vector<expr::expr_t<int>> exprs;
 
   virtual void accept(stmt_visitor_t& v) override {
     v.visit_assumption(*this);

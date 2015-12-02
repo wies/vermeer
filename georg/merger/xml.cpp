@@ -32,32 +32,30 @@ std::ostream& operator<<(std::ostream& out, const exe::variable_declaration_t& v
   return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const exe::linear_product_t& p) {
-  out << "<term variable-id=\"" << p.variable_id << "\" factor=\"" << p.factor << "\"/>";
-
-  return out;
+void print2xml(std::ostream& out, const expr::linear_product_t<int>& p) {
+  out << "<term variable-id=\"" << p.variable << "\" factor=\"" << p.factor << "\"/>";
 }
 
-exe::ops str2ops(const char* str) {
-  exe::ops o;
+expr::expr_t<int>::ops str2ops(const char* str) {
+  expr::expr_t<int>::ops o;
 
   if (strcmp(str, "EQ") == 0) {
-    o = exe::EQ;
+    o = expr::expr_t<int>::EQ;
   }
   else if (strcmp(str, "NEQ") == 0) {
-    o = exe::NEQ;
+    o = expr::expr_t<int>::NEQ;
   }
   else if (strcmp(str, "LT") == 0) {
-    o = exe::LT;
+    o = expr::expr_t<int>::LT;
   }
   else if (strcmp(str, "LEQ") == 0) {
-    o = exe::LEQ;
+    o = expr::expr_t<int>::LEQ;
   }
   else if (strcmp(str, "GT") == 0) {
-    o = exe::GT;
+    o = expr::expr_t<int>::GT;
   }
   else if (strcmp(str, "GEQ") == 0) {
-    o = exe::GEQ;
+    o = expr::expr_t<int>::GEQ;
   }
   else {
     ERROR("Unrecognized expression operator!");
@@ -66,26 +64,26 @@ exe::ops str2ops(const char* str) {
   return o;
 }
 
-std::string ops2str(exe::ops o) {
+std::string ops2str(expr::expr_t<int>::ops o) {
   std::string s;
 
   switch (o) {
-    case exe::EQ:
+    case expr::expr_t<int>::EQ:
       s = "EQ";
       break;
-    case exe::NEQ:
+    case expr::expr_t<int>::NEQ:
       s = "NEQ";
       break;
-    case exe::LT:
+    case expr::expr_t<int>::LT:
       s = "LT";
       break;
-    case exe::LEQ:
+    case expr::expr_t<int>::LEQ:
       s = "LEQ";
       break;
-    case exe::GT:
+    case expr::expr_t<int>::GT:
       s = "GT";
       break;
-    case exe::GEQ:
+    case expr::expr_t<int>::GEQ:
       s = "GEQ";
       break;
     default:
@@ -95,14 +93,13 @@ std::string ops2str(exe::ops o) {
   return s;
 }
 
-std::ostream& operator<<(std::ostream& out, const exe::expression_t& e) {
+void print2xml(std::ostream& out, const expr::expr_t<int>& e) {
   out << "<expression operator=\"" << ops2str(e.op) << "\" const=\"" << e.term.constant << "\">" << std::endl;
   for (auto const& p : e.term.products) {
-    out << p << std::endl;
+    print2xml(out, p);
+    out << std::endl;
   }
   out << "</expression>";
-
-  return out;
 }
 
 struct type_visitor : exe::stmt_visitor_t {
@@ -144,20 +141,23 @@ struct xml_output_visitor : exe::stmt_visitor_t {
     out << "<lhs variable-id=\"" << a.variable_id << "\"/>" << std::endl;
     out << "<rhs const=\"" << a.rhs.constant << "\">" << std::endl;
     for (auto const& p : a.rhs.products) {
-      out << p << std::endl;
+      print2xml(out, p);
+      out << std::endl;
     }
     out << "</rhs>" << std::endl;
   }
 
   void visit_assertion(exe::assertion_t& a) override {
     for (auto const& e : a.exprs) {
-      out << e << std::endl;
+      print2xml(out, e);
+      out << std::endl;
     }
   }
 
   void visit_assumption(exe::assumption_t& a) override {
     for (auto const& e : a.exprs) {
-      out << e << std::endl;
+      print2xml(out, e);
+      out << std::endl;
     }
   }
 
@@ -174,7 +174,9 @@ std::ostream& operator<<(std::ostream& out, exe::stmt_t& s) {
   if (s.guard.exprs.size() > 0) {
     out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
     for (auto const& e : s.guard.exprs) {
-      out << e << std::endl;
+      //out << e << std::endl;
+      print2xml(out, e);
+      out << std::endl;
     }
     out << "</guards>" << std::endl;
   }
@@ -277,14 +279,14 @@ exe::variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n
   return vd;
 }
 
-exe::linear_product_t xml2product(rapidxml::xml_node<char>& n_term) {
-  exe::linear_product_t p;
+expr::linear_product_t<int>/*exe::linear_product_t*/ xml2product(rapidxml::xml_node<char>& n_term) {
+  expr::linear_product_t<int> p;
 
   // <term variable-id="12" factor="1"/>
 
   rapidxml::xml_attribute<char>* var_attr = n_term.first_attribute("variable-id");
   if (!var_attr) { ERROR("Missing variable-id attribute in term!"); }
-  p.variable_id = atoi(var_attr->value());
+  p.variable = atoi(var_attr->value());
 
   rapidxml::xml_attribute<char>* factor_attr = n_term.first_attribute("factor");
   if (!factor_attr) { ERROR("Missing factor attribute in term!"); }
@@ -293,8 +295,8 @@ exe::linear_product_t xml2product(rapidxml::xml_node<char>& n_term) {
   return p;
 }
 
-exe::expression_t xml2expression(rapidxml::xml_node<char>& n_expr) {
-  exe::expression_t e;
+expr::expr_t<int> xml2expression(rapidxml::xml_node<char>& n_expr) {
+  expr::expr_t<int> e;
 
   /*
 <expression operator="NEQ" const="0">

@@ -1,7 +1,10 @@
 #ifndef EXPR_H_INCLUDED
 #define EXPR_H_INCLUDED
 
+#include "error.h"
+
 #include <map>
+#include <vector>
 
 namespace expr {
 

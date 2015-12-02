@@ -47,6 +47,7 @@ struct thread_local_position_t {
   }
 };
 
+#if 0
 std::set<int> extract_variables(const exe::expression_t& e) {
   std::set<int> variable_ids;
 
@@ -56,6 +57,7 @@ std::set<int> extract_variables(const exe::expression_t& e) {
 
   return variable_ids;
 }
+#endif
 
 #if 0
 std::vector<thread_local_position_t> extract_thread_local_positions(const exe::execution_t& e) {
