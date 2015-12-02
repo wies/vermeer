@@ -4,6 +4,7 @@
 #include "error.h"
 
 #include <map>
+#include <ostream>
 #include <vector>
 
 namespace expr {
