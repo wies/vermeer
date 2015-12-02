@@ -11,6 +11,8 @@
 
 #include "alphabet.h"
 
+#include "expr.h"
+
 #if 0
 struct thread_id_t {
 
@@ -143,10 +145,15 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     if (vd.thread < 0) {
       // assignment to a shared variable
       std::cout << "Assignment to a shared variable: " /*<< a*/ << std::endl;
+      // a) check that all variables in the rhs are local variables!
+
     }
     else {
       // assignment to a local variable
       std::cout << "Assignment to a local variable: " /*<< a*/ << std::endl;
+      // a) does the rhs involve shared variables?
+      // b) If not, local assigment
+      // c) Else global assignment
     }
 
 
