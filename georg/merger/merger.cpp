@@ -199,6 +199,27 @@ int main(int argc, char* argv[]) {
     std::cout << "Thread " << p.first << ": " << p.second.size() << std::endl;
   }
 
+  expr::linear_product_t<char> p1;
+  p1.factor = 42;
+  p1.variable = 'a';
+
+  expr::linear_product_t<char> p2;
+  p2.factor = 33;
+  p2.variable = 'b';
+
+  expr::term_t<char> t;
+  t.constant = 5;
+  t.products.push_back(p1);
+  t.products.push_back(p2);
+
+  expr::expr_t<char> ex;
+  ex.op = expr::expr_t<char>::NEQ;
+  ex.term.constant = 5;
+  ex.term.products.push_back(p1);
+  ex.term.products.push_back(p2);
+
+  std::cout << ex << std::endl;
+
 #if 0
   auto pos = extract_thread_local_positions(e);
 
