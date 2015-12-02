@@ -244,6 +244,12 @@ int main(int argc, char* argv[]) {
   ex.accept(v);
   std::cout << std::endl;
 
+  expr::variable_substitution_t<char, char> subst;
+  subst.substitution_map.insert({ 'a', 'A' });
+  subst.substitution_map.insert({ 'b', 'B' });
+  expr::expr_t<char> ex2 = ex.accept<expr::variable_substitution_t<char, char>, expr::expr_t<char>>(subst);
+  std::cout << ex2 << std::endl;
+
 #if 0
   auto pos = extract_thread_local_positions(e);
 
