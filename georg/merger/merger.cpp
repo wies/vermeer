@@ -139,11 +139,93 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     }
   }
 
+  enum term_purity {
+
+    CONSTANT_ONLY,
+    LOCAL_ONLY,
+    SHARED_ONLY,
+    MIXED
+
+  };
+
+  term_purity determine_purity(expr::term_t<int> t) {
+
+    if (t.products.empty()) {
+      return CONSTANT_ONLY;
+    }
+
+    bool saw_shared = false;
+    bool saw_local = false;
+    for (auto& p : t.products) {
+      auto& vd = variable_declarations[p.variable];
+
+      if (vd.thread < 0) {
+        saw_shared = true;
+      }
+      else {
+        saw_local = true;
+      }
+    }
+
+    if (saw_shared) {
+      if (!saw_local) {
+        return SHARED_ONLY;
+      }
+      else {
+        return MIXED;
+      }
+    }
+
+    return LOCAL_ONLY;
+  }
+
   void visit_assignment(exe::assignment_t& a) override {
+
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
 
     // a) is lhs a global variable?
     auto& vd = variable_declarations[a.variable_id];
 
+    bool is_shared_var = (vd.thread < 0);
+
+    auto purity = determine_purity(a.rhs);
+
+    alphabet::stmt_t* stmt = nullptr;
+
+    if (is_shared_var && purity != MIXED && purity != SHARED_ONLY) {
+      // global assignment
+      alphabet::global_assignment_t* ga = new alphabet::global_assignment_t;
+
+      //ga->shared_variable =
+
+      stmt = (alphabet::stmt_t*)ga;
+    }
+    else if (!is_shared_var && purity != MIXED) {
+      if (purity == SHARED_ONLY) {
+        if (a.rhs.products.size() > 1) {
+          ERROR("Unhandled assignment!");
+        }
+
+        // pi assignment
+        alphabet::pi_assignment_t* pa = new alphabet::pi_assignment_t;
+
+        stmt = (alphabet::stmt_t*)pa;
+      }
+      else {
+        // local assignment
+        alphabet::local_assignment_t* la = new alphabet::local_assignment_t;
+
+        stmt = (alphabet::stmt_t*)la;
+      }
+    }
+    else {
+      ERROR("Unhandled assignment!");
+    }
+
+    assert(stmt);
+    v.push_back(stmt);
+
+#if 0
     if (vd.thread < 0) {
       // assignment to a shared variable
       std::cout << "Assignment to a shared variable: " /*<< a*/ << std::endl;
@@ -164,17 +246,14 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         std::cout << "  -> reading from a " << ((rhs_vd.thread < 0)?"shared":"local") << " variable." << std::endl;
       }
     }
-
-
-    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
-    v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
+#endif
 
     /*for (auto& p : a.rhs.products) {
       std::cout << p.variable_id << std::endl;
     }
     ERROR("I cannot handle this case for the moment");*/
     // TODO put the statement into its respective thread
-    std::cout << "thread: " << a.thread << std::endl;
+    //std::cout << "thread: " << a.thread << std::endl;
   }
 
   void visit_assertion(exe::assertion_t& a) override {
