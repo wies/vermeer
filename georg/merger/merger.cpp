@@ -148,7 +148,10 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       // assignment to a shared variable
       std::cout << "Assignment to a shared variable: " /*<< a*/ << std::endl;
       // a) check that all variables in the rhs are local variables!
-
+      for (auto& p : a.rhs.products) {
+        auto& rhs_vd = variable_declarations[p.variable];
+        std::cout << "  -> reading from a " << ((rhs_vd.thread < 0)?"shared":"local") << " variable." << std::endl;
+      }
     }
     else {
       // assignment to a local variable
@@ -156,6 +159,10 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       // a) does the rhs involve shared variables?
       // b) If not, local assigment
       // c) Else global assignment
+      for (auto& p : a.rhs.products) {
+        auto& rhs_vd = variable_declarations[p.variable];
+        std::cout << "  -> reading from a " << ((rhs_vd.thread < 0)?"shared":"local") << " variable." << std::endl;
+      }
     }
 
 
