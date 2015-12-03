@@ -196,7 +196,12 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       // global assignment
       alphabet::global_assignment_t* ga = new alphabet::global_assignment_t;
 
-      //ga->shared_variable =
+      // we have to generate a ssa_variable_t:
+      // a) TODO unique id
+      // b) TODO variable id
+      // c) TODO thread-local ssa index
+      // d) thread
+      ga->shared_variable.ssa_index.thread_id = a.thread;
 
       stmt = (alphabet::stmt_t*)ga;
     }
