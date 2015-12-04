@@ -211,18 +211,23 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       a_new->exprs.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>, expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
 
-    v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
+    std::cout << *a_new << std::endl;
 
-    //ERROR("I cannot handle this case for the moment");
-    std::cout << "thread: " << a.thread << std::endl;
+    v.push_back((alphabet::stmt_t*)a_new);
   }
 
   void visit_assumption(exe::assumption_t& a) override {
     std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
-    v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
 
-    //ERROR("I cannot handle this case for the moment");
-    std::cout << "thread: " << a.thread << std::endl;
+    alphabet::assumption_t* a_new = new alphabet::assumption_t;
+
+    for (auto& e : a.exprs) {
+      a_new->exprs.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>, expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
+    }
+
+    std::cout << *a_new << std::endl;
+
+    v.push_back((alphabet::stmt_t*)a_new);
   }
 
 };

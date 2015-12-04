@@ -111,6 +111,27 @@ struct assertion_t : public stmt_t {
     visitor.visit_assertion(*this);
   }
 
+  friend std::ostream& operator<<(std::ostream& out, const assertion_t& a) {
+    out << "assert(";
+    switch (a.exprs.size()) {
+      case 0:
+        out << "true";
+        break;
+      case 1:
+        out << a.exprs[0];
+        break;
+      default:
+        out << "(" << a.exprs[0] << ")";
+        for (size_t i = 1; i < a.exprs.size(); i++) {
+          out << " && (" << a.exprs[i] << ")";
+        }
+        break;
+    }
+    out << ")";
+
+    return out;
+  }
+
 };
 
 struct assumption_t : public stmt_t {
@@ -119,6 +140,27 @@ struct assumption_t : public stmt_t {
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_assumption(*this);
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const assumption_t& a) {
+    out << "assume(";
+    switch (a.exprs.size()) {
+      case 0:
+        out << "true";
+        break;
+      case 1:
+        out << a.exprs[0];
+        break;
+      default:
+        out << "(" << a.exprs[0] << ")";
+        for (size_t i = 1; i < a.exprs.size(); i++) {
+          out << " && (" << a.exprs[i] << ")";
+        }
+        break;
+    }
+    out << ")";
+
+    return out;
   }
 
 };
