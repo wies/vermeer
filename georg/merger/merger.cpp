@@ -140,8 +140,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     return last_definition[variable];
   }
 
-  void set_last_definition(int variable, alphabet::ssa_variable_t& v) {
-    last_definition[variable] = v;
+  void set_last_definition(alphabet::ssa_variable_t& v) {
+    last_definition[v.variable_id] = v;
   }
 
 
@@ -241,9 +241,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       ga->shared_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
       ga->shared_variable.ssa_index.thread_id = a.thread;
 
-      // TODO eliminate vd.variable parameter?
       // TODO do we need this function at all?
-      set_last_definition(vd.variable, ga->shared_variable);
+      set_last_definition(ga->shared_variable);
 
       // substitute local variables
       ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
