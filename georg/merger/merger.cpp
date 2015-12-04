@@ -284,36 +284,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     v.push_back(stmt);
 
     set_ssa_index(a.thread, vd.variable, lhs_local_ssa_index + 1);
-
-#if 0
-    if (vd.thread < 0) {
-      // assignment to a shared variable
-      std::cout << "Assignment to a shared variable: " /*<< a*/ << std::endl;
-      // a) check that all variables in the rhs are local variables!
-      for (auto& p : a.rhs.products) {
-        auto& rhs_vd = variable_declarations[p.variable];
-        std::cout << "  -> reading from a " << ((rhs_vd.thread < 0)?"shared":"local") << " variable." << std::endl;
-      }
-    }
-    else {
-      // assignment to a local variable
-      std::cout << "Assignment to a local variable: " /*<< a*/ << std::endl;
-      // a) does the rhs involve shared variables?
-      // b) If not, local assigment
-      // c) Else global assignment
-      for (auto& p : a.rhs.products) {
-        auto& rhs_vd = variable_declarations[p.variable];
-        std::cout << "  -> reading from a " << ((rhs_vd.thread < 0)?"shared":"local") << " variable." << std::endl;
-      }
-    }
-#endif
-
-    /*for (auto& p : a.rhs.products) {
-      std::cout << p.variable_id << std::endl;
-    }
-    ERROR("I cannot handle this case for the moment");*/
-    // TODO put the statement into its respective thread
-    //std::cout << "thread: " << a.thread << std::endl;
   }
 
   void visit_assertion(exe::assertion_t& a) override {
