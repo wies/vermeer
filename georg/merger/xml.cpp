@@ -36,65 +36,8 @@ void print2xml(std::ostream& out, const expr::linear_product_t<int>& p) {
   out << "<term variable-id=\"" << p.variable << "\" factor=\"" << p.factor << "\"/>";
 }
 
-expr::expr_t<int>::ops str2ops(const char* str) {
-  expr::expr_t<int>::ops o;
-
-  if (strcmp(str, "EQ") == 0) {
-    o = expr::expr_t<int>::EQ;
-  }
-  else if (strcmp(str, "NEQ") == 0) {
-    o = expr::expr_t<int>::NEQ;
-  }
-  else if (strcmp(str, "LT") == 0) {
-    o = expr::expr_t<int>::LT;
-  }
-  else if (strcmp(str, "LEQ") == 0) {
-    o = expr::expr_t<int>::LEQ;
-  }
-  else if (strcmp(str, "GT") == 0) {
-    o = expr::expr_t<int>::GT;
-  }
-  else if (strcmp(str, "GEQ") == 0) {
-    o = expr::expr_t<int>::GEQ;
-  }
-  else {
-    ERROR("Unrecognized expression operator!");
-  }
-
-  return o;
-}
-
-std::string ops2str(expr::expr_t<int>::ops o) {
-  std::string s;
-
-  switch (o) {
-    case expr::expr_t<int>::EQ:
-      s = "EQ";
-      break;
-    case expr::expr_t<int>::NEQ:
-      s = "NEQ";
-      break;
-    case expr::expr_t<int>::LT:
-      s = "LT";
-      break;
-    case expr::expr_t<int>::LEQ:
-      s = "LEQ";
-      break;
-    case expr::expr_t<int>::GT:
-      s = "GT";
-      break;
-    case expr::expr_t<int>::GEQ:
-      s = "GEQ";
-      break;
-    default:
-      ERROR("Unrecognized operator!");
-  }
-
-  return s;
-}
-
 void print2xml(std::ostream& out, const expr::expr_t<int>& e) {
-  out << "<expression operator=\"" << ops2str(e.op) << "\" const=\"" << e.term.constant << "\">" << std::endl;
+  out << "<expression operator=\"" << expr::ops2str(e.op) << "\" const=\"" << e.term.constant << "\">" << std::endl;
   for (auto const& p : e.term.products) {
     print2xml(out, p);
     out << std::endl;
@@ -306,7 +249,7 @@ expr::expr_t<int> xml2expression(rapidxml::xml_node<char>& n_expr) {
 
   rapidxml::xml_attribute<char>* a_op = n_expr.first_attribute("operator");
   if (!a_op) { ERROR("Missing operator attribute in expression node!"); }
-  e.op = str2ops(a_op->value());
+  e.op = expr::str2ops(a_op->value());
 
   rapidxml::xml_attribute<char>* a_const = n_expr.first_attribute("const");
   if (!a_const) { ERROR("Missing const attribute in expression node!"); }

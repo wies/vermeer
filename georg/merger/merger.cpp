@@ -204,6 +204,13 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
   void visit_assertion(exe::assertion_t& a) override {
     std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+
+    alphabet::assertion_t* a_new = new alphabet::assertion_t;
+
+    for (auto& e : a.exprs) {
+      a_new->exprs.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>, expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
+    }
+
     v.push_back((alphabet::stmt_t*)new alphabet::local_assignment_t);
 
     //ERROR("I cannot handle this case for the moment");

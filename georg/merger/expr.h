@@ -3,8 +3,10 @@
 
 #include "error.h"
 
+#include <cstring>
 #include <map>
 #include <ostream>
+#include <string>
 #include <vector>
 
 namespace expr {
@@ -54,40 +56,22 @@ struct term_t {
 
 };
 
+enum ops {
+  EQ, NEQ, LT, LEQ, GT, GEQ
+};
+
+ops str2ops(const char* str);
+std::string ops2str(ops o);
+std::string ops2strC(ops o);
+
 template <class VariableType>
 struct expr_t {
-  enum ops {
-    EQ, NEQ, LT, LEQ, GT, GEQ
-  } op;
 
+  ops op;
   term_t<VariableType> term;
 
   friend std::ostream& operator<<(std::ostream& out, expr_t<VariableType> e) {
-    out << 0;
-
-    switch (e.op) {
-      case EQ:
-        out << " = ";
-        break;
-      case NEQ:
-        out << " != ";
-        break;
-      case LT:
-        out << " < ";
-        break;
-      case LEQ:
-        out << " <= ";
-        break;
-      case GT:
-        out << " > ";
-        break;
-      case GEQ:
-        out << " >= ";
-        break;
-    }
-
-    out << e.term;
-
+    out << 0 << " " << ops2strC(e.op) << " " << e.term;
     return out;
   }
 
@@ -107,6 +91,7 @@ struct variable_substitution_t {
     expr_t<VariableType2> e_new;
 
     e_new.op = e.op;
+
     //e_new.term = e.term.accept(*this);
     e_new.term.constant = e.term.constant;
     for (auto& p : e.term.products) {

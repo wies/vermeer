@@ -26,6 +26,8 @@ struct pi_assignment_t;
 struct local_assignment_t;
 struct global_assignment_t;
 struct phi_assignment_t;
+struct assertion_t;
+struct assumption_t;
 struct local_execution_t;
 
 struct stmt_visitor_t {
@@ -34,6 +36,8 @@ struct stmt_visitor_t {
   virtual void visit_local_assignment(local_assignment_t& a) = 0;
   virtual void visit_global_assignment(global_assignment_t& a) = 0;
   virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
+  virtual void visit_assertion(assertion_t& a) = 0;
+  virtual void visit_assumption(assumption_t& a) = 0;
   virtual void visit_local_execution(local_execution_t& e) = 0;
 
 };
@@ -95,6 +99,26 @@ struct phi_assignment_t : public stmt_t {
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_phi_assignment(*this);
+  }
+
+};
+
+struct assertion_t : public stmt_t {
+
+  std::vector<expr::expr_t<ssa_variable_t>> exprs;
+
+  void accept(stmt_visitor_t& visitor) override {
+    visitor.visit_assertion(*this);
+  }
+
+};
+
+struct assumption_t : public stmt_t {
+
+  std::vector<expr::expr_t<ssa_variable_t>> exprs;
+
+  void accept(stmt_visitor_t& visitor) override {
+    visitor.visit_assumption(*this);
   }
 
 };

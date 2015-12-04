@@ -7,10 +7,10 @@ EXPR_TEST_EXE=exprtest
 all: merger expr_test
 
 merger:
-	$(CXX) $(CXXFLAGS) -o $(MERGER_EXE) merger.cpp error.cpp xml.cpp
+	$(CXX) $(CXXFLAGS) -o $(MERGER_EXE) merger.cpp error.cpp xml.cpp expr.cpp
 
 expr_test:
-	$(CXX) $(CXXFLAGS) -o $(EXPR_TEST_EXE) expr_test.cpp error.cpp
+	$(CXX) $(CXXFLAGS) -o $(EXPR_TEST_EXE) expr_test.cpp error.cpp expr.cpp
 
 clean:
 	rm -f ./$(MERGER_EXE)

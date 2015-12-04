@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
   t.products.push_back(p2);
 
   expr::expr_t<char> ex;
-  ex.op = expr::expr_t<char>::NEQ;
+  ex.op = expr::NEQ;
   ex.term.constant = 5;
   ex.term.products.push_back(p1);
   ex.term.products.push_back(p2);
