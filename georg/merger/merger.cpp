@@ -133,6 +133,28 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
   std::vector<exe::variable_declaration_t> variable_declarations;
 
+  std::map<int, std::map<int, int>> thread_local_ssa_indices;
+
+  int get_ssa_index(int thread, int variable) {
+    auto it_thread = thread_local_ssa_indices.find(thread);
+
+    if (it_thread == thread_local_ssa_indices.end()) {
+      return 0;
+    }
+
+    auto it_var = it_thread->second.find(variable);
+
+    if (it_var == it_thread->second.end()) {
+      return 0;
+    }
+
+    return it_var->second;
+  }
+
+  void set_ssa_index(int thread, int variable, int index) {
+    thread_local_ssa_indices[thread][variable] = index;
+  }
+
   void visit_execution(exe::execution_t& e) override {
     for (auto& s : e.statements) {
       s->accept(*this);
@@ -186,6 +208,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     // a) is lhs a global variable?
     auto& vd = variable_declarations[a.variable_id];
 
+    int lhs_local_ssa_index = get_ssa_index(a.thread, vd.variable);
+
     bool is_shared_var = (vd.thread < 0);
 
     auto purity = determine_purity(a.rhs);
@@ -197,11 +221,13 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       alphabet::global_assignment_t* ga = new alphabet::global_assignment_t;
 
       // we have to generate a ssa_variable_t:
-      // a) TODO unique id
-      // b) TODO variable id
-      // c) TODO thread-local ssa index
-      // d) thread
+      ga->shared_variable.variable_id = vd.variable;
+      ga->shared_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
       ga->shared_variable.ssa_index.thread_id = a.thread;
+
+      std::cout << ga->shared_variable << std::endl;
+
+      // TODO substitute local variables
 
       stmt = (alphabet::stmt_t*)ga;
     }
@@ -229,6 +255,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
     assert(stmt);
     v.push_back(stmt);
+
+    set_ssa_index(a.thread, vd.variable, lhs_local_ssa_index + 1);
 
 #if 0
     if (vd.thread < 0) {

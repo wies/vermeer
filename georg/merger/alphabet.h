@@ -5,7 +5,7 @@ namespace alphabet {
 
 struct ssa_variable_t {
 
-  int unique_id;
+  //int unique_id;
   int variable_id;
 
   /* type, currently: INT */
@@ -14,6 +14,11 @@ struct ssa_variable_t {
     int thread_id;
     int thread_local_index;
   } ssa_index;
+
+  friend std::ostream& operator<<(std::ostream& out, const ssa_variable_t& v) {
+    out << "var(" << v.variable_id << ")_{T" << v.ssa_index.thread_id << "," << v.ssa_index.thread_local_index << "}";
+    return out;
+  }
 
 };
 
