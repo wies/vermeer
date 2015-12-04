@@ -133,6 +133,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
   std::vector<exe::variable_declaration_t> variable_declarations;
 
+
   std::map<int, alphabet::ssa_variable_t> last_definition;
 
   alphabet::ssa_variable_t get_last_definition(int variable) {
@@ -142,6 +143,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   void set_last_definition(int variable, alphabet::ssa_variable_t& v) {
     last_definition[variable] = v;
   }
+
 
   std::map<int, std::map<int, int>> thread_local_ssa_indices;
 
@@ -164,6 +166,10 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   void set_ssa_index(int thread, int variable, int index) {
     thread_local_ssa_indices[thread][variable] = index;
   }
+
+
+  expr::variable_substitution_t<int, alphabet::ssa_variable_t> vsubst;
+
 
   void visit_execution(exe::execution_t& e) override {
     for (auto& s : e.statements) {
@@ -239,8 +245,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       set_last_definition(vd.variable, ga->shared_variable);
 
       // TODO substitute local variables
-
-      std::cout << ga->shared_variable << " := ..." << std::endl;
+      expr::term_t<alphabet::ssa_variable_t> t = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
+      std::cout << ga->shared_variable << " := " << t << std::endl;
 
       stmt = (alphabet::stmt_t*)ga;
     }
@@ -270,8 +276,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         la->local_variable.ssa_index.thread_id = a.thread;
 
         // TODO substitute local variables
-
-        std::cout << la->local_variable << " := ..." << std::endl;
+        expr::term_t<alphabet::ssa_variable_t> t = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
+        std::cout << la->local_variable << " := " << t << std::endl;
 
         stmt = (alphabet::stmt_t*)la;
       }
@@ -284,6 +290,12 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     v.push_back(stmt);
 
     set_ssa_index(a.thread, vd.variable, lhs_local_ssa_index + 1);
+
+    alphabet::ssa_variable_t var;
+    var.variable_id = vd.variable;
+    var.ssa_index.thread_id = a.thread;
+    var.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
+    vsubst.substitution_map[vd.id] = var;
   }
 
   void visit_assertion(exe::assertion_t& a) override {
