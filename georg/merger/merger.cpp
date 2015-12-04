@@ -133,6 +133,16 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
   std::vector<exe::variable_declaration_t> variable_declarations;
 
+  std::map<int, alphabet::ssa_variable_t> last_definition;
+
+  alphabet::ssa_variable_t get_last_definition(int variable) {
+    return last_definition[variable];
+  }
+
+  void set_last_definition(int variable, alphabet::ssa_variable_t& v) {
+    last_definition[variable] = v;
+  }
+
   std::map<int, std::map<int, int>> thread_local_ssa_indices;
 
   int get_ssa_index(int thread, int variable) {
@@ -225,6 +235,9 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       ga->shared_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
       ga->shared_variable.ssa_index.thread_id = a.thread;
 
+      // TODO eliminate vd.variable parameter?
+      set_last_definition(vd.variable, ga->shared_variable);
+
       std::cout << ga->shared_variable << std::endl;
 
       // TODO substitute local variables
@@ -233,12 +246,18 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     }
     else if (!is_shared_var && purity != MIXED) {
       if (purity == SHARED_ONLY) {
-        if (a.rhs.products.size() > 1) {
+        if (a.rhs.products.size() > 1 || a.rhs.products[0].factor != 1) {
           ERROR("Unhandled assignment!");
         }
 
         // pi assignment
         alphabet::pi_assignment_t* pa = new alphabet::pi_assignment_t;
+        pa->local_variable.variable_id = vd.variable;
+        pa->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
+        pa->local_variable.ssa_index.thread_id = a.thread;
+        pa->shared_variable = get_last_definition(a.rhs.products[0].variable);
+
+        std::cout << pa->local_variable << " := pi(" << pa->shared_variable << ")" << std::endl;
 
         stmt = (alphabet::stmt_t*)pa;
       }

@@ -55,8 +55,8 @@ struct local_assignment_t : public stmt_t {
 };
 
 struct pi_assignment_t : public stmt_t {
-  ssa_variable_t shared_variable; // lhs
-  // TODO how do we connect data flows with this assignment?
+  ssa_variable_t local_variable; // lhs
+  ssa_variable_t shared_variable; // rhs
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_pi_assignment(*this);
