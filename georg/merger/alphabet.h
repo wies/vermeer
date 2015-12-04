@@ -52,6 +52,11 @@ struct local_assignment_t : public stmt_t {
     visitor.visit_local_assignment(*this);
   }
 
+  friend std::ostream& operator<<(std::ostream& out, const local_assignment_t& a) {
+    out << a.local_variable << " := " << a.rhs;
+    return out;
+  }
+
 };
 
 struct pi_assignment_t : public stmt_t {
@@ -62,6 +67,11 @@ struct pi_assignment_t : public stmt_t {
     visitor.visit_pi_assignment(*this);
   }
 
+  friend std::ostream& operator<<(std::ostream& out, const pi_assignment_t& a) {
+    out << a.local_variable << " := pi(" << a.shared_variable << ")";
+    return out;
+  }
+
 };
 
 struct global_assignment_t : public stmt_t {
@@ -70,6 +80,11 @@ struct global_assignment_t : public stmt_t {
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_global_assignment(*this);
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const global_assignment_t& a) {
+    out << a.shared_variable << " := " << a.rhs;
+    return out;
   }
 
 };

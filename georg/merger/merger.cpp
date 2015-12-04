@@ -242,11 +242,12 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       ga->shared_variable.ssa_index.thread_id = a.thread;
 
       // TODO eliminate vd.variable parameter?
+      // TODO do we need this function at all?
       set_last_definition(vd.variable, ga->shared_variable);
 
       // substitute local variables
       ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-      std::cout << ga->shared_variable << " := " << ga->rhs << std::endl;
+      std::cout << *ga << std::endl;
 
       stmt = (alphabet::stmt_t*)ga;
     }
@@ -263,7 +264,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         pa->local_variable.ssa_index.thread_id = a.thread;
         pa->shared_variable = get_last_definition(a.rhs.products[0].variable);
 
-        std::cout << pa->local_variable << " := pi(" << pa->shared_variable << ")" << std::endl;
+        std::cout << *pa << std::endl;
 
         stmt = (alphabet::stmt_t*)pa;
       }
@@ -277,7 +278,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
         // substitute local variables
         la->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-        std::cout << la->local_variable << " := " << la->rhs << std::endl;
+        std::cout << *la << std::endl;
 
         stmt = (alphabet::stmt_t*)la;
       }
