@@ -46,7 +46,7 @@ struct stmt_t {
 
 struct local_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
-  /* ... */ // rhs consists only of local variables or constants
+  expr::term_t<ssa_variable_t> rhs;
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_local_assignment(*this);
@@ -65,8 +65,8 @@ struct pi_assignment_t : public stmt_t {
 };
 
 struct global_assignment_t : public stmt_t {
-  ssa_variable_t local_variable; // lhs
-  ssa_variable_t shared_variable; // rhs
+  ssa_variable_t shared_variable; // lhs
+  expr::term_t<ssa_variable_t> rhs;
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_global_assignment(*this);

@@ -244,9 +244,9 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       // TODO eliminate vd.variable parameter?
       set_last_definition(vd.variable, ga->shared_variable);
 
-      // TODO substitute local variables
-      expr::term_t<alphabet::ssa_variable_t> t = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-      std::cout << ga->shared_variable << " := " << t << std::endl;
+      // substitute local variables
+      ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
+      std::cout << ga->shared_variable << " := " << ga->rhs << std::endl;
 
       stmt = (alphabet::stmt_t*)ga;
     }
@@ -275,9 +275,9 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         la->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
         la->local_variable.ssa_index.thread_id = a.thread;
 
-        // TODO substitute local variables
-        expr::term_t<alphabet::ssa_variable_t> t = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-        std::cout << la->local_variable << " := " << t << std::endl;
+        // substitute local variables
+        la->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
+        std::cout << la->local_variable << " := " << la->rhs << std::endl;
 
         stmt = (alphabet::stmt_t*)la;
       }
