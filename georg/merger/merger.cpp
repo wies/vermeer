@@ -133,18 +133,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
   std::vector<exe::variable_declaration_t> variable_declarations;
 
-
-  std::map<int, alphabet::ssa_variable_t> last_definition;
-
-  alphabet::ssa_variable_t get_last_definition(int variable) {
-    return last_definition[variable];
-  }
-
-  void set_last_definition(alphabet::ssa_variable_t& v) {
-    last_definition[v.variable_id] = v;
-  }
-
-
   std::map<int, std::map<int, int>> thread_local_ssa_indices;
 
   int get_ssa_index(int thread, int variable) {
@@ -241,9 +229,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       ga->shared_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
       ga->shared_variable.ssa_index.thread_id = a.thread;
 
-      // TODO do we need this function at all?
-      set_last_definition(ga->shared_variable);
-
       // substitute local variables
       ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
       std::cout << *ga << std::endl;
@@ -261,7 +246,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         pa->local_variable.variable_id = vd.variable;
         pa->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
         pa->local_variable.ssa_index.thread_id = a.thread;
-        pa->shared_variable = get_last_definition(a.rhs.products[0].variable);
+        pa->shared_variable = vsubst.substitution_map[a.rhs.products[0].variable];
 
         std::cout << *pa << std::endl;
 
