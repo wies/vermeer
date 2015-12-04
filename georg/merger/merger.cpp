@@ -238,9 +238,9 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       // TODO eliminate vd.variable parameter?
       set_last_definition(vd.variable, ga->shared_variable);
 
-      std::cout << ga->shared_variable << std::endl;
-
       // TODO substitute local variables
+
+      std::cout << ga->shared_variable << " := ..." << std::endl;
 
       stmt = (alphabet::stmt_t*)ga;
     }
@@ -264,6 +264,14 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       else {
         // local assignment
         alphabet::local_assignment_t* la = new alphabet::local_assignment_t;
+
+        la->local_variable.variable_id = vd.variable;
+        la->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
+        la->local_variable.ssa_index.thread_id = a.thread;
+
+        // TODO substitute local variables
+
+        std::cout << la->local_variable << " := ..." << std::endl;
 
         stmt = (alphabet::stmt_t*)la;
       }
