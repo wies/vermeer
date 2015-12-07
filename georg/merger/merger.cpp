@@ -150,7 +150,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
       // substitute local variables
       ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-      std::cout << *ga << std::endl;
 
       stmt = (alphabet::stmt_t*)ga;
     }
@@ -167,8 +166,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         pa->local_variable.ssa_index.thread_id = a.thread;
         pa->shared_variable = vsubst.substitution_map[a.rhs.products[0].variable];
 
-        std::cout << *pa << std::endl;
-
         stmt = (alphabet::stmt_t*)pa;
       }
       else {
@@ -181,7 +178,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
         // substitute local variables
         la->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-        std::cout << *la << std::endl;
 
         stmt = (alphabet::stmt_t*)la;
       }
@@ -195,6 +191,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     for (auto& e : a.guard.exprs) {
       stmt->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
+
+    std::cout << *stmt << std::endl;
 
     v.push_back(stmt);
 

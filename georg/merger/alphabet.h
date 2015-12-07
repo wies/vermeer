@@ -68,6 +68,14 @@ struct stmt_t {
     out << ") -> ";
   }
 
+  virtual void print(std::ostream& out) const = 0;
+
+  friend std::ostream& operator<<(std::ostream& out, const stmt_t& s) {
+    s.print_guards(out);
+    s.print(out);
+    return out;
+  }
+
 };
 
 struct local_assignment_t : public stmt_t {
@@ -78,10 +86,8 @@ struct local_assignment_t : public stmt_t {
     visitor.visit_local_assignment(*this);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const local_assignment_t& a) {
-    a.print_guards(out);
-    out << a.local_variable << " := " << a.rhs;
-    return out;
+  void print(std::ostream& out) const override {
+    out << local_variable << " := " << rhs;
   }
 
 };
@@ -94,10 +100,8 @@ struct pi_assignment_t : public stmt_t {
     visitor.visit_pi_assignment(*this);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const pi_assignment_t& a) {
-    a.print_guards(out);
-    out << a.local_variable << " := pi(" << a.shared_variable << ")";
-    return out;
+  void print(std::ostream& out) const override {
+    out << local_variable << " := pi(" << shared_variable << ")";
   }
 
 };
@@ -110,10 +114,8 @@ struct global_assignment_t : public stmt_t {
     visitor.visit_global_assignment(*this);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const global_assignment_t& a) {
-    a.print_guards(out);
-    out << a.shared_variable << " := " << a.rhs;
-    return out;
+  void print(std::ostream& out) const override {
+    out << shared_variable << " := " << rhs;
   }
 
 };
@@ -126,6 +128,10 @@ struct phi_assignment_t : public stmt_t {
     visitor.visit_phi_assignment(*this);
   }
 
+  void print(std::ostream& out) const override {
+    out << "phi(...)";
+  }
+
 };
 
 struct assertion_t : public stmt_t {
@@ -136,26 +142,23 @@ struct assertion_t : public stmt_t {
     visitor.visit_assertion(*this);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const assertion_t& a) {
-    a.print_guards(out);
+  void print(std::ostream& out) const override {
     out << "assert(";
-    switch (a.exprs.size()) {
+    switch (exprs.size()) {
       case 0:
         out << "true";
         break;
       case 1:
-        out << a.exprs[0];
+        out << exprs[0];
         break;
       default:
-        out << "(" << a.exprs[0] << ")";
-        for (size_t i = 1; i < a.exprs.size(); i++) {
-          out << " && (" << a.exprs[i] << ")";
+        out << "(" << exprs[0] << ")";
+        for (size_t i = 1; i < exprs.size(); i++) {
+          out << " && (" << exprs[i] << ")";
         }
         break;
     }
     out << ")";
-
-    return out;
   }
 
 };
@@ -168,26 +171,23 @@ struct assumption_t : public stmt_t {
     visitor.visit_assumption(*this);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const assumption_t& a) {
-    a.print_guards(out);
+  void print(std::ostream& out) const override {
     out << "assume(";
-    switch (a.exprs.size()) {
+    switch (exprs.size()) {
       case 0:
         out << "true";
         break;
       case 1:
-        out << a.exprs[0];
+        out << exprs[0];
         break;
       default:
-        out << "(" << a.exprs[0] << ")";
-        for (size_t i = 1; i < a.exprs.size(); i++) {
-          out << " && (" << a.exprs[i] << ")";
+        out << "(" << exprs[0] << ")";
+        for (size_t i = 1; i < exprs.size(); i++) {
+          out << " && (" << exprs[i] << ")";
         }
         break;
     }
     out << ")";
-
-    return out;
   }
 
 };
@@ -197,6 +197,10 @@ struct local_execution_t : public stmt_t {
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_local_execution(*this);
+  }
+
+  void print(std::ostream& out) const override {
+    out << "local_execution(...)";
   }
 
 };
