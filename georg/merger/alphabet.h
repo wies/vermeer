@@ -44,7 +44,29 @@ struct stmt_visitor_t {
 
 struct stmt_t {
 
+  std::vector<expr::expr_t<ssa_variable_t>> guards;
+
   virtual void accept(stmt_visitor_t& visitor) = 0;
+
+  void print_guards(std::ostream& out) const {
+    out << "guard(";
+
+    if (guards.empty()) {
+      out << "true";
+    }
+    else if (guards.size() == 1) {
+      out << guards[0];
+    }
+    else {
+      out << "(" << guards[0] << ")";
+
+      for (size_t i = 1; i < guards.size(); i++) {
+        out << " && (" << guards[i] << ")";
+      }
+    }
+
+    out << ") -> ";
+  }
 
 };
 
@@ -57,6 +79,7 @@ struct local_assignment_t : public stmt_t {
   }
 
   friend std::ostream& operator<<(std::ostream& out, const local_assignment_t& a) {
+    a.print_guards(out);
     out << a.local_variable << " := " << a.rhs;
     return out;
   }
@@ -72,6 +95,7 @@ struct pi_assignment_t : public stmt_t {
   }
 
   friend std::ostream& operator<<(std::ostream& out, const pi_assignment_t& a) {
+    a.print_guards(out);
     out << a.local_variable << " := pi(" << a.shared_variable << ")";
     return out;
   }
@@ -87,6 +111,7 @@ struct global_assignment_t : public stmt_t {
   }
 
   friend std::ostream& operator<<(std::ostream& out, const global_assignment_t& a) {
+    a.print_guards(out);
     out << a.shared_variable << " := " << a.rhs;
     return out;
   }
@@ -112,6 +137,7 @@ struct assertion_t : public stmt_t {
   }
 
   friend std::ostream& operator<<(std::ostream& out, const assertion_t& a) {
+    a.print_guards(out);
     out << "assert(";
     switch (a.exprs.size()) {
       case 0:
@@ -143,6 +169,7 @@ struct assumption_t : public stmt_t {
   }
 
   friend std::ostream& operator<<(std::ostream& out, const assumption_t& a) {
+    a.print_guards(out);
     out << "assume(";
     switch (a.exprs.size()) {
       case 0:

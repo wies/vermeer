@@ -191,6 +191,11 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     }
 
     assert(stmt);
+
+    for (auto& e : a.guard.exprs) {
+      stmt->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
+    }
+
     v.push_back(stmt);
 
     set_ssa_index(a.thread, vd.variable, lhs_local_ssa_index + 1);
@@ -211,6 +216,10 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       a_new->exprs.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>, expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
 
+    for (auto& e : a.guard.exprs) {
+      a_new->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
+    }
+
     std::cout << *a_new << std::endl;
 
     v.push_back((alphabet::stmt_t*)a_new);
@@ -223,6 +232,10 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
     for (auto& e : a.exprs) {
       a_new->exprs.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>, expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
+    }
+
+    for (auto& e : a.guard.exprs) {
+      a_new->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
 
     std::cout << *a_new << std::endl;
