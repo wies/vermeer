@@ -36,17 +36,6 @@ struct thread_id_t {
 };
 #endif
 
-struct thread_local_position_t {
-  //thread_id_t thread;
-  int thread;
-  int position;
-
-  friend std::ostream& operator<<(std::ostream& out, const thread_local_position_t p) {
-    out << "(T" << p.thread << ",P" << p.position << ")";
-    return out;
-  }
-};
-
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;

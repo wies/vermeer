@@ -3,6 +3,17 @@
 
 namespace alphabet {
 
+struct thread_local_position_t {
+  //thread_id_t thread;
+  int thread;
+  int position;
+
+  friend std::ostream& operator<<(std::ostream& out, const thread_local_position_t p) {
+    out << "(T" << p.thread << ",P" << p.position << ")";
+    return out;
+  }
+};
+
 struct ssa_variable_t {
 
   //int unique_id;
@@ -45,6 +56,7 @@ struct stmt_visitor_t {
 struct stmt_t {
 
   std::vector<expr::expr_t<ssa_variable_t>> guards;
+  thread_local_position_t position; // program location
 
   virtual void accept(stmt_visitor_t& visitor) = 0;
 
@@ -71,6 +83,7 @@ struct stmt_t {
   virtual void print(std::ostream& out) const = 0;
 
   friend std::ostream& operator<<(std::ostream& out, const stmt_t& s) {
+    out << s.position << ": ";
     s.print_guards(out);
     s.print(out);
     return out;
