@@ -8,11 +8,14 @@
 template <class LabelType>
 class graph_t {
 
+public:
   struct edge_t {
+    size_t source;
     LabelType label;
     size_t target;
   };
 
+private:
   std::map<size_t, std::vector<edge_t>> adjacency_lists;
   size_t nr_of_nodes;
 
@@ -26,14 +29,22 @@ public:
     return id;
   }
 
-  void add_edge(size_t source, LabelType label, size_t target) {
+  edge_t add_edge(size_t source, LabelType label, size_t target) {
     // TODO How defensive do we want to progam?
     auto& v = adjacency_lists[source];
-    v.push_back({ label, target });
+    edge_t e = { source, label, target };
+    v.push_back(e);
+    return e;
   }
 
+  inline
   size_t size() const {
     return nr_of_nodes;
+  }
+
+  inline
+  bool empty() const {
+    return (nr_of_nodes == 0);
   }
 
   friend std::ostream& operator<<(std::ostream& out, const graph_t& g) {

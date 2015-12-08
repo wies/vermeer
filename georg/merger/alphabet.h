@@ -227,6 +227,7 @@ struct projected_execution_t {
 struct projected_executions_t {
 
   std::map<int, graph_t<int>> projections;
+  std::map<int, std::vector< graph_t<int>::edge_t >> edges;
 
   projected_executions_t(const projected_execution_t& pexe) {
     for (auto& p : pexe.projections) {
@@ -234,8 +235,77 @@ struct projected_executions_t {
       size_t source = g.create_node();
       for (auto& s : p.second) {
         size_t target = g.create_node();
-        g.add_edge(source, s->program_location.position, target);
+        edges[p.first].push_back(g.add_edge(source, s->program_location.position, target));
         source = target;
+      }
+    }
+  }
+
+  void merge(const projected_execution_t& pexe) {
+    std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
+
+    // determine merging points
+    for (auto& p : pexe.projections) {
+      // TODO this is just a simple test
+      for (auto& e : edges[p.first]) {
+        for (auto& s : p.second) {
+          if (e.label == s->program_location.position) {
+            // merge
+            merge_map[s] = e;
+          }
+        }
+      }
+    }
+
+    // merge
+    for (auto& p : pexe.projections) {
+      graph_t<int>& g = projections[p.first];
+      if (g.empty()) {
+        // new graph -> create initial node
+        g.create_node();
+      }
+
+      size_t source = 0;
+
+      //for (auto& s : p.second) {
+      for (size_t i = 0; i < p.second.size(); i++) {
+        stmt_t* s = p.second[i];
+        auto it = merge_map.find(s);
+
+        if (it == merge_map.end()) {
+          // no merge
+          std::cout << "no merge" << std::endl;
+
+          bool target_set = false;
+          size_t target;
+
+          // check whether successor is getting merged
+          if (i < p.second.size() - 1) {
+            stmt_t* next_s = p.second[i + 1];
+
+            auto next_it = merge_map.find(next_s);
+
+            if (next_it != merge_map.end()) {
+              // next statement is getting merged
+              target = next_it->second.source;
+              target_set = true;
+            }
+          }
+
+          if (!target_set) {
+            target = g.create_node();
+            g.add_edge(source, s->program_location.position, target);
+          }
+
+          source = target;
+        }
+        else {
+          // merge
+          std::cout << "merge" << std::endl;
+
+          // nothing to do except updating the target
+          source = it->second.target;
+        }
       }
     }
   }

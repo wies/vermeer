@@ -27,6 +27,9 @@ int main(int argc, char* argv[]) {
 
   alphabet::projected_executions_t ps(p);
   std::cout << ps << std::endl;
+  std::cout << "******************************************" << std::endl;
+  ps.merge(p);
+  std::cout << ps << std::endl;
 
   return EXIT_SUCCESS;
 }
