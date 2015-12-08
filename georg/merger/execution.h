@@ -15,6 +15,8 @@ struct assumption_t;
 
 struct stmt_visitor_t {
 
+  virtual ~stmt_visitor_t() {};
+
   virtual void visit_execution(execution_t& e) = 0;
   virtual void visit_assignment(assignment_t& a) = 0;
   virtual void visit_assertion(assertion_t& a) = 0;

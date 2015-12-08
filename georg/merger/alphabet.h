@@ -40,11 +40,13 @@ struct stmt_visitor_t {
   virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
   virtual void visit_assertion(assertion_t& a) = 0;
   virtual void visit_assumption(assumption_t& a) = 0;
-  virtual void visit_local_execution(local_execution_t& e) = 0;
+  //virtual void visit_local_execution(local_execution_t& e) = 0;
 
 };
 
 struct stmt_t {
+
+  virtual ~stmt_t() {}
 
   std::vector<expr::expr_t<ssa_variable_t>> guards;
   thread_local_position_t program_location; // program location
@@ -196,6 +198,7 @@ struct assumption_t : public stmt_t {
 
 };
 
+#if 0
 struct local_execution_t : public stmt_t {
   std::vector<stmt_t*> stmts;
 
@@ -208,6 +211,7 @@ struct local_execution_t : public stmt_t {
   }
 
 };
+#endif
 
 }
 

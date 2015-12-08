@@ -9,6 +9,14 @@
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
+  ~local_execution_extractor_t() {
+    for (auto& p : local_executions) {
+      for (auto& s : p.second) {
+        delete s;
+      }
+    }
+  }
+
   std::map<int, std::vector<alphabet::stmt_t*>> local_executions;
   std::vector<exe::variable_declaration_t> variable_declarations;
 
