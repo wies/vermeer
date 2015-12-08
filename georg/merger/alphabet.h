@@ -1,18 +1,9 @@
 #ifndef ALPHABET_H_INCLUDED
 #define ALPHABET_H_INCLUDED
 
+#include "program_location.h"
+
 namespace alphabet {
-
-struct thread_local_position_t {
-  //thread_id_t thread;
-  int thread;
-  int position;
-
-  friend std::ostream& operator<<(std::ostream& out, const thread_local_position_t p) {
-    out << "(T" << p.thread << ",P" << p.position << ")";
-    return out;
-  }
-};
 
 struct ssa_variable_t {
 
