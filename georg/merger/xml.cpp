@@ -11,7 +11,7 @@
 #include "rapidxml-1.13/rapidxml.hpp"
 
 #include "error.h"
-#include "trace.h"
+#include "execution.h"
 
 std::ostream& operator<<(std::ostream& out, const exe::variable_declaration_t& vd) {
   std::string thread_str;
