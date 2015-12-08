@@ -26,6 +26,7 @@ int main(int argc, char* argv[]) {
   std::cout << "******************************************" << std::endl;
 
   alphabet::projected_executions_t ps(p);
+  std::cout << ps << std::endl;
 
   return EXIT_SUCCESS;
 }

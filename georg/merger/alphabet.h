@@ -228,8 +228,27 @@ struct projected_executions_t {
 
   std::map<int, graph_t<int>> projections;
 
-  projected_executions_t(const projected_execution_t& p) {
-    // TODO initialize projections with p;
+  projected_executions_t(const projected_execution_t& pexe) {
+    for (auto& p : pexe.projections) {
+      graph_t<int>& g = projections[p.first];
+      size_t source = g.create_node();
+      for (auto& s : p.second) {
+        size_t target = g.create_node();
+        g.add_edge(source, s->program_location.position, target);
+        source = target;
+      }
+    }
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps) {
+    out << "{" << std::endl;
+    for (auto& p : ps.projections) {
+      out << "thread " << p.first << ":" << std::endl;
+      out << p.second << std::endl;
+    }
+    out << "}" << std::endl;
+
+    return out;
   }
 
 };
