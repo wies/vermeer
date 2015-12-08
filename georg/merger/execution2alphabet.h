@@ -4,7 +4,6 @@
 #include "execution.h"
 #include "alphabet.h"
 
-#include <iostream>
 #include <map>
 #include <vector>
 
@@ -155,8 +154,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       stmt->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
 
-    std::cout << *stmt << std::endl;
-
     v.push_back(stmt);
 
     set_ssa_index(a.program_location.thread, vd.variable, lhs_local_ssa_index + 1);
@@ -183,8 +180,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
     a_new->program_location = a.program_location;
 
-    std::cout << *a_new << std::endl;
-
     v.push_back((alphabet::stmt_t*)a_new);
   }
 
@@ -202,8 +197,6 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     }
 
     a_new->program_location = a.program_location;
-
-    std::cout << *a_new << std::endl;
 
     v.push_back((alphabet::stmt_t*)a_new);
   }

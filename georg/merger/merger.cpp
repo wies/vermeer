@@ -24,6 +24,10 @@ int main(int argc, char* argv[]) {
 
   for (auto& p : lee.local_executions) {
     std::cout << "Thread " << p.first << ": " << p.second.size() << std::endl;
+    for (auto& s : p.second) {
+      std::cout << *s << std::endl;
+    }
+    std::cout << std::endl;
   }
 
   return EXIT_SUCCESS;
