@@ -40,7 +40,6 @@ struct stmt_visitor_t {
   virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
   virtual void visit_assertion(assertion_t& a) = 0;
   virtual void visit_assumption(assumption_t& a) = 0;
-  //virtual void visit_local_execution(local_execution_t& e) = 0;
 
 };
 
@@ -198,20 +197,31 @@ struct assumption_t : public stmt_t {
 
 };
 
-#if 0
-struct local_execution_t : public stmt_t {
-  std::vector<stmt_t*> stmts;
+struct projected_execution_t {
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_local_execution(*this);
+  std::map<int, std::vector<stmt_t*>> projections;
+
+  ~projected_execution_t() {
+    for (auto& p : projections) {
+      for (auto& s : p.second) {
+        delete s;
+      }
+    }
   }
 
-  void print(std::ostream& out) const override {
-    out << "local_execution(...)";
+  friend std::ostream& operator<<(std::ostream& out, const projected_execution_t& p) {
+    for (auto& e : p.projections) {
+      out << "Thread " << e.first << ": " << e.second.size() << std::endl;
+      for (auto& s : e.second) {
+        out << *s << std::endl;
+      }
+      out << std::endl;
+    }
+
+    return out;
   }
 
 };
-#endif
 
 }
 

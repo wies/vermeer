@@ -18,17 +18,11 @@ int main(int argc, char* argv[]) {
   std::cout << e << std::endl;
   std::cout << "******************************************" << std::endl;
 
-  local_execution_extractor_t lee;
+  alphabet::projected_execution_t p;
+  local_execution_extractor_t lee(p);
   lee.variable_declarations.insert(lee.variable_declarations.end(), e.variable_declarations.begin(), e.variable_declarations.end()); // TODO replace
   e.accept(lee);
-
-  for (auto& p : lee.local_executions) {
-    std::cout << "Thread " << p.first << ": " << p.second.size() << std::endl;
-    for (auto& s : p.second) {
-      std::cout << *s << std::endl;
-    }
-    std::cout << std::endl;
-  }
+  std::cout << p << std::endl;
 
   return EXIT_SUCCESS;
 }
