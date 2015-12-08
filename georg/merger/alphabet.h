@@ -310,7 +310,11 @@ struct projected_executions_t {
       }
     }
 
-    // TODO insert new_edges into edges
+    // insert new_edges into edges
+    for (auto& p : new_edges) {
+      auto& v = edges[p.first];
+      v.insert(v.end(), p.second.begin(), p.second.end());
+    }
   }
 
   friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps) {
