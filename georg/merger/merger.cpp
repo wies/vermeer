@@ -23,6 +23,9 @@ int main(int argc, char* argv[]) {
   lee.variable_declarations.insert(lee.variable_declarations.end(), e.variable_declarations.begin(), e.variable_declarations.end()); // TODO replace
   e.accept(lee);
   std::cout << p << std::endl;
+  std::cout << "******************************************" << std::endl;
+
+  alphabet::projected_executions_t ps(p);
 
   return EXIT_SUCCESS;
 }

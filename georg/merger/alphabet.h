@@ -2,6 +2,7 @@
 #define ALPHABET_H_INCLUDED
 
 #include "program_location.h"
+#include "graph.h"
 
 namespace alphabet {
 
@@ -219,6 +220,16 @@ struct projected_execution_t {
     }
 
     return out;
+  }
+
+};
+
+struct projected_executions_t {
+
+  std::map<int, graph_t<int>> projections;
+
+  projected_executions_t(const projected_execution_t& p) {
+    // TODO initialize projections with p;
   }
 
 };
