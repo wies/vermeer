@@ -28,7 +28,18 @@ int main(int argc, char* argv[]) {
   alphabet::projected_executions_t ps(p);
   std::cout << ps << std::endl;
   std::cout << "******************************************" << std::endl;
-  ps.merge(p);
+  //ps.merge(p);
+  //std::cout << ps << std::endl;
+
+  exe::execution_t e_dummy = read_execution("example_dummy.xml");
+  alphabet::projected_execution_t p_dummy;
+  local_execution_extractor_t lee_dummy(p_dummy);
+  // TODO this should be done in the accept visit method of the execution! Make sure that the lee-variable-declarations are empty!
+  lee_dummy.variable_declarations.insert(lee_dummy.variable_declarations.end(), e.variable_declarations.begin(), e.variable_declarations.end());
+  e_dummy.accept(lee_dummy);
+  //std::cout << p_dummy << std::endl;
+
+  ps.merge(p_dummy);
   std::cout << ps << std::endl;
 
   return EXIT_SUCCESS;

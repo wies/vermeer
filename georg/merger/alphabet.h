@@ -243,6 +243,7 @@ struct projected_executions_t {
 
   void merge(const projected_execution_t& pexe) {
     std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
+    std::map< int, std::vector< graph_t<int>::edge_t >> new_edges;
 
     // determine merging points
     for (auto& p : pexe.projections) {
@@ -293,8 +294,9 @@ struct projected_executions_t {
 
           if (!target_set) {
             target = g.create_node();
-            g.add_edge(source, s->program_location.position, target);
           }
+
+          new_edges[p.first].push_back(g.add_edge(source, s->program_location.position, target));
 
           source = target;
         }
@@ -307,6 +309,8 @@ struct projected_executions_t {
         }
       }
     }
+
+    // TODO insert new_edges into edges
   }
 
   friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps) {
