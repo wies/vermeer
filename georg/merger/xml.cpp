@@ -109,7 +109,7 @@ struct xml_output_visitor : exe::stmt_visitor_t {
 std::ostream& operator<<(std::ostream& out, exe::stmt_t& s) {
   type_visitor v;
   s.accept(v);
-  out << "<statement type=\"" << v.type_string << "\" position=\"" << s.position << "\" thread=\"" << s.thread << "\">" << std::endl;
+  out << "<statement type=\"" << v.type_string << "\" position=\"" << s.position << "\" thread=\"" << s.program_location.thread << "\">" << std::endl;
 
   xml_output_visitor xml_v(out);
   s.accept(xml_v);
@@ -327,7 +327,9 @@ exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
   rapidxml::xml_attribute<char>* thread_attr = n_stmt.first_attribute("thread");
   if (!thread_attr) { ERROR("No thread attribute in statement!"); }
-  s->thread = atoi(thread_attr->value());
+  s->program_location.thread = atoi(thread_attr->value());
+  s->program_location.position = 1;
+  //s->thread = atoi(thread_attr->value());
 
 
   rapidxml::xml_node<char>* n_guards = n_stmt.first_node("guards");

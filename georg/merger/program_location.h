@@ -6,6 +6,12 @@ struct thread_local_position_t {
   int thread;
   int position;
 
+  thread_local_position_t& operator=(const thread_local_position_t& p) {
+    thread = p.thread;
+    position = p.position;
+    return *this;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const thread_local_position_t p) {
     out << "(T" << p.thread << ",P" << p.position << ")";
     return out;

@@ -115,12 +115,12 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
   void visit_assignment(exe::assignment_t& a) override {
 
-    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.program_location.thread];
 
     // a) is lhs a global variable?
     auto& vd = variable_declarations[a.variable_id];
 
-    int lhs_local_ssa_index = get_ssa_index(a.thread, vd.variable);
+    int lhs_local_ssa_index = get_ssa_index(a.program_location.thread, vd.variable);
 
     bool is_shared_var = (vd.thread < 0);
 
@@ -135,7 +135,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       // we have to generate a ssa_variable_t:
       ga->shared_variable.variable_id = vd.variable;
       ga->shared_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
-      ga->shared_variable.ssa_index.thread_id = a.thread;
+      ga->shared_variable.ssa_index.thread_id = a.program_location.thread;
 
       // substitute local variables
       ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
@@ -152,7 +152,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         alphabet::pi_assignment_t* pa = new alphabet::pi_assignment_t;
         pa->local_variable.variable_id = vd.variable;
         pa->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
-        pa->local_variable.ssa_index.thread_id = a.thread;
+        pa->local_variable.ssa_index.thread_id = a.program_location.thread;
         pa->shared_variable = vsubst.substitution_map[a.rhs.products[0].variable];
 
         stmt = (alphabet::stmt_t*)pa;
@@ -163,7 +163,7 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
         la->local_variable.variable_id = vd.variable;
         la->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
-        la->local_variable.ssa_index.thread_id = a.thread;
+        la->local_variable.ssa_index.thread_id = a.program_location.thread;
 
         // substitute local variables
         la->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
@@ -177,6 +177,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
     assert(stmt);
 
+    stmt->program_location = a.program_location;
+
     for (auto& e : a.guard.exprs) {
       stmt->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
@@ -185,17 +187,17 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
     v.push_back(stmt);
 
-    set_ssa_index(a.thread, vd.variable, lhs_local_ssa_index + 1);
+    set_ssa_index(a.program_location.thread, vd.variable, lhs_local_ssa_index + 1);
 
     alphabet::ssa_variable_t var;
     var.variable_id = vd.variable;
-    var.ssa_index.thread_id = a.thread;
+    var.ssa_index.thread_id = a.program_location.thread;
     var.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
     vsubst.substitution_map[vd.id] = var;
   }
 
   void visit_assertion(exe::assertion_t& a) override {
-    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.program_location.thread];
 
     alphabet::assertion_t* a_new = new alphabet::assertion_t;
 
@@ -207,13 +209,15 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
       a_new->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
 
+    a_new->program_location = a.program_location;
+
     std::cout << *a_new << std::endl;
 
     v.push_back((alphabet::stmt_t*)a_new);
   }
 
   void visit_assumption(exe::assumption_t& a) override {
-    std::vector<alphabet::stmt_t*>& v = local_executions[a.thread];
+    std::vector<alphabet::stmt_t*>& v = local_executions[a.program_location.thread];
 
     alphabet::assumption_t* a_new = new alphabet::assumption_t;
 
@@ -224,6 +228,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     for (auto& e : a.guard.exprs) {
       a_new->guards.push_back(e.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::expr_t<alphabet::ssa_variable_t>>(vsubst));
     }
+
+    a_new->program_location = a.program_location;
 
     std::cout << *a_new << std::endl;
 

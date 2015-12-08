@@ -47,7 +47,7 @@ struct stmt_visitor_t {
 struct stmt_t {
 
   std::vector<expr::expr_t<ssa_variable_t>> guards;
-  thread_local_position_t position; // program location
+  thread_local_position_t program_location; // program location
 
   virtual void accept(stmt_visitor_t& visitor) = 0;
 
@@ -74,7 +74,7 @@ struct stmt_t {
   virtual void print(std::ostream& out) const = 0;
 
   friend std::ostream& operator<<(std::ostream& out, const stmt_t& s) {
-    out << s.position << ": ";
+    out << s.program_location << ": ";
     s.print_guards(out);
     s.print(out);
     return out;

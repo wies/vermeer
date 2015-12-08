@@ -2,6 +2,7 @@
 #define TRACE_H_INCLUDED
 
 #include "expr.h"
+#include "program_location.h"
 
 #include <vector>
 
@@ -43,7 +44,8 @@ struct stmt_t {
 
   guard_t guard;
   int position;
-  int thread;
+  //int thread;
+  thread_local_position_t program_location;
 
   virtual void accept(stmt_visitor_t& v) = 0;
 
