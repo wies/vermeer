@@ -45,8 +45,8 @@ struct stmt_t {
   virtual ~stmt_t() {}
 
   guard_t guard;
-  int position;
-  //int thread;
+  int position_in_execution;
+
   thread_local_position_t program_location;
 
   virtual void accept(stmt_visitor_t& v) = 0;
