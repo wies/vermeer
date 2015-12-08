@@ -45,7 +45,7 @@ typedef unsigned int ref_t;
 int ref_make_ref(void *ptrptr, size_t size, size_t ref_ofs);
 
 #define make_ref(var)                                           \
-    ref_make_ref(&(var), sizeof(*(var)), offsetof(typeof(*(var)), ref))
+    ref_make_ref(&(var), sizeof(*(var)), offsetof(__typeof__(*(var)), ref))
 
 #define make_ref_err(var) if (make_ref(var) < 0) goto error
 

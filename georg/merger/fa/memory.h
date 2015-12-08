@@ -23,6 +23,8 @@
 #ifndef MEMORY_H_
 #define MEMORY_H_
 
+#include <cstddef>
+
 #include "internal.h"
 
 /* Don't call these directly - use the macros below */
