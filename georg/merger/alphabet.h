@@ -246,9 +246,9 @@ struct projected_executions_t {
 
     // determine merging points
     for (auto& p : pexe.projections) {
-      // TODO this is just a simple test
       for (auto& e : edges[p.first]) {
         for (auto& s : p.second) {
+          // TODO this has to be replaced by something more general
           if (e.label == s->program_location.position) {
             // merge
             merge_map[s] = e;
@@ -265,9 +265,8 @@ struct projected_executions_t {
         g.create_node();
       }
 
-      size_t source = 0;
+      size_t source = 0; // the 0-node is always our initial node
 
-      //for (auto& s : p.second) {
       for (size_t i = 0; i < p.second.size(); i++) {
         stmt_t* s = p.second[i];
         auto it = merge_map.find(s);
