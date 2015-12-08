@@ -328,9 +328,10 @@ exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
   rapidxml::xml_attribute<char>* thread_attr = n_stmt.first_attribute("thread");
   if (!thread_attr) { ERROR("No thread attribute in statement!"); }
   s->program_location.thread = atoi(thread_attr->value());
-  s->program_location.position = 1;
-  //s->thread = atoi(thread_attr->value());
 
+  rapidxml::xml_attribute<char>* program_location_attr = n_stmt.first_attribute("program-location");
+  if (!program_location_attr) { ERROR("No program-location attribute in statement!"); }
+  s->program_location.position = atoi(program_location_attr->value());
 
   rapidxml::xml_node<char>* n_guards = n_stmt.first_node("guards");
   if (n_guards) {

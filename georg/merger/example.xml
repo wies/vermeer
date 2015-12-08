@@ -21,111 +21,111 @@
 <variable-declaration id="18" variable="102000000" ssa-index="2" type="int" thread="2"/>
 </declarations>
 <statements size="20">
-<statement type="assignment" position="0" thread="0">
+<statement type="assignment" position="0" thread="0" program-location="0">
 <lhs variable-id="0"/>
 <rhs const="0">
 </rhs>
 </statement>
-<statement type="assignment" position="1" thread="0">
+<statement type="assignment" position="1" thread="0" program-location="1">
 <lhs variable-id="5"/>
 <rhs const="0">
 </rhs>
 </statement>
-<statement type="assignment" position="2" thread="0">
+<statement type="assignment" position="2" thread="0" program-location="2">
 <lhs variable-id="8"/>
 <rhs const="0">
 </rhs>
 </statement>
-<statement type="assignment" position="3" thread="0">
+<statement type="assignment" position="3" thread="0" program-location="3">
 <lhs variable-id="1"/>
 <rhs const="50">
 </rhs>
 </statement>
-<statement type="assignment" position="4" thread="0">
+<statement type="assignment" position="4" thread="0" program-location="4">
 <lhs variable-id="6"/>
 <rhs const="0">
 </rhs>
 </statement>
-<statement type="assignment" position="5" thread="0">
+<statement type="assignment" position="5" thread="0" program-location="5">
 <lhs variable-id="9"/>
 <rhs const="0">
 </rhs>
 </statement>
-<statement type="assignment" position="6" thread="1">
+<statement type="assignment" position="6" thread="1" program-location="0">
 <lhs variable-id="11"/>
 <rhs const="11144">
 </rhs>
 </statement>
-<statement type="assignment" position="7" thread="2">
+<statement type="assignment" position="7" thread="2" program-location="0">
 <lhs variable-id="16"/>
 <rhs const="0">
 </rhs>
 </statement>
-<statement type="assignment" position="8" thread="1">
+<statement type="assignment" position="8" thread="1" program-location="1">
 <lhs variable-id="12"/>
 <rhs const="0">
 <term variable-id="1" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="9" thread="1">
+<statement type="assignment" position="9" thread="1" program-location="2">
 <lhs variable-id="13"/>
 <rhs const="10">
 <term variable-id="12" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="10" thread="1">
+<statement type="assignment" position="10" thread="1" program-location="3">
 <lhs variable-id="2"/>
 <rhs const="0">
 <term variable-id="13" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="11" thread="1">
+<statement type="assignment" position="11" thread="1" program-location="4">
 <lhs variable-id="14"/>
 <rhs const="0">
 <term variable-id="2" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="12" thread="1">
+<statement type="assignment" position="12" thread="1" program-location="5">
 <lhs variable-id="15"/>
 <rhs const="5">
 <term variable-id="14" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="13" thread="1">
+<statement type="assignment" position="13" thread="1" program-location="6">
 <lhs variable-id="3"/>
 <rhs const="0">
 <term variable-id="15" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="14" thread="2">
+<statement type="assignment" position="14" thread="2" program-location="1">
 <lhs variable-id="17"/>
 <rhs const="0">
 <term variable-id="1" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="15" thread="2">
+<statement type="assignment" position="15" thread="2" program-location="2">
 <lhs variable-id="18"/>
 <rhs const="-5">
 <term variable-id="17" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="16" thread="2">
+<statement type="assignment" position="16" thread="2" program-location="3">
 <lhs variable-id="4"/>
 <rhs const="0">
 <term variable-id="18" factor="1"/>
 </rhs>
 </statement>
-<statement type="assignment" position="17" thread="1">
+<statement type="assignment" position="17" thread="1" program-location="7">
 <lhs variable-id="7"/>
 <rhs const="1">
 </rhs>
 </statement>
-<statement type="assignment" position="18" thread="2">
+<statement type="assignment" position="18" thread="2" program-location="4">
 <lhs variable-id="10"/>
 <rhs const="1">
 </rhs>
 </statement>
-<statement type="assert" position="19" thread="0">
+<statement type="assert" position="19" thread="0" program-location="6">
 <expression operator="EQ" const="-60">
 <term variable-id="4" factor="1"/>
 </expression>
