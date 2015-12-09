@@ -51,6 +51,9 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
 
   void visit_execution(exe::execution_t& e) override {
+    // TODO should we reset data structures?
+    variable_declarations.insert(variable_declarations.end(), e.variable_declarations.begin(), e.variable_declarations.end());
+
     for (auto& s : e.statements) {
       s->accept(*this);
     }

@@ -20,7 +20,6 @@ int main(int argc, char* argv[]) {
 
   alphabet::projected_execution_t p;
   local_execution_extractor_t lee(p);
-  lee.variable_declarations.insert(lee.variable_declarations.end(), e.variable_declarations.begin(), e.variable_declarations.end()); // TODO replace
   e.accept(lee);
   std::cout << p << std::endl;
   std::cout << "******************************************" << std::endl;
@@ -32,8 +31,6 @@ int main(int argc, char* argv[]) {
   exe::execution_t e_dummy = read_execution("example_dummy.xml");
   alphabet::projected_execution_t p_dummy;
   local_execution_extractor_t lee_dummy(p_dummy);
-  // TODO this should be done in the accept visit method of the execution! Make sure that the lee-variable-declarations are empty!
-  lee_dummy.variable_declarations.insert(lee_dummy.variable_declarations.end(), e_dummy.variable_declarations.begin(), e_dummy.variable_declarations.end());
   e_dummy.accept(lee_dummy);
 
   auto is_mergable = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) { return (e.label == s.program_location.position); };
