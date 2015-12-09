@@ -39,7 +39,10 @@ int main(int argc, char* argv[]) {
   e_dummy.accept(lee_dummy);
   //std::cout << p_dummy << std::endl;
 
-  ps.merge(p_dummy);
+  auto is_mergable = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) { return (e.label == s.program_location.position); };
+  auto do_merge = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) {  };
+
+  ps.merge(p_dummy, is_mergable, do_merge);
   std::cout << ps << std::endl;
 
   return EXIT_SUCCESS;

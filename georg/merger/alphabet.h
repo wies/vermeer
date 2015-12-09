@@ -4,6 +4,8 @@
 #include "program_location.h"
 #include "graph.h"
 
+#include <functional>
+
 namespace alphabet {
 
 struct ssa_variable_t {
@@ -241,7 +243,11 @@ struct projected_executions_t {
     }
   }
 
-  void merge(const projected_execution_t& pexe) {
+  void merge(
+    const projected_execution_t& pexe,
+    std::function<bool (const graph_t<int>::edge_t&, const stmt_t&)> is_mergable,
+    std::function<void (const graph_t<int>::edge_t&, const stmt_t&)> do_merge
+  ) {
     std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
     std::map< int, std::vector< graph_t<int>::edge_t >> new_edges;
 
@@ -249,9 +255,8 @@ struct projected_executions_t {
     for (auto& p : pexe.projections) {
       for (auto& e : edges[p.first]) {
         for (auto& s : p.second) {
-          // TODO this has to be replaced by something more general
-          if (e.label == s->program_location.position) {
-            // merge
+          if (is_mergable(e, *s)) {
+            // store for later merging
             merge_map[s] = e;
           }
         }
@@ -303,6 +308,7 @@ struct projected_executions_t {
         else {
           // merge
           std::cout << "merge" << std::endl;
+          do_merge(it->second, *s);
 
           // nothing to do except updating the target
           source = it->second.target;
