@@ -243,6 +243,11 @@ struct projected_executions_t {
     }
   }
 
+  /*
+    We assume that every symbol in the alphabet appears at most once in a word,
+    that there is a total order over the symbols in the alphabet, and that in
+    each word the symbols respect this order.
+  */
   void merge(
     const projected_execution_t& pexe,
     std::function<bool (const graph_t<int>::edge_t&, const stmt_t&)> is_mergable,
