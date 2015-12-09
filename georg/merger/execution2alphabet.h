@@ -9,16 +9,6 @@
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
-#if 0
-  ~local_execution_extractor_t() {
-    for (auto& p : local_executions) {
-      for (auto& s : p.second) {
-        delete s;
-      }
-    }
-  }
-#endif
-
   local_execution_extractor_t(alphabet::projected_execution_t& p) : local_executions(p.projections) {}
 
   std::map<int, std::vector<alphabet::stmt_t*>>& local_executions;
