@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
   std::cout << p << std::endl;
   std::cout << "******************************************" << std::endl;
 
-  alphabet::projected_executions_t ps(p);
+  alphabet::projected_executions_t ps(p, 0);
   std::cout << ps << std::endl;
   std::cout << "******************************************" << std::endl;
 
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
   auto is_mergable = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) { return (e.label == s.program_location.position); };
   auto do_merge = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) {  };
 
-  ps.merge(p_dummy, is_mergable, do_merge);
+  ps.merge(p_dummy, is_mergable, do_merge, 1);
   std::cout << ps << std::endl;
 
   return EXIT_SUCCESS;

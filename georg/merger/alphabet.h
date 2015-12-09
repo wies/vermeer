@@ -231,7 +231,8 @@ struct projected_executions_t {
   std::map<int, graph_t<int>> projections;
   std::map<int, std::vector< graph_t<int>::edge_t >> edges;
 
-  projected_executions_t(const projected_execution_t& pexe) {
+  projected_executions_t(const projected_execution_t& pexe, int execution_id) {
+    // TODO execution_id has to be used in \pi nodes!
     for (auto& p : pexe.projections) {
       graph_t<int>& g = projections[p.first];
       size_t source = g.create_node();
@@ -251,7 +252,8 @@ struct projected_executions_t {
   void merge(
     const projected_execution_t& pexe,
     std::function<bool (const graph_t<int>::edge_t&, const stmt_t&)> is_mergable,
-    std::function<void (const graph_t<int>::edge_t&, const stmt_t&)> do_merge
+    std::function<void (const graph_t<int>::edge_t&, const stmt_t&)> do_merge,
+    int execution_id // TODO this has to be used in \pi nodes!
   ) {
     std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
     std::map< int, std::vector< graph_t<int>::edge_t >> new_edges;
