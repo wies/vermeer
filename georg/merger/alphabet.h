@@ -253,11 +253,16 @@ struct projected_executions_t {
 
     // determine merging points
     for (auto& p : pexe.projections) {
+      size_t last_match = -1;
       for (auto& e : edges[p.first]) {
-        for (auto& s : p.second) {
+        for (size_t i = last_match + 1; i < p.second.size(); i++) {
+          stmt_t* s = p.second[i];
           if (is_mergable(e, *s)) {
             // store for later merging
             merge_map[s] = e;
+
+            last_match = i;
+            break;
           }
         }
       }
