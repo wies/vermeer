@@ -44,6 +44,15 @@ int main(int argc, char* argv[]) {
 
             break;
           }
+        case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+          {
+            alphabet::local_assignment_t* ls = (alphabet::local_assignment_t*)e.label;
+            alphabet::local_assignment_t* ss = (alphabet::local_assignment_t*)&s;
+
+            return (*ls == *ss);
+          }
+        case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+          break;
         default:
           // TODO implement other equality checks
           break;

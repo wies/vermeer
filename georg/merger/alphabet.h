@@ -126,6 +126,14 @@ struct local_assignment_t : public stmt_t {
 
   local_assignment_t() : stmt_t(LOCAL_ASSIGNMENT) {}
 
+  bool operator==(const local_assignment_t& other) const {
+    return (local_variable == other.local_variable && rhs == other.rhs);
+  }
+
+  bool operator!=(const local_assignment_t& other) const {
+    return !(*this == other);
+  }
+
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_local_assignment(*this);
   }

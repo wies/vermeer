@@ -16,6 +16,14 @@ struct linear_product_t {
   int factor;
   VariableType variable;
 
+  bool operator==(const linear_product_t<VariableType>& other) const {
+    return (factor == other.factor && variable == other.variable);
+  }
+
+  bool operator!=(const linear_product_t<VariableType>& other) const {
+    return !(*this == other);
+  }
+
   friend std::ostream& operator<<(std::ostream& out, linear_product_t<VariableType> p) {
     out << p.factor << "*" << p.variable;
 
@@ -38,6 +46,29 @@ template <class VariableType>
 struct term_t {
   std::vector<linear_product_t<VariableType>> products;
   int constant;
+
+  bool operator==(const term_t<VariableType>& other) const {
+    if (constant != other.constant) {
+      return false;
+    }
+
+    if (products.size() != other.products.size()) {
+      return false;
+    }
+
+    // TODO shall we implement a more complex check that allows reorderings?
+    for (size_t i = 0; i < products.size(); i++) {
+      if (products[i] != other.products[i]) {
+        return true;
+      }
+    }
+
+    return true;
+  }
+
+  bool operator!=(const term_t<VariableType>& other) const {
+    return !(*this == other);
+  }
 
   friend std::ostream& operator<<(std::ostream& out, term_t<VariableType> t) {
     out << t.constant;
