@@ -35,6 +35,10 @@ struct thread_local_position_t {
     return *this;
   }
 
+  bool operator==(const thread_local_position_t& p) const {
+    return (thread == p.thread && position == p.position);
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const thread_local_position_t p) {
     out << "(T" << p.thread << ",P" << p.position << ")";
     return out;

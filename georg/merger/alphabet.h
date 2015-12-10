@@ -48,6 +48,18 @@ struct stmt_visitor_t {
 
 struct stmt_t {
 
+  enum stmt_type_t {
+    PI_ASSIGNMENT,
+    LOCAL_ASSIGNMENT,
+    GLOBAL_ASSIGNMENT,
+    PHI_ASSIGNMENT,
+    ASSERTION,
+    ASSUMPTION
+  };
+
+  const stmt_type_t type;
+
+  stmt_t(stmt_type_t t) : type(t) {}
   virtual ~stmt_t() {}
 
   std::vector<expr::expr_t<ssa_variable_t>> guards;
@@ -90,6 +102,8 @@ struct local_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
   expr::term_t<ssa_variable_t> rhs;
 
+  local_assignment_t() : stmt_t(LOCAL_ASSIGNMENT) {}
+
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_local_assignment(*this);
   }
@@ -117,6 +131,8 @@ struct pi_assignment_t : public stmt_t {
   //ssa_variable_t shared_variable; // rhs
   std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
 
+  pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
+
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_pi_assignment(*this);
   }
@@ -137,6 +153,8 @@ struct global_assignment_t : public stmt_t {
   ssa_variable_t shared_variable; // lhs
   expr::term_t<ssa_variable_t> rhs;
 
+  global_assignment_t() : stmt_t(GLOBAL_ASSIGNMENT) {}
+
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_global_assignment(*this);
   }
@@ -151,6 +169,8 @@ struct phi_assignment_t : public stmt_t {
   ssa_variable_t variable; // lhs
   /* ... */
 
+  phi_assignment_t() : stmt_t(PHI_ASSIGNMENT) {}
+
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_phi_assignment(*this);
   }
@@ -164,6 +184,8 @@ struct phi_assignment_t : public stmt_t {
 struct assertion_t : public stmt_t {
 
   std::vector<expr::expr_t<ssa_variable_t>> exprs;
+
+  assertion_t() : stmt_t(ASSERTION) {}
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_assertion(*this);
@@ -193,6 +215,8 @@ struct assertion_t : public stmt_t {
 struct assumption_t : public stmt_t {
 
   std::vector<expr::expr_t<ssa_variable_t>> exprs;
+
+  assumption_t() : stmt_t(ASSUMPTION) {}
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_assumption(*this);
