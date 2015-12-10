@@ -52,7 +52,12 @@ int main(int argc, char* argv[]) {
             return (*ls == *ss);
           }
         case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
-          break;
+          {
+            alphabet::global_assignment_t* ls = (alphabet::global_assignment_t*)e.label;
+            alphabet::global_assignment_t* ss = (alphabet::global_assignment_t*)&s;
+
+            return (*ls == *ss);
+          }
         default:
           // TODO implement other equality checks
           break;

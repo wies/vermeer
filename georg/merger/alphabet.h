@@ -126,10 +126,12 @@ struct local_assignment_t : public stmt_t {
 
   local_assignment_t() : stmt_t(LOCAL_ASSIGNMENT) {}
 
+  inline
   bool operator==(const local_assignment_t& other) const {
     return (local_variable == other.local_variable && rhs == other.rhs);
   }
 
+  inline
   bool operator!=(const local_assignment_t& other) const {
     return !(*this == other);
   }
@@ -184,6 +186,16 @@ struct global_assignment_t : public stmt_t {
   expr::term_t<ssa_variable_t> rhs;
 
   global_assignment_t() : stmt_t(GLOBAL_ASSIGNMENT) {}
+
+  inline
+  bool operator==(const global_assignment_t& other) const {
+    return (shared_variable == other.shared_variable && rhs == other.rhs);
+  }
+
+  inline
+  bool operator!=(const global_assignment_t& other) const {
+    return !(*this == other);
+  }
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_global_assignment(*this);
