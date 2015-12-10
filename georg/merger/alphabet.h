@@ -206,6 +206,21 @@ struct pi_assignment_t : public stmt_t {
 
 };
 
+struct pi_assignments_t : public stmt_t {
+
+  // TODO fix the type!!!
+  pi_assignments_t() : stmt_t(PI_ASSIGNMENT) {}
+
+  void accept(stmt_visitor_t& visitor) override {
+    ERROR("Unsupported operation");
+  }
+
+  void print(std::ostream& out) const override {
+    ERROR("Unsupported operation");
+  }
+
+};
+
 struct global_assignment_t : public stmt_t {
   ssa_variable_t shared_variable; // lhs
   expr::term_t<ssa_variable_t> rhs;
