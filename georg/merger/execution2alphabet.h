@@ -4,9 +4,7 @@
 #include "execution.h"
 #include "alphabet.h"
 
-#include <cassert>
 #include <map>
-#include <iostream>
 #include <ostream>
 #include <vector>
 

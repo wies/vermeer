@@ -6,6 +6,8 @@
 #include <ostream>
 #include <map>
 #include <vector>
+#include <cassert>
+#include <iostream>
 
 // TODO make parameter e const! How to change accept?
 projected_execution_t::projected_execution_t(exe::execution_t& e, int unique_id_) : unique_id(unique_id_) {
