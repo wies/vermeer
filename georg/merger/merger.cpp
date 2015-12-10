@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
   std::cout << e << std::endl;
   std::cout << "******************************************" << std::endl;
 
-  projected_execution_t p(e);
+  projected_execution_t p(e, 0);
   std::cout << p << std::endl;
   std::cout << "******************************************" << std::endl;
 
@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
   std::cout << "******************************************" << std::endl;
 
   exe::execution_t e_dummy = read_execution("example_dummy.xml");
-  projected_execution_t p_dummy(e_dummy);
+  projected_execution_t p_dummy(e_dummy, 1);
 
   auto is_mergable = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) { return (e.label == s.program_location.position); };
   auto do_merge = [] (const graph_t<int>::edge_t e, const alphabet::stmt_t& s) {  };

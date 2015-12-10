@@ -100,16 +100,35 @@ struct local_assignment_t : public stmt_t {
 
 };
 
+struct tagged_variable_t {
+
+  ssa_variable_t shared_variable;
+  int execution_id;
+
+  friend std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v) {
+    out << v.shared_variable << "@" << v.execution_id;
+    return out;
+  }
+
+};
+
 struct pi_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
-  ssa_variable_t shared_variable; // rhs
+  //ssa_variable_t shared_variable; // rhs
+  std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
 
   void accept(stmt_visitor_t& visitor) override {
     visitor.visit_pi_assignment(*this);
   }
 
   void print(std::ostream& out) const override {
-    out << local_variable << " := pi(" << shared_variable << ")";
+    out << local_variable << " := pi(";
+
+    for (auto& v : shared_variables) {
+      out << v << ",";
+    }
+
+    out << ")";
   }
 
 };

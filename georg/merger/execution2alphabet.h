@@ -16,7 +16,7 @@ struct projected_execution_t {
 
   std::map<int, std::vector<alphabet::stmt_t*>> projections;
 
-  projected_execution_t(exe::execution_t& e);
+  projected_execution_t(exe::execution_t& e, int execution_id);
   ~projected_execution_t();
 
   friend std::ostream& operator<<(std::ostream& out, const projected_execution_t& p) {
@@ -35,9 +35,11 @@ struct projected_execution_t {
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
-  local_execution_extractor_t(projected_execution_t& p) : local_executions(p.projections) {}
+  local_execution_extractor_t(projected_execution_t& p, int id) : local_executions(p.projections), execution_id(id) {}
 
   std::map<int, std::vector<alphabet::stmt_t*>>& local_executions;
+  int execution_id;
+
   std::vector<exe::variable_declaration_t> variable_declarations;
 
   std::map<int, std::map<int, int>> thread_local_ssa_indices;
@@ -155,7 +157,8 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
         pa->local_variable.variable_id = vd.variable;
         pa->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
         pa->local_variable.ssa_index.thread_id = a.program_location.thread;
-        pa->shared_variable = vsubst.substitution_map[a.rhs.products[0].variable];
+        pa->shared_variables.push_back({ vsubst.substitution_map[a.rhs.products[0].variable], execution_id });
+        //pa->shared_variable = vsubst.substitution_map[a.rhs.products[0].variable];
 
         stmt = (alphabet::stmt_t*)pa;
       }
