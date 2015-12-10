@@ -101,6 +101,16 @@ struct expr_t {
   ops op;
   term_t<VariableType> term;
 
+  inline
+  bool operator==(const expr_t<VariableType>& other) const {
+    return (op == other.op && term == other.term);
+  }
+
+  inline
+  bool operator!=(const expr_t<VariableType>& other) const {
+    return !(*this == other);
+  }
+
   friend std::ostream& operator<<(std::ostream& out, expr_t<VariableType> e) {
     out << 0 << " " << ops2strC(e.op) << " " << e.term;
     return out;

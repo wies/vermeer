@@ -35,6 +35,17 @@ int main(int argc, char* argv[]) {
       // can we assume that we have the same type of statement at the same program location?
       assert(e.label->type == s.type);
 
+      // check guards
+      if (e.label->guards.size() != s.guards.size()) {
+        return false;
+      }
+
+      for (size_t i = 0; i < s.guards.size(); i++) {
+        if (e.label->guards[i] != s.guards[i]) {
+          return false;
+        }
+      }
+
       // do further equality checks
       switch (s.type) {
         case alphabet::stmt_t::PI_ASSIGNMENT:
