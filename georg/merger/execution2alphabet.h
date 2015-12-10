@@ -257,21 +257,6 @@ struct projected_executions_t {
     }
   }
 
-  void merge(
-    const exe::execution_t& e,
-    std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge
-  ) {
-    // TODO in the following code, stmts get freed when p gets out of scope!
-#if 0
-    alphabet::projected_execution_t p;
-    local_execution_extractor_t lee(p);
-    e.accept(lee);
-
-    merge(p, is_mergable, do_merge, execution_id);
-#endif
-  }
-
   /*
     We assume that every symbol in the alphabet appears at most once in a word,
     that there is a total order over the symbols in the alphabet, and that in
