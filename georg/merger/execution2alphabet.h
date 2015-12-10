@@ -33,15 +33,15 @@ struct projected_executions_t {
   */
   void merge(
     const projected_execution_t& pexe,
-    std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge
+    std::function<bool (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> is_mergable,
+    std::function<void (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> do_merge
   );
 
   friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps);
 
 private:
-  std::map<int, graph_t<int>> projections;
-  std::map<int, std::vector< graph_t<int>::edge_t >> edges;
+  std::map<int, graph_t<alphabet::stmt_t*>> projections;
+  std::map<int, std::vector< graph_t<alphabet::stmt_t*>::edge_t >> edges;
 
 };
 

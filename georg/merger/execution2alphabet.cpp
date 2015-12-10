@@ -37,11 +37,11 @@ std::ostream& operator<<(std::ostream& out, const projected_execution_t& p) {
 
 projected_executions_t::projected_executions_t(const projected_execution_t& pexe) {
   for (auto& p : pexe.projections) {
-    graph_t<int>& g = projections[p.first];
+    graph_t<alphabet::stmt_t*>& g = projections[p.first];
     size_t source = g.create_node();
     for (auto& s : p.second) {
       size_t target = g.create_node();
-      edges[p.first].push_back(g.add_edge(source, s->program_location.position, target));
+      edges[p.first].push_back(g.add_edge(source, s, target));
       source = target;
     }
   }
@@ -54,11 +54,11 @@ projected_executions_t::projected_executions_t(const projected_execution_t& pexe
 */
 void projected_executions_t::merge(
   const projected_execution_t& pexe,
-  std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
-  std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge
+  std::function<bool (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> is_mergable,
+  std::function<void (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> do_merge
 ) {
-  std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
-  std::map< int, std::vector< graph_t<int>::edge_t >> new_edges;
+  std::map< alphabet::stmt_t* , graph_t<alphabet::stmt_t*>::edge_t > merge_map;
+  std::map< int, std::vector< graph_t<alphabet::stmt_t*>::edge_t >> new_edges;
 
   // determine merging points
   for (auto& p : pexe.projections) {
@@ -79,7 +79,7 @@ void projected_executions_t::merge(
 
   // merge
   for (auto& p : pexe.projections) {
-    graph_t<int>& g = projections[p.first];
+    graph_t<alphabet::stmt_t*>& g = projections[p.first];
     if (g.empty()) {
       // new graph -> create initial node
       g.create_node();
@@ -115,7 +115,7 @@ void projected_executions_t::merge(
           target = g.create_node();
         }
 
-        new_edges[p.first].push_back(g.add_edge(source, s->program_location.position, target));
+        new_edges[p.first].push_back(g.add_edge(source, s, target));
 
         source = target;
       }
