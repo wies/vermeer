@@ -4,12 +4,38 @@
 #include "execution.h"
 #include "alphabet.h"
 
+#include <cassert>
 #include <map>
+#include <iostream>
+#include <ostream>
 #include <vector>
+
+struct local_execution_extractor_t;
+
+struct projected_execution_t {
+
+  std::map<int, std::vector<alphabet::stmt_t*>> projections;
+
+  projected_execution_t(exe::execution_t& e);
+  ~projected_execution_t();
+
+  friend std::ostream& operator<<(std::ostream& out, const projected_execution_t& p) {
+    for (auto& e : p.projections) {
+      out << "Thread " << e.first << ": " << e.second.size() << std::endl;
+      for (auto& s : e.second) {
+        out << *s << std::endl;
+      }
+      out << std::endl;
+    }
+
+    return out;
+  }
+
+};
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
-  local_execution_extractor_t(alphabet::projected_execution_t& p) : local_executions(p.projections) {}
+  local_execution_extractor_t(projected_execution_t& p) : local_executions(p.projections) {}
 
   std::map<int, std::vector<alphabet::stmt_t*>>& local_executions;
   std::vector<exe::variable_declaration_t> variable_declarations;
@@ -204,6 +230,144 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
     a_new->program_location = a.program_location;
 
     v.push_back((alphabet::stmt_t*)a_new);
+  }
+
+};
+
+struct projected_executions_t {
+
+  std::map<int, graph_t<int>> projections;
+  std::map<int, std::vector< graph_t<int>::edge_t >> edges;
+
+  projected_executions_t(const projected_execution_t& pexe, int execution_id) {
+    // TODO execution_id has to be used in \pi nodes!
+    for (auto& p : pexe.projections) {
+      graph_t<int>& g = projections[p.first];
+      size_t source = g.create_node();
+      for (auto& s : p.second) {
+        size_t target = g.create_node();
+        edges[p.first].push_back(g.add_edge(source, s->program_location.position, target));
+        source = target;
+      }
+    }
+  }
+
+  void merge(
+    const exe::execution_t& e,
+    std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
+    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge,
+    int execution_id // TODO this has to be used in \pi nodes!
+  ) {
+    // TODO in the following code, stmts get freed when p gets out of scope!
+#if 0
+    alphabet::projected_execution_t p;
+    local_execution_extractor_t lee(p);
+    e.accept(lee);
+
+    merge(p, is_mergable, do_merge, execution_id);
+#endif
+  }
+
+  /*
+    We assume that every symbol in the alphabet appears at most once in a word,
+    that there is a total order over the symbols in the alphabet, and that in
+    each word the symbols respect this order.
+  */
+  void merge(
+    const projected_execution_t& pexe,
+    std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
+    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge,
+    int execution_id // TODO this has to be used in \pi nodes!
+  ) {
+    std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
+    std::map< int, std::vector< graph_t<int>::edge_t >> new_edges;
+
+    // determine merging points
+    for (auto& p : pexe.projections) {
+      size_t last_match = -1;
+      for (auto& e : edges[p.first]) {
+        for (size_t i = last_match + 1; i < p.second.size(); i++) {
+          alphabet::stmt_t* s = p.second[i];
+          if (is_mergable(e, *s)) {
+            // store for later merging
+            merge_map[s] = e;
+
+            last_match = i;
+            break;
+          }
+        }
+      }
+    }
+
+    // merge
+    for (auto& p : pexe.projections) {
+      graph_t<int>& g = projections[p.first];
+      if (g.empty()) {
+        // new graph -> create initial node
+        g.create_node();
+      }
+
+      size_t source = 0; // the 0-node is always our initial node
+
+      for (size_t i = 0; i < p.second.size(); i++) {
+        alphabet::stmt_t* s = p.second[i];
+        auto it = merge_map.find(s);
+
+        if (it == merge_map.end()) {
+          // no merge
+          std::cout << "no merge" << std::endl;
+
+          bool target_set = false;
+          size_t target;
+
+          // check whether successor is getting merged
+          if (i < p.second.size() - 1) {
+            alphabet::stmt_t* next_s = p.second[i + 1];
+
+            auto next_it = merge_map.find(next_s);
+
+            if (next_it != merge_map.end()) {
+              // next statement is getting merged
+              target = next_it->second.source;
+              target_set = true;
+            }
+          }
+
+          if (!target_set) {
+            target = g.create_node();
+          }
+
+          new_edges[p.first].push_back(g.add_edge(source, s->program_location.position, target));
+
+          source = target;
+        }
+        else {
+          // merge
+          std::cout << "merge" << std::endl;
+          do_merge(it->second, *s);
+
+          // nothing to do except updating the target
+          source = it->second.target;
+        }
+      }
+    }
+
+    // insert new_edges into edges
+    for (auto& p : new_edges) {
+      auto& v = edges[p.first];
+      v.insert(v.end(), p.second.begin(), p.second.end());
+    }
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps) {
+    out << "{" << std::endl;
+    for (auto& p : ps.projections) {
+      out << "thread " << p.first << ":" << std::endl;
+      out << p.second << std::endl;
+    }
+    out << "}" << std::endl;
+
+    return out;
   }
 
 };

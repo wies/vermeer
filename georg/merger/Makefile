@@ -8,7 +8,7 @@ GRAPH_TEST_EXE=graphtest
 all: merger expr_test graph_test
 
 merger:
-	$(CXX) $(CXXFLAGS) -o $(MERGER_EXE) merger.cpp error.cpp xml.cpp expr.cpp
+	$(CXX) $(CXXFLAGS) -o $(MERGER_EXE) merger.cpp error.cpp xml.cpp expr.cpp execution2alphabet.cpp
 
 expr_test:
 	$(CXX) $(CXXFLAGS) -o $(EXPR_TEST_EXE) expr_test.cpp error.cpp expr.cpp
