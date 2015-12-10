@@ -79,6 +79,30 @@ struct stmt_t {
     ASSUMPTION
   };
 
+  friend std::ostream& operator<<(std::ostream& out, const stmt_type_t t) {
+    switch (t) {
+      case PI_ASSIGNMENT:
+        out << "PI_ASSIGNMENT";
+        break;
+      case LOCAL_ASSIGNMENT:
+        out << "LOCAL_ASSIGNMENT";
+        break;
+      case GLOBAL_ASSIGNMENT:
+        out << "GLOBAL_ASSIGNMENT";
+        break;
+      case PHI_ASSIGNMENT:
+        out << "PHI_ASSIGNMENT";
+        break;
+      case ASSERTION:
+        out << "ASSERTION";
+        break;
+      case ASSUMPTION:
+        out << "ASSUMPTION";
+        break;
+    }
+    return out;
+  }
+
   const stmt_type_t type;
 
   stmt_t(stmt_type_t t) : type(t) {}

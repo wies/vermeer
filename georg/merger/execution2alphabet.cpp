@@ -93,7 +93,7 @@ void projected_executions_t::merge(
 
       if (it == merge_map.end()) {
         // no merge
-        std::cout << "no merge" << std::endl;
+        std::cout << "no merge: " << s->type << std::endl;
 
         bool target_set = false;
         size_t target;
@@ -131,10 +131,15 @@ void projected_executions_t::merge(
   }
 
   // insert new_edges into edges
+  int nr_new_edges = 0;
   for (auto& p : new_edges) {
     auto& v = edges[p.first];
+    std::cout << v.size() << " ";
     v.insert(v.end(), p.second.begin(), p.second.end());
+    std::cout << v.size() << std::endl;
+    nr_new_edges += p.second.size();
   }
+  std::cout << "added " << nr_new_edges << " new edges!" << std::endl;
 }
 
 std::ostream& operator<<(std::ostream& out, const projected_executions_t ps) {

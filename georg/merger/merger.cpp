@@ -26,6 +26,10 @@ int main(int argc, char* argv[]) {
   exe::execution_t e_dummy = read_execution("example_dummy.xml");
   projected_execution_t p_dummy(e_dummy, 1);
 
+  //exe::execution_t e_dummy2 = read_execution("example_dummy2.xml");
+  projected_execution_t p_dummy2(e_dummy, 2);
+
+
   auto is_mergable = [] (const graph_t<alphabet::stmt_t*>::edge_t e, const alphabet::stmt_t& s) {
     if (e.label->program_location == s.program_location) {
       // can we assume that we have the same type of statement at the same program location?
@@ -86,6 +90,9 @@ int main(int argc, char* argv[]) {
   };
 
   ps.merge(p_dummy, is_mergable, do_merge);
+  std::cout << ps << std::endl;
+
+  ps.merge(p_dummy2, is_mergable, do_merge);
   std::cout << ps << std::endl;
 
   return EXIT_SUCCESS;
