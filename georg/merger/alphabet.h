@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <functional>
+#include <iostream>
 
 namespace alphabet {
 

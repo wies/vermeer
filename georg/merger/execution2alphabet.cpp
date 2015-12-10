@@ -62,15 +62,11 @@ void projected_executions_t::merge(
 
   // determine merging points
   for (auto& p : pexe.projections) {
-    size_t last_match = -1;
     for (auto& e : edges[p.first]) {
-      for (size_t i = last_match + 1; i < p.second.size(); i++) {
-        alphabet::stmt_t* s = p.second[i];
+      for (auto& s : p.second) {
         if (is_mergable(e, *s)) {
           // store for later merging
           merge_map[s] = e;
-
-          last_match = i;
           break;
         }
       }
@@ -93,7 +89,7 @@ void projected_executions_t::merge(
 
       if (it == merge_map.end()) {
         // no merge
-        std::cout << "no merge: " << s->type << std::endl;
+        std::cout << "no merge(" << s << "): " << s->type << std::endl;
 
         bool target_set = false;
         size_t target;
