@@ -13,7 +13,7 @@
 struct projected_execution_t {
 
   std::map<int, std::vector<alphabet::stmt_t*>> projections;
-  int unique_id; // the id has to be unique across all other executions
+  const int unique_id; // the id has to be unique across all other executions
   // TODO make it a static member and increment when creating an object?
   // TODO the way we do it now makes a correct copy constructor and assignment operator impossible
 
@@ -25,9 +25,6 @@ struct projected_execution_t {
 };
 
 struct projected_executions_t {
-
-  std::map<int, graph_t<int>> projections;
-  std::map<int, std::vector< graph_t<int>::edge_t >> edges;
 
   projected_executions_t(const projected_execution_t& pexe);
 
@@ -44,15 +41,13 @@ struct projected_executions_t {
 
   friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps);
 
+private:
+  std::map<int, graph_t<int>> projections;
+  std::map<int, std::vector< graph_t<int>::edge_t >> edges;
+
 };
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
-
-  std::map<int, std::vector<alphabet::stmt_t*>>& local_executions;
-  int execution_id;
-  std::vector<exe::variable_declaration_t> variable_declarations;
-  std::map<int, std::map<int, int>> thread_local_ssa_indices;
-  expr::variable_substitution_t<int, alphabet::ssa_variable_t> vsubst;
 
   local_execution_extractor_t(projected_execution_t& p);
 
@@ -74,6 +69,13 @@ struct local_execution_extractor_t : public exe::stmt_visitor_t {
   void visit_assignment(exe::assignment_t& a) override;
   void visit_assertion(exe::assertion_t& a) override;
   void visit_assumption(exe::assumption_t& a) override;
+
+private:
+  std::map<int, std::vector<alphabet::stmt_t*>>& local_executions;
+  int execution_id;
+  std::vector<exe::variable_declaration_t> variable_declarations;
+  std::map<int, std::map<int, int>> thread_local_ssa_indices;
+  expr::variable_substitution_t<int, alphabet::ssa_variable_t> vsubst;
 
 };
 
