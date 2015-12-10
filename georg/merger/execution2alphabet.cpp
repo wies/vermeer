@@ -1,8 +1,8 @@
 #include "execution2alphabet.h"
 
 // TODO make parameter e const! How to change accept?
-projected_execution_t::projected_execution_t(exe::execution_t& e, int execution_id) {
-  local_execution_extractor_t lee(*this, execution_id);
+projected_execution_t::projected_execution_t(exe::execution_t& e, int unique_id_) : unique_id(unique_id_) {
+  local_execution_extractor_t lee(*this);
   e.accept(lee);
 }
 

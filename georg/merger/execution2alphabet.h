@@ -15,8 +15,11 @@ struct local_execution_extractor_t;
 struct projected_execution_t {
 
   std::map<int, std::vector<alphabet::stmt_t*>> projections;
+  int unique_id; // the id has to be unique across all other executions
+  // TODO make it a static member and increment when creating an object?
+  // TODO the way we do it now makes a correct copy constructor and assignment operator impossible
 
-  projected_execution_t(exe::execution_t& e, int execution_id);
+  projected_execution_t(exe::execution_t& e, int unique_id_);
   ~projected_execution_t();
 
   friend std::ostream& operator<<(std::ostream& out, const projected_execution_t& p) {
@@ -35,7 +38,7 @@ struct projected_execution_t {
 
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
-  local_execution_extractor_t(projected_execution_t& p, int id) : local_executions(p.projections), execution_id(id) {}
+  local_execution_extractor_t(projected_execution_t& p) : local_executions(p.projections), execution_id(p.unique_id) {}
 
   std::map<int, std::vector<alphabet::stmt_t*>>& local_executions;
   int execution_id;
@@ -242,8 +245,7 @@ struct projected_executions_t {
   std::map<int, graph_t<int>> projections;
   std::map<int, std::vector< graph_t<int>::edge_t >> edges;
 
-  projected_executions_t(const projected_execution_t& pexe, int execution_id) {
-    // TODO execution_id has to be used in \pi nodes!
+  projected_executions_t(const projected_execution_t& pexe) {
     for (auto& p : pexe.projections) {
       graph_t<int>& g = projections[p.first];
       size_t source = g.create_node();
@@ -258,8 +260,7 @@ struct projected_executions_t {
   void merge(
     const exe::execution_t& e,
     std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge,
-    int execution_id // TODO this has to be used in \pi nodes!
+    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge
   ) {
     // TODO in the following code, stmts get freed when p gets out of scope!
 #if 0
@@ -279,8 +280,7 @@ struct projected_executions_t {
   void merge(
     const projected_execution_t& pexe,
     std::function<bool (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge,
-    int execution_id // TODO this has to be used in \pi nodes!
+    std::function<void (const graph_t<int>::edge_t&, const alphabet::stmt_t&)> do_merge
   ) {
     std::map< alphabet::stmt_t* , graph_t<int>::edge_t > merge_map;
     std::map< int, std::vector< graph_t<int>::edge_t >> new_edges;
