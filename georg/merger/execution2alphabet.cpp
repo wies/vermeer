@@ -142,6 +142,14 @@ std::ostream& operator<<(std::ostream& out, const projected_executions_t ps) {
   for (auto& p : ps.projections) {
     out << "thread " << p.first << ":" << std::endl;
     out << p.second << std::endl;
+    out << "  statements:" << std::endl;
+    auto it = ps.edges.find(p.first);
+
+    if (it != ps.edges.end()) {
+      for (auto& e : it->second) {
+        out << "    " << e.label << ": " << *e.label << std::endl;
+      }
+    }
   }
   out << "}" << std::endl;
 
