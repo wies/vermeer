@@ -16,9 +16,31 @@ struct ssa_variable_t {
   /* type, currently: INT */
 
   struct ssa_index_t {
+
     int thread_id;
     int thread_local_index;
+
+    inline
+    bool operator==(const ssa_index_t& i) const {
+      return (thread_id == i.thread_id && thread_local_index == i.thread_local_index);
+    }
+
+    inline
+    bool operator!=(const ssa_index_t& i) const {
+      return !(*this == i);
+    }
+
   } ssa_index;
+
+  inline
+  bool operator==(const ssa_variable_t& v) const {
+    return (variable_id == v.variable_id && ssa_index == v.ssa_index);
+  }
+
+  inline
+  bool operator!=(const ssa_variable_t& v) const {
+    return !(*this == v);
+  }
 
   friend std::ostream& operator<<(std::ostream& out, const ssa_variable_t& v) {
     out << "var(" << v.variable_id << ")_{T" << v.ssa_index.thread_id << "," << v.ssa_index.thread_local_index << "}";

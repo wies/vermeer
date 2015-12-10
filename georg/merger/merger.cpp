@@ -31,6 +31,23 @@ int main(int argc, char* argv[]) {
       // can we assume that we have the same type of statement at the same program location?
       assert(e.label->type == s.type);
 
+      // TODO do further equality check
+      switch (s.type) {
+        case alphabet::stmt_t::PI_ASSIGNMENT:
+          {
+            alphabet::pi_assignment_t* ls = (alphabet::pi_assignment_t*)e.label;
+            alphabet::pi_assignment_t* ss = (alphabet::pi_assignment_t*)&s;
+
+            if (ls->local_variable != ss->local_variable) {
+              return false;
+            }
+
+            break;
+          }
+        default:
+          break;
+      }
+
       return true;
     }
 
