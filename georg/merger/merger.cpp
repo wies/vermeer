@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
       // can we assume that we have the same type of statement at the same program location?
       assert(e.label->type == s.type);
 
-      // TODO do further equality check
+      // do further equality checks
       switch (s.type) {
         case alphabet::stmt_t::PI_ASSIGNMENT:
           {
@@ -45,6 +45,7 @@ int main(int argc, char* argv[]) {
             break;
           }
         default:
+          // TODO implement other equality checks
           break;
       }
 
@@ -53,7 +54,22 @@ int main(int argc, char* argv[]) {
 
     return false;
   };
-  auto do_merge = [] (const graph_t<alphabet::stmt_t*>::edge_t e, const alphabet::stmt_t& s) { };
+  auto do_merge = [] (const graph_t<alphabet::stmt_t*>::edge_t e, const alphabet::stmt_t& s) {
+    switch (s.type) {
+      case alphabet::stmt_t::PI_ASSIGNMENT:
+      {
+        alphabet::pi_assignment_t* ls = (alphabet::pi_assignment_t*)e.label;
+        alphabet::pi_assignment_t* ss = (alphabet::pi_assignment_t*)&s;
+
+        ls->shared_variables.insert(ls->shared_variables.end(), ss->shared_variables.begin(), ss->shared_variables.end());
+
+        break;
+      }
+      default:
+        // do nothing
+        break;
+    }
+  };
 
   ps.merge(p_dummy, is_mergable, do_merge);
   std::cout << ps << std::endl;
