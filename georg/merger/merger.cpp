@@ -92,32 +92,32 @@ int main(int argc, char* argv[]) {
     return false;
   };
 
-  auto do_merge = [] (const graph_t<alphabet::stmt_t*>::edge_t e, const alphabet::stmt_t& s) {
-    switch (s.type) {
+  auto do_merge = [] (alphabet::stmt_t& s_destination, const alphabet::stmt_t& s_source) {
+    switch (s_source.type) {
       case alphabet::stmt_t::PI_ASSIGNMENT:
       {
-        alphabet::pi_assignment_t* ls = (alphabet::pi_assignment_t*)e.label;
-        alphabet::pi_assignment_t* ss = (alphabet::pi_assignment_t*)&s;
+        alphabet::pi_assignment_t& ls = (alphabet::pi_assignment_t&)s_destination;
+        const alphabet::pi_assignment_t& ss = (const alphabet::pi_assignment_t&)s_source;
 
-        ls->shared_variables.insert(ls->shared_variables.end(), ss->shared_variables.begin(), ss->shared_variables.end());
+        ls.shared_variables.insert(ls.shared_variables.end(), ss.shared_variables.begin(), ss.shared_variables.end());
 
         break;
       }
       case alphabet::stmt_t::LOCAL_ASSIGNMENT:
       {
-        alphabet::local_assignment_t* ls = (alphabet::local_assignment_t*)e.label;
-        alphabet::local_assignment_t* ss = (alphabet::local_assignment_t*)&s;
+        alphabet::local_assignment_t& ls = (alphabet::local_assignment_t&)s_destination;
+        const alphabet::local_assignment_t& ss = (const alphabet::local_assignment_t&)s_source;
 
-        ls->rhs.insert(ls->rhs.end(), ss->rhs.begin(), ss->rhs.end());
+        ls.rhs.insert(ls.rhs.end(), ss.rhs.begin(), ss.rhs.end());
 
         break;
       }
       case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
       {
-        alphabet::global_assignment_t* ls = (alphabet::global_assignment_t*)e.label;
-        alphabet::global_assignment_t* ss = (alphabet::global_assignment_t*)&s;
+        alphabet::global_assignment_t& ls = (alphabet::global_assignment_t&)s_destination;
+        const alphabet::global_assignment_t& ss = (const alphabet::global_assignment_t&)s_source;
 
-        ls->rhs.insert(ls->rhs.end(), ss->rhs.begin(), ss->rhs.end());
+        ls.rhs.insert(ls.rhs.end(), ss.rhs.begin(), ss.rhs.end());
 
         break;
       }

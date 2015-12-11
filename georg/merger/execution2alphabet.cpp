@@ -56,7 +56,7 @@ projected_executions_t::projected_executions_t(const projected_execution_t& pexe
 void projected_executions_t::merge(
   const projected_execution_t& pexe,
   std::function<bool (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> is_mergable,
-  std::function<void (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> do_merge
+  std::function<void (alphabet::stmt_t&, const alphabet::stmt_t&)> do_merge
 ) {
   std::map< alphabet::stmt_t* , graph_t<alphabet::stmt_t*>::edge_t > merge_map;
   std::map< int, std::vector< graph_t<alphabet::stmt_t*>::edge_t >> new_edges;
@@ -119,7 +119,7 @@ void projected_executions_t::merge(
       else {
         // merge
         std::cout << "merge" << std::endl;
-        do_merge(it->second, *s);
+        do_merge(*(it->second.label), *s);
 
         // nothing to do except updating the target
         source = it->second.target;
