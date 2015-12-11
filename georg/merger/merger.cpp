@@ -64,14 +64,24 @@ int main(int argc, char* argv[]) {
             alphabet::local_assignment_t* ls = (alphabet::local_assignment_t*)e.label;
             alphabet::local_assignment_t* ss = (alphabet::local_assignment_t*)&s;
 
-            return (*ls == *ss);
+            if (ls->local_variable != ss->local_variable) {
+              return false;
+            }
+
+            //return (*ls == *ss);
+            break;
           }
         case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
           {
             alphabet::global_assignment_t* ls = (alphabet::global_assignment_t*)e.label;
             alphabet::global_assignment_t* ss = (alphabet::global_assignment_t*)&s;
 
-            return (*ls == *ss);
+            if (ls->shared_variable != ss->shared_variable) {
+              return false;
+            }
+
+            //return (*ls == *ss);
+            break;
           }
         default:
           // TODO implement other equality checks
@@ -83,6 +93,7 @@ int main(int argc, char* argv[]) {
 
     return false;
   };
+
   auto do_merge = [] (const graph_t<alphabet::stmt_t*>::edge_t e, const alphabet::stmt_t& s) {
     switch (s.type) {
       case alphabet::stmt_t::PI_ASSIGNMENT:
@@ -91,6 +102,24 @@ int main(int argc, char* argv[]) {
         alphabet::pi_assignment_t* ss = (alphabet::pi_assignment_t*)&s;
 
         ls->shared_variables.insert(ls->shared_variables.end(), ss->shared_variables.begin(), ss->shared_variables.end());
+
+        break;
+      }
+      case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+      {
+        alphabet::local_assignment_t* ls = (alphabet::local_assignment_t*)e.label;
+        alphabet::local_assignment_t* ss = (alphabet::local_assignment_t*)&s;
+
+        ls->rhs.insert(ls->rhs.end(), ss->rhs.begin(), ss->rhs.end());
+
+        break;
+      }
+      case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+      {
+        alphabet::global_assignment_t* ls = (alphabet::global_assignment_t*)e.label;
+        alphabet::global_assignment_t* ss = (alphabet::global_assignment_t*)&s;
+
+        ls->rhs.insert(ls->rhs.end(), ss->rhs.begin(), ss->rhs.end());
 
         break;
       }
