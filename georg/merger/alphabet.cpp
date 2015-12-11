@@ -74,11 +74,6 @@ void local_assignment_t::print(std::ostream& out) const {
   out << local_variable << " := " << rhs;
 }
 
-std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v) {
-  out << v.shared_variable << "@" << v.execution_id;
-  return out;
-}
-
 void pi_assignment_t::accept(stmt_visitor_t& visitor) {
   visitor.visit_pi_assignment(*this);
 }

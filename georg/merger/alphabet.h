@@ -51,15 +51,20 @@ struct ssa_variable_t {
 template <class Tagged>
 struct execution_tag_t {
 
-  const Tagged t;
-  const int execution_id;
+  execution_tag_t(Tagged t_, int execution_id_) : t(t_), eid(execution_id_) {}
+  execution_tag_t(const execution_tag_t& other) : t(other.t), eid(other.eid) {}
 
-  execution_tag_t(Tagged t_, int execution_id_) : t(t_), execution_id(execution_id_) {}
-  execution_tag_t(const execution_tag_t& other) : t(other.t), execution_id(other.execution_id) {}
+  const Tagged& element() const {
+    return t;
+  }
+
+  int execution_id() const {
+    return eid;
+  }
 
   inline
   bool operator==(const execution_tag_t& other) const {
-    return (execution_id == other.execution_id && t == other.t);
+    return (eid == other.eid && t == other.t);
   }
 
   inline
@@ -68,18 +73,13 @@ struct execution_tag_t {
   }
 
   friend std::ostream& operator<<(std::ostream& out, const execution_tag_t& t) {
-    out << t.t << "@" << t.execution_id;
+    out << t.t << "@" << t.eid;
     return out;
   }
 
-};
-
-struct tagged_variable_t {
-
-  ssa_variable_t shared_variable;
-  int execution_id;
-
-  friend std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v);
+private:
+  Tagged t;
+  int eid;
 
 };
 
@@ -139,7 +139,8 @@ struct local_assignment_t : public stmt_t {
 struct pi_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
   //ssa_variable_t shared_variable; // rhs
-  std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
+  //std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
+  std::vector<execution_tag_t<ssa_variable_t>> shared_variables;
 
   pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
 
