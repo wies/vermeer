@@ -153,7 +153,6 @@ struct global_assignment_t : public stmt_t {
   }
 
   void accept(stmt_visitor_t& visitor) override;
-
   void print(std::ostream& out) const override;
 
 };
@@ -167,7 +166,6 @@ struct pi_assignment_t : public stmt_t {
   pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
 
   void accept(stmt_visitor_t& visitor) override;
-
   void print(std::ostream& out) const override;
 
 };
@@ -179,7 +177,6 @@ struct phi_assignment_t : public stmt_t {
   phi_assignment_t() : stmt_t(PHI_ASSIGNMENT) {}
 
   void accept(stmt_visitor_t& visitor) override;
-
   void print(std::ostream& out) const override;
 
 };
@@ -191,7 +188,6 @@ struct assertion_t : public stmt_t {
   assertion_t() : stmt_t(ASSERTION) {}
 
   void accept(stmt_visitor_t& visitor) override;
-
   void print(std::ostream& out) const override;
 
 };
@@ -203,7 +199,6 @@ struct assumption_t : public stmt_t {
   assumption_t() : stmt_t(ASSUMPTION) {}
 
   void accept(stmt_visitor_t& visitor) override;
-
   void print(std::ostream& out) const override;
 
 };
