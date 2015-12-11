@@ -48,6 +48,15 @@ struct ssa_variable_t {
 
 };
 
+struct tagged_variable_t {
+
+  ssa_variable_t shared_variable;
+  int execution_id;
+
+  friend std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v);
+
+};
+
 struct stmt_visitor_t;
 
 struct stmt_t {
@@ -98,15 +107,6 @@ struct local_assignment_t : public stmt_t {
 
   void accept(stmt_visitor_t& visitor) override;
   void print(std::ostream& out) const override;
-
-};
-
-struct tagged_variable_t {
-
-  ssa_variable_t shared_variable;
-  int execution_id;
-
-  friend std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v);
 
 };
 
