@@ -68,7 +68,6 @@ int main(int argc, char* argv[]) {
               return false;
             }
 
-            //return (*ls == *ss);
             break;
           }
         case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
@@ -80,7 +79,6 @@ int main(int argc, char* argv[]) {
               return false;
             }
 
-            //return (*ls == *ss);
             break;
           }
         default:
