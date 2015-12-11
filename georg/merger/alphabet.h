@@ -117,7 +117,8 @@ struct stmt_t {
 
 struct local_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
-  expr::term_t<ssa_variable_t> rhs;
+  //expr::term_t<ssa_variable_t> rhs;
+  std::vector<execution_tag_t<expr::term_t<ssa_variable_t>>> rhs;
 
   local_assignment_t() : stmt_t(LOCAL_ASSIGNMENT) {}
 
@@ -138,7 +139,8 @@ struct local_assignment_t : public stmt_t {
 
 struct global_assignment_t : public stmt_t {
   ssa_variable_t shared_variable; // lhs
-  expr::term_t<ssa_variable_t> rhs;
+  //expr::term_t<ssa_variable_t> rhs;
+  std::vector<execution_tag_t<expr::term_t<ssa_variable_t>>> rhs;
 
   global_assignment_t() : stmt_t(GLOBAL_ASSIGNMENT) {}
 
