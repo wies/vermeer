@@ -86,14 +86,6 @@ void pi_assignment_t::print(std::ostream& out) const {
   out << ")";
 }
 
-void pi_assignments_t::accept(stmt_visitor_t& visitor) {
-  ERROR("Unsupported operation");
-}
-
-void pi_assignments_t::print(std::ostream& out) const {
-  ERROR("Unsupported operation");
-}
-
 void global_assignment_t::accept(stmt_visitor_t& visitor) {
   visitor.visit_global_assignment(*this);
 }
