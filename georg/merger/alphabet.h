@@ -48,6 +48,32 @@ struct ssa_variable_t {
 
 };
 
+template <class Tagged>
+struct execution_tag_t {
+
+  const Tagged t;
+  const int execution_id;
+
+  execution_tag_t(Tagged t_, int execution_id_) : t(t_), execution_id(execution_id_) {}
+  execution_tag_t(const execution_tag_t& other) : t(other.t), execution_id(other.execution_id) {}
+
+  inline
+  bool operator==(const execution_tag_t& other) const {
+    return (execution_id == other.execution_id && t == other.t);
+  }
+
+  inline
+  bool operator!=(const execution_tag_t& other) const {
+    return !(*this == other);
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const execution_tag_t& t) {
+    out << t.t << "@" << t.execution_id;
+    return out;
+  }
+
+};
+
 struct tagged_variable_t {
 
   ssa_variable_t shared_variable;

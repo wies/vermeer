@@ -106,6 +106,15 @@ int main(int argc, char* argv[]) {
   ps.merge(p_dummy2, is_mergable, do_merge);
   std::cout << ps << std::endl;
 
+  alphabet::execution_tag_t<int> t(43, 0);
+  alphabet::execution_tag_t<int> t2(132, 0);
+  alphabet::execution_tag_t<int> t3(43, 1);
+  std::cout << t << " " << t2 << " " << t3 << std::endl;
+  std::cout << (t == t) << std::endl;
+  std::cout << (t != t) << std::endl;
+  std::cout << (t == t2) << std::endl;
+  std::cout << (t == t3) << std::endl;
+
   return EXIT_SUCCESS;
 }
 
