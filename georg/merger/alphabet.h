@@ -48,24 +48,7 @@ struct ssa_variable_t {
 
 };
 
-struct pi_assignment_t;
-struct local_assignment_t;
-struct global_assignment_t;
-struct phi_assignment_t;
-struct assertion_t;
-struct assumption_t;
-struct local_execution_t;
-
-struct stmt_visitor_t {
-
-  virtual void visit_pi_assignment(pi_assignment_t& a) = 0;
-  virtual void visit_local_assignment(local_assignment_t& a) = 0;
-  virtual void visit_global_assignment(global_assignment_t& a) = 0;
-  virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
-  virtual void visit_assertion(assertion_t& a) = 0;
-  virtual void visit_assumption(assumption_t& a) = 0;
-
-};
+struct stmt_visitor_t;
 
 struct stmt_t {
 
@@ -206,6 +189,17 @@ struct assumption_t : public stmt_t {
   void accept(stmt_visitor_t& visitor) override;
 
   void print(std::ostream& out) const override;
+
+};
+
+struct stmt_visitor_t {
+
+  virtual void visit_pi_assignment(pi_assignment_t& a) = 0;
+  virtual void visit_local_assignment(local_assignment_t& a) = 0;
+  virtual void visit_global_assignment(global_assignment_t& a) = 0;
+  virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
+  virtual void visit_assertion(assertion_t& a) = 0;
+  virtual void visit_assumption(assumption_t& a) = 0;
 
 };
 
