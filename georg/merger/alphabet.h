@@ -136,20 +136,6 @@ struct local_assignment_t : public stmt_t {
 
 };
 
-struct pi_assignment_t : public stmt_t {
-  ssa_variable_t local_variable; // lhs
-  //ssa_variable_t shared_variable; // rhs
-  //std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
-  std::vector<execution_tag_t<ssa_variable_t>> shared_variables;
-
-  pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
-
-  void accept(stmt_visitor_t& visitor) override;
-
-  void print(std::ostream& out) const override;
-
-};
-
 struct global_assignment_t : public stmt_t {
   ssa_variable_t shared_variable; // lhs
   expr::term_t<ssa_variable_t> rhs;
@@ -165,6 +151,20 @@ struct global_assignment_t : public stmt_t {
   bool operator!=(const global_assignment_t& other) const {
     return !(*this == other);
   }
+
+  void accept(stmt_visitor_t& visitor) override;
+
+  void print(std::ostream& out) const override;
+
+};
+
+struct pi_assignment_t : public stmt_t {
+  ssa_variable_t local_variable; // lhs
+  //ssa_variable_t shared_variable; // rhs
+  //std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
+  std::vector<execution_tag_t<ssa_variable_t>> shared_variables;
+
+  pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
 
   void accept(stmt_visitor_t& visitor) override;
 
