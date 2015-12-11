@@ -53,33 +53,21 @@ int main(int argc, char* argv[]) {
             const alphabet::pi_assignment_t& ls = (const alphabet::pi_assignment_t&)s_destination;
             const alphabet::pi_assignment_t& ss = (const alphabet::pi_assignment_t&)s;
 
-            if (ls.local_variable != ss.local_variable) {
-              return false;
-            }
-
-            break;
+            return (ls.local_variable == ss.local_variable);
           }
         case alphabet::stmt_t::LOCAL_ASSIGNMENT:
           {
             const alphabet::local_assignment_t& ls = (const alphabet::local_assignment_t&)s_destination;
             const alphabet::local_assignment_t& ss = (const alphabet::local_assignment_t&)s;
 
-            if (ls.local_variable != ss.local_variable) {
-              return false;
-            }
-
-            break;
+            return (ls.local_variable == ss.local_variable);
           }
         case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
           {
             const alphabet::global_assignment_t& ls = (const alphabet::global_assignment_t&)s_destination;
             const alphabet::global_assignment_t& ss = (const alphabet::global_assignment_t&)s;
 
-            if (ls.shared_variable != ss.shared_variable) {
-              return false;
-            }
-
-            break;
+            return (ls.shared_variable == ss.shared_variable);
           }
         default:
           // TODO implement other equality checks
