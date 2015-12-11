@@ -3,6 +3,7 @@
 
 #include "program_location.h"
 #include "graph.h"
+#include "expr.h"
 
 #include <functional>
 #include <iostream>
@@ -43,10 +44,7 @@ struct ssa_variable_t {
     return !(*this == v);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const ssa_variable_t& v) {
-    out << "var(" << v.variable_id << ")_{T" << v.ssa_index.thread_id << "," << v.ssa_index.thread_local_index << "}";
-    return out;
-  }
+  friend std::ostream& operator<<(std::ostream& out, const ssa_variable_t& v);
 
 };
 
@@ -80,29 +78,7 @@ struct stmt_t {
     ASSUMPTION
   };
 
-  friend std::ostream& operator<<(std::ostream& out, const stmt_type_t t) {
-    switch (t) {
-      case PI_ASSIGNMENT:
-        out << "PI_ASSIGNMENT";
-        break;
-      case LOCAL_ASSIGNMENT:
-        out << "LOCAL_ASSIGNMENT";
-        break;
-      case GLOBAL_ASSIGNMENT:
-        out << "GLOBAL_ASSIGNMENT";
-        break;
-      case PHI_ASSIGNMENT:
-        out << "PHI_ASSIGNMENT";
-        break;
-      case ASSERTION:
-        out << "ASSERTION";
-        break;
-      case ASSUMPTION:
-        out << "ASSUMPTION";
-        break;
-    }
-    return out;
-  }
+  friend std::ostream& operator<<(std::ostream& out, const stmt_type_t t);
 
   const stmt_type_t type;
 
@@ -114,34 +90,10 @@ struct stmt_t {
 
   virtual void accept(stmt_visitor_t& visitor) = 0;
 
-  void print_guards(std::ostream& out) const {
-    out << "guard(";
-
-    if (guards.empty()) {
-      out << "true";
-    }
-    else if (guards.size() == 1) {
-      out << guards[0];
-    }
-    else {
-      out << "(" << guards[0] << ")";
-
-      for (size_t i = 1; i < guards.size(); i++) {
-        out << " && (" << guards[i] << ")";
-      }
-    }
-
-    out << ") -> ";
-  }
-
+  void print_guards(std::ostream& out) const;
   virtual void print(std::ostream& out) const = 0;
 
-  friend std::ostream& operator<<(std::ostream& out, const stmt_t& s) {
-    out << s.program_location << ": ";
-    s.print_guards(out);
-    s.print(out);
-    return out;
-  }
+  friend std::ostream& operator<<(std::ostream& out, const stmt_t& s);
 
 };
 
@@ -161,13 +113,8 @@ struct local_assignment_t : public stmt_t {
     return !(*this == other);
   }
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_local_assignment(*this);
-  }
-
-  void print(std::ostream& out) const override {
-    out << local_variable << " := " << rhs;
-  }
+  void accept(stmt_visitor_t& visitor) override;
+  void print(std::ostream& out) const override;
 
 };
 
@@ -176,10 +123,7 @@ struct tagged_variable_t {
   ssa_variable_t shared_variable;
   int execution_id;
 
-  friend std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v) {
-    out << v.shared_variable << "@" << v.execution_id;
-    return out;
-  }
+  friend std::ostream& operator<<(std::ostream& out, const tagged_variable_t& v);
 
 };
 
@@ -190,19 +134,9 @@ struct pi_assignment_t : public stmt_t {
 
   pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_pi_assignment(*this);
-  }
+  void accept(stmt_visitor_t& visitor) override;
 
-  void print(std::ostream& out) const override {
-    out << local_variable << " := pi(";
-
-    for (auto& v : shared_variables) {
-      out << v << ",";
-    }
-
-    out << ")";
-  }
+  void print(std::ostream& out) const override;
 
 };
 
@@ -211,13 +145,9 @@ struct pi_assignments_t : public stmt_t {
   // TODO fix the type!!!
   pi_assignments_t() : stmt_t(PI_ASSIGNMENT) {}
 
-  void accept(stmt_visitor_t& visitor) override {
-    ERROR("Unsupported operation");
-  }
+  void accept(stmt_visitor_t& visitor) override;
 
-  void print(std::ostream& out) const override {
-    ERROR("Unsupported operation");
-  }
+  void print(std::ostream& out) const override;
 
 };
 
@@ -237,13 +167,9 @@ struct global_assignment_t : public stmt_t {
     return !(*this == other);
   }
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_global_assignment(*this);
-  }
+  void accept(stmt_visitor_t& visitor) override;
 
-  void print(std::ostream& out) const override {
-    out << shared_variable << " := " << rhs;
-  }
+  void print(std::ostream& out) const override;
 
 };
 
@@ -253,13 +179,9 @@ struct phi_assignment_t : public stmt_t {
 
   phi_assignment_t() : stmt_t(PHI_ASSIGNMENT) {}
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_phi_assignment(*this);
-  }
+  void accept(stmt_visitor_t& visitor) override;
 
-  void print(std::ostream& out) const override {
-    out << "phi(...)";
-  }
+  void print(std::ostream& out) const override;
 
 };
 
@@ -269,28 +191,9 @@ struct assertion_t : public stmt_t {
 
   assertion_t() : stmt_t(ASSERTION) {}
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_assertion(*this);
-  }
+  void accept(stmt_visitor_t& visitor) override;
 
-  void print(std::ostream& out) const override {
-    out << "assert(";
-    switch (exprs.size()) {
-      case 0:
-        out << "true";
-        break;
-      case 1:
-        out << exprs[0];
-        break;
-      default:
-        out << "(" << exprs[0] << ")";
-        for (size_t i = 1; i < exprs.size(); i++) {
-          out << " && (" << exprs[i] << ")";
-        }
-        break;
-    }
-    out << ")";
-  }
+  void print(std::ostream& out) const override;
 
 };
 
@@ -300,28 +203,9 @@ struct assumption_t : public stmt_t {
 
   assumption_t() : stmt_t(ASSUMPTION) {}
 
-  void accept(stmt_visitor_t& visitor) override {
-    visitor.visit_assumption(*this);
-  }
+  void accept(stmt_visitor_t& visitor) override;
 
-  void print(std::ostream& out) const override {
-    out << "assume(";
-    switch (exprs.size()) {
-      case 0:
-        out << "true";
-        break;
-      case 1:
-        out << exprs[0];
-        break;
-      default:
-        out << "(" << exprs[0] << ")";
-        for (size_t i = 1; i < exprs.size(); i++) {
-          out << " && (" << exprs[i] << ")";
-        }
-        break;
-    }
-    out << ")";
-  }
+  void print(std::ostream& out) const override;
 
 };
 

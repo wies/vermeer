@@ -1,5 +1,6 @@
 #include "execution2alphabet.h"
 
+#include "alphabet.h"
 #include "error.h"
 
 #include <functional>

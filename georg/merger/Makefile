@@ -2,7 +2,7 @@
 CXX=g++
 CXXFLAGS=-std=c++11 -Wall
 MERGER_EXE=merge
-MERGER_SRCS=merger.cpp error.cpp xml.cpp expr.cpp execution2alphabet.cpp program_location.cpp execution.cpp
+MERGER_SRCS=merger.cpp error.cpp xml.cpp expr.cpp alphabet.cpp execution2alphabet.cpp program_location.cpp execution.cpp
 MERGER_OBJS=$(MERGER_SRCS:%.cpp=%.o)
 EXPR_TEST_EXE=exprtest
 EXPR_TEST_SRCS=expr_test.cpp error.cpp expr.cpp
