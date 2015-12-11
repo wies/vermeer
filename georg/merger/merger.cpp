@@ -14,10 +14,10 @@
 #include "execution2alphabet.h"
 
 int main(int argc, char* argv[]) {
-  exe::execution_t e = read_execution("example.xml");
-  std::cout << e << std::endl << "******************************************" << std::endl;
+  exe::execution_t s_destination = read_execution("example.xml");
+  std::cout << s_destination << std::endl << "******************************************" << std::endl;
 
-  projected_execution_t p(e, 0);
+  projected_execution_t p(s_destination, 0);
   std::cout << p << std::endl << "******************************************" << std::endl;
 
   projected_executions_t ps(p);
@@ -30,18 +30,18 @@ int main(int argc, char* argv[]) {
   projected_execution_t p_dummy2(e_dummy2, 2);
 
 
-  auto is_mergable = [] (const graph_t<alphabet::stmt_t*>::edge_t e, const alphabet::stmt_t& s) {
-    if (e.label->program_location == s.program_location) {
+  auto is_mergable = [] (const alphabet::stmt_t& s_destination, const alphabet::stmt_t& s) {
+    if (s_destination.program_location == s.program_location) {
       // can we assume that we have the same type of statement at the same program location?
-      assert(e.label->type == s.type);
+      assert(s_destination.type == s.type);
 
       // check guards
-      if (e.label->guards.size() != s.guards.size()) {
+      if (s_destination.guards.size() != s.guards.size()) {
         return false;
       }
 
       for (size_t i = 0; i < s.guards.size(); i++) {
-        if (e.label->guards[i] != s.guards[i]) {
+        if (s_destination.guards[i] != s.guards[i]) {
           return false;
         }
       }
@@ -50,10 +50,10 @@ int main(int argc, char* argv[]) {
       switch (s.type) {
         case alphabet::stmt_t::PI_ASSIGNMENT:
           {
-            alphabet::pi_assignment_t* ls = (alphabet::pi_assignment_t*)e.label;
-            alphabet::pi_assignment_t* ss = (alphabet::pi_assignment_t*)&s;
+            const alphabet::pi_assignment_t& ls = (const alphabet::pi_assignment_t&)s_destination;
+            const alphabet::pi_assignment_t& ss = (const alphabet::pi_assignment_t&)s;
 
-            if (ls->local_variable != ss->local_variable) {
+            if (ls.local_variable != ss.local_variable) {
               return false;
             }
 
@@ -61,10 +61,10 @@ int main(int argc, char* argv[]) {
           }
         case alphabet::stmt_t::LOCAL_ASSIGNMENT:
           {
-            alphabet::local_assignment_t* ls = (alphabet::local_assignment_t*)e.label;
-            alphabet::local_assignment_t* ss = (alphabet::local_assignment_t*)&s;
+            const alphabet::local_assignment_t& ls = (const alphabet::local_assignment_t&)s_destination;
+            const alphabet::local_assignment_t& ss = (const alphabet::local_assignment_t&)s;
 
-            if (ls->local_variable != ss->local_variable) {
+            if (ls.local_variable != ss.local_variable) {
               return false;
             }
 
@@ -72,10 +72,10 @@ int main(int argc, char* argv[]) {
           }
         case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
           {
-            alphabet::global_assignment_t* ls = (alphabet::global_assignment_t*)e.label;
-            alphabet::global_assignment_t* ss = (alphabet::global_assignment_t*)&s;
+            const alphabet::global_assignment_t& ls = (const alphabet::global_assignment_t&)s_destination;
+            const alphabet::global_assignment_t& ss = (const alphabet::global_assignment_t&)s;
 
-            if (ls->shared_variable != ss->shared_variable) {
+            if (ls.shared_variable != ss.shared_variable) {
               return false;
             }
 

@@ -55,7 +55,7 @@ projected_executions_t::projected_executions_t(const projected_execution_t& pexe
 */
 void projected_executions_t::merge(
   const projected_execution_t& pexe,
-  std::function<bool (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> is_mergable,
+  std::function<bool (const alphabet::stmt_t&, const alphabet::stmt_t&)> is_mergable,
   std::function<void (alphabet::stmt_t&, const alphabet::stmt_t&)> do_merge
 ) {
   std::map< alphabet::stmt_t* , graph_t<alphabet::stmt_t*>::edge_t > merge_map;
@@ -65,7 +65,7 @@ void projected_executions_t::merge(
   for (auto& p : pexe.projections) {
     for (auto& e : edges[p.first]) {
       for (auto& s : p.second) {
-        if (is_mergable(e, *s)) {
+        if (is_mergable(*(e.label), *s)) {
           // store for later merging
           merge_map[s] = e;
           break;

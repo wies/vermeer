@@ -33,7 +33,7 @@ struct projected_executions_t {
   */
   void merge(
     const projected_execution_t& pexe,
-    std::function<bool (const graph_t<alphabet::stmt_t*>::edge_t&, const alphabet::stmt_t&)> is_mergable,
+    std::function<bool (const alphabet::stmt_t&, const alphabet::stmt_t&)> is_mergable,
     std::function<void (alphabet::stmt_t&, const alphabet::stmt_t&)> do_merge
   );
 
