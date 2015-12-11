@@ -55,38 +55,32 @@ struct stmt_t {
 
 struct assignment_t : public stmt_t {
 
-  virtual ~assignment_t() {}
+  virtual ~assignment_t();
 
   int variable_id;
   expr::term_t<int> rhs;
 
-  virtual void accept(stmt_visitor_t& v) override {
-    v.visit_assignment(*this);
-  }
+  virtual void accept(stmt_visitor_t& v) override;
 
 };
 
 struct assertion_t : public stmt_t {
 
-  virtual ~assertion_t() {}
+  virtual ~assertion_t();
 
   std::vector<expr::expr_t<int>> exprs;
 
-  virtual void accept(stmt_visitor_t& v) override {
-    v.visit_assertion(*this);
-  }
+  virtual void accept(stmt_visitor_t& v) override;
 
 };
 
 struct assumption_t : public stmt_t {
 
-  virtual ~assumption_t() {}
+  virtual ~assumption_t();
 
   std::vector<expr::expr_t<int>> exprs;
 
-  virtual void accept(stmt_visitor_t& v) override {
-    v.visit_assumption(*this);
-  }
+  virtual void accept(stmt_visitor_t& v) override;
 
 };
 
@@ -96,15 +90,9 @@ struct execution_t {
   std::vector<stmt_t*> statements;
   int nr_of_threads;
 
-  ~execution_t() {
-    for (auto& s : statements) {
-      delete s;
-    }
-  }
+  ~execution_t();
 
-  void accept(stmt_visitor_t& v) {
-    v.visit_execution(*this);
-  }
+  void accept(stmt_visitor_t& v);
 
 };
 
