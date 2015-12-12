@@ -29,12 +29,11 @@ public:
     return id;
   }
 
-  edge_t add_edge(size_t source, LabelType label, size_t target) {
+  edge_t& add_edge(size_t source, LabelType label, size_t target) {
     // TODO How defensive do we want to progam?
     auto& v = adjacency_lists[source];
-    edge_t e = { source, label, target };
-    v.push_back(e);
-    return e;
+    v.push_back({ source, label, target });
+    return v.back();
   }
 
   inline
