@@ -10,6 +10,9 @@ class graph_t {
 
 public:
   struct edge_t {
+
+    edge_t(size_t src, LabelType lbl, size_t tgt) : source(src), label(lbl), target(tgt) {}
+
     size_t source;
     LabelType label;
     size_t target;
@@ -37,7 +40,7 @@ public:
   edge_t& add_edge(size_t source, LabelType label, size_t target) {
     // TODO How defensive do we want to progam?
     auto& v = adjacency_lists[source];
-    v.push_back({ source, label, target });
+    v.emplace(v.end(), source, label, target);
     return v.back();
   }
 
