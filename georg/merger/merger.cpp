@@ -310,8 +310,13 @@ int main(int argc, char* argv[]) {
   std::cout << "***************************" << std::endl;
   p_alt2.merge(p_dummy2, is_mergable_alt2, do_merge_alt2, create_label2);
   std::cout << "***************************" << std::endl;
-  //std::cout << p_alt2 << std::endl;
+  std::cout << p_alt2 << std::endl;
 
   return EXIT_SUCCESS;
+}
+
+std::ostream& operator<<(std::ostream& out, const std::vector< execution_tag_t<const alphabet::stmt_t*> >& v) {
+  out << &v;
+  return out;
 }
 

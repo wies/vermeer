@@ -13,6 +13,11 @@ public:
     size_t source;
     LabelType label;
     size_t target;
+
+    friend std::ostream& operator<<(std::ostream& out, const edge_t& e) {
+      out << e.source << " -[" << e.label << "]-> " << e.target << ", ";
+      return out;
+    }
   };
 
 private:
@@ -56,7 +61,7 @@ public:
       }
       else {
         for (const edge_t& e : it->second) {
-          out << n << " -[" << e.label << "]-> " << e.target << ", ";
+          out << e << ", ";
         }
         out << std::endl;
       }
