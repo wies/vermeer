@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
   std::cout << (t == t3) << std::endl;
 
 
-
+#if 0
   using label_type = alphabet::stmt_t*;
 
   auto is_mergable_alt = [] (const label_type& s_dest, const alphabet::stmt_t& s) {
@@ -234,6 +234,26 @@ int main(int argc, char* argv[]) {
   p_alt.merge(p_dummy2, is_mergable_alt, do_merge_alt);
   std::cout << "***************************" << std::endl;
   std::cout << p_alt << std::endl;
+  std::cout << "***************************" << std::endl;
+#endif
+
+  using label_type2 = std::vector< execution_tag_t<alphabet::stmt_t*> >;
+
+  alternative::projected_executions_t< label_type2 > p_alt2;
+  auto is_mergable_alt2 = [] (const label_type2& s_dest, const alphabet::stmt_t& s) {
+    return false;
+  };
+  auto do_merge_alt2 = [] (label_type2& s_dest, const alphabet::stmt_t& s_source) {
+
+  };
+  auto create_label2 = [] (alphabet::stmt_t& s, const projected_execution_t& pexe) {
+    label_type2 v;
+    execution_tag_t<alphabet::stmt_t*> t = { &s, pexe.unique_id };
+    v.push_back(t);
+    return v;
+  };
+
+  p_alt2.merge(p, is_mergable_alt2, do_merge_alt2, create_label2);
 
   return EXIT_SUCCESS;
 }

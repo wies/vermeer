@@ -24,7 +24,8 @@ struct projected_executions_t {
   void merge(
     const projected_execution_t& pexe,
     std::function<bool (const LabelType&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (LabelType&, const alphabet::stmt_t&)> do_merge
+    std::function<void (LabelType&, const alphabet::stmt_t&)> do_merge,
+    std::function<LabelType (alphabet::stmt_t&, const projected_execution_t&)> create_label
   ) {
     std::map< alphabet::stmt_t* , edge_t& > merge_map;
     std::map< int, std::vector< edge_t >> new_edges;
@@ -81,7 +82,7 @@ struct projected_executions_t {
             target = g.create_node();
           }
 
-          new_edges[p.first].push_back(g.add_edge(source, { s }, target));
+          new_edges[p.first].push_back(g.add_edge(source, create_label(*s, pexe), target));
 
           source = target;
         }
