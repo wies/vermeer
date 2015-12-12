@@ -23,8 +23,8 @@ int main(int argc, char* argv[]) {
   projected_execution_t p(s_destination, 0);
   std::cout << p << std::endl << "******************************************" << std::endl;
 
-  projected_executions_t ps(p);
-  std::cout << ps << std::endl << "******************************************" << std::endl;
+//  projected_executions_t ps(p);
+  //std::cout << ps << std::endl << "******************************************" << std::endl;
 
   exe::execution_t e_dummy = read_execution("example_dummy.xml");
   projected_execution_t p_dummy(e_dummy, 1);
@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
   exe::execution_t e_dummy2 = read_execution("example_dummy2.xml");
   projected_execution_t p_dummy2(e_dummy2, 2);
 
-
+#if 0
   auto is_mergable = [] (const alphabet::stmt_t& s_destination, const alphabet::stmt_t& s) {
     if (s_destination.program_location == s.program_location) {
       // can we assume that we have the same type of statement at the same program location?
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
   std::cout << (t == t3) << std::endl;
 
 
-#if 0
+
   using label_type = alphabet::stmt_t*;
 
   auto is_mergable_alt = [] (const label_type& s_dest, const alphabet::stmt_t& s) {
@@ -237,11 +237,12 @@ int main(int argc, char* argv[]) {
   std::cout << "***************************" << std::endl;
 #endif
 
-  using label_type2 = std::vector< execution_tag_t<const alphabet::stmt_t*> >;
+  using label_type2 = size_t;
+  std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > > set_of_merged_stmts;
 
   alternative::projected_executions_t< label_type2 > p_alt2;
-  auto is_mergable_alt2 = [] (const label_type2& v, const alphabet::stmt_t& s) {
-    const alphabet::stmt_t& s_destination = *(v.front().element());
+  auto is_mergable_alt2 = [&] (const label_type2& v, const alphabet::stmt_t& s) {
+    const alphabet::stmt_t& s_destination = *(set_of_merged_stmts[v].front().element());
 
     if (s_destination.program_location == s.program_location) {
       // can we assume that we have the same type of statement at the same program location?
@@ -292,16 +293,15 @@ int main(int argc, char* argv[]) {
     return false;
   };
 
-  auto do_merge_alt2 = [] (label_type2& v, const alphabet::stmt_t& s_source, const projected_execution_t& pexe) {
-    execution_tag_t<const alphabet::stmt_t*> t = { &s_source, pexe.unique_id };
-    v.push_back(t);
+  auto do_merge_alt2 = [&] (label_type2& l, const alphabet::stmt_t& s_source, const projected_execution_t& pexe) {
+    auto& v = set_of_merged_stmts[l];
+    v.emplace(v.end(), &s_source, pexe.unique_id);
   };
 
-  auto create_label2 = [] (const alphabet::stmt_t& s, const projected_execution_t& pexe) {
-    label_type2 v;
-    execution_tag_t<const alphabet::stmt_t*> t = { &s, pexe.unique_id };
-    v.push_back(t);
-    return v;
+  auto create_label2 = [&] (const alphabet::stmt_t& s, const projected_execution_t& pexe) {
+    auto it = set_of_merged_stmts.emplace(set_of_merged_stmts.end());
+    it->emplace(it->end(), &s, pexe.unique_id);
+    return set_of_merged_stmts.size() - 1;
   };
 
   p_alt2.merge(p, is_mergable_alt2, do_merge_alt2, create_label2);
@@ -312,11 +312,10 @@ int main(int argc, char* argv[]) {
   std::cout << "***************************" << std::endl;
   std::cout << p_alt2 << std::endl;
 
+  //for (auto& v : set_of_merged_stmts) {
+  for (size_t i = 0; i < set_of_merged_stmts.size(); ++i) {
+    std::cout << i << ": " << set_of_merged_stmts[i].size() << std::endl;
+  }
+
   return EXIT_SUCCESS;
 }
-
-std::ostream& operator<<(std::ostream& out, const std::vector< execution_tag_t<const alphabet::stmt_t*> >& v) {
-  out << &v;
-  return out;
-}
-
