@@ -67,7 +67,7 @@ void projected_executions_t::merge(
       for (auto& s : p.second) {
         if (is_mergable(*(e.label), *s)) {
           // store for later merging
-          merge_map[s] = e;
+          merge_map.insert({ s, e });
           break;
         }
       }
