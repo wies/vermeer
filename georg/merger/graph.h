@@ -18,7 +18,7 @@ public:
     size_t target;
 
     friend std::ostream& operator<<(std::ostream& out, const edge_t& e) {
-      out << e.source << " -[" << e.label << "]-> " << e.target << ", ";
+      out << e.source << " -[" << e.label << "]-> " << e.target;
       return out;
     }
   };
