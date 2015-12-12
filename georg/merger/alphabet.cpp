@@ -71,11 +71,14 @@ void local_assignment_t::accept(stmt_visitor_t& visitor) {
 }
 
 void local_assignment_t::print(std::ostream& out) const {
+  out << local_variable << " := " << rhs;
+#if 0
   out << local_variable << " := choose(";
   for (auto& t : rhs) {
     out << t << ",";
   }
   out << ")";
+#endif
 }
 
 void pi_assignment_t::accept(stmt_visitor_t& visitor) {
@@ -83,11 +86,14 @@ void pi_assignment_t::accept(stmt_visitor_t& visitor) {
 }
 
 void pi_assignment_t::print(std::ostream& out) const {
+  out << local_variable << " := pi(" << shared_variable << ")";
+#if 0
   out << local_variable << " := pi(";
   for (auto& v : shared_variables) {
     out << v << ",";
   }
   out << ")";
+#endif
 }
 
 void global_assignment_t::accept(stmt_visitor_t& visitor) {
@@ -95,11 +101,14 @@ void global_assignment_t::accept(stmt_visitor_t& visitor) {
 }
 
 void global_assignment_t::print(std::ostream& out) const {
+  out << shared_variable << " := " << rhs;
+#if 0
   out << shared_variable << " := choose(";
   for (auto& t : rhs) {
     out << t << ",";
   }
   out << ")";
+#endif
 }
 
 void phi_assignment_t::accept(stmt_visitor_t& visitor) {
