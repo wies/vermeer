@@ -314,7 +314,11 @@ int main(int argc, char* argv[]) {
 
   //for (auto& v : set_of_merged_stmts) {
   for (size_t i = 0; i < set_of_merged_stmts.size(); ++i) {
-    std::cout << i << ": " << set_of_merged_stmts[i].size() << std::endl;
+    std::cout << i << ": "; // << set_of_merged_stmts[i].size() << std::endl;
+    for (auto& t : set_of_merged_stmts[i]) {
+      std::cout << "(" << *(t.element()) << ")@" << t.execution_id() << ", ";
+    }
+    std::cout << std::endl;
   }
 
   return EXIT_SUCCESS;
