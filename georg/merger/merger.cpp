@@ -14,6 +14,8 @@
 #include "execution2alphabet.h"
 #include "tag.h"
 
+#include "projected_executions.h"
+
 int main(int argc, char* argv[]) {
   exe::execution_t s_destination = read_execution("example.xml");
   std::cout << s_destination << std::endl << "******************************************" << std::endl;
@@ -130,6 +132,108 @@ int main(int argc, char* argv[]) {
   std::cout << (t != t) << std::endl;
   std::cout << (t == t2) << std::endl;
   std::cout << (t == t3) << std::endl;
+
+
+
+  using label_type = alphabet::stmt_t*;
+
+  auto is_mergable_alt = [] (const label_type& s_dest, const alphabet::stmt_t& s) {
+    const alphabet::stmt_t& s_destination = *s_dest;
+
+    if (s_destination.program_location == s.program_location) {
+      // can we assume that we have the same type of statement at the same program location?
+      assert(s_destination.type == s.type);
+
+      // check guards
+      if (s_destination.guards.size() != s.guards.size()) {
+        return false;
+      }
+
+      for (size_t i = 0; i < s.guards.size(); i++) {
+        if (s_destination.guards[i] != s.guards[i]) {
+          return false;
+        }
+      }
+
+      // do further equality checks
+      switch (s.type) {
+        case alphabet::stmt_t::PI_ASSIGNMENT:
+          {
+            const alphabet::pi_assignment_t& ls = (const alphabet::pi_assignment_t&)s_destination;
+            const alphabet::pi_assignment_t& ss = (const alphabet::pi_assignment_t&)s;
+
+            return (ls.local_variable == ss.local_variable);
+          }
+        case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+          {
+            const alphabet::local_assignment_t& ls = (const alphabet::local_assignment_t&)s_destination;
+            const alphabet::local_assignment_t& ss = (const alphabet::local_assignment_t&)s;
+
+            return (ls.local_variable == ss.local_variable);
+          }
+        case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+          {
+            const alphabet::global_assignment_t& ls = (const alphabet::global_assignment_t&)s_destination;
+            const alphabet::global_assignment_t& ss = (const alphabet::global_assignment_t&)s;
+
+            return (ls.shared_variable == ss.shared_variable);
+          }
+        default:
+          // TODO implement other equality checks
+          break;
+      }
+
+      return true;
+    }
+
+    return false;
+  };
+
+  auto do_merge_alt = [] (alphabet::stmt_t*& s_dest, const alphabet::stmt_t& s_source) {
+    alphabet::stmt_t& s_destination = *s_dest;
+
+    switch (s_source.type) {
+      case alphabet::stmt_t::PI_ASSIGNMENT:
+      {
+        alphabet::pi_assignment_t& ls = (alphabet::pi_assignment_t&)s_destination;
+        const alphabet::pi_assignment_t& ss = (const alphabet::pi_assignment_t&)s_source;
+
+        ls.shared_variables.insert(ls.shared_variables.end(), ss.shared_variables.begin(), ss.shared_variables.end());
+
+        break;
+      }
+      case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+      {
+        alphabet::local_assignment_t& ls = (alphabet::local_assignment_t&)s_destination;
+        const alphabet::local_assignment_t& ss = (const alphabet::local_assignment_t&)s_source;
+
+        ls.rhs.insert(ls.rhs.end(), ss.rhs.begin(), ss.rhs.end());
+
+        break;
+      }
+      case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+      {
+        alphabet::global_assignment_t& ls = (alphabet::global_assignment_t&)s_destination;
+        const alphabet::global_assignment_t& ss = (const alphabet::global_assignment_t&)s_source;
+
+        ls.rhs.insert(ls.rhs.end(), ss.rhs.begin(), ss.rhs.end());
+
+        break;
+      }
+      default:
+        // do nothing
+        break;
+    }
+  };
+
+  alternative::projected_executions_t< alphabet::stmt_t* > p_alt;
+  p_alt.merge(p, is_mergable_alt, do_merge_alt);
+  std::cout << "***************************" << std::endl;
+  p_alt.merge(p_dummy, is_mergable_alt, do_merge_alt);
+  std::cout << "***************************" << std::endl;
+  p_alt.merge(p_dummy2, is_mergable_alt, do_merge_alt);
+  std::cout << "***************************" << std::endl;
+  std::cout << p_alt << std::endl;
 
   return EXIT_SUCCESS;
 }
