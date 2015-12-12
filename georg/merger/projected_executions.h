@@ -26,7 +26,7 @@ struct projected_executions_t {
     std::function<bool (const LabelType&, const alphabet::stmt_t&)> is_mergable,
     std::function<void (LabelType&, const alphabet::stmt_t&)> do_merge
   ) {
-    std::map< alphabet::stmt_t* , edge_t > merge_map;
+    std::map< alphabet::stmt_t* , edge_t& > merge_map;
     std::map< int, std::vector< edge_t >> new_edges;
 
     // determine merging points
@@ -35,7 +35,8 @@ struct projected_executions_t {
         for (auto& s : p.second) {
           if (is_mergable(e.label, *s)) {
             // store for later merging
-            merge_map[s] = e;
+            // TODO shall we add an assertion that checks that merge_map[s] does not already contain another edge?
+            merge_map.insert({ s, e });
             break;
           }
         }
