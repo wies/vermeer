@@ -24,7 +24,7 @@ struct projected_executions_t {
   void merge(
     const projected_execution_t& pexe,
     std::function<bool (const LabelType&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (LabelType&, const alphabet::stmt_t&)> do_merge,
+    std::function<void (LabelType&, const alphabet::stmt_t&, const projected_execution_t&)> do_merge,
     std::function<LabelType (alphabet::stmt_t&, const projected_execution_t&)> create_label
   ) {
     std::map< alphabet::stmt_t* , edge_t& > merge_map;
@@ -89,7 +89,7 @@ struct projected_executions_t {
         else {
           // merge
           std::cout << "merge" << std::endl;
-          do_merge(it->second.label, *s);
+          do_merge(it->second.label, *s, pexe);
 
           // nothing to do except updating the target
           source = it->second.target;

@@ -237,23 +237,80 @@ int main(int argc, char* argv[]) {
   std::cout << "***************************" << std::endl;
 #endif
 
-  using label_type2 = std::vector< execution_tag_t<alphabet::stmt_t*> >;
+  using label_type2 = std::vector< execution_tag_t<const alphabet::stmt_t*> >;
 
   alternative::projected_executions_t< label_type2 > p_alt2;
-  auto is_mergable_alt2 = [] (const label_type2& s_dest, const alphabet::stmt_t& s) {
+  auto is_mergable_alt2 = [] (const label_type2& v, const alphabet::stmt_t& s) {
+    const alphabet::stmt_t& s_destination = *(v.front().element());
+
+    if (s_destination.program_location == s.program_location) {
+      // can we assume that we have the same type of statement at the same program location?
+      assert(s_destination.type == s.type);
+
+      // check guards
+      if (s_destination.guards.size() != s.guards.size()) {
+        return false;
+      }
+
+      for (size_t i = 0; i < s.guards.size(); i++) {
+        if (s_destination.guards[i] != s.guards[i]) {
+          return false;
+        }
+      }
+
+      // do further equality checks
+      switch (s.type) {
+        case alphabet::stmt_t::PI_ASSIGNMENT:
+          {
+            const alphabet::pi_assignment_t& ls = (const alphabet::pi_assignment_t&)s_destination;
+            const alphabet::pi_assignment_t& ss = (const alphabet::pi_assignment_t&)s;
+
+            return (ls.local_variable == ss.local_variable);
+          }
+        case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+          {
+            const alphabet::local_assignment_t& ls = (const alphabet::local_assignment_t&)s_destination;
+            const alphabet::local_assignment_t& ss = (const alphabet::local_assignment_t&)s;
+
+            return (ls.local_variable == ss.local_variable);
+          }
+        case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+          {
+            const alphabet::global_assignment_t& ls = (const alphabet::global_assignment_t&)s_destination;
+            const alphabet::global_assignment_t& ss = (const alphabet::global_assignment_t&)s;
+
+            return (ls.shared_variable == ss.shared_variable);
+          }
+        default:
+          // TODO implement other equality checks
+          break;
+      }
+
+      return true;
+    }
+
     return false;
   };
-  auto do_merge_alt2 = [] (label_type2& s_dest, const alphabet::stmt_t& s_source) {
 
+  auto do_merge_alt2 = [] (label_type2& v, const alphabet::stmt_t& s_source, const projected_execution_t& pexe) {
+    execution_tag_t<const alphabet::stmt_t*> t = { &s_source, pexe.unique_id };
+    v.push_back(t);
   };
-  auto create_label2 = [] (alphabet::stmt_t& s, const projected_execution_t& pexe) {
+
+  auto create_label2 = [] (const alphabet::stmt_t& s, const projected_execution_t& pexe) {
     label_type2 v;
-    execution_tag_t<alphabet::stmt_t*> t = { &s, pexe.unique_id };
+    execution_tag_t<const alphabet::stmt_t*> t = { &s, pexe.unique_id };
     v.push_back(t);
     return v;
   };
 
   p_alt2.merge(p, is_mergable_alt2, do_merge_alt2, create_label2);
+  std::cout << "***************************" << std::endl;
+  p_alt2.merge(p_dummy, is_mergable_alt2, do_merge_alt2, create_label2);
+  std::cout << "***************************" << std::endl;
+  p_alt2.merge(p_dummy2, is_mergable_alt2, do_merge_alt2, create_label2);
+  std::cout << "***************************" << std::endl;
+  //std::cout << p_alt2 << std::endl;
 
   return EXIT_SUCCESS;
 }
