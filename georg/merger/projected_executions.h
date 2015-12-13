@@ -123,6 +123,15 @@ struct projected_executions_t {
     return out;
   }
 
+  void unify() {
+    std::cout << "unify!" << std::endl;
+
+    for (auto& it : projections) {
+      std::cout << "thread " << it.first << std::endl;
+      it.second.dag_topological_sort(0);
+    }
+  }
+
 private:
   using edge_t = typename graph_t<LabelType>::edge_t;
   std::map<int, graph_t< LabelType >> projections;

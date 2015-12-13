@@ -321,5 +321,7 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl;
   }
 
+  p_alt2.unify();
+
   return EXIT_SUCCESS;
 }

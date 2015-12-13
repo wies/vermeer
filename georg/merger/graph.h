@@ -3,7 +3,10 @@
 
 #include <map>
 #include <ostream>
+#include <stack>
 #include <vector>
+
+#include <iostream>
 
 template <class LabelType>
 class graph_t {
@@ -52,6 +55,52 @@ public:
   inline
   bool empty() const {
     return (nr_of_nodes == 0);
+  }
+
+  void dag_topological_sort(size_t root) {
+    // TODO assert that root is a valid node in the graph
+
+    std::stack<size_t> topological_order;
+
+    std::stack<std::pair<size_t, int>> workset;
+
+    workset.push({ root, -1 });
+
+    bool* visited = new bool[size()];
+    visited[0] = true;
+    for (int i = 1; i < size(); i++) {
+      visited[i] = false;
+    }
+
+    while (!workset.empty()) {
+      auto it = workset.top();
+      workset.pop();
+
+      int i = it.second + 1;
+
+      if (i < adjacency_lists[it.first].size()) {
+        workset.push({ it.first, i });
+
+        if (!visited[adjacency_lists[it.first][i].target]) {
+          workset.push({ adjacency_lists[it.first][i].target, -1 });
+          visited[adjacency_lists[it.first][i].target] = true;
+        }
+      }
+      else {
+        // map node to time and increment time
+        topological_order.push(it.first);
+      }
+    }
+
+    delete[] visited;
+
+    std::cout << "topological order:";
+    while (!topological_order.empty()) {
+      size_t node = topological_order.top();
+      topological_order.pop();
+      std::cout << " " << node;
+    }
+    std::cout << std::endl;
   }
 
   friend std::ostream& operator<<(std::ostream& out, const graph_t& g) {
