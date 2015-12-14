@@ -16,9 +16,29 @@ struct ssa_map_t {
     return ssa_index;
   }
 
-  const int operator[](int variable_id) {
-    int ssa_index = ssa_indices[variable_id];
-    return ssa_index;
+  // TODO can we do something less arbitrary?
+  void set_value(int variable_id, int value) {
+    ssa_indices.insert({ variable_id, value });
+  }
+
+  const int operator[](int variable_id) const {
+    auto it = ssa_indices.find(variable_id);
+
+    if (it != ssa_indices.end()) {
+      return it->second;
+    }
+
+    return 0;
+  }
+
+  std::set<int> variables() const {
+    std::set<int> vars;
+
+    for (auto& i : ssa_indices) {
+      vars.insert(i.first);
+    }
+
+    return vars;
   }
 
   friend std::ostream& operator<<(std::ostream& out, ssa_map_t& m) {

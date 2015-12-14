@@ -105,14 +105,25 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
       size_t node = order[i];
 
       // unify ssa maps of incoming edges to node in edge2map
-      const auto& v = g.incoming_edges(node);
-      assert(v.size() > 0);
-      assert(edge2map.find(v[0]) != edge2map.end());
-      const auto& m = edge2map[v[0]];
-      ssa_map_t unified_map(m);
-      std::cout << "starting with " << unified_map << std::endl;
-      for (size_t j = 1; j < v.size(); ++j) {
-        // TODO implement
+      std::set<int> touched_variables;
+      for (const auto& e : g.incoming_edges(node)) {
+        const auto& m = edge2map[e];
+        auto vars = m.variables();
+        touched_variables.insert(vars.begin(), vars.end());
+      }
+
+      ssa_map_t unified_map;
+      for (int v : touched_variables) {
+        int max_value = 0;
+
+        for (const auto& e : g.incoming_edges(node)) {
+          const auto& m = edge2map[e];
+          if (max_value < m[v]) {
+            max_value = m[v];
+          }
+        }
+
+        unified_map.set_value(v, max_value);
       }
 
       node2map.insert({ node, unified_map });
