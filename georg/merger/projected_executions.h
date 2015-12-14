@@ -3,6 +3,7 @@
 
 #include "alphabet.h"
 #include "graph.h"
+#include "ssa_map.h"
 #include "tag.h"
 
 #include <functional>
@@ -130,11 +131,16 @@ struct projected_executions_t {
       // for each thread we have to generate a unified graph
       std::cout << "thread " << it.first << std::endl;
       auto order = it.second.dag_topological_sort(0);
+      assert(order.size() > 0);
       graph_t< LabelType > g_new;
       //std::cout << "topological order:";
       std::cout << "g_new.size() = " << g_new.size();
       g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
       std::cout << " ---> " << g_new.size() << " (order.size() = " << order.size() << ")" << std::endl;
+
+      std::map<size_t /*node*/, ssa_map_t> node2maps;
+      ssa_map_t empty_map;
+      node2maps.insert({ 0, empty_map });
     }
   }
 
