@@ -1,6 +1,7 @@
 #ifndef GRAPH_H_INCLUDED
 #define GRAPH_H_INCLUDED
 
+#include <cassert>
 #include <map>
 #include <ostream>
 #include <stack>
@@ -36,6 +37,17 @@ public:
     size_t id = nr_of_nodes;
     nr_of_nodes++;
     return id;
+  }
+
+  size_t create_nodes(size_t n) { // n = number of nodes
+    assert(n > 0);
+
+    size_t start = create_node();
+    for (size_t i = 1; i < n; i++) {
+      create_node();
+    }
+
+    return start;
   }
 
   edge_t& add_edge(size_t source, LabelType label, size_t target) {

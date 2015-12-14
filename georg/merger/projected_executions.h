@@ -127,13 +127,14 @@ struct projected_executions_t {
     std::cout << "unify!" << std::endl;
 
     for (auto& it : projections) {
+      // for each thread we have to generate a unified graph
       std::cout << "thread " << it.first << std::endl;
       auto order = it.second.dag_topological_sort(0);
-      std::cout << "topological order:";
-      for (size_t node : order) {
-        std::cout << " " << node;
-      }
-      std::cout << std::endl;
+      graph_t< LabelType > g_new;
+      //std::cout << "topological order:";
+      std::cout << "g_new.size() = " << g_new.size();
+      g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
+      std::cout << " ---> " << g_new.size() << " (order.size() = " << order.size() << ")" << std::endl;
     }
   }
 
