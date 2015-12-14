@@ -16,6 +16,8 @@
 
 #include "projected_executions.h"
 
+#include "ssa_map.h"
+
 int main(int argc, char* argv[]) {
   exe::execution_t s_destination = read_execution("example.xml");
   std::cout << s_destination << std::endl << "******************************************" << std::endl;
@@ -322,6 +324,11 @@ int main(int argc, char* argv[]) {
   }
 
   p_alt2.unify();
+
+  ssa_map_t ssa_map;
+  std::cout << ssa_map[0] << std::endl;
+  ssa_map.inc(0);
+  std::cout << ssa_map[0] << std::endl;
 
   return EXIT_SUCCESS;
 }
