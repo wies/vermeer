@@ -6,8 +6,6 @@
 #include <stack>
 #include <vector>
 
-#include <iostream>
-
 template <class LabelType>
 class graph_t {
 
@@ -57,7 +55,7 @@ public:
     return (nr_of_nodes == 0);
   }
 
-  void dag_topological_sort(size_t root) {
+  std::vector<size_t> dag_topological_sort(size_t root) {
     // TODO assert that root is a valid node in the graph
 
     std::stack<size_t> topological_order;
@@ -94,13 +92,14 @@ public:
 
     delete[] visited;
 
-    std::cout << "topological order:";
+    std::vector<size_t> order;
     while (!topological_order.empty()) {
       size_t node = topological_order.top();
       topological_order.pop();
-      std::cout << " " << node;
+      order.push_back(node);
     }
-    std::cout << std::endl;
+
+    return order;
   }
 
   friend std::ostream& operator<<(std::ostream& out, const graph_t& g) {

@@ -128,7 +128,12 @@ struct projected_executions_t {
 
     for (auto& it : projections) {
       std::cout << "thread " << it.first << std::endl;
-      it.second.dag_topological_sort(0);
+      auto order = it.second.dag_topological_sort(0);
+      std::cout << "topological order:";
+      for (size_t node : order) {
+        std::cout << " " << node;
+      }
+      std::cout << std::endl;
     }
   }
 
