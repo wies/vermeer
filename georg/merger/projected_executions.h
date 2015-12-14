@@ -124,13 +124,17 @@ struct projected_executions_t {
     return out;
   }
 
+#if 0
   void unify() {
     std::cout << "unify!" << std::endl;
 
+    // TODO create a new projected_executions_t instance
+
     for (auto& it : projections) {
+      graph_t< LabelType >& g = it.second;
       // for each thread we have to generate a unified graph
       std::cout << "thread " << it.first << std::endl;
-      auto order = it.second.dag_topological_sort(0);
+      auto order = g.dag_topological_sort(0);
       assert(order.size() > 0);
       graph_t< LabelType > g_new;
       //std::cout << "topological order:";
@@ -138,13 +142,48 @@ struct projected_executions_t {
       g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
       std::cout << " ---> " << g_new.size() << " (order.size() = " << order.size() << ")" << std::endl;
 
-      std::map<size_t /*node*/, ssa_map_t> node2maps;
+      std::map<size_t /* i.e., node*/, ssa_map_t> node2map;
       ssa_map_t empty_map;
-      node2maps.insert({ 0, empty_map });
+      node2map.insert({ 0, empty_map });
+
+      std::map<const edge_t*, ssa_map_t> edge2map;
+
+      // for each outgoing edge from root create an ssa map and store in edge2map
+      for (const edge_t& edge : g.outgoing_edges(0)) {
+        ssa_map_t new_ssa_map(empty_map);
+
+        // TODO implement update of new_ssa_map
+
+
+        edge2map.insert({ &edge, new_ssa_map });
+      }
+
+#if 0
+      for (size_t i = 1; i < order.size(); ++i) {
+        size_t node = order[i];
+
+        // unify ssa maps of incoming edges to node in edge2map
+        // TODO implement
+
+        // create incoming edges to node
+        // TODO implement
+
+        for (const edge_t& edge : g.outgoing_edges(node)) {
+          // create an updated ssa map for edge
+          // TODO implement
+
+          // associate updated ssa map with edge.target
+          // TODO implement
+
+        }
+      }
+#endif
     }
   }
+#endif
 
-private:
+//private:
+public:
   using edge_t = typename graph_t<LabelType>::edge_t;
   std::map<int, graph_t< LabelType >> projections;
   std::map<int, std::vector< edge_t >> edges;

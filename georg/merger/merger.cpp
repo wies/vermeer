@@ -18,6 +18,95 @@
 
 #include "ssa_map.h"
 
+struct ssa_extractor_t : public alphabet::stmt_visitor_t {
+
+  int variable_to_be_updated;
+  bool do_update;
+
+  void visit_pi_assignment(alphabet::pi_assignment_t& a) {
+    variable_to_be_updated = a.local_variable.variable_id;
+    do_update = true;
+  }
+
+  void visit_local_assignment(alphabet::local_assignment_t& a) {
+    variable_to_be_updated = a.local_variable.variable_id;
+    do_update = true;
+  }
+
+  void visit_global_assignment(alphabet::global_assignment_t& a) {
+    variable_to_be_updated = a.shared_variable.variable_id;
+    do_update = true;
+  }
+
+  void visit_phi_assignment(alphabet::phi_assignment_t& a) {
+    ERROR("Unsupported statement!");
+  }
+
+  void visit_assertion(alphabet::assertion_t& a) {
+    do_update = false;
+  }
+
+  void visit_assumption(alphabet::assumption_t& a) {
+    do_update = false;
+  }
+
+};
+
+void unify(alternative::projected_executions_t<size_t>& pexes, std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
+  std::cout << "unify!" << std::endl;
+
+  // TODO create a new projected_executions_t instance
+
+  for (auto& it : pexes.projections) {
+    graph_t< size_t >& g = it.second;
+    // for each thread we have to generate a unified graph
+    std::cout << "thread " << it.first << std::endl;
+    auto order = g.dag_topological_sort(0);
+    assert(order.size() > 0);
+    graph_t< size_t > g_new;
+    //std::cout << "topological order:";
+    std::cout << "g_new.size() = " << g_new.size();
+    g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
+    std::cout << " ---> " << g_new.size() << " (order.size() = " << order.size() << ")" << std::endl;
+
+    std::map<size_t /* i.e., node*/, ssa_map_t> node2map;
+    ssa_map_t empty_map;
+    node2map.insert({ 0, empty_map });
+
+    std::map<const graph_t<size_t>::edge_t*, ssa_map_t> edge2map;
+
+    // for each outgoing edge from root create an ssa map and store in edge2map
+    for (const graph_t<size_t>::edge_t& edge : g.outgoing_edges(0)) {
+      ssa_map_t new_ssa_map(empty_map);
+
+      // TODO implement update of new_ssa_map
+
+      edge2map.insert({ &edge, new_ssa_map });
+    }
+
+#if 0
+      for (size_t i = 1; i < order.size(); ++i) {
+        size_t node = order[i];
+
+        // unify ssa maps of incoming edges to node in edge2map
+        // TODO implement
+
+        // create incoming edges to node
+        // TODO implement
+
+        for (const edge_t& edge : g.outgoing_edges(node)) {
+          // create an updated ssa map for edge
+          // TODO implement
+
+          // associate updated ssa map with edge.target
+          // TODO implement
+
+        }
+      }
+#endif
+  }
+}
+
 int main(int argc, char* argv[]) {
   exe::execution_t s_destination = read_execution("example.xml");
   std::cout << s_destination << std::endl << "******************************************" << std::endl;
@@ -323,7 +412,7 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl;
   }
 
-  p_alt2.unify();
+  unify(p_alt2, set_of_merged_stmts);
 
   ssa_map_t ssa_map;
   std::cout << ssa_map[0] << std::endl;
