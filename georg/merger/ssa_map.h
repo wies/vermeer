@@ -2,6 +2,7 @@
 #define SSA_MAP_H_INCLUDED
 
 #include <map>
+#include <ostream>
 
 struct ssa_map_t {
 
@@ -15,6 +16,18 @@ struct ssa_map_t {
   const int operator[](int variable_id) {
     int ssa_index = ssa_indices[variable_id];
     return ssa_index;
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, ssa_map_t& m) {
+    out << "{" << std::endl;
+
+    for (const auto& p : m.ssa_indices) {
+      out << "  var(" << p.first << ") = " << p.second << std::endl;
+    }
+
+    out << "}";
+
+    return out;
   }
 
 private:
