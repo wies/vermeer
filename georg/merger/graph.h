@@ -19,6 +19,24 @@ public:
     LabelType label;
     size_t target;
 
+    bool operator<(const edge_t& other) const {
+      if (source < other.source) {
+        return true;
+      }
+
+      if (source == other.source) {
+        if (target < other.target) {
+          return true;
+        }
+
+        if (target == other.target) {
+          return (label < other.label);
+        }
+      }
+
+      return false;
+    }
+
     friend std::ostream& operator<<(std::ostream& out, const edge_t& e) {
       out << e.source << " -[" << e.label << "]-> " << e.target;
       return out;
@@ -27,6 +45,7 @@ public:
 
 private:
   std::map<size_t, std::vector<edge_t>> adjacency_lists;
+  std::map<size_t, std::vector<edge_t>> incoming_adjacency_lists;
   size_t nr_of_nodes;
 
 public:
@@ -54,11 +73,20 @@ public:
     // TODO How defensive do we want to progam?
     auto& v = adjacency_lists[source];
     v.emplace(v.end(), source, label, target);
-    return v.back();
+
+    auto& edge = v.back();
+    auto& incoming_v = incoming_adjacency_lists[target];
+    incoming_v.push_back(edge);
+
+    return edge;
   }
 
   const std::vector<edge_t>& outgoing_edges(size_t node) {
     return adjacency_lists[node];
+  }
+
+  const std::vector<edge_t>& incoming_edges(size_t node) {
+    return incoming_adjacency_lists[node];
   }
 
   inline

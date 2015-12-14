@@ -52,7 +52,7 @@ struct ssa_extractor_t : public alphabet::stmt_visitor_t {
 
 };
 
-void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map, std::map<const graph_t<size_t>::edge_t*, ssa_map_t>& edge2map) {
+void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map, std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map) {
   const auto& m = node2map.find(node)->second; // TODO we assume that a node always has an assigned map, implement more devensively?
 
   // for each outgoing edge from root create an ssa map and store in edge2map
@@ -60,7 +60,7 @@ void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::
     ssa_map_t new_ssa_map(m);
 
     // TODO remove the cast!
-    alphabet::stmt_t* s = (alphabet::stmt_t* )set_of_merged_stmts[edge.label][node].element();
+    alphabet::stmt_t* s = (alphabet::stmt_t*)set_of_merged_stmts[edge.label][0].element();
     ssa_extractor_t ext;
     s->accept(ext);
 
@@ -70,7 +70,7 @@ void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::
 
     std::cout << new_ssa_map << std::endl;
 
-    edge2map.insert({ &edge, new_ssa_map });
+    edge2map.insert({ edge, new_ssa_map });
   }
 }
 
@@ -97,30 +97,31 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
 
     std::cout << empty_map << std::endl;
 
-    std::map<const graph_t<size_t>::edge_t*, ssa_map_t> edge2map;
+    std::map<const graph_t<size_t>::edge_t, ssa_map_t> edge2map;
 
     update_edge2map_map(0, g, set_of_merged_stmts, node2map, edge2map);
 
-#if 0
-      for (size_t i = 1; i < order.size(); ++i) {
-        size_t node = order[i];
+    for (size_t i = 1; i < order.size(); ++i) {
+      size_t node = order[i];
 
-        // unify ssa maps of incoming edges to node in edge2map
+      // unify ssa maps of incoming edges to node in edge2map
+      const auto& v = g.incoming_edges(node);
+      assert(v.size() > 0);
+      assert(edge2map.find(v[0]) != edge2map.end());
+      const auto& m = edge2map[v[0]];
+      ssa_map_t unified_map(m);
+      std::cout << "starting with " << unified_map << std::endl;
+      for (size_t j = 1; j < v.size(); ++j) {
         // TODO implement
-
-        // create incoming edges to node
-        // TODO implement
-
-        for (const edge_t& edge : g.outgoing_edges(node)) {
-          // create an updated ssa map for edge
-          // TODO implement
-
-          // associate updated ssa map with edge.target
-          // TODO implement
-
-        }
       }
-#endif
+
+      node2map.insert({ node, unified_map });
+
+      // create incoming edges to node
+      // TODO implement
+
+      update_edge2map_map(node, g, set_of_merged_stmts, node2map, edge2map);
+    }
   }
 }
 

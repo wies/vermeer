@@ -6,6 +6,9 @@
 
 struct ssa_map_t {
 
+  ssa_map_t() {}
+  ssa_map_t(const ssa_map_t& other) : ssa_indices(other.ssa_indices) {}
+
   int inc(int variable_id) {
     int ssa_index = ssa_indices[variable_id];
     ssa_index++;
