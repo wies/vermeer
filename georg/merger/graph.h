@@ -57,6 +57,10 @@ public:
     return v.back();
   }
 
+  const std::vector<edge_t>& outgoing_edges(size_t node) {
+    return adjacency_lists[node];
+  }
+
   inline
   size_t size() const {
     return nr_of_nodes;
