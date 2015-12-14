@@ -52,7 +52,29 @@ struct ssa_extractor_t : public alphabet::stmt_visitor_t {
 
 };
 
-void unify(alternative::projected_executions_t<size_t>& pexes, std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
+void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map, std::map<const graph_t<size_t>::edge_t*, ssa_map_t>& edge2map) {
+  const auto& m = node2map.find(node)->second; // TODO we assume that a node always has an assigned map, implement more devensively?
+
+  // for each outgoing edge from root create an ssa map and store in edge2map
+  for (const graph_t<size_t>::edge_t& edge : g.outgoing_edges(node)) { // TODO outgoing_edges does not allow const -> change!
+    ssa_map_t new_ssa_map(m);
+
+    // TODO remove the cast!
+    alphabet::stmt_t* s = (alphabet::stmt_t* )set_of_merged_stmts[edge.label][node].element();
+    ssa_extractor_t ext;
+    s->accept(ext);
+
+    if (ext.do_update) {
+      new_ssa_map.inc(ext.variable_to_be_updated);
+    }
+
+    std::cout << new_ssa_map << std::endl;
+
+    edge2map.insert({ &edge, new_ssa_map });
+  }
+}
+
+void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
   std::cout << "unify!" << std::endl;
 
   // TODO create a new projected_executions_t instance
@@ -73,16 +95,11 @@ void unify(alternative::projected_executions_t<size_t>& pexes, std::vector< std:
     ssa_map_t empty_map;
     node2map.insert({ 0, empty_map });
 
+    std::cout << empty_map << std::endl;
+
     std::map<const graph_t<size_t>::edge_t*, ssa_map_t> edge2map;
 
-    // for each outgoing edge from root create an ssa map and store in edge2map
-    for (const graph_t<size_t>::edge_t& edge : g.outgoing_edges(0)) {
-      ssa_map_t new_ssa_map(empty_map);
-
-      // TODO implement update of new_ssa_map
-
-      edge2map.insert({ &edge, new_ssa_map });
-    }
+    update_edge2map_map(0, g, set_of_merged_stmts, node2map, edge2map);
 
 #if 0
       for (size_t i = 1; i < order.size(); ++i) {
