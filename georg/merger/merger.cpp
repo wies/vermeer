@@ -125,6 +125,18 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
 
       update_edge2map_map(node, g, set_of_merged_stmts, node2map, edge2map);
     }
+
+    std::map< size_t, id_partitioned_substitution_maps_t > node2substmap;
+    std::map< const graph_t<size_t>::edge_t, id_partitioned_substitution_maps_t > edge2substmap;
+
+    for (size_t node : order) {
+      auto& substmap = node2substmap[node];
+
+      // TODO for each outgoing edge compute an update for substmap (put them into edge2substmap)
+
+      // TODO unify the substmaps of all incoming edges (put the result into node2substmap)
+
+    }
   }
 }
 
