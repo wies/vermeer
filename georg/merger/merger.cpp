@@ -105,7 +105,7 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
   return s;
 }
 
-alternative::projected_executions_t< size_t > unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
+alternative::projected_executions_t< size_t > unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts, const std::set<int>& shared_variables) {
 
   alternative::projected_executions_t< size_t > unified_pes;
 
@@ -288,7 +288,7 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl;
   }
 
-  unify(p_alt2, set_of_merged_stmts);
+  unify(p_alt2, set_of_merged_stmts, s_destination.shared_variables());
 
   return EXIT_SUCCESS;
 }
