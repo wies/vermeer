@@ -100,7 +100,7 @@ public:
   }
 
   std::vector<size_t> dag_topological_sort(size_t root) {
-    // TODO assert that root is a valid node in the graph
+    assert(root < nr_of_nodes);
 
     std::stack<size_t> topological_order;
 
@@ -110,7 +110,7 @@ public:
 
     bool* visited = new bool[size()];
     visited[0] = true;
-    for (int i = 1; i < size(); i++) {
+    for (size_t i = 1; i < size(); i++) {
       visited[i] = false;
     }
 
@@ -118,7 +118,8 @@ public:
       auto it = workset.top();
       workset.pop();
 
-      int i = it.second + 1;
+      assert(it.second >= -1);
+      size_t i = it.second + 1;
 
       if (i < adjacency_lists[it.first].size()) {
         workset.push({ it.first, i });
