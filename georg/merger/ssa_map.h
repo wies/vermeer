@@ -72,7 +72,7 @@ struct id_partitioned_substitution_maps_t {
     m[domain_variable] = image_variable;
   }
 
-  friend std::ostream& operator<<(std::ostream& out, id_partitioned_substitution_maps_t& maps) {
+  friend std::ostream& operator<<(std::ostream& out, const id_partitioned_substitution_maps_t& maps) {
     out << "{" << std::endl;
 
     for (auto& p : maps.id_partitioned_substitution_maps) {
