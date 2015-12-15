@@ -52,7 +52,12 @@ struct ssa_extractor_t : public alphabet::stmt_visitor_t {
 
 };
 
-void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map, std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map) {
+void update_edge2map_map(
+  size_t node, /*const*/ graph_t< size_t > g, 
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
+  const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map, 
+  std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map
+) {
   const auto& m = node2map.find(node)->second; // TODO we assume that a node always has an assigned map, implement more devensively?
 
   // for each outgoing edge from root create an ssa map and store in edge2map
@@ -105,7 +110,11 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
   return s;
 }
 
-alternative::projected_executions_t< size_t > unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts, const std::set<int>& shared_variables) {
+alternative::projected_executions_t< size_t > unify(
+  alternative::projected_executions_t<size_t>& pexes, 
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts, 
+  const std::set<int>& shared_variables
+) {
 
   alternative::projected_executions_t< size_t > unified_pes;
 
