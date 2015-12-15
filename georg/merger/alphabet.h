@@ -45,6 +45,25 @@ struct ssa_variable_t {
     return !(*this == v);
   }
 
+  inline
+  bool operator<(const ssa_variable_t& v) const {
+    if (variable_id < v.variable_id) {
+      return true;
+    }
+
+    if (variable_id == v.variable_id) {
+      if (ssa_index.thread_id < v.ssa_index.thread_id) {
+        return true;
+      }
+
+      if (ssa_index.thread_id == v.ssa_index.thread_id) {
+        return (ssa_index.thread_local_index < v.ssa_index.thread_local_index);
+      }
+    }
+
+    return false;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const ssa_variable_t& v);
 
 };
