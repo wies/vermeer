@@ -72,6 +72,11 @@ void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::
   }
 }
 
+alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alphabet::stmt_t* > >& stmts) {
+  std::cout << stmts.size() << std::endl;
+  return nullptr;	
+}
+
 void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
 
   // TODO create a new projected_executions_t instance
@@ -84,6 +89,7 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
     assert(order.size() > 0);
     graph_t< size_t > g_new;
     g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
+    std::vector< alphabet::stmt_t* > unified_stmts;
 
     std::map<size_t /* i.e., node*/, ssa_map_t> node2map;
     ssa_map_t empty_map;
@@ -121,7 +127,12 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
       node2map.insert({ node, unified_map });
 
       // create incoming edges to node
-      // TODO implement
+      for (const auto& e : g.incoming_edges(node)) {
+	    size_t index = unified_stmts.size();
+	    g_new.add_edge(e.source, index, e.target);
+	    alphabet::stmt_t* unified_stmt = unify_statements(set_of_merged_stmts[e.label]);
+	    unified_stmts.push_back(unified_stmt);
+      }
 
       update_edge2map_map(node, g, set_of_merged_stmts, node2map, edge2map);
     }
@@ -136,6 +147,11 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
 
       // TODO unify the substmaps of all incoming edges (put the result into node2substmap)
 
+    }
+    
+    std::cout << g_new << std::endl;
+    for (alphabet::stmt_t* s : unified_stmts) {
+	  std::cout << s << std::endl;
     }
   }
 }
@@ -238,11 +254,6 @@ int main(int argc, char* argv[]) {
   }
 
   unify(p_alt2, set_of_merged_stmts);
-
-  ssa_map_t ssa_map;
-  std::cout << ssa_map[0] << std::endl;
-  ssa_map.inc(0);
-  std::cout << ssa_map[0] << std::endl;
 
   return EXIT_SUCCESS;
 }
