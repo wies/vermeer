@@ -98,6 +98,8 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
     case alphabet::stmt_t::ASSUMPTION:
       s = new alphabet::assumption_t;
       break;
+    default:
+      break;
   }
   
   return s;
@@ -106,14 +108,19 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
 void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
 
   // TODO create a new projected_executions_t instance
+  alternative::projected_executions_t< size_t > unified_pes;
 
   for (auto& it : pexes.projections) {
     graph_t< size_t >& g = it.second;
     // for each thread we have to generate a unified graph
     std::cout << "thread " << it.first << std::endl;
+    
+    graph_t< size_t >& g_new = unified_pes.projections[it.first];
+    std::vector< graph_t< size_t >::edge_t >& es = unified_pes.edges[it.first]; // actually we do not need that since we do not merge with the unified executions anymore -> refactor
+    
     auto order = g.dag_topological_sort(0);
     assert(order.size() > 0);
-    graph_t< size_t > g_new;
+    //graph_t< size_t > g_new;
     g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
     std::vector< alphabet::stmt_t* > unified_stmts;
 
@@ -155,7 +162,7 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
       // create incoming edges to node
       for (const auto& e : g.incoming_edges(node)) {
         size_t index = unified_stmts.size();
-        g_new.add_edge(e.source, index, e.target);
+        es.push_back(g_new.add_edge(e.source, index, e.target));
         alphabet::stmt_t* unified_stmt = unify_statements(set_of_merged_stmts[e.label]);
         unified_stmts.push_back(unified_stmt);
       }
