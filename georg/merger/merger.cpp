@@ -68,14 +68,11 @@ void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::
       new_ssa_map.inc(ext.variable_to_be_updated);
     }
 
-    std::cout << new_ssa_map << std::endl;
-
     edge2map.insert({ edge, new_ssa_map });
   }
 }
 
 void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
-  std::cout << "unify!" << std::endl;
 
   // TODO create a new projected_executions_t instance
 
@@ -86,16 +83,11 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
     auto order = g.dag_topological_sort(0);
     assert(order.size() > 0);
     graph_t< size_t > g_new;
-    //std::cout << "topological order:";
-    std::cout << "g_new.size() = " << g_new.size();
     g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
-    std::cout << " ---> " << g_new.size() << " (order.size() = " << order.size() << ")" << std::endl;
 
     std::map<size_t /* i.e., node*/, ssa_map_t> node2map;
     ssa_map_t empty_map;
     node2map.insert({ 0, empty_map });
-
-    std::cout << empty_map << std::endl;
 
     std::map<const graph_t<size_t>::edge_t, ssa_map_t> edge2map;
 
