@@ -80,10 +80,27 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
     assert(stmts[i].element()->type == type);
   }
   
+  alphabet::stmt_t* s = nullptr;
   
+  switch (type) {
+    case alphabet::stmt_t::PI_ASSIGNMENT:
+      s = new alphabet::pi_assignment_t;
+      break;
+    case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+      s = new alphabet::local_assignment_t;
+      break;
+    case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+      s = new alphabet::global_assignment_t;
+      break;
+    case alphabet::stmt_t::ASSERTION:
+      s = new alphabet::assertion_t;
+      break;
+    case alphabet::stmt_t::ASSUMPTION:
+      s = new alphabet::assumption_t;
+      break;
+  }
   
-  std::cout << stmts.size() << std::endl;
-  return nullptr;
+  return s;
 }
 
 void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
