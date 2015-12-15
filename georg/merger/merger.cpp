@@ -73,8 +73,17 @@ void update_edge2map_map(size_t node, /*const*/ graph_t< size_t > g, const std::
 }
 
 alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alphabet::stmt_t* > >& stmts) {
+  assert(stmts.size() > 0);
+  
+  alphabet::stmt_t::stmt_type_t type = stmts[0].element()->type;
+  for (size_t i = 0; i < stmts.size(); ++i) {
+    assert(stmts[i].element()->type == type);
+  }
+  
+  
+  
   std::cout << stmts.size() << std::endl;
-  return nullptr;	
+  return nullptr;
 }
 
 void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts) {
@@ -128,10 +137,10 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
 
       // create incoming edges to node
       for (const auto& e : g.incoming_edges(node)) {
-	    size_t index = unified_stmts.size();
-	    g_new.add_edge(e.source, index, e.target);
-	    alphabet::stmt_t* unified_stmt = unify_statements(set_of_merged_stmts[e.label]);
-	    unified_stmts.push_back(unified_stmt);
+        size_t index = unified_stmts.size();
+        g_new.add_edge(e.source, index, e.target);
+        alphabet::stmt_t* unified_stmt = unify_statements(set_of_merged_stmts[e.label]);
+        unified_stmts.push_back(unified_stmt);
       }
 
       update_edge2map_map(node, g, set_of_merged_stmts, node2map, edge2map);
@@ -151,7 +160,7 @@ void unify(alternative::projected_executions_t<size_t>& pexes, const std::vector
     
     std::cout << g_new << std::endl;
     for (alphabet::stmt_t* s : unified_stmts) {
-	  std::cout << s << std::endl;
+      std::cout << s << std::endl;
     }
   }
 }
