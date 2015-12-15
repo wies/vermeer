@@ -4,6 +4,7 @@
 #include "expr.h"
 #include "program_location.h"
 
+#include <set>
 #include <vector>
 
 namespace exe {
@@ -34,6 +35,15 @@ struct variable_declaration_t {
   int ssa_index;
   variable_types_t type;
   int thread;
+  
+  bool is_shared() const {
+    return (thread < 0);  
+  }
+  
+  bool is_local() const {
+    return !is_shared();  
+  }
+  
 };
 
 struct guard_t {
@@ -93,6 +103,7 @@ struct execution_t {
   ~execution_t();
 
   void accept(stmt_visitor_t& v);
+  std::set<int> shared_variables();
 
 };
 

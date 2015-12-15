@@ -1,5 +1,7 @@
 #include "execution.h"
 
+#include <set>
+
 namespace exe {
 
 assignment_t::~assignment_t() {}
@@ -28,6 +30,18 @@ execution_t::~execution_t() {
 
 void execution_t::accept(stmt_visitor_t& v) {
   v.visit_execution(*this);
+}
+
+std::set<int> execution_t::shared_variables() {
+  std::set<int> svars;
+  
+  for (auto& vd : variable_declarations) {
+    if (vd.is_shared()) {
+      svars.insert(vd.variable);
+    }  
+  }
+  
+  return svars;
 }
 
 }
