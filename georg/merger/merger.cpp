@@ -110,6 +110,53 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
   return s;
 }
 
+id_partitioned_substitution_maps_t extract_sharedvar_substmap(
+  alternative::projected_executions_t<size_t>& pexes,
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts
+) {
+
+  id_partitioned_substitution_maps_t sharedvar_substmap;
+
+  for (auto& it : pexes.projections) {
+    graph_t< size_t >& g = it.second;
+    auto order = g.dag_topological_sort(0);
+    assert(order.size() > 0);
+
+    using varid_t = int;
+    std::map< varid_t, unsigned > sharedvar_counters;
+
+    for (size_t node : order) {
+      for (const auto& e : g.outgoing_edges(node)) {
+        const auto& stmts = set_of_merged_stmts[e.label];
+        const auto& first_stmt = stmts[0].element();
+
+        if (first_stmt->type == alphabet::stmt_t::GLOBAL_ASSIGNMENT) {
+          const alphabet::global_assignment_t* s = (const alphabet::global_assignment_t*)first_stmt;
+
+          int var_id = s->shared_variable.variable_id;
+          int counter = sharedvar_counters[var_id];
+          sharedvar_counters[var_id] = counter + 1;
+
+          alphabet::ssa_variable_t ssa_var;
+          ssa_var.variable_id = var_id;
+          ssa_var.ssa_index.thread_id = it.first;
+          ssa_var.ssa_index.thread_local_index = counter;
+
+          // we assume that all statements in stmts are global assignments
+          for (const auto& stmt : stmts) {
+            const alphabet::global_assignment_t* a = (const alphabet::global_assignment_t*)stmt.element();
+            sharedvar_substmap.map_to(stmt.execution_id(), a->shared_variable, ssa_var);
+
+            std::cout << "  Mapping " << a->shared_variable << "@" << stmt.execution_id() << " to " << ssa_var << std::endl;
+          }
+        }
+      }
+    }
+  }
+
+  return sharedvar_substmap;
+}
+
 alternative::projected_executions_t< size_t > unify(
   alternative::projected_executions_t<size_t>& pexes,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
@@ -118,10 +165,21 @@ alternative::projected_executions_t< size_t > unify(
 
   alternative::projected_executions_t< size_t > unified_pes;
 
+  // substitution map for global variables
+  id_partitioned_substitution_maps_t sharedvar_substmap = extract_sharedvar_substmap(pexes, set_of_merged_stmts);
+  std::cout << sharedvar_substmap << std::endl;
+
+
   for (auto& it : pexes.projections) {
     graph_t< size_t >& g = it.second;
     // for each thread we have to generate a unified graph
     std::cout << "thread " << it.first << std::endl;
+
+    // TODO for each thread we need a map that provides a unique counter for a shared variable
+    using varid_t = int;
+    std::map< varid_t, unsigned > sharedvar_counters;
+    // TODO we should have a more functional separation of the different processing steps
+
 
     graph_t< size_t >& g_new = unified_pes.projections[it.first];
     std::vector< graph_t< size_t >::edge_t >& es = unified_pes.edges[it.first]; // actually we do not need that since we do not merge with the unified executions anymore -> refactor
@@ -130,6 +188,8 @@ alternative::projected_executions_t< size_t > unify(
     assert(order.size() > 0);
     g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
     std::vector< alphabet::stmt_t* > unified_stmts;
+
+
 
     std::map<size_t /* i.e., node*/, ssa_map_t> node2map;
     ssa_map_t empty_map;
