@@ -34,8 +34,9 @@ struct ssa_extractor_t : public alphabet::stmt_visitor_t {
   }
 
   void visit_global_assignment(alphabet::global_assignment_t& a) {
-    variable_to_be_updated = a.shared_variable.variable_id;
-    do_update = true;
+    //variable_to_be_updated = a.shared_variable.variable_id;
+    //do_update = true;
+    do_update = false; // we handle shared variables separately
   }
 
   void visit_phi_assignment(alphabet::phi_assignment_t& a) {
@@ -53,7 +54,8 @@ struct ssa_extractor_t : public alphabet::stmt_visitor_t {
 };
 
 void update_edge2map_map(
-  size_t node, /*const*/ graph_t< size_t > g,
+  size_t node,
+  /*const*/ graph_t< size_t > g,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
   const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map,
   std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map
@@ -71,6 +73,57 @@ void update_edge2map_map(
 
     if (ext.do_update) {
       new_ssa_map.inc(ext.variable_to_be_updated);
+    }
+
+    edge2map.insert({ edge, new_ssa_map });
+  }
+}
+
+void update_edge2map_map2(
+  int thread_id,
+  size_t node,
+  /*const*/ graph_t< size_t > g,
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
+  const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map,
+  std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map,
+  id_partitioned_substitution_maps_t& local_subst_map
+) {
+  const auto& m = node2map.find(node)->second; // TODO we assume that a node always has an assigned map, implement more devensively?
+
+  // for each outgoing edge from root create an ssa map and store in edge2map
+  for (const graph_t<size_t>::edge_t& edge : g.outgoing_edges(node)) { // TODO outgoing_edges does not allow const -> change!
+    ssa_map_t new_ssa_map(m);
+
+    const alphabet::stmt_t* s = set_of_merged_stmts[edge.label][0].element();
+    if (s->type == alphabet::stmt_t::LOCAL_ASSIGNMENT) {
+      const alphabet::local_assignment_t* loc_s = (const alphabet::local_assignment_t*)s;
+      new_ssa_map.inc(loc_s->local_variable.variable_id);
+
+      for (const auto& t : set_of_merged_stmts[edge.label]) {
+        const alphabet::local_assignment_t* other_s = (const alphabet::local_assignment_t*)t.element();
+
+        alphabet::ssa_variable_t ssa_var;
+        ssa_var.variable_id = other_s->local_variable.variable_id;
+        ssa_var.ssa_index.thread_id = thread_id;
+        ssa_var.ssa_index.thread_local_index = m[other_s->local_variable.variable_id];
+
+        local_subst_map.map_to(t.execution_id(), other_s->local_variable, ssa_var);
+      }
+    }
+    else if (s->type == alphabet::stmt_t::PI_ASSIGNMENT) {
+      const alphabet::pi_assignment_t* loc_s = (const alphabet::pi_assignment_t*)s;
+      new_ssa_map.inc(loc_s->local_variable.variable_id);
+
+      for (const auto& t : set_of_merged_stmts[edge.label]) {
+        const alphabet::pi_assignment_t* other_s = (const alphabet::pi_assignment_t*)t.element();
+
+        alphabet::ssa_variable_t ssa_var;
+        ssa_var.variable_id = other_s->local_variable.variable_id;
+        ssa_var.ssa_index.thread_id = thread_id;
+        ssa_var.ssa_index.thread_local_index = m[other_s->local_variable.variable_id];
+
+        local_subst_map.map_to(t.execution_id(), other_s->local_variable, ssa_var);
+      }
     }
 
     edge2map.insert({ edge, new_ssa_map });
@@ -146,8 +199,6 @@ id_partitioned_substitution_maps_t extract_sharedvar_substmap(
           for (const auto& stmt : stmts) {
             const alphabet::global_assignment_t* a = (const alphabet::global_assignment_t*)stmt.element();
             sharedvar_substmap.map_to(stmt.execution_id(), a->shared_variable, ssa_var);
-
-            std::cout << "  Mapping " << a->shared_variable << "@" << stmt.execution_id() << " to " << ssa_var << std::endl;
           }
         }
       }
@@ -155,6 +206,65 @@ id_partitioned_substitution_maps_t extract_sharedvar_substmap(
   }
 
   return sharedvar_substmap;
+}
+
+id_partitioned_substitution_maps_t extract_localvar_substmap(
+  alternative::projected_executions_t<size_t>& pexes,
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts
+) {
+
+  id_partitioned_substitution_maps_t localvar_substmap;
+
+  using node_t = size_t;
+  std::map< int, std::map<node_t, ssa_map_t> > thread2_node2ssa_map;
+  std::map< int, std::map<const graph_t<node_t>::edge_t, ssa_map_t> > thread2_edge2ssa_map;
+
+  // create ssa maps
+  for (auto& it : pexes.projections) {
+    graph_t< node_t >& g = it.second;
+    auto order = g.dag_topological_sort(0);
+    assert(order.size() > 0);
+
+    std::map<node_t, ssa_map_t>& node2map = thread2_node2ssa_map[it.first];
+    ssa_map_t empty_map;
+    node2map.insert({ 0, empty_map });
+
+    std::map<const graph_t<node_t>::edge_t, ssa_map_t>& edge2map = thread2_edge2ssa_map[it.first];
+
+    update_edge2map_map2(it.first, 0, g, set_of_merged_stmts, node2map, edge2map, localvar_substmap);
+
+    for (size_t i = 1; i < order.size(); ++i) {
+      node_t node = order[i];
+
+      // unify ssa maps of incoming edges to node in edge2map
+      std::set<int> touched_variables;
+      for (const auto& e : g.incoming_edges(node)) {
+        const auto& m = edge2map[e];
+        auto vars = m.variables();
+        touched_variables.insert(vars.begin(), vars.end());
+      }
+
+      ssa_map_t unified_map;
+      for (int v : touched_variables) {
+        int max_value = 0;
+
+        for (const auto& e : g.incoming_edges(node)) {
+          const auto& m = edge2map[e];
+          if (max_value < m[v]) {
+            max_value = m[v];
+          }
+        }
+
+        unified_map.set_value(v, max_value);
+      }
+
+      node2map.insert({ node, unified_map });
+
+      update_edge2map_map2(it.first, node, g, set_of_merged_stmts, node2map, edge2map, localvar_substmap);
+    }
+  }
+
+  return localvar_substmap;
 }
 
 alternative::projected_executions_t< size_t > unify(
@@ -168,6 +278,10 @@ alternative::projected_executions_t< size_t > unify(
   // substitution map for global variables
   id_partitioned_substitution_maps_t sharedvar_substmap = extract_sharedvar_substmap(pexes, set_of_merged_stmts);
   std::cout << sharedvar_substmap << std::endl;
+
+  id_partitioned_substitution_maps_t localvar_substmap = extract_localvar_substmap(pexes, set_of_merged_stmts);
+  std::cout << localvar_substmap << std::endl;
+
 
 
   for (auto& it : pexes.projections) {
