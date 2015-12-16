@@ -267,20 +267,73 @@ id_partitioned_substitution_maps_t extract_localvar_substmap(
   return localvar_substmap;
 }
 
-void blubblub(
+std::vector< alphabet::stmt_t* > blubblub(
   alternative::projected_executions_t<size_t>& pexes,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
   const id_partitioned_substitution_maps_t& sharedvar_substmap,
   const id_partitioned_substitution_maps_t& localvar_substmap
 ) {
+  std::vector< alphabet::stmt_t* > unified_stmts;
+
   for (const auto& v : set_of_merged_stmts) {
     for (const auto& t : v) {
       int execution_id = t.execution_id();
-      const alphabet::stmt_t* s = t.element();
-      std::cout << s << "@" << execution_id << std::endl;
+      alphabet::stmt_t* s = (alphabet::stmt_t*)t.element(); // TODO remove cast!
+
+      expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t > subst_visitor;
+
+      auto it = localvar_substmap.id_partitioned_substitution_maps.find(execution_id);
+      assert(it != localvar_substmap.id_partitioned_substitution_maps.end());
+      subst_visitor.substitution_map.insert(it->second.begin(), it->second.end());
+
+      // TODO for assertions, assumptions, etc. we should not have to insert the shared variable substitutions for guards! We have to change the runtime system!
+      auto shared_it = sharedvar_substmap.id_partitioned_substitution_maps.find(execution_id);
+      assert(shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end());
+      subst_visitor.substitution_map.insert(shared_it->second.begin(), shared_it->second.end());
+
+
+      std::cout << "translating guards..." << std::endl;
+      for (auto& g : s->guards) {
+        std::cout << "  Old guard: " << g << std::endl;
+
+        // TODO shared variables in guards will definitely generate a problem! We do not have an explicit tracking of such data flow!
+        // TODO problem: we have shared variables in our guards! That should not be the case!
+        expr::expr_t< alphabet::ssa_variable_t > new_guard = g.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
+
+        std::cout << "  New guard: " << new_guard << std::endl;
+      }
+
+#if 0
+      switch (s->type) {
+      case alphabet::stmt_t::ASSERTION:
+        {
+          expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t > subst_visitor;
+
+          auto& it = localvar_substmap.find(execution_id);
+          assert(it != localvar_substmap.end());
+
+          s->guards
+
+          subst_visitor.substitution_map.insert(it->second.begin(), it->second.end());
+          s->accept(subst_visitor);
+          std::cout << "Original: " << *s << std::endl;
+          std::cout << "New: " << std::endl;
+
+          break;
+        }
+      default:
+        break;
+      }
+#endif
+      // TODO implement a substitution
+
+
+      //std::cout << s << "@" << execution_id << std::endl;
     }
     std::cout << std::endl;
   }
+
+  return unified_stmts;
 }
 
 alternative::projected_executions_t< size_t > unify(
