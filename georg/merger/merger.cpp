@@ -53,9 +53,9 @@ struct ssa_extractor_t : public alphabet::stmt_visitor_t {
 };
 
 void update_edge2map_map(
-  size_t node, /*const*/ graph_t< size_t > g, 
+  size_t node, /*const*/ graph_t< size_t > g,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
-  const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map, 
+  const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map,
   std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map
 ) {
   const auto& m = node2map.find(node)->second; // TODO we assume that a node always has an assigned map, implement more devensively?
@@ -79,14 +79,14 @@ void update_edge2map_map(
 
 alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alphabet::stmt_t* > >& stmts) {
   assert(stmts.size() > 0);
-  
+
   alphabet::stmt_t::stmt_type_t type = stmts[0].element()->type;
   for (size_t i = 0; i < stmts.size(); ++i) {
     assert(stmts[i].element()->type == type);
   }
-  
+
   alphabet::stmt_t* s = nullptr;
-  
+
   switch (type) {
     case alphabet::stmt_t::PI_ASSIGNMENT:
       s = new alphabet::pi_assignment_t;
@@ -106,13 +106,13 @@ alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alp
     default:
       break;
   }
-  
+
   return s;
 }
 
 alternative::projected_executions_t< size_t > unify(
-  alternative::projected_executions_t<size_t>& pexes, 
-  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts, 
+  alternative::projected_executions_t<size_t>& pexes,
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
   const std::set<int>& shared_variables
 ) {
 
@@ -122,10 +122,10 @@ alternative::projected_executions_t< size_t > unify(
     graph_t< size_t >& g = it.second;
     // for each thread we have to generate a unified graph
     std::cout << "thread " << it.first << std::endl;
-    
+
     graph_t< size_t >& g_new = unified_pes.projections[it.first];
     std::vector< graph_t< size_t >::edge_t >& es = unified_pes.edges[it.first]; // actually we do not need that since we do not merge with the unified executions anymore -> refactor
-    
+
     auto order = g.dag_topological_sort(0);
     assert(order.size() > 0);
     //graph_t< size_t > g_new;
@@ -181,6 +181,7 @@ alternative::projected_executions_t< size_t > unify(
     std::map< size_t, id_partitioned_substitution_maps_t > node2substmap;
     std::map< const graph_t<size_t>::edge_t, id_partitioned_substitution_maps_t > edge2substmap;
 
+#if 0
     for (size_t node : order) {
       auto& substmap = node2substmap[node];
 
@@ -189,13 +190,14 @@ alternative::projected_executions_t< size_t > unify(
       // TODO unify the substmaps of all incoming edges (put the result into node2substmap)
 
     }
-    
+#endif
+
     std::cout << g_new << std::endl;
     for (alphabet::stmt_t* s : unified_stmts) {
       std::cout << s << std::endl;
     }
   }
-  
+
   // TODO we also have to return the newly created statements
   return unified_pes;
 }
@@ -217,7 +219,7 @@ int main(int argc, char* argv[]) {
   std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > > set_of_merged_stmts;
 
   alternative::projected_executions_t< label_type2 > p_alt2;
-  auto is_mergable_alt2 = [&] (const label_type2& v, const alphabet::stmt_t& s) {
+  auto is_mergable = [&] (const label_type2& v, const alphabet::stmt_t& s) {
     const alphabet::stmt_t& s_destination = *(set_of_merged_stmts[v].front().element());
 
     if (s_destination.program_location == s.program_location) {
@@ -269,22 +271,22 @@ int main(int argc, char* argv[]) {
     return false;
   };
 
-  auto do_merge_alt2 = [&] (label_type2& l, const alphabet::stmt_t& s_source, const projected_execution_t& pexe) {
+  auto do_merge = [&] (label_type2& l, const alphabet::stmt_t& s_source, const projected_execution_t& pexe) {
     auto& v = set_of_merged_stmts[l];
     v.emplace(v.end(), &s_source, pexe.unique_id);
   };
 
-  auto create_label2 = [&] (const alphabet::stmt_t& s, const projected_execution_t& pexe) {
+  auto create_label = [&] (const alphabet::stmt_t& s, const projected_execution_t& pexe) {
     auto it = set_of_merged_stmts.emplace(set_of_merged_stmts.end());
     it->emplace(it->end(), &s, pexe.unique_id);
     return set_of_merged_stmts.size() - 1;
   };
 
-  p_alt2.merge(p, is_mergable_alt2, do_merge_alt2, create_label2);
+  p_alt2.merge(p, is_mergable, do_merge, create_label);
   std::cout << "***************************" << std::endl;
-  p_alt2.merge(p_dummy, is_mergable_alt2, do_merge_alt2, create_label2);
+  p_alt2.merge(p_dummy, is_mergable, do_merge, create_label);
   std::cout << "***************************" << std::endl;
-  p_alt2.merge(p_dummy2, is_mergable_alt2, do_merge_alt2, create_label2);
+  p_alt2.merge(p_dummy2, is_mergable, do_merge, create_label);
   std::cout << "***************************" << std::endl;
   std::cout << p_alt2 << std::endl;
 
