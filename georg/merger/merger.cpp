@@ -267,6 +267,22 @@ id_partitioned_substitution_maps_t extract_localvar_substmap(
   return localvar_substmap;
 }
 
+void blubblub(
+  alternative::projected_executions_t<size_t>& pexes,
+  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
+  const id_partitioned_substitution_maps_t& sharedvar_substmap,
+  const id_partitioned_substitution_maps_t& localvar_substmap
+) {
+  for (const auto& v : set_of_merged_stmts) {
+    for (const auto& t : v) {
+      int execution_id = t.execution_id();
+      const alphabet::stmt_t* s = t.element();
+      std::cout << s << "@" << execution_id << std::endl;
+    }
+    std::cout << std::endl;
+  }
+}
+
 alternative::projected_executions_t< size_t > unify(
   alternative::projected_executions_t<size_t>& pexes,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
@@ -282,7 +298,7 @@ alternative::projected_executions_t< size_t > unify(
   id_partitioned_substitution_maps_t localvar_substmap = extract_localvar_substmap(pexes, set_of_merged_stmts);
   std::cout << localvar_substmap << std::endl;
 
-
+  blubblub(pexes, set_of_merged_stmts, sharedvar_substmap, localvar_substmap);
 
   for (auto& it : pexes.projections) {
     graph_t< size_t >& g = it.second;
