@@ -128,7 +128,6 @@ alternative::projected_executions_t< size_t > unify(
 
     auto order = g.dag_topological_sort(0);
     assert(order.size() > 0);
-    //graph_t< size_t > g_new;
     g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
     std::vector< alphabet::stmt_t* > unified_stmts;
 
