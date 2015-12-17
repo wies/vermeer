@@ -555,6 +555,8 @@ unify(
 
   auto v_unified = unify_statements(pexes, set_of_merged_stmts, sharedvar_substmap, localvar_substmap);
 
+  // TODO addition of synchronization edges is missing!
+
   // TODO update unified_pes
   return { unified_pes, v_unified };
 }
