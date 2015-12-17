@@ -293,42 +293,99 @@ std::vector< alphabet::stmt_t* > blubblub(
 
 
       std::cout << "translating guards..." << std::endl;
+      std::vector< expr::expr_t< alphabet::ssa_variable_t > > new_guards;
       for (auto& g : s->guards) {
         std::cout << "  Old guard: " << g << std::endl;
 
         // TODO shared variables in guards will definitely generate a problem! We do not have an explicit tracking of such data flow!
         // TODO problem: we have shared variables in our guards! That should not be the case!
         expr::expr_t< alphabet::ssa_variable_t > new_guard = g.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
+        new_guards.push_back(new_guard);
 
         std::cout << "  New guard: " << new_guard << std::endl;
       }
 
-#if 0
+      // TODO add content of new_guards into guards of the new statement
+
+
       switch (s->type) {
       case alphabet::stmt_t::ASSERTION:
         {
-          expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t > subst_visitor;
+          alphabet::assertion_t* s_as = (alphabet::assertion_t*)s;
+          std::cout << "Translating assertion: " << std::endl;
+          for (auto& expr : s_as->exprs) {
+            std::cout << "  Old expression: " << expr << std::endl;
 
-          auto& it = localvar_substmap.find(execution_id);
-          assert(it != localvar_substmap.end());
+            // TODO We again have the problem of global variables in the expression!
+            expr::expr_t< alphabet::ssa_variable_t > new_expr = expr.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
 
-          s->guards
+            std::cout << "  New expression: " << new_expr << std::endl;
+          }
+          break;
+        }
+      case alphabet::stmt_t::ASSUMPTION:
+        {
+          alphabet::assumption_t* s_as = (alphabet::assumption_t*)s;
+          std::cout << "Translating assumption: " << std::endl;
+          for (auto& expr : s_as->exprs) {
+            std::cout << "  Old expression: " << expr << std::endl;
 
-          subst_visitor.substitution_map.insert(it->second.begin(), it->second.end());
-          s->accept(subst_visitor);
-          std::cout << "Original: " << *s << std::endl;
-          std::cout << "New: " << std::endl;
+            expr::expr_t< alphabet::ssa_variable_t > new_expr = expr.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
 
+            std::cout << "  New expression: " << new_expr << std::endl;
+          }
+        }
+      case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+        {
+          alphabet::local_assignment_t* s_la = (alphabet::local_assignment_t*)s;
+
+          auto local_it = localvar_substmap.id_partitioned_substitution_maps.find(execution_id);
+          assert(local_it != localvar_substmap.id_partitioned_substitution_maps.end());
+          auto var_it = local_it->second.find(s_la->local_variable);
+          assert(var_it != local_it->second.end());
+
+          alphabet::ssa_variable_t new_local_var = var_it->second;
+
+          std::cout << "Translating local assignment: " << std::endl;
+          std::cout << "  Old local variable: " << s_la->local_variable << std::endl;
+          std::cout << "  New local variable: " << new_local_var << std::endl;
+
+          expr::term_t< alphabet::ssa_variable_t > new_rhs = s_la->rhs.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::term_t< alphabet::ssa_variable_t > >(subst_visitor);
+
+          std::cout << "  Old rhs: " << s_la->rhs << std::endl;
+          std::cout << "  New rhs: " << new_rhs << std::endl;
+
+          break;
+        }
+      case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+        {
+          alphabet::global_assignment_t* s_ga = (alphabet::global_assignment_t*)s;
+
+          auto shared_it = sharedvar_substmap.id_partitioned_substitution_maps.find(execution_id);
+          assert(shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end());
+          auto var_it = shared_it->second.find(s_ga->shared_variable);
+          assert(var_it != shared_it->second.end());
+
+          alphabet::ssa_variable_t new_shared_var = var_it->second;
+
+          std::cout << "Translating shared assignment: " << std::endl;
+          std::cout << "  Old shared variable: " << s_ga->shared_variable << std::endl;
+          std::cout << "  New shared variable: " << new_shared_var << std::endl;
+
+          expr::term_t< alphabet::ssa_variable_t > new_rhs = s_ga->rhs.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::term_t< alphabet::ssa_variable_t > >(subst_visitor);
+
+          std::cout << "  Old rhs: " << s_ga->rhs << std::endl;
+          std::cout << "  New rhs: " << new_rhs << std::endl;
+
+          break;
+        }
+      case alphabet::stmt_t::PI_ASSIGNMENT:
+        {
           break;
         }
       default:
         break;
       }
-#endif
-      // TODO implement a substitution
-
-
-      //std::cout << s << "@" << execution_id << std::endl;
     }
     std::cout << std::endl;
   }
