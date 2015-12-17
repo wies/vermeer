@@ -22,29 +22,6 @@ struct projected_execution_t {
 
 };
 
-struct projected_executions_t {
-
-  projected_executions_t(const projected_execution_t& pexe);
-
-  /*
-    We assume that every symbol in the alphabet appears at most once in a word,
-    that there is a total order over the symbols in the alphabet, and that in
-    each word the symbols respect this order.
-  */
-  void merge(
-    const projected_execution_t& pexe,
-    std::function<bool (const alphabet::stmt_t&, const alphabet::stmt_t&)> is_mergable,
-    std::function<void (alphabet::stmt_t&, const alphabet::stmt_t&)> do_merge
-  );
-
-  friend std::ostream& operator<<(std::ostream& out, const projected_executions_t ps);
-
-private:
-  std::map<int, graph_t<alphabet::stmt_t*>> projections;
-  std::map<int, std::vector< graph_t<alphabet::stmt_t*>::edge_t >> edges;
-
-};
-
 struct local_execution_extractor_t : public exe::stmt_visitor_t {
 
   local_execution_extractor_t(projected_execution_t& p);
