@@ -408,6 +408,7 @@ std::vector< alphabet::stmt_t* > blubblub(
           break;
         }
       default:
+        ERROR("Unsupported statement!");
         break;
       }
     }
