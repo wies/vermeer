@@ -381,6 +381,30 @@ std::vector< alphabet::stmt_t* > blubblub(
         }
       case alphabet::stmt_t::PI_ASSIGNMENT:
         {
+          alphabet::pi_assignment_t* s_pi = (alphabet::pi_assignment_t*)s;
+
+          std::cout << "Translating pi assignment: " << std::endl;
+
+          auto local_it = localvar_substmap.id_partitioned_substitution_maps.find(execution_id);
+          assert(local_it != localvar_substmap.id_partitioned_substitution_maps.end());
+          auto var_it = local_it->second.find(s_pi->local_variable);
+          assert(var_it != local_it->second.end());
+
+          alphabet::ssa_variable_t new_local_var = var_it->second;
+
+          std::cout << "  Old local variable: " << s_pi->local_variable << std::endl;
+          std::cout << "  New local variable: " << new_local_var << std::endl;
+
+          auto shared_it = sharedvar_substmap.id_partitioned_substitution_maps.find(execution_id);
+          assert(shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end());
+          auto shared_var_it = shared_it->second.find(s_pi->shared_variable);
+          assert(shared_var_it != shared_it->second.end());
+
+          alphabet::ssa_variable_t new_shared_var = shared_var_it->second;
+
+          std::cout << "  Old shared variable: " << s_pi->shared_variable << std::endl;
+          std::cout << "  New shared variable: " << new_shared_var << std::endl;
+
           break;
         }
       default:
