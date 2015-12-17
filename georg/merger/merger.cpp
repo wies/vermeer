@@ -267,7 +267,7 @@ id_partitioned_substitution_maps_t extract_localvar_substmap(
   return localvar_substmap;
 }
 
-std::vector< alphabet::stmt_t* > blubblub(
+std::vector< alphabet::stmt_t* > unify_statements(
   alternative::projected_executions_t<size_t>& pexes,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
   const id_partitioned_substitution_maps_t& sharedvar_substmap,
@@ -539,7 +539,8 @@ std::vector< alphabet::stmt_t* > blubblub(
   return unified_stmts;
 }
 
-alternative::projected_executions_t< size_t > unify(
+std::pair< alternative::projected_executions_t< size_t >, std::vector< alphabet::stmt_t* > >
+unify(
   alternative::projected_executions_t<size_t>& pexes,
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
   const std::set<int>& shared_variables
@@ -549,108 +550,13 @@ alternative::projected_executions_t< size_t > unify(
 
   // substitution map for global variables
   id_partitioned_substitution_maps_t sharedvar_substmap = extract_sharedvar_substmap(pexes, set_of_merged_stmts);
-  std::cout << sharedvar_substmap << std::endl;
-
+  // substitution map for local variables
   id_partitioned_substitution_maps_t localvar_substmap = extract_localvar_substmap(pexes, set_of_merged_stmts);
-  std::cout << localvar_substmap << std::endl;
 
-  auto v_unified = blubblub(pexes, set_of_merged_stmts, sharedvar_substmap, localvar_substmap);
+  auto v_unified = unify_statements(pexes, set_of_merged_stmts, sharedvar_substmap, localvar_substmap);
 
-  for (auto& s_ptr : v_unified) {
-    std::cout << *s_ptr << std::endl;
-  }
-
-#if 0
-  for (auto& it : pexes.projections) {
-    graph_t< size_t >& g = it.second;
-    // for each thread we have to generate a unified graph
-    std::cout << "thread " << it.first << std::endl;
-
-    // TODO for each thread we need a map that provides a unique counter for a shared variable
-    using varid_t = int;
-    std::map< varid_t, unsigned > sharedvar_counters;
-    // TODO we should have a more functional separation of the different processing steps
-
-
-    graph_t< size_t >& g_new = unified_pes.projections[it.first];
-    std::vector< graph_t< size_t >::edge_t >& es = unified_pes.edges[it.first]; // actually we do not need that since we do not merge with the unified executions anymore -> refactor
-
-    auto order = g.dag_topological_sort(0);
-    assert(order.size() > 0);
-    g_new.create_nodes(order.size()); // we assume that all numbers from 0 ... n - 1 are used
-    std::vector< alphabet::stmt_t* > unified_stmts;
-
-
-
-    std::map<size_t /* i.e., node*/, ssa_map_t> node2map;
-    ssa_map_t empty_map;
-    node2map.insert({ 0, empty_map });
-
-    std::map<const graph_t<size_t>::edge_t, ssa_map_t> edge2map;
-
-    update_edge2map_map(0, g, set_of_merged_stmts, node2map, edge2map);
-
-    for (size_t i = 1; i < order.size(); ++i) {
-      size_t node = order[i];
-
-      // unify ssa maps of incoming edges to node in edge2map
-      std::set<int> touched_variables;
-      for (const auto& e : g.incoming_edges(node)) {
-        const auto& m = edge2map[e];
-        auto vars = m.variables();
-        touched_variables.insert(vars.begin(), vars.end());
-      }
-
-      ssa_map_t unified_map;
-      for (int v : touched_variables) {
-        int max_value = 0;
-
-        for (const auto& e : g.incoming_edges(node)) {
-          const auto& m = edge2map[e];
-          if (max_value < m[v]) {
-            max_value = m[v];
-          }
-        }
-
-        unified_map.set_value(v, max_value);
-      }
-
-      node2map.insert({ node, unified_map });
-
-      // create incoming edges to node
-      for (const auto& e : g.incoming_edges(node)) {
-        size_t index = unified_stmts.size();
-        es.push_back(g_new.add_edge(e.source, index, e.target));
-        alphabet::stmt_t* unified_stmt = unify_statements(set_of_merged_stmts[e.label]);
-        unified_stmts.push_back(unified_stmt);
-      }
-
-      update_edge2map_map(node, g, set_of_merged_stmts, node2map, edge2map);
-    }
-
-    std::map< size_t, id_partitioned_substitution_maps_t > node2substmap;
-    std::map< const graph_t<size_t>::edge_t, id_partitioned_substitution_maps_t > edge2substmap;
-
-#if 0
-    for (size_t node : order) {
-      auto& substmap = node2substmap[node];
-
-      // TODO for each outgoing edge compute an update for substmap (put them into edge2substmap)
-
-      // TODO unify the substmaps of all incoming edges (put the result into node2substmap)
-
-    }
-#endif
-
-    std::cout << g_new << std::endl;
-    for (alphabet::stmt_t* s : unified_stmts) {
-      std::cout << s << std::endl;
-    }
-  }
-#endif
-
-  // TODO we also have to return the newly created statements
-  return unified_pes;
+  // TODO update unified_pes
+  return { unified_pes, v_unified };
 }
 
 int main(int argc, char* argv[]) {
