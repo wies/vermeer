@@ -445,7 +445,86 @@ std::vector< alphabet::stmt_t* > blubblub(
         std::cout << "  New guard: " << new_guard << std::endl;
       }
 
-      set_of_stmts.insert(new_stmt);
+      bool already_contained = false;
+      for (auto& s : set_of_stmts) {
+        switch (s->type) {
+        case alphabet::stmt_t::ASSERTION:
+          {
+            alphabet::assertion_t* s2 = (alphabet::assertion_t*)s;
+            alphabet::assertion_t* new_s2 = (alphabet::assertion_t*)new_stmt;
+
+            if (*s2 == *new_s2) {
+              already_contained = true;
+            }
+
+            break;
+          }
+        case alphabet::stmt_t::ASSUMPTION:
+          {
+            alphabet::assumption_t* s2 = (alphabet::assumption_t*)s;
+            alphabet::assumption_t* new_s2 = (alphabet::assumption_t*)new_stmt;
+
+            if (*s2 == *new_s2) {
+              already_contained = true;
+            }
+
+            break;
+          }
+        case alphabet::stmt_t::LOCAL_ASSIGNMENT:
+          {
+            alphabet::local_assignment_t* s2 = (alphabet::local_assignment_t*)s;
+            alphabet::local_assignment_t* new_s2 = (alphabet::local_assignment_t*)new_stmt;
+
+            if (*s2 == *new_s2) {
+              already_contained = true;
+            }
+
+            break;
+          }
+        case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
+          {
+            alphabet::global_assignment_t* s2 = (alphabet::global_assignment_t*)s;
+            alphabet::global_assignment_t* new_s2 = (alphabet::global_assignment_t*)new_stmt;
+
+            if (*s2 == *new_s2) {
+              already_contained = true;
+            }
+
+            break;
+          }
+        case alphabet::stmt_t::PI_ASSIGNMENT:
+          {
+            alphabet::pi_assignment_t* s2 = (alphabet::pi_assignment_t*)s;
+            alphabet::pi_assignment_t* new_s2 = (alphabet::pi_assignment_t*)new_stmt;
+
+            if (*s2 == *new_s2) {
+              already_contained = true;
+            }
+
+            break;
+          }
+        default:
+          break;
+        }
+
+        if (already_contained) {
+          break;
+        }
+
+
+#if 0
+        if (*s == *new_stmt) { // TODO make this possible
+          std::cout << "Generated an equivalent statement!" << std::endl;
+        }
+#endif
+      }
+
+      if (!already_contained) {
+        set_of_stmts.insert(new_stmt);
+      }
+      else {
+        std::cout << "Generated an equivalent statement!" << std::endl;
+      }
     }
 
     std::cout << "set_of_stmts.size() = " << set_of_stmts.size() << std::endl << std::endl;
