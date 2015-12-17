@@ -426,26 +426,15 @@ unify(
 
 void merge(const std::set< std::string >& files) {
   std::vector< exe::execution_t* > executions;
+  std::vector< projected_execution_t* > projected_executions;
 
   for (const auto& f : files) {
-    executions.push_back(read_execution(f));
+    exe::execution_t* e = read_execution(f);
+    executions.push_back(e);
+    projected_execution_t* pe = new projected_execution_t(*e, projected_executions.size());
+    projected_executions.push_back(pe);
   }
 
-  for (auto& e : executions) {
-    delete e;
-  }
-
-  exe::execution_t* s_destination = read_execution("example.xml");
-  std::cout << s_destination << std::endl << "******************************************" << std::endl;
-
-  projected_execution_t p(*s_destination, 0);
-  std::cout << p << std::endl << "******************************************" << std::endl;
-
-  exe::execution_t* e_dummy = read_execution("example_dummy.xml");
-  projected_execution_t p_dummy(*e_dummy, 1);
-
-  exe::execution_t* e_dummy2 = read_execution("example_dummy2.xml");
-  projected_execution_t p_dummy2(*e_dummy2, 2);
 
   using label_type2 = size_t;
   std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > > set_of_merged_stmts;
@@ -514,11 +503,10 @@ void merge(const std::set< std::string >& files) {
     return set_of_merged_stmts.size() - 1;
   };
 
-  p_alt2.merge(p, is_mergable, do_merge, create_label);
-  std::cout << "***************************" << std::endl;
-  p_alt2.merge(p_dummy, is_mergable, do_merge, create_label);
-  std::cout << "***************************" << std::endl;
-  p_alt2.merge(p_dummy2, is_mergable, do_merge, create_label);
+  for (auto& pe : projected_executions) {
+    p_alt2.merge(*pe, is_mergable, do_merge, create_label);
+  }
+
   std::cout << "***************************" << std::endl;
   std::cout << p_alt2 << std::endl;
 
@@ -531,5 +519,13 @@ void merge(const std::set< std::string >& files) {
     std::cout << std::endl;
   }
 
-  unify(p_alt2, set_of_merged_stmts, s_destination->shared_variables());
+  unify(p_alt2, set_of_merged_stmts, executions[0]->shared_variables());
+
+  for (auto& e : executions) {
+    delete e;
+  }
+
+  for (auto& pe : projected_executions) {
+    delete pe;
+  }
 }
