@@ -13,7 +13,6 @@ namespace alphabet {
 
 struct ssa_variable_t {
 
-  //int unique_id;
   int variable_id;
 
   /* type, currently: INT */
@@ -103,7 +102,6 @@ struct stmt_t {
 struct local_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
   expr::term_t<ssa_variable_t> rhs;
-  //std::vector<execution_tag_t<expr::term_t<ssa_variable_t>>> rhs;
 
   local_assignment_t() : stmt_t(LOCAL_ASSIGNMENT) {}
 
@@ -125,7 +123,6 @@ struct local_assignment_t : public stmt_t {
 struct global_assignment_t : public stmt_t {
   ssa_variable_t shared_variable; // lhs
   expr::term_t<ssa_variable_t> rhs;
-  //std::vector<execution_tag_t<expr::term_t<ssa_variable_t>>> rhs;
 
   global_assignment_t() : stmt_t(GLOBAL_ASSIGNMENT) {}
 
@@ -147,8 +144,6 @@ struct global_assignment_t : public stmt_t {
 struct pi_assignment_t : public stmt_t {
   ssa_variable_t local_variable; // lhs
   ssa_variable_t shared_variable; // rhs
-  //std::vector<tagged_variable_t> shared_variables; // rhs: made it a list to enable merging
-  //std::vector<execution_tag_t<ssa_variable_t>> shared_variables;
 
   pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
 
