@@ -11,6 +11,7 @@
 std::ostream& operator<<(std::ostream& out, const exe::variable_declaration_t& vd);
 std::ostream& operator<<(std::ostream& out, const exe::execution_t& t);
 
-exe::execution_t read_execution(const char* xml_file);
+exe::execution_t* read_execution(const char* xml_file);
+exe::execution_t* read_execution(const std::string& xml_file);
 
 #endif // XML_H_INCLUDED

@@ -344,13 +344,13 @@ exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
   return s;
 }
 
-exe::execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
-  exe::execution_t t;
+exe::execution_t* xml2execution(rapidxml::xml_node<char>& n_trace) {
+  exe::execution_t* t = new exe::execution_t; // TODO problem: destructor of execution_t frees all statements, we don't want that!
 
   // extract number of threads
   rapidxml::xml_attribute<char>* n_nr_of_threads_attrib = n_trace.first_attribute("nr-of-threads");
   if (!n_nr_of_threads_attrib) { ERROR("Missing number-of-threads attribute in trace node!"); }
-  t.nr_of_threads = atoi(n_nr_of_threads_attrib->value());
+  t->nr_of_threads = atoi(n_nr_of_threads_attrib->value());
 
   // extract variable declarations
   rapidxml::xml_node<char>* n_var_decls = n_trace.first_node("declarations");
@@ -361,13 +361,13 @@ exe::execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
     n_var_decl;
     n_var_decl = n_var_decl->next_sibling("variable-declaration")
   ) {
-    t.variable_declarations.push_back(xml2variable_declaration(*n_var_decl));
+    t->variable_declarations.push_back(xml2variable_declaration(*n_var_decl));
   }
 
   rapidxml::xml_attribute<char>* a_nr_of_vds = n_var_decls->first_attribute("size");
   if (!a_nr_of_vds) { ERROR("Missing number of variable declarations!"); }
   int tmp_nr_of_vds = atoi(a_nr_of_vds->value());
-  if (tmp_nr_of_vds != (int)t.variable_declarations.size()) { ERROR("Number of variable declarations does not match!"); }
+  if (tmp_nr_of_vds != (int)t->variable_declarations.size()) { ERROR("Number of variable declarations does not match!"); }
 
 
   // extract statements
@@ -379,19 +379,18 @@ exe::execution_t xml2execution(rapidxml::xml_node<char>& n_trace) {
     n_stmt;
     n_stmt = n_stmt->next_sibling("statement")
   ) {
-    t.statements.push_back(xml2statement(*n_stmt));
+    t->statements.push_back(xml2statement(*n_stmt));
   }
 
   rapidxml::xml_attribute<char>* a_nr_of_stmts = n_stmts->first_attribute("size");
   if (!a_nr_of_stmts) { ERROR("Missing number of statements!"); }
   int tmp_nr_of_stmts = atoi(a_nr_of_stmts->value());
-  if (tmp_nr_of_stmts != (int)t.statements.size()) { ERROR("Number of statements does not match!"); }
-
+  if (tmp_nr_of_stmts != (int)t->statements.size()) { ERROR("Number of statements does not match!"); }
 
   return t;
 }
 
-exe::execution_t read_execution(const char* xml_file) {
+exe::execution_t* read_execution(const char* xml_file) {
   char* document_string = read_document(xml_file);
   if (!document_string) {
     std::stringstream sstr;
@@ -402,9 +401,13 @@ exe::execution_t read_execution(const char* xml_file) {
   rapidxml::xml_document<char> doc;
   doc.parse<0>(document_string);
 
-  exe::execution_t t = xml2execution(*doc.first_node());
+  exe::execution_t* t = xml2execution(*doc.first_node());
 
   delete[] document_string;
 
   return t;
+}
+
+exe::execution_t* read_execution(const std::string& xml_file) {
+  return read_execution(xml_file.c_str());
 }

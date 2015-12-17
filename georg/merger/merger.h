@@ -7,6 +7,7 @@
 #include <cassert>
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "error.h"
@@ -54,5 +55,7 @@ unify(
   const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
   const std::set<int>& shared_variables
 );
+
+void merge(const std::set< std::string >& files);
 
 #endif // MERGER_H_INCLUDED
