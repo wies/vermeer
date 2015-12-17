@@ -18,67 +18,6 @@
 
 #include "ssa_map.h"
 
-struct ssa_extractor_t : public alphabet::stmt_visitor_t {
-
-  int variable_to_be_updated;
-  bool do_update;
-
-  void visit_pi_assignment(alphabet::pi_assignment_t& a) {
-    variable_to_be_updated = a.local_variable.variable_id;
-    do_update = true;
-  }
-
-  void visit_local_assignment(alphabet::local_assignment_t& a) {
-    variable_to_be_updated = a.local_variable.variable_id;
-    do_update = true;
-  }
-
-  void visit_global_assignment(alphabet::global_assignment_t& a) {
-    //variable_to_be_updated = a.shared_variable.variable_id;
-    //do_update = true;
-    do_update = false; // we handle shared variables separately
-  }
-
-  void visit_phi_assignment(alphabet::phi_assignment_t& a) {
-    ERROR("Unsupported statement!");
-  }
-
-  void visit_assertion(alphabet::assertion_t& a) {
-    do_update = false;
-  }
-
-  void visit_assumption(alphabet::assumption_t& a) {
-    do_update = false;
-  }
-
-};
-
-void update_edge2map_map(
-  size_t node,
-  /*const*/ graph_t< size_t > g,
-  const std::vector< std::vector< execution_tag_t< const alphabet::stmt_t* > > >& set_of_merged_stmts,
-  const std::map<size_t /* i.e., node*/, ssa_map_t>& node2map,
-  std::map<const graph_t<size_t>::edge_t, ssa_map_t>& edge2map
-) {
-  const auto& m = node2map.find(node)->second; // TODO we assume that a node always has an assigned map, implement more devensively?
-
-  // for each outgoing edge from root create an ssa map and store in edge2map
-  for (const graph_t<size_t>::edge_t& edge : g.outgoing_edges(node)) { // TODO outgoing_edges does not allow const -> change!
-    ssa_map_t new_ssa_map(m);
-
-    // TODO remove the cast!
-    alphabet::stmt_t* s = (alphabet::stmt_t*)set_of_merged_stmts[edge.label][0].element();
-    ssa_extractor_t ext;
-    s->accept(ext);
-
-    if (ext.do_update) {
-      new_ssa_map.inc(ext.variable_to_be_updated);
-    }
-
-    edge2map.insert({ edge, new_ssa_map });
-  }
-}
-
 void update_edge2map_map2(
   int thread_id,
   size_t node,
@@ -128,39 +67,6 @@ void update_edge2map_map2(
 
     edge2map.insert({ edge, new_ssa_map });
   }
-}
-
-alphabet::stmt_t* unify_statements(const std::vector< execution_tag_t< const alphabet::stmt_t* > >& stmts) {
-  assert(stmts.size() > 0);
-
-  alphabet::stmt_t::stmt_type_t type = stmts[0].element()->type;
-  for (size_t i = 0; i < stmts.size(); ++i) {
-    assert(stmts[i].element()->type == type);
-  }
-
-  alphabet::stmt_t* s = nullptr;
-
-  switch (type) {
-    case alphabet::stmt_t::PI_ASSIGNMENT:
-      s = new alphabet::pi_assignment_t;
-      break;
-    case alphabet::stmt_t::LOCAL_ASSIGNMENT:
-      s = new alphabet::local_assignment_t;
-      break;
-    case alphabet::stmt_t::GLOBAL_ASSIGNMENT:
-      s = new alphabet::global_assignment_t;
-      break;
-    case alphabet::stmt_t::ASSERTION:
-      s = new alphabet::assertion_t;
-      break;
-    case alphabet::stmt_t::ASSUMPTION:
-      s = new alphabet::assumption_t;
-      break;
-    default:
-      break;
-  }
-
-  return s;
 }
 
 id_partitioned_substitution_maps_t extract_sharedvar_substmap(
