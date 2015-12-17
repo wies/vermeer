@@ -511,7 +511,6 @@ std::vector< alphabet::stmt_t* > blubblub(
           break;
         }
 
-
 #if 0
         if (*s == *new_stmt) { // TODO make this possible
           std::cout << "Generated an equivalent statement!" << std::endl;
@@ -528,6 +527,13 @@ std::vector< alphabet::stmt_t* > blubblub(
     }
 
     std::cout << "set_of_stmts.size() = " << set_of_stmts.size() << std::endl << std::endl;
+
+    // TODO insert statement into unified_stmts
+    assert(!set_of_stmts.empty());
+
+    // TODO Resolve nondeterminism!
+    // TODO Resolve pi assignments!
+    unified_stmts.push_back(*set_of_stmts.begin());
   }
 
   return unified_stmts;
@@ -548,8 +554,13 @@ alternative::projected_executions_t< size_t > unify(
   id_partitioned_substitution_maps_t localvar_substmap = extract_localvar_substmap(pexes, set_of_merged_stmts);
   std::cout << localvar_substmap << std::endl;
 
-  blubblub(pexes, set_of_merged_stmts, sharedvar_substmap, localvar_substmap);
+  auto v_unified = blubblub(pexes, set_of_merged_stmts, sharedvar_substmap, localvar_substmap);
 
+  for (auto& s_ptr : v_unified) {
+    std::cout << *s_ptr << std::endl;
+  }
+
+#if 0
   for (auto& it : pexes.projections) {
     graph_t< size_t >& g = it.second;
     // for each thread we have to generate a unified graph
@@ -636,6 +647,7 @@ alternative::projected_executions_t< size_t > unify(
       std::cout << s << std::endl;
     }
   }
+#endif
 
   // TODO we also have to return the newly created statements
   return unified_pes;
