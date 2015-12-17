@@ -152,6 +152,16 @@ struct pi_assignment_t : public stmt_t {
 
   pi_assignment_t() : stmt_t(PI_ASSIGNMENT) {}
 
+  inline
+  bool operator==(const pi_assignment_t& other) const {
+    return (local_variable == other.local_variable && shared_variable == other.shared_variable);
+  }
+
+  inline
+  bool operator!=(const pi_assignment_t& other) const {
+    return !(*this == other);
+  }
+
   void accept(stmt_visitor_t& visitor) override;
   void print(std::ostream& out) const override;
 
@@ -174,6 +184,26 @@ struct assertion_t : public stmt_t {
 
   assertion_t() : stmt_t(ASSERTION) {}
 
+  inline
+  bool operator==(const assertion_t& other) const {
+    if (exprs.size() != other.exprs.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < exprs.size(); ++i) {
+      if (exprs[i] != other.exprs[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  inline
+  bool operator!=(const assertion_t& other) const {
+    return !(*this == other);
+  }
+
   void accept(stmt_visitor_t& visitor) override;
   void print(std::ostream& out) const override;
 
@@ -184,6 +214,26 @@ struct assumption_t : public stmt_t {
   std::vector<expr::expr_t<ssa_variable_t>> exprs;
 
   assumption_t() : stmt_t(ASSUMPTION) {}
+
+  inline
+  bool operator==(const assumption_t& other) const {
+    if (exprs.size() != other.exprs.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < exprs.size(); ++i) {
+      if (exprs[i] != other.exprs[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  inline
+  bool operator!=(const assumption_t& other) const {
+    return !(*this == other);
+  }
 
   void accept(stmt_visitor_t& visitor) override;
   void print(std::ostream& out) const override;
