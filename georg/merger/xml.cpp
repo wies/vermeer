@@ -117,7 +117,6 @@ std::ostream& operator<<(std::ostream& out, exe::stmt_t& s) {
   if (s.guard.exprs.size() > 0) {
     out << "<guards size=\"" << s.guard.exprs.size() << "\">" << std::endl;
     for (auto const& e : s.guard.exprs) {
-      //out << e << std::endl;
       print2xml(out, e);
       out << std::endl;
     }
@@ -222,7 +221,7 @@ exe::variable_declaration_t xml2variable_declaration(rapidxml::xml_node<char>& n
   return vd;
 }
 
-expr::linear_product_t<int>/*exe::linear_product_t*/ xml2product(rapidxml::xml_node<char>& n_term) {
+expr::linear_product_t<int> xml2product(rapidxml::xml_node<char>& n_term) {
   expr::linear_product_t<int> p;
 
   // <term variable-id="12" factor="1"/>
@@ -264,14 +263,13 @@ expr::expr_t<int> xml2expression(rapidxml::xml_node<char>& n_expr) {
 
 exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
 
-  exe::stmt_t* s;// = new exe::statement_t;
+  exe::stmt_t* s;
 
   rapidxml::xml_attribute<char>* type_attr = n_stmt.first_attribute("type");
   if (!type_attr) { ERROR("No type attribute in statement!"); }
 
   if (strcmp(type_attr->value(), "assignment") == 0) {
     exe::assignment_t* a = new exe::assignment_t;
-    //s->type = exe::ASSIGNMENT;
 
     rapidxml::xml_node<char>* n_lhs = n_stmt.first_node("lhs");
     if (!n_lhs) { ERROR("No lhs in assignment!"); }
@@ -297,7 +295,6 @@ exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
   }
   else if (strcmp(type_attr->value(), "assert") == 0) {
     exe::assertion_t* a  = new exe::assertion_t;
-    //s->type = exe::ASSERTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
@@ -308,7 +305,6 @@ exe::stmt_t* xml2statement(rapidxml::xml_node<char>& n_stmt) {
   }
   else if (strcmp(type_attr->value(), "assume") == 0) {
     exe::assumption_t* a = new exe::assumption_t;
-    //s->type = exe::ASSUMPTION;
 
     // extract expressions
     for (rapidxml::xml_node<char>* n_expr = n_stmt.first_node("expression"); n_expr; n_expr = n_expr->next_sibling("expression")) {
