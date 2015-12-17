@@ -1,24 +1,9 @@
+#include "merger.h"
+
 #include <cstdlib>
 #include <iostream>
-
-#include <cassert>
-#include <map>
 #include <set>
-#include <vector>
-
-#include "error.h"
-#include "execution.h"
-#include "xml.h"
-#include "alphabet.h"
-#include "expr.h"
-#include "execution2alphabet.h"
-#include "tag.h"
-
-#include "projected_executions.h"
-
-#include "ssa_map.h"
-
-#include "merger.h"
+#include <string>
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
