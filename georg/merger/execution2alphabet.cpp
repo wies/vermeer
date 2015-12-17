@@ -241,9 +241,6 @@ void local_execution_extractor_t::visit_assignment(exe::assignment_t& a) {
 
     // substitute local variables
     ga->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-#if 0
-    ga->rhs.push_back({ a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst), execution_id });
-#endif
 
     stmt = (alphabet::stmt_t*)ga;
   }
@@ -259,9 +256,6 @@ void local_execution_extractor_t::visit_assignment(exe::assignment_t& a) {
       pa->local_variable.ssa_index.thread_local_index = lhs_local_ssa_index + 1;
       pa->local_variable.ssa_index.thread_id = a.program_location.thread;
       pa->shared_variable = vsubst.substitution_map[a.rhs.products[0].variable];
-#if 0
-      pa->shared_variables.push_back({ vsubst.substitution_map[a.rhs.products[0].variable], execution_id });
-#endif
 
       stmt = (alphabet::stmt_t*)pa;
     }
@@ -275,9 +269,6 @@ void local_execution_extractor_t::visit_assignment(exe::assignment_t& a) {
 
       // substitute local variables
       la->rhs = a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst);
-#if 0
-      la->rhs.push_back({ a.rhs.accept<expr::variable_substitution_t<int, alphabet::ssa_variable_t>,expr::term_t<alphabet::ssa_variable_t>>(vsubst), execution_id });
-#endif
 
       stmt = (alphabet::stmt_t*)la;
     }
