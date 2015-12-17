@@ -210,14 +210,9 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
           alphabet::assertion_t* new_tmp_stmt = new alphabet::assertion_t;
 
-          std::cout << "Translating assertion: " << std::endl;
           for (auto& expr : s_as->exprs) {
-            std::cout << "  Old expression: " << expr << std::endl;
-
             // TODO We again have the problem of global variables in the expression!
             expr::expr_t< alphabet::ssa_variable_t > new_expr = expr.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
-
-            std::cout << "  New expression: " << new_expr << std::endl;
 
             new_tmp_stmt->exprs.push_back(new_expr);
           }
@@ -232,13 +227,8 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
           alphabet::assumption_t* new_tmp_stmt = new alphabet::assumption_t;
 
-          std::cout << "Translating assumption: " << std::endl;
           for (auto& expr : s_as->exprs) {
-            std::cout << "  Old expression: " << expr << std::endl;
-
             expr::expr_t< alphabet::ssa_variable_t > new_expr = expr.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
-
-            std::cout << "  New expression: " << new_expr << std::endl;
 
             new_tmp_stmt->exprs.push_back(new_expr);
           }
@@ -260,14 +250,7 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
           new_tmp_stmt->local_variable = var_it->second;
 
-          std::cout << "Translating local assignment: " << std::endl;
-          std::cout << "  Old local variable: " << s_la->local_variable << std::endl;
-          std::cout << "  New local variable: " << new_tmp_stmt->local_variable << std::endl;
-
           new_tmp_stmt->rhs = s_la->rhs.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::term_t< alphabet::ssa_variable_t > >(subst_visitor);
-
-          std::cout << "  Old rhs: " << s_la->rhs << std::endl;
-          std::cout << "  New rhs: " << new_tmp_stmt->rhs << std::endl;
 
           new_stmt = (alphabet::stmt_t*)new_tmp_stmt;
 
@@ -286,14 +269,7 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
           new_tmp_stmt->shared_variable = var_it->second;
 
-          std::cout << "Translating shared assignment: " << std::endl;
-          std::cout << "  Old shared variable: " << s_ga->shared_variable << std::endl;
-          std::cout << "  New shared variable: " << new_tmp_stmt->shared_variable << std::endl;
-
           new_tmp_stmt->rhs = s_ga->rhs.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::term_t< alphabet::ssa_variable_t > >(subst_visitor);
-
-          std::cout << "  Old rhs: " << s_ga->rhs << std::endl;
-          std::cout << "  New rhs: " << new_tmp_stmt->rhs << std::endl;
 
           new_stmt = (alphabet::stmt_t*)new_tmp_stmt;
 
@@ -305,8 +281,6 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
           alphabet::pi_assignment_t* new_tmp_stmt = new alphabet::pi_assignment_t;
 
-          std::cout << "Translating pi assignment: " << std::endl;
-
           auto local_it = localvar_substmap.id_partitioned_substitution_maps.find(execution_id);
           assert(local_it != localvar_substmap.id_partitioned_substitution_maps.end());
           auto var_it = local_it->second.find(s_pi->local_variable);
@@ -314,18 +288,12 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
           new_tmp_stmt->local_variable = var_it->second;
 
-          std::cout << "  Old local variable: " << s_pi->local_variable << std::endl;
-          std::cout << "  New local variable: " << new_tmp_stmt->local_variable << std::endl;
-
           auto shared_it = sharedvar_substmap.id_partitioned_substitution_maps.find(execution_id);
           assert(shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end());
           auto shared_var_it = shared_it->second.find(s_pi->shared_variable);
           assert(shared_var_it != shared_it->second.end());
 
           new_tmp_stmt->shared_variable = shared_var_it->second;
-
-          std::cout << "  Old shared variable: " << s_pi->shared_variable << std::endl;
-          std::cout << "  New shared variable: " << new_tmp_stmt->shared_variable << std::endl;
 
           new_stmt = (alphabet::stmt_t*)new_tmp_stmt;
 
@@ -338,17 +306,12 @@ std::vector< alphabet::stmt_t* > unify_statements(
 
       assert(new_stmt);
 
-      std::cout << "translating guards..." << std::endl;
       std::vector< expr::expr_t< alphabet::ssa_variable_t > > new_guards;
       for (auto& g : s->guards) {
-        std::cout << "  Old guard: " << g << std::endl;
-
         // TODO shared variables in guards will definitely generate a problem! We do not have an explicit tracking of such data flow!
         // TODO problem: we have shared variables in our guards! That should not be the case!
         expr::expr_t< alphabet::ssa_variable_t > new_guard = g.accept< expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t >, expr::expr_t< alphabet::ssa_variable_t > >(subst_visitor);
         new_stmt->guards.push_back(new_guard);
-
-        std::cout << "  New guard: " << new_guard << std::endl;
       }
 
       bool already_contained = false;
@@ -427,14 +390,8 @@ std::vector< alphabet::stmt_t* > unify_statements(
       if (!already_contained) {
         set_of_stmts.insert(new_stmt);
       }
-      else {
-        std::cout << "Generated an equivalent statement!" << std::endl;
-      }
     }
 
-    std::cout << "set_of_stmts.size() = " << set_of_stmts.size() << std::endl << std::endl;
-
-    // TODO insert statement into unified_stmts
     assert(!set_of_stmts.empty());
 
     // TODO Resolve nondeterminism!
