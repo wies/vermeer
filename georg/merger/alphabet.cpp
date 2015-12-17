@@ -26,9 +26,6 @@ std::ostream& operator<<(std::ostream& out, const stmt_t::stmt_type_t t) {
     case stmt_t::GLOBAL_ASSIGNMENT:
       out << "GLOBAL_ASSIGNMENT";
       break;
-    case stmt_t::PHI_ASSIGNMENT:
-      out << "PHI_ASSIGNMENT";
-      break;
     case stmt_t::ASSERTION:
       out << "ASSERTION";
       break;
@@ -109,14 +106,6 @@ void global_assignment_t::print(std::ostream& out) const {
   }
   out << ")";
 #endif
-}
-
-void phi_assignment_t::accept(stmt_visitor_t& visitor) {
-  visitor.visit_phi_assignment(*this);
-}
-
-void phi_assignment_t::print(std::ostream& out) const {
-  out << "phi(...)";
 }
 
 void assertion_t::accept(stmt_visitor_t& visitor) {

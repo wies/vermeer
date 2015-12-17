@@ -75,7 +75,6 @@ struct stmt_t {
     PI_ASSIGNMENT,
     LOCAL_ASSIGNMENT,
     GLOBAL_ASSIGNMENT,
-    PHI_ASSIGNMENT,
     ASSERTION,
     ASSUMPTION
   };
@@ -162,17 +161,6 @@ struct pi_assignment_t : public stmt_t {
 
 };
 
-struct phi_assignment_t : public stmt_t {
-  ssa_variable_t variable; // lhs
-  /* ... */
-
-  phi_assignment_t() : stmt_t(PHI_ASSIGNMENT) {}
-
-  void accept(stmt_visitor_t& visitor) override;
-  void print(std::ostream& out) const override;
-
-};
-
 struct assertion_t : public stmt_t {
 
   std::vector<expr::expr_t<ssa_variable_t>> exprs;
@@ -240,7 +228,6 @@ struct stmt_visitor_t {
   virtual void visit_pi_assignment(pi_assignment_t& a) = 0;
   virtual void visit_local_assignment(local_assignment_t& a) = 0;
   virtual void visit_global_assignment(global_assignment_t& a) = 0;
-  virtual void visit_phi_assignment(phi_assignment_t& a) = 0;
   virtual void visit_assertion(assertion_t& a) = 0;
   virtual void visit_assumption(assumption_t& a) = 0;
 
