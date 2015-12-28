@@ -192,13 +192,20 @@ std::vector< alphabet::stmt_t* > unify_statements(
       expr::variable_substitution_t< alphabet::ssa_variable_t, alphabet::ssa_variable_t > subst_visitor;
 
       auto it = localvar_substmap.id_partitioned_substitution_maps.find(execution_id);
-      assert(it != localvar_substmap.id_partitioned_substitution_maps.end());
-      subst_visitor.substitution_map.insert(it->second.begin(), it->second.end());
+      // TODO I deactivated the following assertion because we can have situations where there is no local variable at all, only global variables.
+      //assert(it != localvar_substmap.id_partitioned_substitution_maps.end());
+      if (it != localvar_substmap.id_partitioned_substitution_maps.end()) {
+        subst_visitor.substitution_map.insert(it->second.begin(), it->second.end());
+      }
 
       // TODO for assertions, assumptions, etc. we should not have to insert the shared variable substitutions for guards! We have to change the runtime system!
       auto shared_it = sharedvar_substmap.id_partitioned_substitution_maps.find(execution_id);
-      assert(shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end());
-      subst_visitor.substitution_map.insert(shared_it->second.begin(), shared_it->second.end());
+      // TODO analogous to the above situation for local variable substitutions, there should be a situation where we only have local variables which violates the following assertion but would be still a correct situation.
+      //assert(shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end());
+      if (shared_it != sharedvar_substmap.id_partitioned_substitution_maps.end()) {
+        subst_visitor.substitution_map.insert(shared_it->second.begin(), shared_it->second.end());
+      }
+
 
       // TODO add content of new_guards into guards of the new statement
       alphabet::stmt_t* new_stmt = nullptr;
