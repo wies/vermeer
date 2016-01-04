@@ -86,17 +86,23 @@ public:
   }
 
   virtual void visit_assignment(exe::assignment_t& a) override {
-    // TODO implement guards
+    if (!a.guard.exprs.empty()) {
+      out << "if (" << translate_expressions(a.guard.exprs, e.variable_declarations) << ") ";
+    }
     out << get_variable_name(e.variable_declarations[a.variable_id]) << " = " << translate_term(a.rhs, e.variable_declarations);
   }
 
   virtual void visit_assertion(exe::assertion_t& a) override {
-    // TODO implement guards
+    if (!a.guard.exprs.empty()) {
+      out << "if (" << translate_expressions(a.guard.exprs, e.variable_declarations) << ") ";
+    }
     out << "assert(" << translate_expressions(a.exprs, e.variable_declarations) << ")";
   }
 
   virtual void visit_assumption(exe::assumption_t& a) override {
-    // TODO implement guards
+    if (!a.guard.exprs.empty()) {
+      out << "if (" << translate_expressions(a.guard.exprs, e.variable_declarations) << ") ";
+    }
     out << "assume(" << translate_expressions(a.exprs, e.variable_declarations) << ")";
   }
 
