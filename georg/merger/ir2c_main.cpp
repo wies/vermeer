@@ -11,6 +11,36 @@ std::string get_variable_name(const exe::variable_declaration_t& vd) {
   return sstr.str();
 }
 
+std::string translate_term(const expr::term_t<int> t, const std::vector<exe::variable_declaration_t>& vds) {
+  std::stringstream out;
+
+  if (t.products.empty()) {
+    out << t.constant;
+  }
+  else {
+    bool first = true;
+    for (const auto& lp : t.products) {
+      if (first) {
+        first = false;
+      } else {
+        out << " + ";
+      }
+      if (lp.factor != 1) {
+        out << lp.factor << " * ";
+      }
+      out << get_variable_name(vds[lp.variable]);
+    }
+
+    if (t.constant > 0) {
+      out << " + " << t.constant;
+    } else if (t.constant < 0) {
+      out << " " << t.constant;
+    }
+  }
+
+  return out.str();
+}
+
 struct ir2c_visitor_t : public exe::stmt_visitor_t {
 
 private:
@@ -26,46 +56,57 @@ public:
   }
 
   virtual void visit_assignment(exe::assignment_t& a) override {
-    // TODO implement guard
+    // TODO implement guards
 
-    out << get_variable_name(e.variable_declarations[a.variable_id]) << " = ";
-    if (a.rhs.products.empty()) {
-      out << a.rhs.constant;
-    }
-    else {
-      bool first = true;
-      for (const auto& lp : a.rhs.products) {
-        if (first) {
-          first = false;
-        }
-        else {
-          out << " + ";
-        }
-        if (lp.factor != 1) {
-          out << lp.factor << " * ";
-        }
-        out << get_variable_name(e.variable_declarations[lp.variable]);
-      }
-
-      if (a.rhs.constant > 0) {
-        out << " + " << a.rhs.constant;
-      }
-      else if (a.rhs.constant < 0) {
-        out << " " << a.rhs.constant;
-      }
-    }
+    out << get_variable_name(e.variable_declarations[a.variable_id]) << " = " << translate_term(a.rhs, e.variable_declarations);
   }
 
   virtual void visit_assertion(exe::assertion_t& a) override {
-    // TODO implement guard
-    // TODO implement C statement
-    out << "assert(...)";
+    // TODO implement guards
+    out << "assert";
+
+    if (a.exprs.size() > 1) {
+      out << "(";
+    }
+
+    bool first = true;
+    for (const auto& expr : a.exprs) {
+      if (first) {
+        first = false;
+      }
+      else {
+        out << " && ";
+      }
+      out << "(0 " << ops2strC(expr.op) << " " << translate_term(expr.term, e.variable_declarations) << ")";
+    }
+
+    if (a.exprs.size() > 1) {
+      out << ")";
+    }
   }
 
   virtual void visit_assumption(exe::assumption_t& a) override {
-    // TODO implement guard
-    // TODO implement C statement
-    out << "assume(...)";
+    // TODO implement guards
+    out << "assume";
+
+    if (a.exprs.size() > 1) {
+      out << "(";
+    }
+
+    bool first = true;
+    for (const auto& expr : a.exprs) {
+      if (first) {
+        first = false;
+      }
+      else {
+        out << " && ";
+      }
+      out << "(0 " << ops2strC(expr.op) << " " << translate_term(expr.term, e.variable_declarations) << ")";
+    }
+
+    if (a.exprs.size() > 1) {
+      out << ")";
+    }
   }
 
 };
