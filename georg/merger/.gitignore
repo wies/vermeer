@@ -1,6 +1,8 @@
 merge
-exprtest
-graphtest
 merge.exe
+exprtest
 exprtest.exe
+graphtest
 graphtest.exe
+ir2c
+ir2c.exe
