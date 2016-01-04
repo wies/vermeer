@@ -3,14 +3,22 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
+
+std::string get_variable_name(const exe::variable_declaration_t& vd) {
+  std::stringstream sstr;
+  sstr << "x_" << vd.variable << "_" << vd.ssa_index;
+  return sstr.str();
+}
 
 struct ir2c_visitor_t : public exe::stmt_visitor_t {
 
 private:
   std::ostream& out;
+  const exe::execution_t& e;
 
 public:
-  ir2c_visitor_t(std::ostream& out_) : out(out_) {}
+  ir2c_visitor_t(std::ostream& out_, const exe::execution_t& e_) : out(out_), e(e_) {}
 
   virtual ~ir2c_visitor_t() {}
 
@@ -19,20 +27,45 @@ public:
 
   virtual void visit_assignment(exe::assignment_t& a) override {
     // TODO implement guard
-    // TODO implement C statement
-    out << "assignment";
+
+    out << get_variable_name(e.variable_declarations[a.variable_id]) << " = ";
+    if (a.rhs.products.empty()) {
+      out << a.rhs.constant;
+    }
+    else {
+      bool first = true;
+      for (const auto& lp : a.rhs.products) {
+        if (first) {
+          first = false;
+        }
+        else {
+          out << " + ";
+        }
+        if (lp.factor != 1) {
+          out << lp.factor << " * ";
+        }
+        out << get_variable_name(e.variable_declarations[lp.variable]);
+      }
+
+      if (a.rhs.constant > 0) {
+        out << " + " << a.rhs.constant;
+      }
+      else if (a.rhs.constant < 0) {
+        out << " " << a.rhs.constant;
+      }
+    }
   }
 
   virtual void visit_assertion(exe::assertion_t& a) override {
     // TODO implement guard
     // TODO implement C statement
-    out << "assertion";
+    out << "assert(...)";
   }
 
   virtual void visit_assumption(exe::assumption_t& a) override {
     // TODO implement guard
     // TODO implement C statement
-    out << "assumption";
+    out << "assume(...)";
   }
 
 };
@@ -46,16 +79,16 @@ void ir2c(std::ostream& out, const exe::execution_t& e) {
 
   // TODO variable names are missing in the intermediate representation
   for (const auto& vd : e.variable_declarations) {
-    out << "  int x_" << vd.variable << "_" << vd.ssa_index << ";//" << std::endl;
+    out << "  int " << get_variable_name(vd) << ";//" << std::endl;
   }
 
   out << std::endl;
 
-  ir2c_visitor_t v(std::cout);
+  ir2c_visitor_t v(std::cout, e);
   for (const auto& s : e.statements) {
     out << "  T_" << s->program_location.thread << "_" << s->position_in_execution << "_" << s->program_location.thread << ": ";
     s->accept(v);
-    out << std::endl;
+    out << ";" << std::endl;
   }
 
   out << "}" << std::endl;
