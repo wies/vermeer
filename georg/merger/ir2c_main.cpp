@@ -41,6 +41,36 @@ std::string translate_term(const expr::term_t<int> t, const std::vector<exe::var
   return out.str();
 }
 
+std::string translate_expression(const expr::expr_t<int> e, const std::vector<exe::variable_declaration_t>& vds) {
+  std::stringstream out;
+  out << "0 " << ops2strC(e.op) << " " << translate_term(e.term, vds);
+  return out.str();
+}
+
+std::string translate_expressions(const std::vector<expr::expr_t<int>> exprs, const std::vector<exe::variable_declaration_t>& vds) {
+  std::stringstream out;
+
+  if (exprs.size() > 1) {
+    out << "(";
+  }
+
+  bool first = true;
+  for (const auto& expr : exprs) {
+    if (first) {
+      first = false;
+    } else {
+      out << ") && (";
+    }
+    out << translate_expression(expr, vds);
+  }
+
+  if (exprs.size() > 1) {
+    out << ")";
+  }
+
+  return out.str();
+}
+
 struct ir2c_visitor_t : public exe::stmt_visitor_t {
 
 private:
@@ -57,56 +87,17 @@ public:
 
   virtual void visit_assignment(exe::assignment_t& a) override {
     // TODO implement guards
-
     out << get_variable_name(e.variable_declarations[a.variable_id]) << " = " << translate_term(a.rhs, e.variable_declarations);
   }
 
   virtual void visit_assertion(exe::assertion_t& a) override {
     // TODO implement guards
-    out << "assert";
-
-    if (a.exprs.size() > 1) {
-      out << "(";
-    }
-
-    bool first = true;
-    for (const auto& expr : a.exprs) {
-      if (first) {
-        first = false;
-      }
-      else {
-        out << " && ";
-      }
-      out << "(0 " << ops2strC(expr.op) << " " << translate_term(expr.term, e.variable_declarations) << ")";
-    }
-
-    if (a.exprs.size() > 1) {
-      out << ")";
-    }
+    out << "assert(" << translate_expressions(a.exprs, e.variable_declarations) << ")";
   }
 
   virtual void visit_assumption(exe::assumption_t& a) override {
     // TODO implement guards
-    out << "assume";
-
-    if (a.exprs.size() > 1) {
-      out << "(";
-    }
-
-    bool first = true;
-    for (const auto& expr : a.exprs) {
-      if (first) {
-        first = false;
-      }
-      else {
-        out << " && ";
-      }
-      out << "(0 " << ops2strC(expr.op) << " " << translate_term(expr.term, e.variable_declarations) << ")";
-    }
-
-    if (a.exprs.size() > 1) {
-      out << ")";
-    }
+    out << "assume(" << translate_expressions(a.exprs, e.variable_declarations) << ")";
   }
 
 };
