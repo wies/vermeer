@@ -4,6 +4,39 @@
 #include <cstdlib>
 #include <iostream>
 
+struct ir2c_visitor_t : public exe::stmt_visitor_t {
+
+private:
+  std::ostream& out;
+
+public:
+  ir2c_visitor_t(std::ostream& out_) : out(out_) {}
+
+  virtual ~ir2c_visitor_t() {}
+
+  virtual void visit_execution(exe::execution_t& e) override {
+  }
+
+  virtual void visit_assignment(exe::assignment_t& a) override {
+    // TODO implement guard
+    // TODO implement C statement
+    out << "assignment";
+  }
+
+  virtual void visit_assertion(exe::assertion_t& a) override {
+    // TODO implement guard
+    // TODO implement C statement
+    out << "assertion";
+  }
+
+  virtual void visit_assumption(exe::assumption_t& a) override {
+    // TODO implement guard
+    // TODO implement C statement
+    out << "assumption";
+  }
+
+};
+
 void ir2c(std::ostream& out, const exe::execution_t& e) {
   out << "#ifdef COMPILE_FOR_TEST" << std::endl;
   out << "#include <assert.h>" << std::endl;
@@ -18,8 +51,10 @@ void ir2c(std::ostream& out, const exe::execution_t& e) {
 
   out << std::endl;
 
+  ir2c_visitor_t v(std::cout);
   for (const auto& s : e.statements) {
     out << "  T_" << s->program_location.thread << "_" << s->position_in_execution << "_" << s->program_location.thread << ": ";
+    s->accept(v);
     out << std::endl;
   }
 
