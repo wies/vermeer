@@ -5,15 +5,25 @@
 #include <iostream>
 
 void ir2c(std::ostream& out, const exe::execution_t& e) {
-  out << "#ifdef COMPILE_FOR_TEST" << ::std::endl;
-  out << "#include <assert.h>" << ::std::endl;
-  out << "#define assume(cond) assert(cond)" << ::std::endl;
-  out << "#endif" << ::std::endl << ::std::endl;
-  out << "void main(int argc, char* argv[]) {" << ::std::endl;
-  //MakeVarDecls(out);
-  out << ::std::endl;
-  //MakeGuardedAssignments(out);
-  out << "}" << ::std::endl;
+  out << "#ifdef COMPILE_FOR_TEST" << std::endl;
+  out << "#include <assert.h>" << std::endl;
+  out << "#define assume(cond) assert(cond)" << std::endl;
+  out << "#endif" << std::endl << std::endl;
+  out << "void main(int argc, char* argv[]) {" << std::endl;
+
+  // TODO variable names are missing in the intermediate representation
+  for (const auto& vd : e.variable_declarations) {
+    out << "  int x_" << vd.variable << "_" << vd.ssa_index << ";//" << std::endl;
+  }
+
+  out << std::endl;
+
+  for (const auto& s : e.statements) {
+    out << "  T_" << s->program_location.thread << "_" << s->position_in_execution << "_" << s->program_location.thread << ": ";
+    out << std::endl;
+  }
+
+  out << "}" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
