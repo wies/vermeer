@@ -4,7 +4,11 @@ let testmode = false
 
 let run () = 
   (* For now, just cheat and assume that all vars have type int *)
-  let typemap t = SmtSimpleAst.IntSort in
+  let typemap t =
+    if t = "rd" || t = "wr"
+    then SmtSimpleAst.BoolSort
+    else SmtSimpleAst.IntSort
+  in
   let open SmtLibSyntax in
   match SmtLibSolver.read_from_chan stdin with
   | SingleTerm t -> 

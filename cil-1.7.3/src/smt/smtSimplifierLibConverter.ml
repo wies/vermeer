@@ -4,12 +4,18 @@ module L =  SmtLibSyntax
 
 let smtSimpleofSmtLib typeMap f = 
   let rec aux = function  
-    | L.App (s,tl,po) -> (
-      let tl = List.map aux tl in
+    | L.App (s,tl0,po) -> (
+      let tl = List.map aux tl0 in
       match s with
       | L.BoolConst b -> SB.mk_boolConst b
       | L.IntConst i -> SB.mk_intConst i
-      | L.Ident i -> SB.mk_ident i (typeMap i)
+      | L.Ident i ->
+          begin
+            match tl0 with
+            | [L.App (L.IntConst n, _, _); L.App (L.IntConst m, _, _)] ->
+                SB.mk_ident (Printf.sprintf "%s!%d!%d" i (Int64.to_int n) (Int64.to_int m)) (typeMap i)
+            | _ -> SB.mk_ident i (typeMap i)
+          end
       | L.Plus -> SB.mk_add tl
       | L.Mult -> SB.mk_mult tl
       | L.Minus -> SB.mk_minus tl
